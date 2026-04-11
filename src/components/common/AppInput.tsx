@@ -22,7 +22,7 @@ const AppInput = (props: AppInputProps) => {
                 secureTextEntry={props.secureTextEntry}
                 style={Styles.input}
                 placeholderTextColor={colors.textSecondary}
-                
+
 
             />
 
@@ -39,6 +39,7 @@ export default AppInput;
 const Styles = StyleSheet.create({
     container: {
         width: '100%',
+  marginBottom: spacing.md,
     },
     label: {
         marginBottom: spacing.sm,

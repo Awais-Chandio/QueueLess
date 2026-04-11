@@ -1,7 +1,7 @@
 import React from "react";
 import { View,StyleSheet, Pressable, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {colors,spacing} from "../../theme";
+import {colors,radius,spacing} from "../../theme";
 
 interface AppButtonProps {
   onPress: () => void;
@@ -29,9 +29,14 @@ const Styles = StyleSheet.create({
 button:{
     backgroundColor:colors.primary,
     padding:spacing.md,
+    borderRadius: radius.borderRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    width: '100%',
 },
 buttonText:{
-    color:colors.text,
+    color: colors.background,
     fontWeight:'bold',
 }
 })
