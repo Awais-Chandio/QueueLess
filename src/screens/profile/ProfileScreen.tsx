@@ -6,23 +6,20 @@ import ScreenWrapper from "../../components/common/ScreenWrapper";
 const ProfileScreen = () => {
     return (
         <ScreenWrapper>
-            <view style={styles.container}>
+            <View style={styles.container}>
                 <Text style={styles.title}>
                     Profile
                 </Text>
                 <Text style={styles.subtitle}>
                     Your profile details will appear here
                 </Text>
-                <View>
-                    <Text style={styles.infoText}>John Doe</Text>
-                </View>
                 <View style={styles.infoContainer}>
+                     <Text style={styles.infoText}>Name : John Doe </Text>
                     <Text style={styles.infoText}>Email: john.doe@example.com</Text>
-                    <Text style={styles.infoText}>Phone Number: Not Added </Text>
-                    <Text style={styles.infoText}>Email: john.doe@example.com</Text>
+                    <Text style={styles.infoText}>Phone : Not Added</Text>
                 </View>
 
-            </view>
+            </View>
 
         </ScreenWrapper>
     )
@@ -52,6 +49,8 @@ const styles = StyleSheet.create({
         backgroundColor: colors.surface,
         borderRadius: spacing.sm,
         padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
     },
     infoText: {
         fontSize: typography.body,
