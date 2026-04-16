@@ -18,7 +18,7 @@ const SplashScreen = () => {
                 </Text>
 
                 <Loader
-                
+
                 />
 
 

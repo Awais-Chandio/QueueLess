@@ -1,29 +1,29 @@
 import React from "react";
-import { View,StyleSheet,Text } from "react-native";
-import {spacing,colors,typography} from "../../theme";
+import { View, StyleSheet, Text } from "react-native";
+import { spacing, colors, typography } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
-import AppButton from "../../components/common/AppButton";  
+import AppButton from "../../components/common/AppButton";
 
-const HomeScreen= ()=>{
-    return(
-            <ScreenWrapper>
-                <View style={styles.container}>
-                    <Text style={styles.title}>
-                      Home
-                    </Text>
-                    <Text style={styles.subtitle}>
-                       Welcome to QueueLess
-                    </Text>
-                    <AppButton
-                        title="View Centers"
-                        onPress={() => { }}
-                    />
-                    <AppButton
-                        title="My Bookings"
-                        onPress={() => { }}
-                    />
-                </View>
-            </ScreenWrapper>
+const HomeScreen = () => {
+    return (
+        <ScreenWrapper>
+            <View style={styles.container}>
+                <Text style={styles.title}>
+                    Home
+                </Text>
+                <Text style={styles.subtitle}>
+                    Welcome to QueueLess
+                </Text>
+                <AppButton
+                    title="View Centers"
+                    onPress={() => { }}
+                />
+                <AppButton
+                    title="My Bookings"
+                    onPress={() => { }}
+                />
+            </View>
+        </ScreenWrapper>
 
     )
 }
@@ -46,9 +46,10 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         marginBottom: spacing.lg,
         textAlign: 'center',
-     },
-     footerText: {
-         color: colors.primary,
-         marginTop: spacing.md,
-         textAlign: 'center',
-     }})
+    },
+    footerText: {
+        color: colors.primary,
+        marginTop: spacing.md,
+        textAlign: 'center',
+    }
+})

@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Pressable, Text } from "react-native";
-import { colors, spacing, typography,} from "../../theme";
+import { colors, spacing, typography, } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppInput from "../../components/common/AppInput";
 import AppButton from "../../components/common/AppButton";

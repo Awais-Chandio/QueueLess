@@ -14,7 +14,7 @@ const ProfileScreen = () => {
                     Your profile details will appear here
                 </Text>
                 <View style={styles.infoContainer}>
-                     <Text style={styles.infoText}>Name : John Doe </Text>
+                    <Text style={styles.infoText}>Name : John Doe </Text>
                     <Text style={styles.infoText}>Email: john.doe@example.com</Text>
                     <Text style={styles.infoText}>Phone : Not Added</Text>
                 </View>

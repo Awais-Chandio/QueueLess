@@ -8,16 +8,16 @@ import ProfileScreen from "../screens/profile/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
 
-const AppTabs = ()=>{
-    return(
+const AppTabs = () => {
+    return (
 
         <Tab.Navigator
-        screenOptions={{headerShown:false}}>
-        <Tab.Screen name ="Home" component={HomeScreen}/>
-        <Tab.Screen name = "Centers" component={CentersScreen}/>
-        <Tab.Screen name = "My Bookings" component={MyBookingsScreen}/>
-        <Tab.Screen name = "Profile" component={ProfileScreen}/>
-        <Tab.Screen name = "Settings" component={SettingsScreen}/>   
+            screenOptions={{ headerShown: false }}>
+            <Tab.Screen name="Home" component={HomeScreen} />
+            <Tab.Screen name="Centers" component={CentersScreen} />
+            <Tab.Screen name="My Bookings" component={MyBookingsScreen} />
+            <Tab.Screen name="Profile" component={ProfileScreen} />
+            <Tab.Screen name="Settings" component={SettingsScreen} />
 
 
         </Tab.Navigator>

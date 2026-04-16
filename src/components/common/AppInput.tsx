@@ -26,7 +26,7 @@ const AppInput = (props: AppInputProps) => {
 
             />
 
-            
+
 
         </View>
 
@@ -39,7 +39,7 @@ export default AppInput;
 const Styles = StyleSheet.create({
     container: {
         width: '100%',
-  marginBottom: spacing.md,
+        marginBottom: spacing.md,
     },
     label: {
         marginBottom: spacing.sm,
@@ -51,7 +51,7 @@ const Styles = StyleSheet.create({
         borderColor: colors.border,
         padding: spacing.md,
         borderRadius: radius.borderRadius,
-        color:colors.text,
-        backgroundColor:colors.surface,
+        color: colors.text,
+        backgroundColor: colors.surface,
     }
 })

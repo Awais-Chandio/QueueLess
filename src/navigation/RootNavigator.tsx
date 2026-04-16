@@ -2,16 +2,16 @@ import React from "react";
 import AuthNavigator from "./AuthNavigator";
 import AppTabs from "./AppTabs";
 
-const RootNavigator=()=>{
+const RootNavigator = () => {
 
-     const isLoggedIn =false;
+        const isLoggedIn = false;
 
-    return(
-        
+        return (
 
-            isLoggedIn ? <AppTabs/> : <AuthNavigator/>
-      
 
-    )
+                isLoggedIn ? <AppTabs /> : <AuthNavigator />
+
+
+        )
 }
 export default RootNavigator;

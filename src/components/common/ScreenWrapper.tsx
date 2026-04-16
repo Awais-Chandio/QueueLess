@@ -1,7 +1,7 @@
 import React from "react";
-import { View,StyleSheet } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {colors,spacing} from "../../theme";
+import { colors, spacing } from "../../theme";
 
 const ScreenWrapper = ({ children }: { children: React.ReactNode }) => {
     return (
@@ -12,16 +12,16 @@ const ScreenWrapper = ({ children }: { children: React.ReactNode }) => {
         </SafeAreaView>
     );
 };
-export default  ScreenWrapper;
+export default ScreenWrapper;
 
 const Styles = StyleSheet.create({
-SafeArea:{
-    flex:1,
-    backgroundColor:colors.background,
-},
-container:{
-flex:1,
-padding:spacing.lg
-}
+    SafeArea: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    container: {
+        flex: 1,
+        padding: spacing.lg
+    }
 
 })

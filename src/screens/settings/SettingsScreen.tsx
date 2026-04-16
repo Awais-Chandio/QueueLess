@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Text, Pressable } from "react-native";
-import { colors, spacing, typography,radius } from "../../theme";
+import { colors, spacing, typography, radius } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 
 const SettingsScreen = () => {
@@ -71,7 +71,7 @@ const Styles = StyleSheet.create({
         borderColor: colors.border,
     },
     optionalRow: {
-        paddingVertical: spacing.sm,    
+        paddingVertical: spacing.sm,
         borderBottomColor: colors.border,
     },
     optionText: {
