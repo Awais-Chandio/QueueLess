@@ -1,17 +1,20 @@
 import React from "react";
 import AuthNavigator from "./AuthNavigator";
 import AppTabs from "./AppTabs";
-
+import { useAuth } from "../hooks/useAuth";
+import SplashScreen from "../screens/splash/SplashScreen";
 const RootNavigator = () => {
+  const { isLoading, isAuthenticated } = useAuth();
 
-        const isLoggedIn = false;
+  if (isLoading) {
+    return <SplashScreen />;
+  }
 
-        return (
+  if (!isAuthenticated) {
+    return <AuthNavigator />;
+  }
 
+  return <AppTabs />;
+};
 
-                isLoggedIn ? <AppTabs /> : <AuthNavigator />
-
-
-        )
-}
 export default RootNavigator;
