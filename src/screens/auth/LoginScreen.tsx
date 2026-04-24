@@ -4,11 +4,33 @@ import { colors, spacing, typography } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppInput from "../../components/common/AppInput";
 import AppButton from "../../components/common/AppButton";
+import { useAuth } from "../../hooks/useAuth";
 
 
 const LoginScreen = () => {
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [errorMessage, setErrorMessage] = useState('');
+    const { login,isLoading } = useAuth();
+      async function handleLogin() {
+  if (isLoading) return;
+
+  if (!email.trim() || !password.trim()) {
+    setErrorMessage('Email and password are required');
+    return;
+  }
+
+  try {
+    setErrorMessage('');
+
+    await login({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+  } catch (error: any) {
+    setErrorMessage(error.message || 'Login failed');
+  }
+}
     return (
         <ScreenWrapper>
             <View style={styles.container}>
@@ -34,8 +56,10 @@ const LoginScreen = () => {
 
                 <AppButton
                     title="Login"
-                    onPress={() => { }}
+                    onPress={handleLogin}
+                    disabled={isLoading}
                 />
+                    {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
                 <Pressable onPress={() => { }}>
                     <Text style={styles.footerText}>Don't have an account? Sign Up</Text>
@@ -74,5 +98,10 @@ const styles = StyleSheet.create({
         marginTop: spacing.lg,
         textAlign: 'center',
         color: colors.primary
+    },
+    errorMessage: {
+        color: colors.error,
+        textAlign: 'center',
+        marginTop: spacing.sm,
     }
 });
