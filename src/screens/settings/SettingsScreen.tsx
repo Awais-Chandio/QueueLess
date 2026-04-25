@@ -2,8 +2,18 @@ import React from "react";
 import { View, StyleSheet, Text, Pressable } from "react-native";
 import { colors, spacing, typography, radius } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
+import { useAuth } from "../../hooks/useAuth";
 
 const SettingsScreen = () => {
+    const { logout } = useAuth();
+    async function handleLogout() {
+        try {
+            await logout();
+        } catch (error) {
+            console.error("Logout failed", error);
+        }
+    }
+
     return (
         <ScreenWrapper>
             <View style={Styles.container}>
@@ -29,8 +39,11 @@ const SettingsScreen = () => {
 
 
                     </Pressable>
-                    <Pressable style={Styles.optionalRow}>
-                        <Text style={Styles.optionText}>
+                    <Pressable
+                    onPress={handleLogout}
+                    style={Styles.optionalRow}>
+                        <Text style={[Styles.optionText, Styles.logoutText]}>
+
                             Logout
                         </Text>
 
@@ -78,4 +91,8 @@ const Styles = StyleSheet.create({
         fontSize: typography.body,
         color: colors.text,
     },
+    logoutText: {
+        color: colors.error,
+        fontWeight: 'bold',
+    }
 })

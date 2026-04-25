@@ -15,11 +15,11 @@ const SignupScreen = () => {
     const { signup, isLoading } = useAuth();
 
     async function handleSignup() {
-        if(name.trim() === "" || email.trim() === "" || password.trim() === "" || confirmPassword.trim() === "") {
+        if (name.trim() === "" || email.trim() === "" || password.trim() === "" || confirmPassword.trim() === "") {
             setErrorMessage("All fields are required");
             return;
         }
-        if(password !== confirmPassword) {
+        if (password !== confirmPassword) {
             setErrorMessage("Passwords do not match");
             return;
         }
@@ -33,11 +33,12 @@ const SignupScreen = () => {
             });
         } catch (error: any) {
             setErrorMessage(error.message || "Signup failed");
-        }}
+        }
+    }
     return (
-        
 
-        
+
+
         <ScreenWrapper>
             <View style={styles.container}>
                 <Text
@@ -83,7 +84,7 @@ const SignupScreen = () => {
                     onPress={() => handleSignup()}
                     loading={isLoading}
                 />
-                    {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
+                {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
                 <Pressable onPress={() => { }}
                 >
                     <Text style={styles.footerText}>Already have an account? Login</Text>
