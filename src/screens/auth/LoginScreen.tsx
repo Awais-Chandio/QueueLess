@@ -1,13 +1,18 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Text, Pressable } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppInput from "../../components/common/AppInput";
 import AppButton from "../../components/common/AppButton";
 import { useAuth } from "../../hooks/useAuth";
+import type { AuthStackParamList } from "../../navigation/AuthNavigator";
 
+type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "Login">;
 
 const LoginScreen = () => {
+    const navigation = useNavigation<LoginScreenNavigationProp>();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
@@ -27,8 +32,8 @@ const LoginScreen = () => {
       email: email.trim().toLowerCase(),
       password,
     });
-  } catch (error: any) {
-    setErrorMessage(error.message || 'Login failed');
+  } catch (error) {
+    setErrorMessage(error instanceof Error ? error.message : 'Login failed');
   }
 }
     return (
@@ -45,6 +50,11 @@ const LoginScreen = () => {
                     label="Email"
                     value={email}
                     onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="emailAddress"
+                    autoComplete="email"
                 />
                 <AppInput
                     placeholder="Password"
@@ -52,6 +62,10 @@ const LoginScreen = () => {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="password"
+                    autoComplete="password"
                 />
 
                 <AppButton
@@ -61,7 +75,7 @@ const LoginScreen = () => {
                 />
                     {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
-                <Pressable onPress={() => { }}>
+                <Pressable onPress={() => navigation.navigate("Signup")}>
                     <Text style={styles.footerText}>Don't have an account? Sign Up</Text>
                 </Pressable>
 

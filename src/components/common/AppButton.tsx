@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Pressable, Text } from "react-native";
+import { ActivityIndicator, StyleSheet, Pressable, Text } from "react-native";
 import { colors, radius, spacing } from "../../theme";
 
 interface AppButtonProps {
@@ -10,12 +10,18 @@ interface AppButtonProps {
 }
 
 const AppButton = ({ onPress, title, loading, disabled }: AppButtonProps) => {
+    const isDisabled = disabled || loading;
+
     return (
         <Pressable style={Styles.button}
             onPress={onPress}
-            disabled={disabled}
+            disabled={isDisabled}
         >
-            <Text style={Styles.buttonText} >{title}</Text>
+            {loading ? (
+                <ActivityIndicator color={colors.background} />
+            ) : (
+                <Text style={Styles.buttonText} >{title}</Text>
+            )}
 
         </Pressable>
     )

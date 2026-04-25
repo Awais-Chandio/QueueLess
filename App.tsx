@@ -9,7 +9,7 @@ const App = ()=>{
   const { restoreSession } = useAuth();
   useEffect(() => {
     restoreSession();
-  }, []);
+  }, [restoreSession]);
   return(
     <SafeAreaProvider>
       <NavigationContainer>

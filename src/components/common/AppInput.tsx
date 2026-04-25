@@ -1,5 +1,6 @@
 import React from "react";
 import { View, StyleSheet, TextInput, Text } from "react-native";
+import type { TextInputProps } from "react-native";
 import { colors, radius, spacing } from "../../theme/index"
 
 type AppInputProps = {
@@ -9,6 +10,11 @@ type AppInputProps = {
     secureTextEntry?: boolean;
     label?: string;
     error?: string;
+    keyboardType?: TextInputProps["keyboardType"];
+    autoCapitalize?: TextInputProps["autoCapitalize"];
+    autoCorrect?: TextInputProps["autoCorrect"];
+    textContentType?: TextInputProps["textContentType"];
+    autoComplete?: TextInputProps["autoComplete"];
 }
 
 const AppInput = (props: AppInputProps) => {
@@ -20,6 +26,11 @@ const AppInput = (props: AppInputProps) => {
                 value={props.value}
                 onChangeText={props.onChangeText}
                 secureTextEntry={props.secureTextEntry}
+                keyboardType={props.keyboardType}
+                autoCapitalize={props.autoCapitalize}
+                autoCorrect={props.autoCorrect}
+                textContentType={props.textContentType}
+                autoComplete={props.autoComplete}
                 style={Styles.input}
                 placeholderTextColor={colors.textSecondary}
 

@@ -1,6 +1,15 @@
+import { useCallback } from 'react';
 import { authService } from '../services/auth/authService';
 import { useAuthStore } from '../store/authStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
+
+const toAuthError = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error(fallbackMessage);
+};
 
 export const useAuth = () => {
   const {
@@ -13,62 +22,82 @@ export const useAuth = () => {
     setLoading,
   } = useAuthStore();
 
-  async function restoreSession() {
+  const restoreSession = useCallback(async () => {
     setLoading(true);
 
-    const { data, error } = await authService.getSession();
+    try {
+      const { data, error } = await authService.getSession();
 
-    if (error || !data.session) {
+      if (error || !data.session) {
+        clearAuth();
+        return;
+      }
+
+      setAuth(data.session, data.session.user);
+    } catch {
       clearAuth();
-      return;
     }
+  }, [clearAuth, setAuth, setLoading]);
 
-    setAuth(data.session, data.session.user);
-  }
-
-  async function login(payload: LoginPayload) {
+  const login = useCallback(async (payload: LoginPayload) => {
     setLoading(true);
 
-    const { data, error } = await authService.signIn(payload);
+    try {
+      const { data, error } = await authService.signIn(payload);
 
-    if (error || !data.session) {
-      clearAuth();
-      throw error;
-    }
+      if (error) {
+        throw error;
+      }
 
-    setAuth(data.session, data.user);
-  }
+      if (!data.session || !data.user) {
+        throw new Error('Login failed. Please check your email and password.');
+      }
 
-  async function signup(payload: SignupPayload) {
-    setLoading(true);
-
-    const { data, error } = await authService.signUp(payload);
-
-    if (error) {
-      clearAuth();
-      throw error;
-    }
-
-    if (data.session) {
       setAuth(data.session, data.user);
-      return;
+    } catch (error) {
+      clearAuth();
+      throw toAuthError(error, 'Login failed. Please try again.');
     }
+  }, [clearAuth, setAuth, setLoading]);
 
-    setLoading(false);
-  }
-
-  async function logout() {
+  const signup = useCallback(async (payload: SignupPayload) => {
     setLoading(true);
 
-    const { error } = await authService.signOut();
+    try {
+      const { data, error } = await authService.signUp(payload);
 
-    if (error) {
+      if (error) {
+        throw error;
+      }
+
+      if (data.session) {
+        setAuth(data.session, data.user);
+        return;
+      }
+
       setLoading(false);
-      throw error;
+    } catch (error) {
+      clearAuth();
+      throw toAuthError(error, 'Signup failed. Please try again.');
     }
+  }, [clearAuth, setAuth, setLoading]);
 
-    clearAuth();
-  }
+  const logout = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const { error } = await authService.signOut();
+
+      if (error) {
+        throw error;
+      }
+
+      clearAuth();
+    } catch (error) {
+      setLoading(false);
+      throw toAuthError(error, 'Logout failed. Please try again.');
+    }
+  }, [clearAuth, setLoading]);
 
   return {
     session,

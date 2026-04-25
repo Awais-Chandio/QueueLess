@@ -1,20 +1,31 @@
 import React from "react";
 import { View, StyleSheet, Pressable, Text } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography, } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppInput from "../../components/common/AppInput";
 import AppButton from "../../components/common/AppButton";
 import { useAuth } from "../../hooks/useAuth";
+import type { AuthStackParamList } from "../../navigation/AuthNavigator";
+
+type SignupScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "Signup">;
 
 const SignupScreen = () => {
+    const navigation = useNavigation<SignupScreenNavigationProp>();
     const [name, setName] = React.useState("");
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [confirmPassword, setConfirmPassword] = React.useState("");
     const [errorMessage, setErrorMessage] = React.useState("");
+    const [successMessage, setSuccessMessage] = React.useState("");
     const { signup, isLoading } = useAuth();
 
     async function handleSignup() {
+        if (isLoading) return;
+
+        setSuccessMessage("");
+
         if (name.trim() === "" || email.trim() === "" || password.trim() === "" || confirmPassword.trim() === "") {
             setErrorMessage("All fields are required");
             return;
@@ -29,10 +40,13 @@ const SignupScreen = () => {
                 name: name.trim(),
                 email: email.trim().toLowerCase(),
                 password,
-                confirmPassword: ""
+                confirmPassword
             });
-        } catch (error: any) {
-            setErrorMessage(error.message || "Signup failed");
+            setPassword("");
+            setConfirmPassword("");
+            setSuccessMessage("Account created. Please check your email, then login.");
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : "Signup failed");
         }
     }
     return (
@@ -62,6 +76,11 @@ const SignupScreen = () => {
                     label="Email"
                     value={email}
                     onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="emailAddress"
+                    autoComplete="email"
 
                 />
                 <AppInput
@@ -70,6 +89,10 @@ const SignupScreen = () => {
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="newPassword"
+                    autoComplete="new-password"
                 />
 
                 <AppInput
@@ -78,6 +101,10 @@ const SignupScreen = () => {
                     value={confirmPassword}
                     onChangeText={setConfirmPassword}
                     secureTextEntry={true}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    textContentType="newPassword"
+                    autoComplete="new-password"
                 />
                 <AppButton
                     title="Sign Up"
@@ -85,7 +112,8 @@ const SignupScreen = () => {
                     loading={isLoading}
                 />
                 {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
-                <Pressable onPress={() => { }}
+                {successMessage ? <Text style={styles.successMessage}>{successMessage}</Text> : null}
+                <Pressable onPress={() => navigation.navigate("Login")}
                 >
                     <Text style={styles.footerText}>Already have an account? Login</Text>
                 </Pressable>
@@ -127,5 +155,10 @@ const styles = StyleSheet.create({
         color: colors.error,
         textAlign: 'center',
         marginBottom: spacing.sm,
+    },
+    successMessage: {
+        color: colors.success,
+        textAlign: 'center',
+        marginTop: spacing.sm,
     }
 })
