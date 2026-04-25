@@ -57,7 +57,7 @@ const LoginScreen = () => {
                 <AppButton
                     title="Login"
                     onPress={handleLogin}
-                    disabled={isLoading}
+                    loading={isLoading}
                 />
                     {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 

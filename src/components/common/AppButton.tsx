@@ -5,10 +5,11 @@ import { colors, radius, spacing } from "../../theme";
 interface AppButtonProps {
     onPress: () => void;
     title: string;
+    loading?: boolean;
     disabled?: boolean;
 }
 
-const AppButton = ({ onPress, title, disabled }: AppButtonProps) => {
+const AppButton = ({ onPress, title, loading, disabled }: AppButtonProps) => {
     return (
         <Pressable style={Styles.button}
             onPress={onPress}

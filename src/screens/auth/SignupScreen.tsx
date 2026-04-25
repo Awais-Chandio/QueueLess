@@ -4,14 +4,40 @@ import { colors, spacing, typography, } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppInput from "../../components/common/AppInput";
 import AppButton from "../../components/common/AppButton";
+import { useAuth } from "../../hooks/useAuth";
 
 const SignupScreen = () => {
     const [name, setName] = React.useState("");
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
     const [confirmPassword, setConfirmPassword] = React.useState("");
+    const [errorMessage, setErrorMessage] = React.useState("");
+    const { signup, isLoading } = useAuth();
 
+    async function handleSignup() {
+        if(name.trim() === "" || email.trim() === "" || password.trim() === "" || confirmPassword.trim() === "") {
+            setErrorMessage("All fields are required");
+            return;
+        }
+        if(password !== confirmPassword) {
+            setErrorMessage("Passwords do not match");
+            return;
+        }
+        try {
+            setErrorMessage("");
+            await signup({
+                name: name.trim(),
+                email: email.trim().toLowerCase(),
+                password,
+                confirmPassword: ""
+            });
+        } catch (error: any) {
+            setErrorMessage(error.message || "Signup failed");
+        }}
     return (
+        
+
+        
         <ScreenWrapper>
             <View style={styles.container}>
                 <Text
@@ -54,8 +80,10 @@ const SignupScreen = () => {
                 />
                 <AppButton
                     title="Sign Up"
-                    onPress={() => { }}
+                    onPress={() => handleSignup()}
+                    loading={isLoading}
                 />
+                    {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
                 <Pressable onPress={() => { }}
                 >
                     <Text style={styles.footerText}>Already have an account? Login</Text>
@@ -93,5 +121,10 @@ const styles = StyleSheet.create({
         color: colors.primary,
         marginTop: spacing.md,
         textAlign: 'center',
+    },
+    errorMessage: {
+        color: colors.error,
+        textAlign: 'center',
+        marginBottom: spacing.sm,
     }
 })
