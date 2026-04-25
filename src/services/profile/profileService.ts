@@ -1,13 +1,13 @@
 import { supabase } from '../supabase/client';
 import {
     CreateProfilePayload,
-    UpdateProfilePayload, Profile
+    UpdateProfilePayload,
 } from "../../types/profile";
 
 export const profileService = {
 
     async getProfile(userId: string) {
-        await supabase.from('profiles').select('*').eq('id', userId).single();
+        return await supabase.from('profiles').select('*').eq('id', userId).single();
 
     },
     async createProfile(payload: CreateProfilePayload) {
