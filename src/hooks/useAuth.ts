@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { authService } from '../services/auth/authService';
 import { useAuthStore } from '../store/authStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
+import { profileService } from '../services/profile/profileService';
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -63,11 +64,19 @@ export const useAuth = () => {
   const signup = useCallback(async (payload: SignupPayload) => {
     setLoading(true);
 
+
     try {
       const { data, error } = await authService.signUp(payload);
 
       if (error) {
         throw error;
+      }
+      if (data.user) {
+        await profileService.createProfile({
+          id: data.user.id,
+          full_name: payload.name,
+          email: payload.email.trim().toLowerCase(),
+        });
       }
 
       if (data.session) {

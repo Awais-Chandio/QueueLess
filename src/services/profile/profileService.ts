@@ -13,7 +13,7 @@ export const profileService = {
     async createProfile(payload: CreateProfilePayload) {
         return await supabase
             .from('profiles')
-            .insert(payload)
+            .upsert(payload)
             .select()
             .single();
     },
