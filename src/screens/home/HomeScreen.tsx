@@ -1,10 +1,15 @@
 import React from "react";
 import { View, StyleSheet, Text } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NavigationProp } from "@react-navigation/native";
 import { spacing, colors, typography } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppButton from "../../components/common/AppButton";
+import type { AppTabParamList } from "../../navigation/types";
 
 const HomeScreen = () => {
+    const navigation = useNavigation<NavigationProp<AppTabParamList>>();
+
     return (
         <ScreenWrapper>
             <View style={styles.container}>
@@ -16,11 +21,11 @@ const HomeScreen = () => {
                 </Text>
                 <AppButton
                     title="View Centers"
-                    onPress={() => { }}
+                    onPress={() => navigation.navigate("Centers")}
                 />
                 <AppButton
                     title="My Bookings"
-                    onPress={() => { }}
+                    onPress={() => navigation.navigate("MyBookings")}
                 />
             </View>
         </ScreenWrapper>

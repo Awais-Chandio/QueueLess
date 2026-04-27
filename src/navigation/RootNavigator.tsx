@@ -1,6 +1,6 @@
 import React from "react";
 import AuthNavigator from "./AuthNavigator";
-import AppTabs from "./AppTabs";
+import AppNavigator from "./AppNavigator";
 import { useAuth } from "../hooks/useAuth";
 import SplashScreen from "../screens/splash/SplashScreen";
 const RootNavigator = () => {
@@ -14,7 +14,7 @@ const RootNavigator = () => {
     return <AuthNavigator />;
   }
 
-  return <AppTabs />;
+  return <AppNavigator />;
 };
 
 export default RootNavigator;

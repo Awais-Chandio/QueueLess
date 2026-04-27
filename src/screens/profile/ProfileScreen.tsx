@@ -1,9 +1,17 @@
 import React from "react";
 import { View, StyleSheet, Text } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
+import AppButton from "../../components/common/AppButton";
+import type { AppStackParamList } from "../../navigation/types";
+
+type NavigationProp = NativeStackNavigationProp<AppStackParamList, "EditProfile">;
 
 const ProfileScreen = () => {
+    const navigation = useNavigation<NavigationProp>();
+
     return (
         <ScreenWrapper>
             <View style={styles.container}>
@@ -18,6 +26,10 @@ const ProfileScreen = () => {
                     <Text style={styles.infoText}>Email: john.doe@example.com</Text>
                     <Text style={styles.infoText}>Phone : Not Added</Text>
                 </View>
+                <AppButton
+                    title="Edit Profile"
+                    onPress={() => navigation.navigate("EditProfile")}
+                />
 
             </View>
 

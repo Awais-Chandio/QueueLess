@@ -5,8 +5,9 @@ import SettingsScreen from "../screens/settings/SettingsScreen";
 import CentersScreen from "../screens/centers/CentersScreen";
 import MyBookingsScreen from "../screens/bookings/MyBookingsScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
+import type { AppTabParamList } from "./types";
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<AppTabParamList>();
 
 const AppTabs = () => {
     return (
@@ -15,7 +16,11 @@ const AppTabs = () => {
             screenOptions={{ headerShown: false }}>
             <Tab.Screen name="Home" component={HomeScreen} />
             <Tab.Screen name="Centers" component={CentersScreen} />
-            <Tab.Screen name="My Bookings" component={MyBookingsScreen} />
+            <Tab.Screen
+                name="MyBookings"
+                component={MyBookingsScreen}
+                options={{ title: "My Bookings" }}
+            />
             <Tab.Screen name="Profile" component={ProfileScreen} />
             <Tab.Screen name="Settings" component={SettingsScreen} />
 
