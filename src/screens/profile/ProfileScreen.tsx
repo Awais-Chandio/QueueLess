@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { useAuth } from "../../hooks/useAuth";
+import { useProfileStore } from "../../store/profileStore";
 import { View, StyleSheet, Text } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -6,11 +8,45 @@ import { colors, spacing, typography } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppButton from "../../components/common/AppButton";
 import type { AppStackParamList } from "../../navigation/types";
+import ErrorState from "../../components/common/ErrorState";
+import Loader from "../../components/common/Loader";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, "EditProfile">;
 
 const ProfileScreen = () => {
     const navigation = useNavigation<NavigationProp>();
+    const { user } = useAuth();
+    const { profile, fetchProfile, loading, error } = useProfileStore();
+
+    useEffect(() => {
+        if (user?.id) {
+            fetchProfile(user.id);
+        }
+    }, [user?.id, fetchProfile]);
+    if (loading) {
+        return (
+            <ScreenWrapper>
+                <Loader />
+            </ScreenWrapper>
+        );
+    }
+    if (error) {
+
+        return (
+            <ScreenWrapper>
+                <ErrorState message={error} />
+            </ScreenWrapper>
+        );
+    }
+    if (!profile) {
+        return (
+            <ScreenWrapper>
+                <ErrorState message="Profile not found" />
+            </ScreenWrapper>
+        );
+    }
+
+
 
     return (
         <ScreenWrapper>
@@ -22,9 +58,17 @@ const ProfileScreen = () => {
                     Your profile details will appear here
                 </Text>
                 <View style={styles.infoContainer}>
-                    <Text style={styles.infoText}>Name : John Doe </Text>
-                    <Text style={styles.infoText}>Email: john.doe@example.com</Text>
-                    <Text style={styles.infoText}>Phone : Not Added</Text>
+                    <Text style={styles.infoText}>
+                        Name: {profile.full_name || 'Not Added'}
+                    </Text>
+
+                    <Text style={styles.infoText}>
+                        Email: {profile.email || user?.email || 'Not Added'}
+                    </Text>
+
+                    <Text style={styles.infoText}>
+                        Phone: {profile.phone || 'Not Added'}
+                    </Text>
                 </View>
                 <AppButton
                     title="Edit Profile"
@@ -63,6 +107,7 @@ const styles = StyleSheet.create({
         padding: spacing.lg,
         borderWidth: 1,
         borderColor: colors.border,
+        marginBottom: spacing.lg,
     },
     infoText: {
         fontSize: typography.body,
