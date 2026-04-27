@@ -36,6 +36,7 @@ const AppInput = (props: AppInputProps) => {
 
 
             />
+            {props.error && <Text style={Styles.errorText}>{props.error}</Text>}
 
 
 
@@ -64,5 +65,10 @@ const Styles = StyleSheet.create({
         borderRadius: radius.borderRadius,
         color: colors.text,
         backgroundColor: colors.surface,
+    },
+    errorText: {
+        color: colors.error,
+        fontSize: 12,
+        marginTop: spacing.xs,
     }
 })

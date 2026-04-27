@@ -13,7 +13,7 @@ const AppButton = ({ onPress, title, loading, disabled }: AppButtonProps) => {
     const isDisabled = disabled || loading;
 
     return (
-        <Pressable style={Styles.button}
+        <Pressable style={[Styles.button, isDisabled && Styles.disabledButton]}
             onPress={onPress}
             disabled={isDisabled}
         >
@@ -44,5 +44,8 @@ const Styles = StyleSheet.create({
     buttonText: {
         color: colors.background,
         fontWeight: 'bold',
+    },
+    disabledButton: {
+        opacity: 0.5,
     }
 })
