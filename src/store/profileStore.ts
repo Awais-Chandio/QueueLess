@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import { profileService } from "../services/profile/profileService";
-import { CreateProfilePayload, UpdateProfilePayload,Profile } from "../types/profile";
+import { CreateProfilePayload, UpdateProfilePayload, Profile } from "../types/profile";
 
 type ProfileState = {
-    profile:Profile | null;
+    profile: Profile | null;
     loading: boolean;
     error: string | null;
 
@@ -21,7 +21,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
         if (error) {
             set({ error: error.message, loading: false });
             return
-        } 
+        }
         set({ profile: data, loading: false });
     },
     createProfile: async (payload) => {
@@ -42,8 +42,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
         }
         set({ profile: data, loading: false });
 
-        },
-        clearProfile: () => {
-    set({ profile: null, loading: false, error: null });
     },
-    }));
+    clearProfile: () => {
+        set({ profile: null, loading: false, error: null });
+    },
+}));
