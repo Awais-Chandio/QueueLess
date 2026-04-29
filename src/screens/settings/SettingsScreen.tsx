@@ -40,8 +40,8 @@ const SettingsScreen = () => {
 
                     </Pressable>
                     <Pressable
-                    onPress={handleLogout}
-                    style={Styles.optionalRow}>
+                        onPress={handleLogout}
+                        style={Styles.optionalRow}>
                         <Text style={[Styles.optionText, Styles.logoutText]}>
 
                             Logout

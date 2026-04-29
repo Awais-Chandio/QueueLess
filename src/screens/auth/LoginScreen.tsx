@@ -16,26 +16,26 @@ const LoginScreen = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
-    const { login,isLoading } = useAuth();
-      async function handleLogin() {
-  if (isLoading) return;
+    const { login, isLoading } = useAuth();
+    async function handleLogin() {
+        if (isLoading) return;
 
-  if (!email.trim() || !password.trim()) {
-    setErrorMessage('Email and password are required');
-    return;
-  }
+        if (!email.trim() || !password.trim()) {
+            setErrorMessage('Email and password are required');
+            return;
+        }
 
-  try {
-    setErrorMessage('');
+        try {
+            setErrorMessage('');
 
-    await login({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-  } catch (error) {
-    setErrorMessage(error instanceof Error ? error.message : 'Login failed');
-  }
-}
+            await login({
+                email: email.trim().toLowerCase(),
+                password,
+            });
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : 'Login failed');
+        }
+    }
     return (
         <ScreenWrapper>
             <View style={styles.container}>
@@ -73,7 +73,7 @@ const LoginScreen = () => {
                     onPress={handleLogin}
                     loading={isLoading}
                 />
-                    {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
+                {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
                 <Pressable onPress={() => navigation.navigate("Signup")}>
                     <Text style={styles.footerText}>Don't have an account? Sign Up</Text>

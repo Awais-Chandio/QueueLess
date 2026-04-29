@@ -15,10 +15,10 @@ const EditProfileScreen = () => {
           label="Full Name"
           placeholder="Full name"
           value=""
-          onChangeText={() => {}}
+          onChangeText={() => { }}
           error="Validation message placeholder"
         />
-        <AppButton title="Save Changes" onPress={() => {}} disabled />
+        <AppButton title="Save Changes" onPress={() => { }} disabled />
       </View>
     </ScreenWrapper>
   );
