@@ -9,29 +9,36 @@ interface AppButtonProps {
     disabled?: boolean;
 }
 
-const AppButton = ({ onPress, title, loading, disabled }: AppButtonProps) => {
+const AppButton = ({ onPress, title, loading = false, disabled = false }: AppButtonProps) => {
     const isDisabled = disabled || loading;
 
     return (
-        <Pressable style={[Styles.button, isDisabled && Styles.disabledButton]}
+        <Pressable
+            style={({ pressed }) => [
+                styles.button,
+                pressed && !isDisabled && styles.pressedButton,
+                isDisabled && styles.disabledButton,
+            ]}
             onPress={onPress}
             disabled={isDisabled}
+            accessibilityRole="button"
+            accessibilityState={{
+                busy: loading,
+                disabled: isDisabled,
+            }}
         >
             {loading ? (
                 <ActivityIndicator color={colors.background} />
             ) : (
-                <Text style={Styles.buttonText} >{title}</Text>
+                <Text style={styles.buttonText}>{title}</Text>
             )}
-
         </Pressable>
-    )
-
-
-}
+    );
+};
 
 export default AppButton;
 
-const Styles = StyleSheet.create({
+const styles = StyleSheet.create({
     button: {
         backgroundColor: colors.primary,
         padding: spacing.md,
@@ -45,7 +52,10 @@ const Styles = StyleSheet.create({
         color: colors.background,
         fontWeight: 'bold',
     },
+    pressedButton: {
+        opacity: 0.85,
+    },
     disabledButton: {
         opacity: 0.5,
-    }
-})
+    },
+});
