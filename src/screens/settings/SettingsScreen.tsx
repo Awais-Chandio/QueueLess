@@ -3,8 +3,14 @@ import { View, StyleSheet, Text, Pressable } from "react-native";
 import { colors, spacing, typography, radius } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import { useAuth } from "../../hooks/useAuth";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { AppStackParamList } from "../../navigation/types";
+
+type SettingsScreenNavigationProp = NativeStackNavigationProp<AppStackParamList, 'EditProfile'>;
 
 const SettingsScreen = () => {
+    const navigation = useNavigation<SettingsScreenNavigationProp>();
     const { logout } = useAuth();
     async function handleLogout() {
         try {
@@ -24,13 +30,12 @@ const SettingsScreen = () => {
                     Manage your app preferences.
                 </Text>
                 <View style={Styles.optionsContainer}>
-                    <Pressable style={Styles.optionalRow}>
-
+                    <Pressable
+                        style={Styles.optionalRow}
+                        onPress={() => navigation.navigate('EditProfile')}>
                         <Text style={Styles.optionText}>
                             Edit Profile
                         </Text>
-
-
                     </Pressable >
                     <Pressable style={Styles.optionalRow}>
                         <Text style={Styles.optionText}>

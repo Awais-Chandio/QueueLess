@@ -9,6 +9,7 @@ import ScreenWrapper from "../../components/common/ScreenWrapper";
 import AppButton from "../../components/common/AppButton";
 import type { AppStackParamList } from "../../navigation/types";
 import ErrorState from "../../components/common/ErrorState";
+import EmptyState from "../../components/common/EmptyState";
 import Loader from "../../components/common/Loader";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, "EditProfile">;
@@ -16,14 +17,14 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList, "EditProfile"
 const ProfileScreen = () => {
     const navigation = useNavigation<NavigationProp>();
     const { user } = useAuth();
-    const { profile, fetchProfile, loading, error } = useProfileStore();
+    const { profile, fetchProfile, isLoading, error } = useProfileStore();
 
     useEffect(() => {
         if (user?.id) {
             fetchProfile(user.id);
         }
     }, [user?.id, fetchProfile]);
-    if (loading) {
+    if (isLoading) {
         return (
             <ScreenWrapper>
                 <Loader />
@@ -34,14 +35,23 @@ const ProfileScreen = () => {
 
         return (
             <ScreenWrapper>
-                <ErrorState message={error} />
+                <ErrorState
+                    message={error}
+                    buttonTitle="Retry"
+                    onRetry={() => user?.id && fetchProfile(user.id)}
+                />
             </ScreenWrapper>
         );
     }
     if (!profile) {
         return (
             <ScreenWrapper>
-                <ErrorState message="Profile not found" />
+                <EmptyState
+                    title="No Profile Data"
+                    subtitle="Your profile information could not be loaded."
+                    buttonTitle="Retry"
+                    onButtonPress={() => user?.id && fetchProfile(user.id)}
+                />
             </ScreenWrapper>
         );
     }

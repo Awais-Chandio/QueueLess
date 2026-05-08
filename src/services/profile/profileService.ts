@@ -6,7 +6,7 @@ import {
 
 export const profileService = {
 
-    async getProfile(userId: string) {
+    async getProfileById(userId: string) {
         return await supabase.from('profiles').select('*').eq('id', userId).single();
 
     },
