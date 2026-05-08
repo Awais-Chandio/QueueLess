@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { authService } from '../services/auth/authService';
 import { useAuthStore } from '../store/authStore';
+import { useProfileStore } from '../store/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
 import { profileService } from '../services/profile/profileService';
 
@@ -31,12 +32,14 @@ export const useAuth = () => {
 
       if (error || !data.session) {
         clearAuth();
+        useProfileStore.getState().clearProfile();
         return;
       }
 
       setAuth(data.session, data.session.user);
     } catch {
       clearAuth();
+      useProfileStore.getState().clearProfile();
     }
   }, [clearAuth, setAuth, setLoading]);
 
@@ -102,6 +105,7 @@ export const useAuth = () => {
       }
 
       clearAuth();
+      useProfileStore.getState().clearProfile();
     } catch (error) {
       setLoading(false);
       throw toAuthError(error, 'Logout failed. Please try again.');
