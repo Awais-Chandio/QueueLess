@@ -4,46 +4,46 @@ import { CreateProfilePayload, UpdateProfilePayload, Profile } from "../types/pr
 
 type ProfileState = {
     profile: Profile | null;
-    loading: boolean;
+    isLoading: boolean;
     error: string | null;
 
     fetchProfile: (userId: string) => Promise<void>;
     createProfile: (payload: CreateProfilePayload) => Promise<void>;
     updateProfile: (userId: string, payload: UpdateProfilePayload) => Promise<void>;
+    clearProfile: () => void;
 }
 export const useProfileStore = create<ProfileState>((set) => ({
     profile: null,
-    loading: false,
+    isLoading: false,
     error: null,
     fetchProfile: async (userId) => {
-        set({ loading: true, error: null });
-        const { data, error } = await profileService.getProfile(userId);
+        set({ isLoading: true, error: null });
+        const { data, error } = await profileService.getProfileById(userId);
         if (error) {
-            set({ error: error.message, loading: false });
-            return
+            set({ error: error.message, isLoading: false });
+            return;
         }
-        set({ profile: data, loading: false });
+        set({ profile: data, isLoading: false });
     },
     createProfile: async (payload) => {
-        set({ loading: true, error: null });
+        set({ isLoading: true, error: null });
         const { data, error } = await profileService.createProfile(payload);
         if (error) {
-            set({ error: error.message, loading: false });
+            set({ error: error.message, isLoading: false });
             return;
         }
-        set({ profile: data, loading: false });
+        set({ profile: data, isLoading: false });
     },
     updateProfile: async (userId, payload) => {
-        set({ loading: true, error: null });
+        set({ isLoading: true, error: null });
         const { data, error } = await profileService.updateProfile(userId, payload);
         if (error) {
-            set({ error: error.message, loading: false });
+            set({ error: error.message, isLoading: false });
             return;
         }
-        set({ profile: data, loading: false });
-
+        set({ profile: data, isLoading: false });
     },
     clearProfile: () => {
-        set({ profile: null, loading: false, error: null });
+        set({ profile: null, isLoading: false, error: null });
     },
 }));
