@@ -17,15 +17,20 @@ export const useProfileStore = create<ProfileState>((set) => ({
     isLoading: false,
     error: null,
     fetchProfile: async (userId) => {
-        console.log('[profileStore.fetchProfile] fetching for userId:', userId);
+        if (__DEV__) console.log('[profileStore.fetchProfile] fetching for userId:', userId);
         set({ isLoading: true, error: null });
-        const { data, error } = await profileService.getProfileById(userId);
-        console.log('[profileStore.fetchProfile] result:', { data, error: error?.message });
-        if (error) {
-            set({ error: error.message, isLoading: false });
-            return;
+        try {
+            const { data, error } = await profileService.getProfileById(userId);
+            if (__DEV__) console.log('[profileStore.fetchProfile] result:', { data, error: error?.message });
+            if (error) {
+                set({ error: error.message, isLoading: false });
+                return;
+            }
+            set({ profile: data, isLoading: false });
+        } catch (e) {
+            const message = e instanceof Error ? e.message : 'Network error while fetching profile';
+            set({ error: message, isLoading: false });
         }
-        set({ profile: data, isLoading: false });
     },
     createProfile: async (payload) => {
         set({ isLoading: true, error: null });
@@ -37,13 +42,21 @@ export const useProfileStore = create<ProfileState>((set) => ({
         set({ profile: data, isLoading: false });
     },
     updateProfile: async (userId, payload) => {
+        if (__DEV__) console.log('[profileStore.updateProfile] updating for userId:', userId);
         set({ isLoading: true, error: null });
-        const { data, error } = await profileService.updateProfile(userId, payload);
-        if (error) {
-            set({ error: error.message, isLoading: false });
-            return;
+        try {
+            const { data, error } = await profileService.updateProfile(userId, payload);
+            if (__DEV__) console.log('[profileStore.updateProfile] result:', { data, error: error?.message });
+            if (error) {
+                set({ error: error.message, isLoading: false });
+                return;
+            }
+            // Refresh profile from DB to ensure store is in sync
+            await useProfileStore.getState().fetchProfile(userId);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : 'Network error while updating profile';
+            set({ error: message, isLoading: false });
         }
-        set({ profile: data, isLoading: false });
     },
     clearProfile: () => {
         set({ profile: null, isLoading: false, error: null });

@@ -3,7 +3,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { SafeAreaProvider } from "react-native-safe-area-context"; 
 import { useAuth } from "./src/hooks/useAuth";
-
+import ToastMessage from "./src/components/common/ToastMessage";
 
 const App = ()=>{
   const { restoreSession } = useAuth();
@@ -15,6 +15,7 @@ const App = ()=>{
       <NavigationContainer>
         <RootNavigator/>
       </NavigationContainer>
+      <ToastMessage />
     </SafeAreaProvider>
   )
 }

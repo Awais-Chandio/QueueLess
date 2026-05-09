@@ -1,7 +1,7 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useCallback, useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
 import { useProfileStore } from "../../store/profileStore";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, ScrollView, RefreshControl, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography } from "../../theme";
@@ -18,14 +18,31 @@ const ProfileScreen = () => {
     const navigation = useNavigation<NavigationProp>();
     const { user } = useAuth();
     const { profile, fetchProfile, isLoading, error } = useProfileStore();
+    const [refreshing, setRefreshing] = useState(false);
+
+    const loadProfile = useCallback(async () => {
+        if (!user?.id) return;
+        if (__DEV__) {
+            console.log('[ProfileScreen] fetching profile for userId:', user.id);
+        }
+        await fetchProfile(user.id);
+    }, [user?.id, fetchProfile]);
 
     useEffect(() => {
-        console.log('[ProfileScreen] user?.id =', user?.id);
-        if (user?.id) {
-            console.log('[ProfileScreen] calling fetchProfile for userId:', user.id);
-            fetchProfile(user.id);
+        loadProfile();
+    }, [loadProfile]);
+
+    useEffect(() => {
+        if (error) {
+            Alert.alert('Error', error);
         }
-    }, [user?.id, fetchProfile]);
+    }, [error]);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await loadProfile();
+        setRefreshing(false);
+    }, [loadProfile]);
     if (isLoading) {
         return (
             <ScreenWrapper>
@@ -62,39 +79,47 @@ const ProfileScreen = () => {
 
     return (
         <ScreenWrapper>
-            <View style={styles.container}>
-                <Text style={styles.title}>
-                    Profile
-                </Text>
-                <Text style={styles.subtitle}>
-                    Your profile details will appear here
-                </Text>
-                <View style={styles.infoContainer}>
-                    <Text style={styles.infoText}>
-                        Name: {profile.full_name || 'Not Added'}
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
+                <View style={styles.container}>
+                    <Text style={styles.title}>
+                        Profile
                     </Text>
+                    <Text style={styles.subtitle}>
+                        Your profile details will appear here
+                    </Text>
+                    <View style={styles.infoContainer}>
+                        <Text style={styles.infoText}>
+                            Name: {profile.full_name || 'Not Added'}
+                        </Text>
 
-                    <Text style={styles.infoText}>
-                        Email: {profile.email || user?.email || 'Not Added'}
-                    </Text>
+                        <Text style={styles.infoText}>
+                            Email: {profile.email || user?.email || 'Not Added'}
+                        </Text>
 
-                    <Text style={styles.infoText}>
-                        Phone: {profile.phone || 'Not Added'}
-                    </Text>
+                        <Text style={styles.infoText}>
+                            Phone: {profile.phone || 'Not Added'}
+                        </Text>
+                    </View>
+                    <AppButton
+                        title="Edit Profile"
+                        onPress={() => navigation.navigate("EditProfile")}
+                    />
                 </View>
-                <AppButton
-                    title="Edit Profile"
-                    onPress={() => navigation.navigate("EditProfile")}
-                />
-
-            </View>
-
+            </ScrollView>
         </ScreenWrapper>
     )
 }
 export default ProfileScreen;
 
 const styles = StyleSheet.create({
+    scrollContent: {
+        flexGrow: 1,
+    },
     container: {
         flex: 1,
         justifyContent: 'center',

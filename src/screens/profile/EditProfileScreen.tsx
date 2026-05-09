@@ -10,6 +10,7 @@ import Loader from "../../components/common/Loader";
 import ErrorState from "../../components/common/ErrorState";
 import { useAuth } from "../../hooks/useAuth";
 import { useProfileStore } from "../../store/profileStore";
+import { useToastStore } from "../../store/toastStore";
 import { profileSchema, type ProfileFormData } from "../../validations/profileSchema";
 import { colors, spacing, typography } from "../../theme";
 
@@ -17,6 +18,7 @@ const EditProfileScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { profile, isLoading, error, fetchProfile, updateProfile } = useProfileStore();
+  const { showToast } = useToastStore();
 
   const {
     control,
@@ -45,6 +47,7 @@ const EditProfileScreen = () => {
 
   const onSubmit = async (data: ProfileFormData) => {
     if (!user?.id) return;
+    if (__DEV__) console.log('[EditProfileScreen] submitting update:', data);
     await updateProfile(user.id, {
       full_name: data.full_name,
       phone: data.phone || undefined,
@@ -52,6 +55,7 @@ const EditProfileScreen = () => {
     // Only navigate back if there is no error after update
     const currentError = useProfileStore.getState().error;
     if (!currentError) {
+      showToast('Profile updated successfully', 'success');
       navigation.goBack();
     }
   };

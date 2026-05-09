@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Text, Pressable } from "react-native";
+import { View, StyleSheet, Text, Pressable, Alert } from "react-native";
 import { colors, spacing, typography, radius } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import { useAuth } from "../../hooks/useAuth";
@@ -16,7 +16,8 @@ const SettingsScreen = () => {
         try {
             await logout();
         } catch (error) {
-            console.error("Logout failed", error);
+            const message = error instanceof Error ? error.message : 'Logout failed';
+            Alert.alert('Logout Error', message);
         }
     }
 

@@ -25,12 +25,14 @@ export const useAuth = () => {
   } = useAuthStore();
 
   const restoreSession = useCallback(async () => {
-    console.log('[AUTH] restoreSession started');
+    if (__DEV__) console.log('[AUTH] restoreSession started');
     setLoading(true);
 
     try {
       const { data, error } = await authService.getSession();
-      console.log('[AUTH] getSession result:', { sessionExists: !!data.session, error: error?.message });
+      if (__DEV__) {
+        console.log('[AUTH] getSession result:', { sessionExists: !!data.session, error: error?.message });
+      }
 
       if (error || !data.session) {
         clearAuth();
@@ -44,7 +46,7 @@ export const useAuth = () => {
       try {
         const { error: profileError } = await profileService.getProfileById(data.session.user.id);
         if (profileError) {
-          console.log('[AUTH] Profile missing during restore, creating fallback...');
+          if (__DEV__) console.log('[AUTH] Profile missing during restore, creating fallback...');
           await profileService.createProfile({
             id: data.session.user.id,
             full_name: data.session.user.user_metadata?.full_name || '',
@@ -52,8 +54,9 @@ export const useAuth = () => {
           });
         }
         await useProfileStore.getState().fetchProfile(data.session.user.id);
+        if (__DEV__) console.log('[AUTH] restoreSession complete');
       } catch (e) {
-        console.warn('[AUTH] Profile fetch/restore warning:', e);
+        if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
       }
     } catch {
       clearAuth();
@@ -62,10 +65,14 @@ export const useAuth = () => {
   }, [clearAuth, setAuth, setLoading]);
 
   const login = useCallback(async (payload: LoginPayload) => {
+    if (__DEV__) console.log('[AUTH] login started');
     setLoading(true);
 
     try {
       const { data, error } = await authService.signIn(payload);
+      if (__DEV__) {
+        console.log('[AUTH] login result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
+      }
 
       if (error) {
         throw error;
@@ -81,7 +88,7 @@ export const useAuth = () => {
       try {
         const { error: profileError } = await profileService.getProfileById(data.user.id);
         if (profileError) {
-          console.log('[LOGIN] Profile missing, creating fallback...');
+          if (__DEV__) console.log('[LOGIN] Profile missing, creating fallback...');
           await profileService.createProfile({
             id: data.user.id,
             full_name: data.user.user_metadata?.full_name || '',
@@ -89,8 +96,9 @@ export const useAuth = () => {
           });
         }
         await useProfileStore.getState().fetchProfile(data.user.id);
+        if (__DEV__) console.log('[AUTH] login complete');
       } catch (e) {
-        console.warn('[LOGIN] Profile fetch/restore warning:', e);
+        if (__DEV__) console.warn('[LOGIN] Profile fetch/restore warning:', e);
       }
     } catch (error) {
       clearAuth();
@@ -99,24 +107,26 @@ export const useAuth = () => {
   }, [clearAuth, setAuth, setLoading]);
 
   const signup = useCallback(async (payload: SignupPayload) => {
+    if (__DEV__) console.log('[AUTH] signup started');
     setLoading(true);
 
     try {
-      console.log('[SIGNUP] Calling authService.signUp...');
       const { data, error } = await authService.signUp(payload);
-      console.log('[SIGNUP] auth result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
+      if (__DEV__) {
+        console.log('[AUTH] signup result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
+      }
 
       if (error) {
         throw error;
       }
 
       if (data.session && data.user) {
-        console.log('[SIGNUP] Success — setting auth');
+        if (__DEV__) console.log('[AUTH] signup success — setting auth');
         setAuth(data.session, data.user);
         try {
           await useProfileStore.getState().fetchProfile(data.user.id);
         } catch (e) {
-          console.warn('[SIGNUP] Profile fetch warning:', e);
+          if (__DEV__) console.warn('[SIGNUP] Profile fetch warning:', e);
         }
         return;
       }
@@ -129,6 +139,7 @@ export const useAuth = () => {
   }, [clearAuth, setAuth, setLoading]);
 
   const logout = useCallback(async () => {
+    if (__DEV__) console.log('[AUTH] logout started');
     setLoading(true);
 
     try {
@@ -140,6 +151,7 @@ export const useAuth = () => {
 
       clearAuth();
       useProfileStore.getState().clearProfile();
+      if (__DEV__) console.log('[AUTH] logout complete, profile cleared');
     } catch (error) {
       setLoading(false);
       throw toAuthError(error, 'Logout failed. Please try again.');
