@@ -20,7 +20,9 @@ const ProfileScreen = () => {
     const { profile, fetchProfile, isLoading, error } = useProfileStore();
 
     useEffect(() => {
+        console.log('[ProfileScreen] user?.id =', user?.id);
         if (user?.id) {
+            console.log('[ProfileScreen] calling fetchProfile for userId:', user.id);
             fetchProfile(user.id);
         }
     }, [user?.id, fetchProfile]);

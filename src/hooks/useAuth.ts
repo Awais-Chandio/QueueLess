@@ -25,10 +25,12 @@ export const useAuth = () => {
   } = useAuthStore();
 
   const restoreSession = useCallback(async () => {
+    console.log('[AUTH] restoreSession started');
     setLoading(true);
 
     try {
       const { data, error } = await authService.getSession();
+      console.log('[AUTH] getSession result:', { sessionExists: !!data.session, error: error?.message });
 
       if (error || !data.session) {
         clearAuth();
@@ -37,6 +39,22 @@ export const useAuth = () => {
       }
 
       setAuth(data.session, data.session.user);
+
+      // Ensure profile exists (fallback for users created before trigger)
+      try {
+        const { error: profileError } = await profileService.getProfileById(data.session.user.id);
+        if (profileError) {
+          console.log('[AUTH] Profile missing during restore, creating fallback...');
+          await profileService.createProfile({
+            id: data.session.user.id,
+            full_name: data.session.user.user_metadata?.full_name || '',
+            email: data.session.user.email || '',
+          });
+        }
+        await useProfileStore.getState().fetchProfile(data.session.user.id);
+      } catch (e) {
+        console.warn('[AUTH] Profile fetch/restore warning:', e);
+      }
     } catch {
       clearAuth();
       useProfileStore.getState().clearProfile();
@@ -58,6 +76,22 @@ export const useAuth = () => {
       }
 
       setAuth(data.session, data.user);
+
+      // Ensure profile exists (fallback for users created before trigger)
+      try {
+        const { error: profileError } = await profileService.getProfileById(data.user.id);
+        if (profileError) {
+          console.log('[LOGIN] Profile missing, creating fallback...');
+          await profileService.createProfile({
+            id: data.user.id,
+            full_name: data.user.user_metadata?.full_name || '',
+            email: data.user.email || '',
+          });
+        }
+        await useProfileStore.getState().fetchProfile(data.user.id);
+      } catch (e) {
+        console.warn('[LOGIN] Profile fetch/restore warning:', e);
+      }
     } catch (error) {
       clearAuth();
       throw toAuthError(error, 'Login failed. Please try again.');
@@ -67,23 +101,23 @@ export const useAuth = () => {
   const signup = useCallback(async (payload: SignupPayload) => {
     setLoading(true);
 
-
     try {
+      console.log('[SIGNUP] Calling authService.signUp...');
       const { data, error } = await authService.signUp(payload);
+      console.log('[SIGNUP] auth result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
 
       if (error) {
         throw error;
       }
-      if (data.user) {
-        await profileService.createProfile({
-          id: data.user.id,
-          full_name: payload.name,
-          email: payload.email.trim().toLowerCase(),
-        });
-      }
 
-      if (data.session) {
+      if (data.session && data.user) {
+        console.log('[SIGNUP] Success — setting auth');
         setAuth(data.session, data.user);
+        try {
+          await useProfileStore.getState().fetchProfile(data.user.id);
+        } catch (e) {
+          console.warn('[SIGNUP] Profile fetch warning:', e);
+        }
         return;
       }
 

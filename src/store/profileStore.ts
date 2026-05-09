@@ -17,8 +17,10 @@ export const useProfileStore = create<ProfileState>((set) => ({
     isLoading: false,
     error: null,
     fetchProfile: async (userId) => {
+        console.log('[profileStore.fetchProfile] fetching for userId:', userId);
         set({ isLoading: true, error: null });
         const { data, error } = await profileService.getProfileById(userId);
+        console.log('[profileStore.fetchProfile] result:', { data, error: error?.message });
         if (error) {
             set({ error: error.message, isLoading: false });
             return;

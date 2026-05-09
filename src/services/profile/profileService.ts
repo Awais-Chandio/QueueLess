@@ -11,11 +11,19 @@ export const profileService = {
 
     },
     async createProfile(payload: CreateProfilePayload) {
-        return await supabase
+        const insertPayload = {
+            ...payload,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+        console.log('[profileService.createProfile] insert payload:', insertPayload);
+        const result = await supabase
             .from('profiles')
-            .upsert(payload)
+            .insert(insertPayload)
             .select()
             .single();
+        console.log('[profileService.createProfile] supabase result:', { data: result.data, error: result.error?.message, status: result.status });
+        return result;
     },
     async updateProfile(userId: string, payload: UpdateProfilePayload) {
         return await supabase
