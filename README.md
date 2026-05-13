@@ -1,6 +1,25 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# QueueLess
+
+QueueLess is a React Native mobile app for appointment booking and queue
+management. The app uses React Navigation for auth and app flows, Zustand for
+local state, and Supabase for backend auth/profile services.
+
+## Project Map
+
+- `App.tsx` restores the user session, mounts navigation, and renders global
+  toast UI.
+- `src/navigation` separates the auth stack, authenticated stack, and bottom
+  tab navigation.
+- `src/screens` contains the auth, home, centers, bookings, profile, settings,
+  and splash screens.
+- `src/services` contains Supabase, auth, and profile service helpers.
+- `src/store` contains app state stores for auth, profile, and toast messages.
+- `android` and `ios` contain the native React Native app shells.
 
 # Getting Started
+
+This is a [**React Native**](https://reactnative.dev) project, bootstrapped
+using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
