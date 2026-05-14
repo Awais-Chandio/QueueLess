@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { colors, spacing, typography } from "../../theme";
 import ScreenWrapper from "../../components/common/ScreenWrapper";
 import EmptyState from "../../components/common/EmptyState";
+import { supabase } from "../../services/supabase/client";
 import type { AppStackParamList } from "../../navigation/types";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, "CenterDetails">;
