@@ -1,87 +1,212 @@
-import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Text } from "react-native";
-import { useNavigation, useRoute } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RouteProp } from "@react-navigation/native";
+import React, { useEffect, useState } from 'react';
 
-import ScreenWrapper from "../../components/common/ScreenWrapper";
-import AppButton from "../../components/common/AppButton";
-import { colors, spacing, typography } from "../../theme";
-import { supabase } from "../../services/supabase/client";
-import type { AppStackParamList } from "../../navigation/types";
+import {
+  View,
+ StyleSheet,
+  Text,
+  FlatList,
+} from 'react-native';
 
-type NavigationProp = NativeStackNavigationProp<AppStackParamList, "CenterDetails">;
-type CenterDetailsRouteProp = RouteProp<AppStackParamList, "CenterDetails">;
+import { useNavigation, useRoute } from '@react-navigation/native';
 
-type Service = {
-  id: string;
-  name: string;
-  price: number;
-  duration_minutes: number;
-};
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
+
+import ScreenWrapper from '../../components/common/ScreenWrapper';
+import Loader from '../../components/common/Loader';
+import ErrorState from '../../components/common/ErrorState';
+import EmptyState from '../../components/common/EmptyState';
+import AppButton from '../../components/common/AppButton';
+
+import { colors, spacing, typography } from '../../theme';
+
+import type { AppStackParamList } from '../../navigation/types';
+
+import {
+  centersService,
+} from '../../services/centers/centersService';
+
+import type {
+  Center,
+  CenterService,
+} from '../../types/center';
+
+type NavigationProp = NativeStackNavigationProp<
+  AppStackParamList,
+  'CenterDetails'
+>;
+
+type CenterDetailsRouteProp = RouteProp<
+  AppStackParamList,
+  'CenterDetails'
+>;
 
 const CenterDetailsScreen = () => {
-  const navigation = useNavigation<NavigationProp>();
-  const route = useRoute<CenterDetailsRouteProp>();
+  const navigation =
+    useNavigation<NavigationProp>();
 
-  const { centerId } = route.params;
+  const route =
+    useRoute<CenterDetailsRouteProp>();
 
-  const [center, setCenter] = useState<any>(null);
-  const [services, setServices] = useState<Service[]>([]);
+  const { centerId } = route.params as { centerId: string };
+
+  const [center, setCenter] =
+    useState<Center | null>(null);
+
+  const [services, setServices] =
+    useState<CenterService[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(null);
 
   useEffect(() => {
-    fetchCenter();
-    fetchServices();
+    fetchCenterDetails();
   }, [centerId]);
 
-  const fetchCenter = async () => {
-    const { data } = await supabase
-      .from("centers")
-      .select("*")
-      .eq("id", centerId)
-      .single();
+  const fetchCenterDetails = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-    setCenter(data);
+      const centerData =
+        await centersService.getCenterById(
+          centerId,
+        );
+
+      const servicesData =
+        await centersService.getCenterServices(
+          centerId,
+        );
+
+      setCenter(centerData);
+      setServices(servicesData);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to load center details',
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const fetchServices = async () => {
-    const { data } = await supabase
-      .from("center_services")
-      .select("*")
-      .eq("center_id", centerId);
+  if (loading) {
+    return (
+      <ScreenWrapper>
+        <Loader />
+      </ScreenWrapper>
+    );
+  }
 
-    setServices(data || []);
-  };
+  if (error) {
+    return (
+      <ScreenWrapper>
+        <ErrorState
+          title="Failed To Load Center"
+          message={error}
+          buttonTitle="Retry"
+          onRetry={fetchCenterDetails}
+        />
+      </ScreenWrapper>
+    );
+  }
+
+  if (!center) {
+    return (
+      <ScreenWrapper>
+        <EmptyState
+          title="Center Not Found"
+          subtitle="Unable to find this center"
+          buttonTitle="Go Back"
+          onButtonPress={() =>
+            navigation.goBack()
+          }
+        />
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper>
-      <View style={styles.container}>
-        <Text style={styles.title}>
-          {center?.name || "Loading..."}
-        </Text>
+      <FlatList
+        data={services}
+        keyExtractor={item => item.id}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={
+          styles.contentContainer
+        }
+        ListHeaderComponent={
+          <>
+            <Text style={styles.title}>
+              {center.name}
+            </Text>
 
-        <Text style={styles.subtitle}>
-          {center?.city} • {center?.address}
-        </Text>
+            <Text style={styles.subtitle}>
+              {center.city}
+            </Text>
 
-        <Text style={styles.section}>Services</Text>
+            <Text style={styles.address}>
+              {center.address}
+            </Text>
 
-        {services.map((s) => (
-          <View key={s.id} style={styles.serviceCard}>
-            <Text style={styles.serviceName}>{s.name}</Text>
+            <Text style={styles.sectionTitle}>
+              Available Services
+            </Text>
+          </>
+        }
+        renderItem={({ item }) => (
+          <View style={styles.serviceCard}>
+            <Text style={styles.serviceName}>
+              {item.name}
+            </Text>
+
+            {!!item.description && (
+              <Text style={styles.description}>
+                {item.description}
+              </Text>
+            )}
+
             <Text style={styles.meta}>
-              {s.duration_minutes} min • Rs {s.price}
+              Duration:
+              {' '}
+              {item.duration_minutes}
+              {' '}
+              mins
+            </Text>
+
+            <Text style={styles.meta}>
+              Price:
+              {' '}
+              Rs.
+              {' '}
+              {item.price}
             </Text>
           </View>
-        ))}
-
-        <AppButton
-          title="Book Appointment"
-          onPress={() =>
-            navigation.navigate("BookAppointment", { centerId })
-          }
-        />
-      </View>
+        )}
+        ListEmptyComponent={
+          <EmptyState
+            title="No Services Found"
+            subtitle="No services available for this center"
+          />
+        }
+        ListFooterComponent={
+          <AppButton
+            title="Book Appointment"
+            onPress={() =>
+              navigation.navigate(
+                'BookAppointment',
+                {
+                  centerId: center.id,
+                },
+              )
+            }
+          />
+        }
+      />
     </ScreenWrapper>
   );
 };
@@ -89,36 +214,59 @@ const CenterDetailsScreen = () => {
 export default CenterDetailsScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  contentContainer: {
+    paddingBottom: spacing.xl,
   },
+
   title: {
     fontSize: typography.h1,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: colors.text,
+    marginBottom: spacing.xs,
   },
+
   subtitle: {
     fontSize: typography.body,
     color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+
+  address: {
+    fontSize: typography.small,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+
+  sectionTitle: {
+    fontSize: typography.body,
+    fontWeight: 'bold',
+    color: colors.text,
     marginBottom: spacing.md,
   },
-  section: {
-    fontSize: typography.body,
-    fontWeight: "bold",
-    marginTop: spacing.md,
-  },
+
   serviceCard: {
+    backgroundColor: colors.surface,
     padding: spacing.md,
-    backgroundColor: "#fff",
-    marginTop: spacing.sm,
-    borderRadius: 10,
+    borderRadius: 12,
+    marginBottom: spacing.md,
   },
+
   serviceName: {
     fontSize: typography.body,
-    fontWeight: "600",
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
+
+  description: {
+    fontSize: typography.small,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+
   meta: {
     fontSize: typography.small,
     color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
 });
