@@ -1,5 +1,9 @@
 import { supabase } from '../supabase/client';
-import { Center, CenterService } from '../../types/center';
+
+import {
+  Center,
+  CenterService,
+} from '../../types/center';
 
 export const centersService = {
   async getCenters(): Promise<Center[]> {
@@ -12,10 +16,12 @@ export const centersService = {
       throw new Error(error.message);
     }
 
-    return data as Center[];
+    return data ?? [];
   },
 
-  async getCenterById(centerId: string): Promise<Center> {
+  async getCenterById(
+    centerId: string,
+  ): Promise<Center> {
     const { data, error } = await supabase
       .from('centers')
       .select('*')
@@ -26,7 +32,7 @@ export const centersService = {
       throw new Error(error.message);
     }
 
-    return data as Center;
+    return data;
   },
 
   async getCenterServices(
@@ -42,6 +48,6 @@ export const centersService = {
       throw new Error(error.message);
     }
 
-    return data as CenterService[];
+    return data ?? [];
   },
 };
