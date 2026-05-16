@@ -11,12 +11,9 @@ export interface Center {
 export interface CenterService {
   id: string;
   center_id: string;
-
   name: string;
   description: string | null;
-
   duration_minutes: number;
-  price: number | null;
-
+  price: number;
   created_at: string;
 }
