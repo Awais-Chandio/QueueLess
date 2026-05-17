@@ -1,6 +1,11 @@
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled';
+export type BookingStatus =
+  | 'pending'
+  | 'confirmed'
+  | 'completed'
+  | 'cancelled';
+
 export interface Booking {
-id: string;
+  id: string;
 
   user_id: string;
 
@@ -14,8 +19,7 @@ id: string;
 
   status: BookingStatus;
 
-  queue_number?: number | null;
+  queue_number: number | null;
 
   created_at: string;
-
 }
