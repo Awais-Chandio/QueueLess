@@ -39,13 +39,17 @@ export const useBookingsStore = create<BookingsState>((set) => ({
         loading: false,
       }));
     } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to create booking';
+
       set({
         loading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to create booking',
+        error: message,
       });
+
+      throw new Error(message);
     }
   },
 
@@ -54,7 +58,7 @@ export const useBookingsStore = create<BookingsState>((set) => ({
       set({ loading: true, error: null });
 
       const bookings =
-        await bookingsService.getUserBookings(userId);
+        await bookingsService.fetchUserBookings(userId);
 
       set({
         bookings,
