@@ -3,7 +3,9 @@ export type AppStackParamList = {
   CenterDetails: { centerId?: string };
   BookAppointment: { centerId?: string; serviceId?: string };
   BookingDetails: { bookingId?: string };
-  QueueStatus: { bookingId?: string };
+  QueueStatus: {
+    bookingId: string;
+  };
   EditProfile: undefined;
 };
 
