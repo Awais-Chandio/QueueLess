@@ -25,16 +25,30 @@ const MyBookingsScreen = () => {
   const fetchBookings = async () => {
     if (!user?.id) return;
 
+    console.log('[DEBUG] MyBookingsScreen: Fetching bookings for user:', user.id);
     setLoading(true);
 
     try {
       const data = await bookingsService.fetchUserBookings(user.id);
+      console.log('[DEBUG] MyBookingsScreen: Fetched bookings:', data.length);
       setBookings(data);
     } catch (error) {
-      console.log(error);
+      console.error('[DEBUG] MyBookingsScreen: Failed to fetch bookings:', error);
     }
 
     setLoading(false);
+  };
+
+  const formatScheduledAt = (scheduledAt: string) => {
+    const date = new Date(scheduledAt);
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   if (loading) {
@@ -71,11 +85,7 @@ const MyBookingsScreen = () => {
               </Text>
 
               <Text style={styles.meta}>
-                Date: {item.booking_date}
-              </Text>
-
-              <Text style={styles.meta}>
-                Time: {item.booking_time}
+                Scheduled: {formatScheduledAt(item.scheduled_at)}
               </Text>
 
               <Text style={styles.status}>

@@ -13,8 +13,7 @@ interface BookingsState {
     user_id: string;
     center_id: string;
     service_id: string;
-    booking_date: string;
-    booking_time: string;
+    scheduled_at: string;
   }) => Promise<void>;
 
   fetchUserBookings: (userId: string) => Promise<void>;
@@ -29,6 +28,7 @@ export const useBookingsStore = create<BookingsState>((set) => ({
 
   createBooking: async (payload) => {
     try {
+      console.log('[DEBUG] Store: Creating booking with payload:', payload);
       set({ loading: true, error: null });
 
       const newBooking =
@@ -38,12 +38,14 @@ export const useBookingsStore = create<BookingsState>((set) => ({
         bookings: [newBooking, ...state.bookings],
         loading: false,
       }));
+      console.log('[DEBUG] Store: Booking created and added to state');
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : 'Failed to create booking';
 
+      console.error('[DEBUG] Store: Failed to create booking:', message);
       set({
         loading: false,
         error: message,
@@ -55,6 +57,7 @@ export const useBookingsStore = create<BookingsState>((set) => ({
 
   fetchUserBookings: async (userId) => {
     try {
+      console.log('[DEBUG] Store: Fetching bookings for user:', userId);
       set({ loading: true, error: null });
 
       const bookings =
@@ -64,7 +67,9 @@ export const useBookingsStore = create<BookingsState>((set) => ({
         bookings,
         loading: false,
       });
+      console.log('[DEBUG] Store: Bookings fetched and updated in state');
     } catch (error) {
+      console.error('[DEBUG] Store: Failed to fetch bookings:', error);
       set({
         loading: false,
         error:

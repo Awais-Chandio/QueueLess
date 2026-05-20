@@ -13,9 +13,7 @@ export interface Booking {
 
   service_id: string;
 
-  booking_date: string;
-
-  booking_time: string;
+  scheduled_at: string;
 
   status: BookingStatus;
 

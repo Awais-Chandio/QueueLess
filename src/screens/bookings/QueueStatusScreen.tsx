@@ -35,9 +35,7 @@ type QueueStatusRouteProp = RouteProp<
 type Booking = {
   id: string;
 
-  booking_date: string;
-
-  booking_time: string;
+  scheduled_at: string;
 
   status: string;
 
@@ -61,6 +59,7 @@ const QueueStatusScreen = () => {
   }, []);
 
   const fetchBooking = async () => {
+    console.log('[DEBUG] QueueStatusScreen: Fetching booking:', bookingId);
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
@@ -68,12 +67,25 @@ const QueueStatusScreen = () => {
       .single();
 
     if (error) {
-      console.log(error.message);
+      console.error('[DEBUG] QueueStatusScreen: Failed to fetch booking:', error.message);
     } else {
+      console.log('[DEBUG] QueueStatusScreen: Booking fetched:', data);
       setBooking(data);
     }
 
     setLoading(false);
+  };
+
+  const formatScheduledAt = (scheduledAt: string) => {
+    const date = new Date(scheduledAt);
+    return date.toLocaleString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   if (loading) {
@@ -124,21 +136,11 @@ const QueueStatusScreen = () => {
 
         <View style={styles.card}>
           <Text style={styles.label}>
-            Appointment Date
+            Appointment Date & Time
           </Text>
 
           <Text style={styles.value}>
-            {booking.booking_date}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.label}>
-            Appointment Time
-          </Text>
-
-          <Text style={styles.value}>
-            {booking.booking_time}
+            {formatScheduledAt(booking.scheduled_at)}
           </Text>
         </View>
       </View>

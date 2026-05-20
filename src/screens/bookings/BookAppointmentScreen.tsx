@@ -133,21 +133,17 @@ const BookAppointmentScreen = () => {
     }
 
     try {
+      console.log('[DEBUG] BookAppointmentScreen: Creating booking with date:', date.toISOString());
       await createBooking({
         user_id: user.id,
         center_id: centerId,
         service_id: selectedServiceId,
-
-        booking_date:
-          date.toISOString().split('T')[0],
-
-        booking_time:
-          date.toLocaleTimeString(),
+        scheduled_at: date.toISOString(),
       });
 
       navigation.navigate('MainTabs');
     } catch (error) {
-      console.log(error);
+      console.error('[DEBUG] BookAppointmentScreen: Failed to create booking:', error);
     }
   };
 
