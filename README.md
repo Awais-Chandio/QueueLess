@@ -14,6 +14,7 @@ local state, and Supabase for backend auth/profile services.
   and splash screens.
 - `src/services` contains Supabase, auth, and profile service helpers.
 - `src/store` contains app state stores for auth, profile, and toast messages.
+- `src/theme` centralizes shared color, typography, spacing, and radius tokens.
 - `android` and `ios` contain the native React Native app shells.
 
 # Getting Started
