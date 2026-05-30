@@ -18,4 +18,18 @@ export interface Booking {
   status: BookingStatus;
 
   created_at: string;
+
+  center?: {
+    id: string;
+    name: string;
+    city: string;
+    address: string;
+  } | null;
+
+  service?: {
+    id: string;
+    name: string;
+    duration_minutes: number;
+    price: number;
+  } | null;
 }

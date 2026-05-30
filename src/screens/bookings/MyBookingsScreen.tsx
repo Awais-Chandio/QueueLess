@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+} from 'react-native';
 
 import ScreenWrapper from '../../components/common/ScreenWrapper';
 import Loader from '../../components/common/Loader';
@@ -17,16 +23,23 @@ const MyBookingsScreen = () => {
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchBookings();
   }, []);
 
-  const fetchBookings = async () => {
-    if (!user?.id) return;
+  const fetchBookings = async (isRefresh = false) => {
+    if (!user?.id) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
     console.log('[DEBUG] MyBookingsScreen: Fetching bookings for user:', user.id);
-    setLoading(true);
+    if (!isRefresh) {
+      setLoading(true);
+    }
 
     try {
       const data = await bookingsService.fetchUserBookings(user.id);
@@ -37,19 +50,62 @@ const MyBookingsScreen = () => {
     }
 
     setLoading(false);
+    setRefreshing(false);
   };
 
-  const formatScheduledAt = (scheduledAt: string) => {
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchBookings(true);
+  };
+
+  const formatDate = (scheduledAt: string) => {
     const date = new Date(scheduledAt);
     return date.toLocaleString('en-US', {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+    });
+  };
+
+  const formatTime = (scheduledAt: string) => {
+    const date = new Date(scheduledAt);
+    return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
+
+  const getStatusColor = (status: Booking['status']) => {
+    switch (status) {
+      case 'confirmed':
+        return colors.success;
+      case 'completed':
+        return colors.textSecondary;
+      case 'cancelled':
+        return colors.error;
+      case 'pending':
+      default:
+        return colors.warning;
+    }
+  };
+
+  const getStatusBackground = (status: Booking['status']) => {
+    switch (status) {
+      case 'confirmed':
+        return '#DCFCE7';
+      case 'completed':
+        return '#E2E8F0';
+      case 'cancelled':
+        return '#FEE2E2';
+      case 'pending':
+      default:
+        return '#FEF3C7';
+    }
+  };
+
+  const formatStatus = (status: Booking['status']) =>
+    status.charAt(0).toUpperCase() + status.slice(1);
 
   if (loading) {
     return (
@@ -78,19 +134,80 @@ const MyBookingsScreen = () => {
         <FlatList
           data={bookings}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+            />
+          }
           renderItem={({ item }) => (
             <View style={styles.card}>
-              <Text style={styles.name}>
-                Service ID: {item.service_id}
-              </Text>
+              <View style={styles.cardHeader}>
+                <View style={styles.titleBlock}>
+                  <Text style={styles.serviceName}>
+                    {item.service?.name ?? 'Selected Service'}
+                  </Text>
 
-              <Text style={styles.meta}>
-                Scheduled: {formatScheduledAt(item.scheduled_at)}
-              </Text>
+                  <Text style={styles.centerName}>
+                    {item.center?.name ?? 'Assigned Center'}
+                  </Text>
+                </View>
 
-              <Text style={styles.status}>
-                Status: {item.status}
-              </Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    { backgroundColor: getStatusBackground(item.status) },
+                  ]}>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      { color: getStatusColor(item.status) },
+                    ]}>
+                    {formatStatus(item.status)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.divider} />
+
+              <View style={styles.detailsRow}>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Date</Text>
+                  <Text style={styles.detailValue}>
+                    {formatDate(item.scheduled_at)}
+                  </Text>
+                </View>
+
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Time</Text>
+                  <Text style={styles.detailValue}>
+                    {formatTime(item.scheduled_at)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.footerRow}>
+                <Text style={styles.footerText}>
+                  {item.service?.duration_minutes
+                    ? `${item.service.duration_minutes} min`
+                    : 'Duration pending'}
+                </Text>
+
+                <Text style={styles.footerText}>
+                  {typeof item.service?.price === 'number'
+                    ? `Rs. ${item.service.price}`
+                    : 'Price pending'}
+                </Text>
+              </View>
+
+              {!!item.center?.address && (
+                <Text style={styles.address}>
+                  {item.center.address}
+                </Text>
+              )}
             </View>
           )}
         />
@@ -109,31 +226,100 @@ const styles = StyleSheet.create({
   title: {
     fontSize: typography.h1,
     fontWeight: 'bold',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
     color: colors.text,
   },
 
+  listContent: {
+    paddingBottom: spacing.xl,
+  },
+
   card: {
-    padding: spacing.md,
-    backgroundColor: '#fff',
-    marginBottom: spacing.sm,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.md,
+    borderColor: colors.border,
     borderRadius: 10,
+    borderWidth: 1,
   },
 
-  name: {
+  cardHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+
+  titleBlock: {
+    flex: 1,
+  },
+
+  serviceName: {
+    color: colors.text,
     fontSize: typography.body,
-    fontWeight: '600',
+    fontWeight: '700',
+    marginBottom: spacing.xs,
   },
 
-  meta: {
+  centerName: {
     fontSize: typography.small,
     color: colors.textSecondary,
   },
 
-  status: {
-    marginTop: spacing.xs,
+  statusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+
+  statusText: {
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
+
+  divider: {
+    backgroundColor: colors.border,
+    height: 1,
+    marginVertical: spacing.md,
+  },
+
+  detailsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+
+  detailItem: {
+    flex: 1,
+  },
+
+  detailLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+    marginBottom: spacing.xs,
+  },
+
+  detailValue: {
+    color: colors.text,
     fontSize: typography.small,
-    fontWeight: 'bold',
+    fontWeight: '600',
+  },
+
+  footerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: spacing.md,
+  },
+
+  footerText: {
     color: colors.primary,
+    fontSize: typography.small,
+    fontWeight: '700',
+  },
+
+  address: {
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+    marginTop: spacing.sm,
   },
 });
