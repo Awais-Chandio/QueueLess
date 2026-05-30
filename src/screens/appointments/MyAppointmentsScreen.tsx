@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,55 +12,60 @@ import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
 
 import { useAuthStore } from '../../store/authStore';
-import { bookingsService } from '../../services/bookings/bookingsService';
+import { appointmentsService } from '../../services/appointments/appointmentsService';
 
 import { colors, spacing, typography } from '../../theme';
 
-import type { Booking } from '../../types/booking';
+import type { AppointmentFull } from '../../types/appointment';
 
-const MyBookingsScreen = () => {
+const MyAppointmentsScreen = () => {
   const user = useAuthStore(state => state.user);
 
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchBookings();
-  }, []);
-
-  const fetchBookings = async (isRefresh = false) => {
+  const fetchAppointments = useCallback(async (isRefresh = false) => {
     if (!user?.id) {
       setLoading(false);
       setRefreshing(false);
       return;
     }
 
-    console.log('[DEBUG] MyBookingsScreen: Fetching bookings for user:', user.id);
+    console.log('[DEBUG] MyAppointmentsScreen: Fetching appointments for user:', user.id);
     if (!isRefresh) {
       setLoading(true);
     }
 
     try {
-      const data = await bookingsService.fetchUserBookings(user.id);
-      console.log('[DEBUG] MyBookingsScreen: Fetched bookings:', data.length);
-      setBookings(data);
+      const data = await appointmentsService.fetchUserAppointments(user.id);
+      console.log('[DEBUG] MyAppointmentsScreen: Fetched appointments:', data.length);
+      setAppointments(data);
     } catch (error) {
-      console.error('[DEBUG] MyBookingsScreen: Failed to fetch bookings:', error);
+      console.error('[DEBUG] MyAppointmentsScreen: Failed to fetch appointments:', error);
     }
 
     setLoading(false);
     setRefreshing(false);
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, [fetchAppointments]);
 
   const handleRefresh = () => {
     setRefreshing(true);
-    fetchBookings(true);
+    fetchAppointments(true);
   };
 
   const formatDate = (scheduledAt: string) => {
     const date = new Date(scheduledAt);
-    return date.toLocaleString('en-US', {
+
+    if (Number.isNaN(date.getTime())) {
+      return scheduledAt;
+    }
+
+    return date.toLocaleDateString('en-US', {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
@@ -70,13 +75,18 @@ const MyBookingsScreen = () => {
 
   const formatTime = (scheduledAt: string) => {
     const date = new Date(scheduledAt);
+
+    if (Number.isNaN(date.getTime())) {
+      return scheduledAt;
+    }
+
     return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
-  const getStatusColor = (status: Booking['status']) => {
+  const getStatusColor = (status: AppointmentFull['status']) => {
     switch (status) {
       case 'confirmed':
         return colors.success;
@@ -90,7 +100,7 @@ const MyBookingsScreen = () => {
     }
   };
 
-  const getStatusBackground = (status: Booking['status']) => {
+  const getStatusBackground = (status: AppointmentFull['status']) => {
     switch (status) {
       case 'confirmed':
         return '#DCFCE7';
@@ -104,7 +114,7 @@ const MyBookingsScreen = () => {
     }
   };
 
-  const formatStatus = (status: Booking['status']) =>
+  const formatStatus = (status: AppointmentFull['status']) =>
     status.charAt(0).toUpperCase() + status.slice(1);
 
   if (loading) {
@@ -115,12 +125,12 @@ const MyBookingsScreen = () => {
     );
   }
 
-  if (bookings.length === 0) {
+  if (appointments.length === 0) {
     return (
       <ScreenWrapper>
         <EmptyState
-          title="No Bookings"
-          subtitle="You haven't booked anything yet"
+          title="No Appointments"
+          subtitle="You don't have any appointments yet"
         />
       </ScreenWrapper>
     );
@@ -129,10 +139,10 @@ const MyBookingsScreen = () => {
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={styles.title}>My Bookings</Text>
+        <Text style={styles.title}>My Appointments</Text>
 
         <FlatList
-          data={bookings}
+          data={appointments}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -148,11 +158,11 @@ const MyBookingsScreen = () => {
               <View style={styles.cardHeader}>
                 <View style={styles.titleBlock}>
                   <Text style={styles.serviceName}>
-                    {item.service?.name ?? 'Selected Service'}
+                    {item.service_name ?? 'Selected Service'}
                   </Text>
 
                   <Text style={styles.centerName}>
-                    {item.center?.name ?? 'Assigned Center'}
+                    {item.center_name ?? 'Assigned Center'}
                   </Text>
                 </View>
 
@@ -189,24 +199,13 @@ const MyBookingsScreen = () => {
                 </View>
               </View>
 
-              <View style={styles.footerRow}>
-                <Text style={styles.footerText}>
-                  {item.service?.duration_minutes
-                    ? `${item.service.duration_minutes} min`
-                    : 'Duration pending'}
-                </Text>
-
-                <Text style={styles.footerText}>
-                  {typeof item.service?.price === 'number'
-                    ? `Rs. ${item.service.price}`
-                    : 'Price pending'}
-                </Text>
-              </View>
-
-              {!!item.center?.address && (
-                <Text style={styles.address}>
-                  {item.center.address}
-                </Text>
+              {typeof item.token_number === 'number' && (
+                <View style={styles.tokenRow}>
+                  <Text style={styles.tokenLabel}>Token</Text>
+                  <Text style={styles.tokenValue}>
+                    #{item.token_number}
+                  </Text>
+                </View>
               )}
             </View>
           )}
@@ -216,7 +215,7 @@ const MyBookingsScreen = () => {
   );
 };
 
-export default MyBookingsScreen;
+export default MyAppointmentsScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -304,22 +303,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  footerRow: {
+  tokenRow: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: spacing.md,
   },
 
-  footerText: {
+  tokenLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+  },
+
+  tokenValue: {
     color: colors.primary,
     fontSize: typography.small,
     fontWeight: '700',
-  },
-
-  address: {
-    color: colors.textSecondary,
-    fontSize: typography.caption,
-    marginTop: spacing.sm,
   },
 });

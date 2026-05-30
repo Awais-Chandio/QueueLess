@@ -35,7 +35,7 @@ import {
 import type { AppStackParamList } from '../../navigation/types';
 
 import { useAuthStore } from '../../store/authStore';
-import { useBookingsStore } from '../../store/bookingsStore';
+import { useAppointmentsStore } from '../../store/appointmentsStore';
 import { useCentersStore } from '../../store/centersStore';
 
 import type { CenterService } from '../../types/center';
@@ -67,11 +67,11 @@ const BookAppointmentScreen = () => {
     state => state.user,
   );
 
-  const createBooking = useBookingsStore(
-    state => state.createBooking,
+  const createAppointment = useAppointmentsStore(
+    state => state.createAppointment,
   );
 
-  const bookingLoading = useBookingsStore(
+  const appointmentLoading = useAppointmentsStore(
     state => state.loading,
   );
 
@@ -133,8 +133,8 @@ const BookAppointmentScreen = () => {
     }
 
     try {
-      console.log('[DEBUG] BookAppointmentScreen: Creating booking with date:', date.toISOString());
-      await createBooking({
+      console.log('[DEBUG] BookAppointmentScreen: Creating appointment with date:', date.toISOString());
+      await createAppointment({
         user_id: user.id,
         center_id: centerId,
         service_id: selectedServiceId,
@@ -142,8 +142,8 @@ const BookAppointmentScreen = () => {
       });
 
       navigation.navigate('MainTabs');
-    } catch (error) {
-      console.error('[DEBUG] BookAppointmentScreen: Failed to create booking:', error);
+    } catch (createError) {
+      console.error('[DEBUG] BookAppointmentScreen: Failed to create appointment:', createError);
     }
   };
 
@@ -320,14 +320,14 @@ const BookAppointmentScreen = () => {
 
             <AppButton
               title={
-                bookingLoading
-                  ? 'Booking...'
-                  : 'Confirm Booking'
+                appointmentLoading
+                  ? 'Scheduling...'
+                  : 'Confirm Appointment'
               }
-              loading={bookingLoading}
+              loading={appointmentLoading}
               disabled={
                 !selectedServiceId ||
-                bookingLoading ||
+                appointmentLoading ||
                 centerServices.length === 0
               }
               onPress={handleBook}

@@ -10,7 +10,7 @@ local state, and Supabase for backend auth/profile services.
   toast UI.
 - `src/navigation` separates the auth stack, authenticated stack, and bottom
   tab navigation.
-- `src/screens` contains the auth, home, centers, bookings, profile, settings,
+- `src/screens` contains the auth, home, centers, appointments, profile, settings,
   and splash screens.
 - `src/services` contains Supabase, auth, and profile service helpers.
 - `src/store` contains app state stores for auth, profile, and toast messages.

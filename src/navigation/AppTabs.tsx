@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import HomeScreen from "../screens/home/HomeScreen";
 import SettingsScreen from "../screens/settings/SettingsScreen";
 import CentersScreen from "../screens/centers/CentersScreen";
-import MyBookingsScreen from "../screens/bookings/MyBookingsScreen";
+import MyAppointmentsScreen from "../screens/appointments/MyAppointmentsScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
 import type { AppTabParamList } from "./types";
 
@@ -17,9 +17,9 @@ const AppTabs = () => {
             <Tab.Screen name="Home" component={HomeScreen} />
             <Tab.Screen name="Centers" component={CentersScreen} />
             <Tab.Screen
-                name="MyBookings"
-                component={MyBookingsScreen}
-                options={{ title: "My Bookings" }}
+                name="MyAppointments"
+                component={MyAppointmentsScreen}
+                options={{ title: "My Appointments" }}
             />
             <Tab.Screen name="Profile" component={ProfileScreen} />
             <Tab.Screen name="Settings" component={SettingsScreen} />

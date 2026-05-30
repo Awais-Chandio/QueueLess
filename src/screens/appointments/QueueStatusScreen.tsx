@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   View,
@@ -32,8 +32,12 @@ type QueueStatusRouteProp = RouteProp<
   'QueueStatus'
 >;
 
-type Booking = {
+type Appointment = {
   id: string;
+
+  center_id: string;
+
+  service_id: string;
 
   scheduled_at: string;
 
@@ -44,43 +48,59 @@ const QueueStatusScreen = () => {
   const route =
     useRoute<QueueStatusRouteProp>();
 
-  const { bookingId } = route.params;
+  const { appointmentId } = route.params;
 
-  const [booking, setBooking] =
-    useState<Booking | null>(null);
+  const [appointment, setAppointment] =
+    useState<Appointment | null>(null);
 
   const [loading, setLoading] =
     useState(true);
 
-  useEffect(() => {
-    fetchBooking();
-  }, []);
-
-  const fetchBooking = async () => {
-    console.log('[DEBUG] QueueStatusScreen: Fetching booking:', bookingId);
+  const fetchAppointment = useCallback(async () => {
+    console.log('[DEBUG] QueueStatusScreen: Fetching appointment:', appointmentId);
     const { data, error } = await supabase
-      .from('bookings')
-      .select('id, scheduled_at, status')
-      .eq('id', bookingId)
+      .from('appointments_full')
+      .select('id, user_id, center_id, service_id, scheduled_at, status')
+      .eq('id', appointmentId)
       .single();
 
     if (error) {
-      console.error('[DEBUG] QueueStatusScreen: Failed to fetch booking:', error.message);
+      console.error('[DEBUG] QueueStatusScreen: Failed to fetch appointment:', error.message);
     } else {
-      console.log('[DEBUG] QueueStatusScreen: Booking fetched:', data);
-      setBooking(data);
+      console.log('[DEBUG] QueueStatusScreen: Appointment fetched:', data);
+      setAppointment(data);
     }
 
     setLoading(false);
-  };
+  }, [appointmentId]);
 
-  const formatScheduledAt = (scheduledAt: string) => {
+  useEffect(() => {
+    fetchAppointment();
+  }, [fetchAppointment]);
+
+  const formatDate = (scheduledAt: string) => {
     const date = new Date(scheduledAt);
-    return date.toLocaleString('en-US', {
+
+    if (Number.isNaN(date.getTime())) {
+      return scheduledAt;
+    }
+
+    return date.toLocaleDateString('en-US', {
       weekday: 'short',
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+    });
+  };
+
+  const formatTime = (scheduledAt: string) => {
+    const date = new Date(scheduledAt);
+
+    if (Number.isNaN(date.getTime())) {
+      return scheduledAt;
+    }
+
+    return date.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -94,11 +114,11 @@ const QueueStatusScreen = () => {
     );
   }
 
-  if (!booking) {
+  if (!appointment) {
     return (
       <ScreenWrapper>
         <EmptyState
-          title="Booking Not Found"
+          title="Appointment Not Found"
           subtitle="Unable to load queue status."
         />
       </ScreenWrapper>
@@ -114,21 +134,31 @@ const QueueStatusScreen = () => {
 
         <View style={styles.card}>
           <Text style={styles.label}>
-            Booking Status
+            Appointment Date
           </Text>
 
           <Text style={styles.value}>
-            {booking.status}
+            {formatDate(appointment.scheduled_at)}
           </Text>
         </View>
 
         <View style={styles.card}>
           <Text style={styles.label}>
-            Appointment Date & Time
+            Appointment Time
           </Text>
 
           <Text style={styles.value}>
-            {formatScheduledAt(booking.scheduled_at)}
+            {formatTime(appointment.scheduled_at)}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>
+            Appointment Status
+          </Text>
+
+          <Text style={styles.value}>
+            {appointment.status}
           </Text>
         </View>
       </View>

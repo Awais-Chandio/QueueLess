@@ -2,9 +2,9 @@ export type AppStackParamList = {
   MainTabs: undefined;
   CenterDetails: { centerId?: string };
   BookAppointment: { centerId?: string; serviceId?: string };
-  BookingDetails: { bookingId?: string };
+  AppointmentDetails: { appointmentId?: string };
   QueueStatus: {
-    bookingId: string;
+    appointmentId: string;
   };
   EditProfile: undefined;
 };
@@ -12,7 +12,7 @@ export type AppStackParamList = {
 export type AppTabParamList = {
   Home: undefined;
   Centers: undefined;
-  MyBookings: undefined;
+  MyAppointments: undefined;
   Profile: undefined;
   Settings: undefined;
 };

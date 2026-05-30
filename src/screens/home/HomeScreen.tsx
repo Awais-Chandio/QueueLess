@@ -24,8 +24,8 @@ const HomeScreen = () => {
                     onPress={() => navigation.navigate("Centers")}
                 />
                 <AppButton
-                    title="My Bookings"
-                    onPress={() => navigation.navigate("MyBookings")}
+                    title="My Appointments"
+                    onPress={() => navigation.navigate("MyAppointments")}
                 />
             </View>
         </ScreenWrapper>
