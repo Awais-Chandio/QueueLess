@@ -12,15 +12,19 @@ export const bookingsService = {
   async createBooking(
     payload: CreateBookingPayload,
   ): Promise<Booking> {
-    console.log('[DEBUG] Creating booking with payload:', payload);
+    const insertPayload = {
+      user_id: payload.user_id,
+      center_id: payload.center_id,
+      service_id: payload.service_id,
+      scheduled_at: new Date(payload.scheduled_at).toISOString(),
+    };
+
+    console.log('[DEBUG] Creating booking with payload:', insertPayload);
     
     const { data, error } = await supabase
       .from('bookings')
-      .insert({
-        ...payload,
-        status: 'pending',
-      })
-      .select()
+      .insert(insertPayload)
+      .select('id, user_id, center_id, service_id, scheduled_at, status, created_at')
       .single();
 
     if (error) {
@@ -39,7 +43,7 @@ export const bookingsService = {
     
     const { data, error } = await supabase
       .from('bookings')
-      .select('*')
+      .select('id, user_id, center_id, service_id, scheduled_at, status, created_at')
       .eq('user_id', userId)
       .order('scheduled_at', {
         ascending: true,

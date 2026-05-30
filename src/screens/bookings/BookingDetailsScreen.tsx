@@ -25,7 +25,12 @@ const BookingDetailsScreen = () => {
         </Text>
         <AppButton
           title="View Queue Status"
-          onPress={() => navigation.navigate("QueueStatus", { bookingId })}
+          disabled={!bookingId}
+          onPress={() => {
+            if (!bookingId) return;
+
+            navigation.navigate("QueueStatus", { bookingId });
+          }}
         />
       </View>
     </ScreenWrapper>

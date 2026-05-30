@@ -17,7 +17,5 @@ export interface Booking {
 
   status: BookingStatus;
 
-  queue_number: number | null;
-
   created_at: string;
 }

@@ -38,8 +38,6 @@ type Booking = {
   scheduled_at: string;
 
   status: string;
-
-  queue_number: number | null;
 };
 
 const QueueStatusScreen = () => {
@@ -62,7 +60,7 @@ const QueueStatusScreen = () => {
     console.log('[DEBUG] QueueStatusScreen: Fetching booking:', bookingId);
     const { data, error } = await supabase
       .from('bookings')
-      .select('*')
+      .select('id, scheduled_at, status')
       .eq('id', bookingId)
       .single();
 
@@ -126,16 +124,6 @@ const QueueStatusScreen = () => {
 
         <View style={styles.card}>
           <Text style={styles.label}>
-            Queue Number
-          </Text>
-
-          <Text style={styles.queue}>
-            {booking.queue_number ?? '--'}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.label}>
             Appointment Date & Time
           </Text>
 
@@ -181,9 +169,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  queue: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
 });
