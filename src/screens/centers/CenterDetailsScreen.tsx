@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import {
   View,
- StyleSheet,
+  StyleSheet,
   Text,
   FlatList,
 } from 'react-native';
@@ -62,11 +62,7 @@ const CenterDetailsScreen = () => {
   const [error, setError] =
     useState<string | null>(null);
 
-  useEffect(() => {
-    fetchCenterDetails();
-  }, [centerId]);
-
-  const fetchCenterDetails = async () => {
+  const fetchCenterDetails = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -83,16 +79,38 @@ const CenterDetailsScreen = () => {
 
       setCenter(centerData);
       setServices(servicesData);
-    } catch (error) {
+    } catch (loadError) {
       setError(
-        error instanceof Error
-          ? error.message
+        loadError instanceof Error
+          ? loadError.message
           : 'Failed to load center details',
       );
     } finally {
       setLoading(false);
     }
+  }, [centerId]);
+
+  useEffect(() => {
+    fetchCenterDetails();
+  }, [fetchCenterDetails]);
+
+  const formatTime = (time: string | null) => {
+    if (!time) {
+      return null;
+    }
+
+    const [hours, minutes] = time.split(':');
+    const date = new Date();
+    date.setHours(Number(hours), Number(minutes), 0, 0);
+
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
+
+  const openingTime = formatTime(center?.open_time ?? null);
+  const closingTime = formatTime(center?.close_time ?? null);
 
   if (loading) {
     return (
@@ -149,9 +167,35 @@ const CenterDetailsScreen = () => {
               {center.city}
             </Text>
 
+            {!!center.category && (
+              <Text style={styles.category}>
+                {center.category}
+              </Text>
+            )}
+
             <Text style={styles.address}>
               {center.address}
             </Text>
+
+            {!!center.description && (
+              <Text style={styles.description}>
+                {center.description}
+              </Text>
+            )}
+
+            {openingTime && closingTime && (
+              <View style={styles.timingCard}>
+                <Text style={styles.timingLabel}>
+                  Timings
+                </Text>
+
+                <Text style={styles.timingValue}>
+                  {openingTime}
+                  {' - '}
+                  {closingTime}
+                </Text>
+              </View>
+            )}
 
             <Text style={styles.sectionTitle}>
               Available Services
@@ -231,10 +275,41 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
 
+  category: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.surface,
+    borderRadius: 999,
+    color: colors.primary,
+    fontSize: typography.caption,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+
   address: {
     fontSize: typography.small,
     color: colors.textSecondary,
     marginBottom: spacing.lg,
+  },
+
+  timingCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    marginBottom: spacing.lg,
+    padding: spacing.md,
+  },
+
+  timingLabel: {
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+    marginBottom: spacing.xs,
+  },
+
+  timingValue: {
+    color: colors.text,
+    fontSize: typography.body,
+    fontWeight: '700',
   },
 
   sectionTitle: {

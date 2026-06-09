@@ -38,7 +38,7 @@ const CentersScreen = () => {
 
   useEffect(() => {
     fetchCenters();
-  }, []);
+  }, [fetchCenters]);
 
   if (loading) {
     return (
@@ -102,6 +102,12 @@ const CentersScreen = () => {
                 {item.name}
               </Text>
 
+              {!!item.category && (
+                <Text style={styles.category}>
+                  {item.category}
+                </Text>
+              )}
+
               <Text style={styles.meta}>
                 {item.city}
               </Text>
@@ -147,6 +153,18 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: spacing.xs,
+  },
+
+  category: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.background,
+    borderRadius: 999,
+    color: colors.primary,
+    fontSize: typography.caption,
+    fontWeight: '700',
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
 
   meta: {

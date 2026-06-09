@@ -8,7 +8,7 @@ import {
 export const centersService = {
   async getCenters(): Promise<Center[]> {
     const { data, error } = await supabase
-      .from('centers')
+      .from('service_centers')
       .select('*')
       .order('created_at', { ascending: false });
 
@@ -23,7 +23,7 @@ export const centersService = {
     centerId: string,
   ): Promise<Center> {
     const { data, error } = await supabase
-      .from('centers')
+      .from('service_centers')
       .select('*')
       .eq('id', centerId)
       .single();
@@ -39,7 +39,7 @@ export const centersService = {
     centerId: string,
   ): Promise<CenterService[]> {
     const { data, error } = await supabase
-      .from('center_services')
+      .from('services')
       .select('*')
       .eq('center_id', centerId)
       .order('created_at', { ascending: true });
