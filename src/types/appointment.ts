@@ -17,6 +17,8 @@ export interface Appointment {
 
   status: AppointmentStatus;
 
+  token_number: number | null;
+
   created_at: string;
 }
 

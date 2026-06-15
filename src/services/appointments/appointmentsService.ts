@@ -30,7 +30,7 @@ export const appointmentsService = {
     const { data, error } = await supabase
       .from('appointments')
       .insert(insertPayload)
-      .select('id, user_id, center_id, service_id, scheduled_at, status, created_at')
+      .select('id, user_id, center_id, service_id, scheduled_at, status, token_number, created_at')
       .single();
 
     if (error) {
