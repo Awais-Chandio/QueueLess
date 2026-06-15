@@ -243,4 +243,27 @@ export const appointmentsService = {
 
     return data as AppointmentFull;
   },
+
+  async cancelAppointment(
+    appointmentId: string,
+  ): Promise<Appointment> {
+    console.log('[DEBUG] Cancelling appointment:', appointmentId);
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({
+        status: 'cancelled',
+      })
+      .eq('id', appointmentId)
+      .select(appointmentSelect)
+      .single();
+
+    if (error) {
+      console.error('[DEBUG] Failed to cancel appointment:', error.message);
+      throw new Error(error.message);
+    }
+
+    console.log('[DEBUG] Appointment cancelled successfully:', data?.id);
+    return data as Appointment;
+  },
 };

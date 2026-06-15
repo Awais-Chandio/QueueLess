@@ -59,8 +59,28 @@ CREATE POLICY "Users can create own appointments"
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename = 'appointments'
+      AND policyname = 'cancel own appointments'
+  ) THEN
+    CREATE POLICY "cancel own appointments"
+      ON public.appointments
+      FOR UPDATE
+      TO authenticated
+      USING (auth.uid() = user_id)
+      WITH CHECK (auth.uid() = user_id);
+  END IF;
+END;
+$$;
+
 REVOKE ALL ON public.appointments FROM anon, authenticated;
 GRANT SELECT, INSERT ON public.appointments TO authenticated;
+GRANT UPDATE(status) ON public.appointments TO authenticated;
 
 CREATE INDEX IF NOT EXISTS idx_appointments_user_id
   ON public.appointments(user_id);
@@ -188,6 +208,7 @@ SELECT
   appointments.scheduled_at,
   appointments.status,
   appointments.token_number,
+  appointments.notes,
   appointments.created_at,
   COALESCE(
     latest_queue_updates.estimated_wait_mins,
@@ -197,9 +218,9 @@ SELECT
   latest_queue_updates.people_ahead,
   latest_queue_updates.queue_status
 FROM public.appointments
-JOIN public.service_centers
+LEFT JOIN public.service_centers
   ON service_centers.id = appointments.center_id
-JOIN public.services
+LEFT JOIN public.services
   ON services.id = appointments.service_id
 LEFT JOIN latest_queue_updates
   ON latest_queue_updates.appointment_id = appointments.id;

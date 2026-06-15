@@ -37,6 +37,7 @@ export interface AppointmentFull {
   status: AppointmentStatus | string;
   token_number?: number | null;
   estimated_wait_mins?: number | null;
+  notes?: string | null;
   current_position?: number | null;
   people_ahead?: number | null;
   queue_status?: string | null;

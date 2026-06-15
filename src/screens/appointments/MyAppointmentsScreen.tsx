@@ -3,6 +3,7 @@ import {
   View,
   Text,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
 } from 'react-native';
@@ -10,16 +11,21 @@ import {
 import ScreenWrapper from '../../components/common/ScreenWrapper';
 import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useAuthStore } from '../../store/authStore';
 import { appointmentsService } from '../../services/appointments/appointmentsService';
 
 import { colors, spacing, typography } from '../../theme';
 
+import type { AppStackParamList } from '../../navigation/types';
 import type { AppointmentFull } from '../../types/appointment';
 
+type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
+
 const MyAppointmentsScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
   const user = useAuthStore(state => state.user);
 
   const [appointments, setAppointments] = useState<AppointmentFull[]>([]);
@@ -157,7 +163,15 @@ const MyAppointmentsScreen = () => {
             />
           }
           renderItem={({ item }) => (
-            <View style={styles.card}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.card,
+                pressed && styles.cardPressed,
+              ]}
+              onPress={() => navigation.navigate('AppointmentDetails', {
+                appointmentId: item.id,
+              })}
+              accessibilityRole="button">
               <View style={styles.cardHeader}>
                 <View style={styles.titleBlock}>
                   <Text style={styles.serviceName}>
@@ -210,7 +224,7 @@ const MyAppointmentsScreen = () => {
                   </Text>
                 </View>
               )}
-            </View>
+            </Pressable>
           )}
         />
       </View>
@@ -243,6 +257,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 10,
     borderWidth: 1,
+  },
+
+  cardPressed: {
+    opacity: 0.85,
   },
 
   cardHeader: {
