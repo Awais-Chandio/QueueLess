@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import ScreenWrapper from '../../components/common/ScreenWrapper';
 import Loader from '../../components/common/Loader';
 import EmptyState from '../../components/common/EmptyState';
+import { useFocusEffect } from '@react-navigation/native';
 
 import { useAuthStore } from '../../store/authStore';
 import { appointmentsService } from '../../services/appointments/appointmentsService';
@@ -49,9 +50,11 @@ const MyAppointmentsScreen = () => {
     setRefreshing(false);
   }, [user?.id]);
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [fetchAppointments]);
+  useFocusEffect(
+    useCallback(() => {
+      fetchAppointments();
+    }, [fetchAppointments]),
+  );
 
   const handleRefresh = () => {
     setRefreshing(true);

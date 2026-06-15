@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 
-import { AppointmentFull } from '../types/appointment';
+import {
+  Appointment,
+  AppointmentFull,
+} from '../types/appointment';
 import { appointmentsService } from '../services/appointments/appointmentsService';
 
 interface AppointmentsState {
@@ -14,7 +17,7 @@ interface AppointmentsState {
     center_id: string;
     service_id: string;
     scheduled_at: string;
-  }) => Promise<void>;
+  }) => Promise<Appointment>;
 
   fetchUserAppointments: (userId: string) => Promise<void>;
 
@@ -36,6 +39,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
 
       set({ loading: false });
       console.log('[DEBUG] Store: Appointment created:', newAppointment.id);
+      return newAppointment;
     } catch (error) {
       const message =
         error instanceof Error

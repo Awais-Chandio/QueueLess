@@ -94,6 +94,17 @@ const QueueStatusScreen = () => {
     });
   };
 
+  const formatNumber = (
+    value: number | null | undefined,
+    fallback = 'Not available',
+  ) => {
+    if (typeof value === 'number') {
+      return String(value);
+    }
+
+    return fallback;
+  };
+
   if (loading) {
     return (
       <ScreenWrapper>
@@ -122,6 +133,18 @@ const QueueStatusScreen = () => {
 
         <View style={styles.card}>
           <Text style={styles.label}>
+            Token Number
+          </Text>
+
+          <Text style={styles.value}>
+            {appointment.token_number
+              ? `#${appointment.token_number}`
+              : 'Not assigned yet'}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>
             Appointment Date
           </Text>
 
@@ -147,6 +170,38 @@ const QueueStatusScreen = () => {
 
           <Text style={styles.value}>
             {appointment.status}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>
+            People Ahead
+          </Text>
+
+          <Text style={styles.value}>
+            {formatNumber(appointment.people_ahead, 'Queue pending')}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>
+            Estimated Wait
+          </Text>
+
+          <Text style={styles.value}>
+            {typeof appointment.estimated_wait_mins === 'number'
+              ? `${appointment.estimated_wait_mins} mins`
+              : 'Calculating'}
+          </Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>
+            Current Position
+          </Text>
+
+          <Text style={styles.value}>
+            {formatNumber(appointment.current_position, 'Queue pending')}
           </Text>
         </View>
       </View>

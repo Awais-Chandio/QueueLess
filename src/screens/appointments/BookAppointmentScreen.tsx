@@ -134,14 +134,16 @@ const BookAppointmentScreen = () => {
 
     try {
       console.log('[DEBUG] BookAppointmentScreen: Creating appointment with date:', date.toISOString());
-      await createAppointment({
+      const appointment = await createAppointment({
         user_id: user.id,
         center_id: centerId,
         service_id: selectedServiceId,
         scheduled_at: date.toISOString(),
       });
 
-      navigation.navigate('MainTabs');
+      navigation.navigate('QueueStatus', {
+        appointmentId: appointment.id,
+      });
     } catch (createError) {
       console.error('[DEBUG] BookAppointmentScreen: Failed to create appointment:', createError);
     }
