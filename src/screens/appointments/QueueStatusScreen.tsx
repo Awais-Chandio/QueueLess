@@ -23,26 +23,15 @@ import {
   radius,
 } from '../../theme';
 
-import { supabase } from '../../services/supabase/client';
+import { appointmentsService } from '../../services/appointments/appointmentsService';
 
 import type { AppStackParamList } from '../../navigation/types';
+import type { AppointmentFull } from '../../types/appointment';
 
 type QueueStatusRouteProp = RouteProp<
   AppStackParamList,
   'QueueStatus'
 >;
-
-type Appointment = {
-  id: string;
-
-  center_id: string;
-
-  service_id: string;
-
-  scheduled_at: string;
-
-  status: string;
-};
 
 const QueueStatusScreen = () => {
   const route =
@@ -51,24 +40,23 @@ const QueueStatusScreen = () => {
   const { appointmentId } = route.params;
 
   const [appointment, setAppointment] =
-    useState<Appointment | null>(null);
+    useState<AppointmentFull | null>(null);
 
   const [loading, setLoading] =
     useState(true);
 
   const fetchAppointment = useCallback(async () => {
     console.log('[DEBUG] QueueStatusScreen: Fetching appointment:', appointmentId);
-    const { data, error } = await supabase
-      .from('appointments_full')
-      .select('id, user_id, center_id, service_id, scheduled_at, status')
-      .eq('id', appointmentId)
-      .single();
 
-    if (error) {
-      console.error('[DEBUG] QueueStatusScreen: Failed to fetch appointment:', error.message);
-    } else {
+    try {
+      const data = await appointmentsService.fetchAppointmentById(appointmentId);
       console.log('[DEBUG] QueueStatusScreen: Appointment fetched:', data);
       setAppointment(data);
+    } catch (error) {
+      console.error(
+        '[DEBUG] QueueStatusScreen: Failed to fetch appointment:',
+        error instanceof Error ? error.message : error,
+      );
     }
 
     setLoading(false);
