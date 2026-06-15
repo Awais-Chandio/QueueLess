@@ -20,9 +20,21 @@ import { appointmentsService } from '../../services/appointments/appointmentsSer
 import { colors, spacing, typography } from '../../theme';
 
 import type { AppStackParamList } from '../../navigation/types';
-import type { AppointmentFull } from '../../types/appointment';
+import type {
+  AppointmentFull,
+  AppointmentStatus,
+} from '../../types/appointment';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
+type StatusFilter = 'all' | AppointmentStatus;
+
+const statusFilters: StatusFilter[] = [
+  'all',
+  'pending',
+  'confirmed',
+  'completed',
+  'cancelled',
+];
 
 const MyAppointmentsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -31,6 +43,8 @@ const MyAppointmentsScreen = () => {
   const [appointments, setAppointments] = useState<AppointmentFull[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedStatus, setSelectedStatus] =
+    useState<StatusFilter>('all');
 
   const fetchAppointments = useCallback(async (isRefresh = false) => {
     if (!user?.id) {
@@ -126,6 +140,11 @@ const MyAppointmentsScreen = () => {
   const formatStatus = (status: AppointmentFull['status']) =>
     status.charAt(0).toUpperCase() + status.slice(1);
 
+  const filteredAppointments =
+    selectedStatus === 'all'
+      ? appointments
+      : appointments.filter(item => item.status === selectedStatus);
+
   if (loading) {
     return (
       <ScreenWrapper>
@@ -150,11 +169,43 @@ const MyAppointmentsScreen = () => {
       <View style={styles.container}>
         <Text style={styles.title}>My Appointments</Text>
 
+        <View style={styles.filterRow}>
+          {statusFilters.map(status => {
+            const selected = selectedStatus === status;
+
+            return (
+              <Pressable
+                key={status}
+                style={[
+                  styles.filterButton,
+                  selected && styles.filterButtonSelected,
+                ]}
+                onPress={() => setSelectedStatus(status)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}>
+                <Text
+                  style={[
+                    styles.filterText,
+                    selected && styles.filterTextSelected,
+                  ]}>
+                  {status === 'all' ? 'All' : formatStatus(status)}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <FlatList
-          data={appointments}
+          data={filteredAppointments}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <EmptyState
+              title="No Matching Appointments"
+              subtitle="No appointments found for this status."
+            />
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -248,6 +299,37 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingBottom: spacing.xl,
+  },
+
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+
+  filterButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+
+  filterButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+
+  filterText: {
+    color: colors.textSecondary,
+    fontSize: typography.caption,
+    fontWeight: '700',
+  },
+
+  filterTextSelected: {
+    color: colors.background,
   },
 
   card: {
