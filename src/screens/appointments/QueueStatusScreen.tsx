@@ -111,7 +111,7 @@ const QueueStatusScreen = () => {
     return fallback;
   };
 
-  if (loading || queueLoading) {
+  if (loading) {
     return (
       <ScreenWrapper>
         <Loader />
@@ -187,7 +187,7 @@ const QueueStatusScreen = () => {
           <Text style={styles.value}>
             {formatNumber(
               queueData?.people_ahead,
-              'Queue pending',
+              queueLoading ? 'Loading queue...' : 'Queue pending',
             )}
           </Text>
         </View>
@@ -212,7 +212,7 @@ const QueueStatusScreen = () => {
           <Text style={styles.value}>
             {formatNumber(
               queueData?.current_position,
-              'Queue pending',
+              queueLoading ? 'Loading queue...' : 'Queue pending',
             )}
           </Text>
         </View>

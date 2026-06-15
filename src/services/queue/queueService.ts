@@ -1,29 +1,30 @@
-import { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../supabase/client';
+import type { QueueUpdate } from '../../types/queue';
 
 let queueChannel: RealtimeChannel | null = null;
 
 export const getLatestQueueUpdate = async (
   appointmentId: string,
-) => {
+): Promise<QueueUpdate | null> => {
   const { data, error } = await supabase
     .from('queue_updates')
     .select('*')
     .eq('appointment_id', appointmentId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw error;
   }
 
-  return data;
+  return data as QueueUpdate | null;
 };
 
 export const subscribeToQueueUpdates = (
   appointmentId: string,
-  callback: (payload: any) => void,
+  callback: (queueUpdate: QueueUpdate) => void,
 ) => {
   queueChannel = supabase
     .channel(`queue-${appointmentId}`)
@@ -41,7 +42,9 @@ export const subscribeToQueueUpdates = (
           payload,
         );
 
-        callback(payload);
+        if (payload.new && 'id' in payload.new) {
+          callback(payload.new as QueueUpdate);
+        }
       },
     )
     .subscribe();
