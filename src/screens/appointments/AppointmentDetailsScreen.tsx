@@ -169,6 +169,7 @@ const AppointmentDetailsScreen = () => {
       });
 
       showToast('Appointment cancelled successfully', 'success');
+      navigation.goBack();
     } catch (cancelError) {
       const message =
         cancelError instanceof Error
@@ -338,23 +339,25 @@ const AppointmentDetailsScreen = () => {
           }
         />
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.cancelButton,
-            pressed && !cancelLoading && canCancel && styles.cancelPressed,
-            (!canCancel || cancelLoading) && styles.disabledButton,
-          ]}
-          disabled={!canCancel || cancelLoading}
-          onPress={confirmCancel}
-          accessibilityRole="button"
-          accessibilityState={{
-            busy: cancelLoading,
-            disabled: !canCancel || cancelLoading,
-          }}>
-          <Text style={styles.cancelText}>
-            {cancelLoading ? 'Cancelling...' : 'Cancel Appointment'}
-          </Text>
-        </Pressable>
+        {canCancel && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.cancelButton,
+              pressed && !cancelLoading && styles.cancelPressed,
+              cancelLoading && styles.disabledButton,
+            ]}
+            disabled={cancelLoading}
+            onPress={confirmCancel}
+            accessibilityRole="button"
+            accessibilityState={{
+              busy: cancelLoading,
+              disabled: cancelLoading,
+            }}>
+            <Text style={styles.cancelText}>
+              {cancelLoading ? 'Cancelling...' : 'Cancel Appointment'}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
     </ScreenWrapper>
   );
