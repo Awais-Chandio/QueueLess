@@ -24,6 +24,7 @@ import {
 } from '../../theme';
 
 import { appointmentsService } from '../../services/appointments/appointmentsService';
+import { useRealtimeQueue } from '../../hooks/useRealtimeQueue';
 
 import type { AppStackParamList } from '../../navigation/types';
 import type { AppointmentFull } from '../../types/appointment';
@@ -66,6 +67,11 @@ const QueueStatusScreen = () => {
     fetchAppointment();
   }, [fetchAppointment]);
 
+  const {
+    queueData,
+    loading: queueLoading,
+  } = useRealtimeQueue(appointmentId);
+
   const formatDate = (scheduledAt: string) => {
     const date = new Date(scheduledAt);
 
@@ -105,7 +111,7 @@ const QueueStatusScreen = () => {
     return fallback;
   };
 
-  if (loading) {
+  if (loading || queueLoading) {
     return (
       <ScreenWrapper>
         <Loader />
@@ -179,7 +185,10 @@ const QueueStatusScreen = () => {
           </Text>
 
           <Text style={styles.value}>
-            {formatNumber(appointment.people_ahead, 'Queue pending')}
+            {formatNumber(
+              queueData?.people_ahead,
+              'Queue pending',
+            )}
           </Text>
         </View>
 
@@ -189,8 +198,8 @@ const QueueStatusScreen = () => {
           </Text>
 
           <Text style={styles.value}>
-            {typeof appointment.estimated_wait_mins === 'number'
-              ? `${appointment.estimated_wait_mins} mins`
+            {typeof queueData?.estimated_wait_mins === 'number'
+              ? `${queueData.estimated_wait_mins} mins`
               : 'Calculating'}
           </Text>
         </View>
@@ -201,7 +210,10 @@ const QueueStatusScreen = () => {
           </Text>
 
           <Text style={styles.value}>
-            {formatNumber(appointment.current_position, 'Queue pending')}
+            {formatNumber(
+              queueData?.current_position,
+              'Queue pending',
+            )}
           </Text>
         </View>
       </View>

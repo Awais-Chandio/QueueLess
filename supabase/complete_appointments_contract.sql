@@ -185,6 +185,21 @@ GRANT SELECT, INSERT, UPDATE ON public.queue_updates TO authenticated;
 CREATE INDEX IF NOT EXISTS idx_queue_updates_appointment_created_at
   ON public.queue_updates(appointment_id, created_at DESC);
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM pg_publication
+    WHERE pubname = 'supabase_realtime'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime
+      ADD TABLE public.queue_updates;
+  END IF;
+EXCEPTION
+  WHEN duplicate_object THEN
+    NULL;
+END $$;
+
 CREATE OR REPLACE VIEW public.appointments_full
 WITH (security_invoker = true)
 AS
