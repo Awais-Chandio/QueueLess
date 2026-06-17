@@ -1,11 +1,12 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AppTabs from "./AppTabs";
-import CenterDetailsScreen from "../screens/centers/CenterDetailsScreen";
-import BookAppointmentScreen from "../screens/appointments/BookAppointmentScreen";
-import AppointmentDetailsScreen from "../screens/appointments/AppointmentDetailsScreen";
-import QueueStatusScreen from "../screens/appointments/QueueStatusScreen";
-import EditProfileScreen from "../screens/profile/EditProfileScreen";
+import CenterDetailsScreen from "../features/centers/components/CenterDetailsScreen";
+import BookAppointmentScreen from "../features/appointments/components/BookAppointmentScreen";
+import AppointmentDetailsScreen from "../features/appointments/components/AppointmentDetailsScreen";
+import QueueStatusScreen from "../features/appointments/components/QueueStatusScreen";
+import EditProfileScreen from "../features/profile/components/EditProfileScreen";
+import SettingsScreen from "../features/profile/components/SettingsScreen";
 import type { AppStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
@@ -19,6 +20,7 @@ const AppNavigator = () => {
       <Stack.Screen name="AppointmentDetails" component={AppointmentDetailsScreen} />
       <Stack.Screen name="QueueStatus" component={QueueStatusScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 };

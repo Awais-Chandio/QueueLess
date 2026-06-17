@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { profileService } from "../services/profile/profileService";
+import { profileService } from "../features/profile/api/profileService";
 import { CreateProfilePayload, UpdateProfilePayload, Profile } from "../types/profile";
 
 type ProfileState = {

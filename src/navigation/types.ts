@@ -7,12 +7,13 @@ export type AppStackParamList = {
     appointmentId: string;
   };
   EditProfile: undefined;
+  Settings: undefined;
 };
 
 export type AppTabParamList = {
   Home: undefined;
   Centers: undefined;
   MyAppointments: undefined;
+  Notifications: undefined;
   Profile: undefined;
-  Settings: undefined;
 };

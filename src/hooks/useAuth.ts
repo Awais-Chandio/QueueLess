@@ -1,9 +1,9 @@
 import { useCallback } from "react";
-import { authService } from '../services/auth/authService';
+import { authService } from '../features/auth/api/authService';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
-import { profileService } from '../services/profile/profileService';
+import { profileService } from '../features/profile/api/profileService';
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {

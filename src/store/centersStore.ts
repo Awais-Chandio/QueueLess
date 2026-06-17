@@ -5,7 +5,7 @@ import {
   CenterService,
 } from '../types/center';
 
-import { centersService } from '../services/centers/centersService';
+import { centersService } from '../features/centers/api/centersService';
 
 interface CentersState {
   centers: Center[];

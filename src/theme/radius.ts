@@ -4,4 +4,5 @@ export const radius = {
   lg: 14,
   xl: 18,
   borderRadius: 4,
+  full: 9999,
 };

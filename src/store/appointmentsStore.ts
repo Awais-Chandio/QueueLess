@@ -4,7 +4,7 @@ import {
   Appointment,
   AppointmentFull,
 } from '../types/appointment';
-import { appointmentsService } from '../services/appointments/appointmentsService';
+import { appointmentsService } from '../features/appointments/api/appointmentsService';
 
 interface AppointmentsState {
   appointments: AppointmentFull[];
