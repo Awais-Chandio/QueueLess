@@ -295,16 +295,16 @@ const BookAppointmentScreen = () => {
                 <DateTimePicker
                   value={date}
                   mode="date"
-                  onChange={(
-                    event,
+                  onValueChange={(
+                    _event,
                     selectedDate,
                   ) => {
                     setShowDatePicker(false);
-
-                    if (selectedDate) {
-                      setDate(selectedDate);
-                    }
+                    setDate(selectedDate);
                   }}
+                  onDismiss={() =>
+                    setShowDatePicker(false)
+                  }
                 />
               )}
 
@@ -312,16 +312,16 @@ const BookAppointmentScreen = () => {
                 <DateTimePicker
                   value={date}
                   mode="time"
-                  onChange={(
-                    event,
+                  onValueChange={(
+                    _event,
                     selectedDate,
                   ) => {
                     setShowTimePicker(false);
-
-                    if (selectedDate) {
-                      setDate(selectedDate);
-                    }
+                    setDate(selectedDate);
                   }}
+                  onDismiss={() =>
+                    setShowTimePicker(false)
+                  }
                 />
               )}
             </View>
