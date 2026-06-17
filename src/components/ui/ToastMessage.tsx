@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToastStore } from '../../store/toastStore';
-import { colors, spacing, typography } from '../../theme';
+import { colors, radius, spacing, typography } from '../../theme';
+import { scaleFont, wp } from '../../utils/responsive';
 
 const toastColors = {
   success: colors.success,
@@ -12,6 +14,7 @@ const toastColors = {
 const ToastMessage = () => {
   const { visible, message, type } = useToastStore();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (visible) {
@@ -35,7 +38,7 @@ const ToastMessage = () => {
     <Animated.View
       style={[
         styles.container,
-        { backgroundColor: toastColors[type], opacity: fadeAnim },
+        { backgroundColor: toastColors[type], opacity: fadeAnim, top: insets.top + spacing.sm },
       ]}
     >
       <Text style={styles.text}>{message}</Text>
@@ -46,16 +49,15 @@ const ToastMessage = () => {
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 50,
-    left: spacing.lg,
-    right: spacing.lg,
+    left: wp(4),
+    right: wp(4),
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: 8,
+    borderRadius: radius.md,
     zIndex: 999,
     elevation: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: scaleFont(2) },
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },

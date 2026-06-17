@@ -18,7 +18,7 @@ import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
 import AppButton from '../../../components/ui/AppButton';
 
-import { colors, spacing, typography } from '../../../theme';
+import { colors, radius, spacing, typography } from '../../../theme';
 
 import type { AppStackParamList } from '../../../navigation/types';
 
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   category: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surface,
-    borderRadius: 999,
+    borderRadius: radius.full,
     color: colors.primary,
     fontSize: typography.caption,
     fontWeight: '700',
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
 
   timingCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.md,
     marginBottom: spacing.lg,
     padding: spacing.md,
   },
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
   serviceCard: {
     backgroundColor: colors.surface,
     padding: spacing.md,
-    borderRadius: 12,
+    borderRadius: radius.md,
     marginBottom: spacing.md,
   },
 

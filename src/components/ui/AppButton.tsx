@@ -1,6 +1,7 @@
 import React from "react";
 import { ActivityIndicator, StyleSheet, Pressable, Text, ViewStyle, TextStyle } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
+import { hp } from "../../utils/responsive";
 
 interface AppButtonProps {
   onPress: () => void;
@@ -38,8 +39,10 @@ const AppButton = ({ onPress, title, loading = false, disabled = false, variant 
           borderColor: border,
           borderWidth: variant === 'outline' ? 1 : 0,
           borderRadius: radius.md,
-          padding: spacing.md,
+          paddingHorizontal: spacing.md,
+          paddingVertical: spacing.md,
           marginTop: spacing.sm,
+          minHeight: hp(5.4),
         },
         pressed && !isDisabled && styles.pressedButton,
         isDisabled && styles.disabledButton,
@@ -68,9 +71,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
+    alignSelf: 'stretch',
   },
   buttonText: {
     fontWeight: '600',
+    textAlign: 'center',
   },
   pressedButton: {
     opacity: 0.85,

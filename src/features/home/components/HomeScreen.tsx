@@ -1,29 +1,26 @@
 import React from "react";
-import { View, StyleSheet, Text, RefreshControl, ScrollView } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import type { NavigationProp } from "@react-navigation/native";
+import { View, StyleSheet, Text } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useDashboardStats } from "../hooks/useDashboardStats";
 import { Users, Clock, CheckCircle, XCircle } from "lucide-react-native";
-import type { AppTabParamList } from "../../../navigation/types";
 import { useAuthStore } from "../../../store/authStore";
+import { hp, scaleFont, wp } from "../../../utils/responsive";
 
 const HomeScreen = () => {
-  const navigation = useNavigation<NavigationProp<AppTabParamList>>();
   const { colors, spacing, typography } = useTheme();
   const { data: stats, isLoading, refetch, isRefetching } = useDashboardStats();
   const user = useAuthStore(state => state.user);
 
   const StatCard = ({ title, value, icon: Icon, color }: { title: string, value: string | number, icon: any, color: string }) => (
-    <Card style={[styles.statCard, { marginRight: spacing.sm, marginBottom: spacing.md }]}>
+    <Card style={[styles.statCard, { marginBottom: spacing.md }]}>
       <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
-        <Icon color={color} size={24} />
+        <Icon color={color} size={scaleFont(24)} />
       </View>
       <Text style={[styles.statValue, { color: colors.text, fontSize: typography.sizes.xl }]}>
-        {isLoading ? <Skeleton width={40} height={28} /> : value}
+        {isLoading ? <Skeleton width={wp(11)} height={hp(3.4)} /> : value}
       </Text>
       <Text style={[styles.statTitle, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
         {title}
@@ -80,10 +77,10 @@ export default HomeScreen;
 
 const styles = StyleSheet.create({
   welcomeText: {
-    marginBottom: 4,
+    marginBottom: scaleFont(4),
   },
   nameText: {
-    marginBottom: 16,
+    marginBottom: scaleFont(16),
   },
   sectionTitle: {
     fontWeight: '600',
@@ -91,21 +88,22 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: scaleFont(8),
   },
   statCard: {
     flex: 1,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: scaleFont(48),
+    height: scaleFont(48),
+    borderRadius: scaleFont(24),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: scaleFont(12),
   },
   statValue: {
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: scaleFont(4),
   },
   statTitle: {
     fontWeight: '500',

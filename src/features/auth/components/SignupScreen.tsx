@@ -53,7 +53,7 @@ const SignupScreen = () => {
 
 
 
-        <ScreenWrapper>
+        <ScreenWrapper scrollable centered>
             <View style={styles.container}>
                 <Text
 
@@ -150,15 +150,18 @@ const styles = StyleSheet.create({
         color: colors.primary,
         marginTop: spacing.md,
         textAlign: 'center',
+        fontSize: typography.body,
     },
     errorMessage: {
         color: colors.error,
         textAlign: 'center',
         marginBottom: spacing.sm,
+        fontSize: typography.small,
     },
     successMessage: {
         color: colors.success,
         textAlign: 'center',
         marginTop: spacing.sm,
+        fontSize: typography.small,
     }
 })

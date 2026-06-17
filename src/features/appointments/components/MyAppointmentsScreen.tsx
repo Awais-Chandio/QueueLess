@@ -10,8 +10,9 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAppointments } from '../hooks/useAppointments';
 import type { AppStackParamList } from '../../../navigation/types';
-import type { AppointmentFull, AppointmentStatus } from '../../../types/appointment';
+import type { AppointmentStatus } from '../../../types/appointment';
 import { Calendar, Clock, MapPin, SearchX } from 'lucide-react-native';
+import { scaleFont } from '../../../utils/responsive';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 type StatusFilter = 'all' | AppointmentStatus;
@@ -113,9 +114,9 @@ const MyAppointmentsScreen = () => {
                       <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
                         {item.service_name ?? 'Service'}
                       </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-                        <MapPin size={14} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: 4 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
+                        <MapPin size={scaleFont(14)} color={colors.textSecondary} />
+                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, flex: 1 }}>
                           {item.center_name ?? 'Center'}
                         </Text>
                       </View>
@@ -127,9 +128,9 @@ const MyAppointmentsScreen = () => {
 
                   <View style={styles.detailsRow}>
                     <View style={styles.detailItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                        <Calendar size={14} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: 4 }}>Date</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
+                        <Calendar size={scaleFont(14)} color={colors.textSecondary} />
+                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Date</Text>
                       </View>
                       <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
                         {new Date(item.scheduled_at).toLocaleDateString()}
@@ -137,9 +138,9 @@ const MyAppointmentsScreen = () => {
                     </View>
 
                     <View style={styles.detailItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                        <Clock size={14} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: 4 }}>Time</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
+                        <Clock size={scaleFont(14)} color={colors.textSecondary} />
+                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Time</Text>
                       </View>
                       <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
                         {new Date(item.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -148,7 +149,7 @@ const MyAppointmentsScreen = () => {
 
                     {typeof item.token_number === 'number' && (
                       <View style={styles.detailItem}>
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: 2 }}>Token</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.xs / 2 }}>Token</Text>
                         <Text style={{ color: colors.primary, fontSize: typography.sizes.md, fontWeight: 'bold' }}>
                           #{item.token_number}
                         </Text>
@@ -185,15 +186,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    gap: scaleFont(8),
   },
   divider: {
-    height: 1,
+    height: StyleSheet.hairlineWidth,
   },
   detailsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: scaleFont(12),
   },
   detailItem: {
     flex: 1,
+    minWidth: '28%',
   }
 });

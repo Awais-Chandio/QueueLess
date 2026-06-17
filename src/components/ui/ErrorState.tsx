@@ -13,7 +13,7 @@ const ErrorState = (props: ErrorStateProps) => {
         <View style={Styles.container}>
             <Text
                 style={Styles.title}>
-                {props.message || "Something went wrong"}
+                {props.title || "Something went wrong"}
             </Text>
             {props.message && <Text
                 style={Styles.subtitle}
@@ -46,15 +46,16 @@ const Styles = StyleSheet.create({
         fontWeight: "bold",
         color: colors.error,
         marginBottom: spacing.sm,
+        textAlign: "center",
     },
     subtitle: {
         fontSize: typography.body,
         color: colors.text,
         marginBottom: spacing.md,
+        textAlign: "center",
     },
     button: {
         marginTop: spacing.md,
         width: "100%",
     },
 });
-

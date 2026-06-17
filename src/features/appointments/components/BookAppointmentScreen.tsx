@@ -390,6 +390,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
+    flexWrap: 'wrap',
   },
 
   serviceName: {
@@ -403,6 +404,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: typography.body,
     fontWeight: '700',
+    flexShrink: 0,
   },
 
   description: {

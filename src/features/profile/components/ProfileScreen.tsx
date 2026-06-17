@@ -11,6 +11,7 @@ import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
 import { User, Camera, Settings, Activity } from "lucide-react-native";
 import type { AppStackParamList } from "../../../navigation/types";
+import { scaleFont } from "../../../utils/responsive";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
@@ -45,37 +46,37 @@ const ProfileScreen = () => {
       <View style={styles.header}>
         <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: 'bold' }}>Profile</Text>
         <Pressable onPress={() => navigation.navigate("Settings")}>
-          <Settings color={colors.textSecondary} size={24} />
+          <Settings color={colors.textSecondary} size={scaleFont(24)} />
         </Pressable>
       </View>
 
       <View style={styles.profileHeader}>
         <Pressable onPress={handleAvatarUpload} style={[styles.avatarContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           {profile?.avatar_url ? (
-            <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: colors.primary }} />
+            <View style={{ width: '100%', height: '100%', borderRadius: scaleFont(50), backgroundColor: colors.primary }} />
           ) : (
-            <User size={48} color={colors.textSecondary} />
+            <User size={scaleFont(48)} color={colors.textSecondary} />
           )}
           <View style={[styles.cameraIcon, { backgroundColor: colors.primary }]}>
-            <Camera size={14} color="#FFF" />
+            <Camera size={scaleFont(14)} color="#FFF" />
           </View>
         </Pressable>
         <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '700', marginTop: spacing.md }}>
           {profile?.full_name || 'Add your name'}
         </Text>
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.md, marginTop: 4 }}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.md, marginTop: spacing.xs }}>
           {profile?.email || user?.email}
         </Text>
       </View>
 
       <Card style={{ marginBottom: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-          <Activity color={colors.primary} size={20} />
+          <Activity color={colors.primary} size={scaleFont(20)} />
           <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '600', marginLeft: spacing.sm }}>
             Account Statistics
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+        <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '700' }}>{stats?.total || 0}</Text>
             <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Total</Text>
@@ -109,16 +110,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: scaleFont(24),
   },
   profileHeader: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: scaleFont(32),
   },
   avatarContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: scaleFont(100),
+    height: scaleFont(100),
+    borderRadius: scaleFont(50),
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -128,9 +129,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: scaleFont(28),
+    height: scaleFont(28),
+    borderRadius: scaleFont(14),
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
@@ -140,8 +141,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   statDivider: {
-    width: 1,
+    width: StyleSheet.hairlineWidth,
     height: '100%',
   }
 });

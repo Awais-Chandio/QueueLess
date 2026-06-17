@@ -6,11 +6,12 @@ import { useThemeStore } from "../../../store/themeStore";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
-import { Moon, Bell, Shield, Info, LogOut, ChevronRight } from "lucide-react-native";
+import { Moon, Bell, Shield, Info, ChevronRight } from "lucide-react-native";
+import { scaleFont } from "../../../utils/responsive";
 
 const SettingsScreen = () => {
   const { logout } = useAuth();
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, typography } = useTheme();
   const { isDarkMode, toggleTheme } = useThemeStore();
 
   const handleLogout = async () => {
@@ -25,14 +26,14 @@ const SettingsScreen = () => {
     <Pressable onPress={onPress} disabled={!onPress} style={[styles.settingRow, { borderBottomColor: colors.border }]}>
       <View style={styles.settingLeft}>
         <View style={[styles.iconContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Icon size={20} color={colors.textSecondary} />
+          <Icon size={scaleFont(20)} color={colors.textSecondary} />
         </View>
         <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.md, fontWeight: '500' }}>
           {title}
         </Text>
       </View>
       <View style={styles.settingRight}>
-        {rightElement || <ChevronRight size={20} color={colors.textSecondary} />}
+        {rightElement || <ChevronRight size={scaleFont(20)} color={colors.textSecondary} />}
       </View>
     </Pressable>
   );
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    padding: scaleFont(16),
     borderBottomWidth: 1,
   },
   settingLeft: {
@@ -91,9 +92,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: scaleFont(36),
+    height: scaleFont(36),
+    borderRadius: scaleFont(8),
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -13,7 +13,8 @@ import { appointmentsService } from '../api/appointmentsService'; // adjusted pa
 import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue'; // adjusted path
 import type { AppStackParamList } from '../../../navigation/types'; // adjusted path
 import type { AppointmentFull } from '../../../types/appointment'; // adjusted path
-import { Clock, Users, MapPin, Calendar, CircleDot } from 'lucide-react-native';
+import { MapPin, Calendar, CircleDot } from 'lucide-react-native';
+import { scaleFont } from '../../../utils/responsive';
 
 type QueueStatusRouteProp = RouteProp<AppStackParamList, 'QueueStatus'>;
 
@@ -39,7 +40,7 @@ const QueueStatusScreen = () => {
     fetchAppointment();
   }, [fetchAppointment]);
 
-  const { queueData, loading: queueLoading } = useRealtimeQueue(appointmentId);
+  const { queueData } = useRealtimeQueue(appointmentId);
 
   if (loading) {
     return (
@@ -72,7 +73,7 @@ const QueueStatusScreen = () => {
   return (
     <ScreenWrapper scrollable>
       <View style={styles.container}>
-        <View style={{ marginBottom: spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ marginBottom: spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
           <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
             Queue Status
           </Text>
@@ -81,7 +82,7 @@ const QueueStatusScreen = () => {
 
         {/* Progress Card */}
         <Card style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md, flexWrap: 'wrap', gap: spacing.md }}>
             <View>
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Estimated Wait</Text>
               <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '700' }}>
@@ -108,14 +109,14 @@ const QueueStatusScreen = () => {
           </Text>
           <View style={{ gap: spacing.md }}>
             <View style={styles.detailRow}>
-              <CircleDot color={colors.primary} size={20} />
+              <CircleDot color={colors.primary} size={scaleFont(20)} />
               <View style={styles.detailText}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Token</Text>
                 <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>#{appointment.token_number || 'N/A'}</Text>
               </View>
             </View>
             <View style={styles.detailRow}>
-              <Calendar color={colors.primary} size={20} />
+              <Calendar color={colors.primary} size={scaleFont(20)} />
               <View style={styles.detailText}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Date & Time</Text>
                 <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>
@@ -124,7 +125,7 @@ const QueueStatusScreen = () => {
               </View>
             </View>
             <View style={styles.detailRow}>
-              <MapPin color={colors.primary} size={20} />
+              <MapPin color={colors.primary} size={scaleFont(20)} />
               <View style={styles.detailText}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Center</Text>
                 <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>{appointment.center_name}</Text>
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scaleFont(12),
   },
   detailText: {
     flex: 1,

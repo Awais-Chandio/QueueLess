@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
-import { View, Animated, StyleSheet, DimensionValue } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, DimensionValue } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { scaleFont } from '../../utils/responsive';
 
 interface SkeletonProps {
   width?: DimensionValue;
@@ -9,9 +10,9 @@ interface SkeletonProps {
   style?: any;
 }
 
-export const Skeleton: React.FC<SkeletonProps> = ({ width = '100%', height = 20, borderRadius, style }) => {
+export const Skeleton: React.FC<SkeletonProps> = ({ width = '100%', height = scaleFont(20), borderRadius, style }) => {
   const { colors, radius } = useTheme();
-  const opacity = new Animated.Value(0.3);
+  const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
     Animated.loop(
@@ -28,7 +29,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({ width = '100%', height = 20,
         }),
       ])
     ).start();
-  }, []);
+  }, [opacity]);
 
   return (
     <Animated.View

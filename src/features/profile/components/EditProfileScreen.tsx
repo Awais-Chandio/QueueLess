@@ -12,7 +12,6 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useProfileStore } from "../../../store/profileStore";
 import { useToastStore } from "../../../store/toastStore";
 import { profileSchema, type ProfileFormData } from "../../../validations/profileSchema";
-import type { UpdateProfilePayload } from "../../../types/profile";
 import { colors, spacing, typography } from "../../../theme";
 
 const EditProfileScreen = () => {
@@ -83,7 +82,7 @@ const EditProfileScreen = () => {
   }
 
   return (
-    <ScreenWrapper>
+    <ScreenWrapper scrollable centered>
       <View style={styles.container}>
         <Text style={styles.title}>Edit Profile</Text>
         <Text style={styles.subtitle}>Update your personal information</Text>
@@ -137,7 +136,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    padding: spacing.lg,
   },
   title: {
     fontSize: typography.h1,
@@ -156,6 +154,7 @@ const styles = StyleSheet.create({
     color: colors.error,
     textAlign: "center",
     marginTop: spacing.sm,
+    fontSize: typography.small,
   },
 });
 

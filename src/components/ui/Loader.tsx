@@ -1,6 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Text, ActivityIndicator } from "react-native";
-import { colors, spacing } from "../../theme";
+import { colors, spacing, typography } from "../../theme";
 type LoaderProps = {
     size?: 'small' | 'large';
     message?: string;
@@ -34,5 +34,7 @@ const Styles = StyleSheet.create({
     message: {
         marginTop: spacing.md,
         color: colors.textSecondary,
+        fontSize: typography.body,
+        textAlign: 'center',
     }
 })

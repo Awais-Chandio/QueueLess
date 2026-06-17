@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { View, StyleSheet, TextInput, Text, Pressable } from "react-native";
 import type { TextInputProps } from "react-native";
-import { colors, radius, spacing } from "../../theme/index";
+import { colors, radius, spacing, typography } from "../../theme/index";
 import { Eye, EyeOff } from "lucide-react-native";
+import { hp, scaleFont, wp } from "../../utils/responsive";
 
 type AppInputProps = {
     placeholder?: string;
@@ -38,7 +39,7 @@ const AppInput = (props: AppInputProps) => {
                     autoCorrect={props.autoCorrect}
                     textContentType={props.textContentType}
                     autoComplete={props.autoComplete}
-                    style={[Styles.input, isPasswordField && { paddingRight: 50 }]}
+                    style={[Styles.input, isPasswordField && { paddingRight: wp(12) }]}
                     placeholderTextColor={colors.textSecondary}
                 />
                 {isPasswordField && (
@@ -48,9 +49,9 @@ const AppInput = (props: AppInputProps) => {
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                         {isPasswordVisible ? (
-                            <EyeOff size={20} color={colors.textSecondary} />
+                            <EyeOff size={scaleFont(20)} color={colors.textSecondary} />
                         ) : (
-                            <Eye size={20} color={colors.textSecondary} />
+                            <Eye size={scaleFont(20)} color={colors.textSecondary} />
                         )}
                     </Pressable>
                 )}
@@ -71,6 +72,7 @@ const Styles = StyleSheet.create({
         marginBottom: spacing.sm,
         color: colors.text,
         fontWeight: '600',
+        fontSize: typography.small,
     },
     inputContainer: {
         flexDirection: 'row',
@@ -85,6 +87,8 @@ const Styles = StyleSheet.create({
         borderRadius: radius.borderRadius,
         color: colors.text,
         backgroundColor: colors.surface,
+        fontSize: typography.body,
+        minHeight: hp(5.6),
     },
     eyeIconContainer: {
         position: 'absolute',
@@ -95,7 +99,7 @@ const Styles = StyleSheet.create({
     },
     errorText: {
         color: colors.error,
-        fontSize: 12,
+        fontSize: typography.caption,
         marginTop: spacing.xs,
     }
 });

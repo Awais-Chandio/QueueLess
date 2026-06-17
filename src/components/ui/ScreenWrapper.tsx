@@ -1,7 +1,8 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, RefreshControl } from "react-native";
+import { View, StyleSheet, ScrollView, RefreshControl, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "../../hooks/useTheme";
+import { hp, wp } from "../../utils/responsive";
 
 interface ScreenWrapperProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ interface ScreenWrapperProps {
   onRefresh?: () => void;
   refreshing?: boolean;
   withPadding?: boolean;
+  centered?: boolean;
 }
 
 const ScreenWrapper: React.FC<ScreenWrapperProps> = ({ 
@@ -16,32 +18,46 @@ const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
   scrollable = false, 
   onRefresh, 
   refreshing = false,
-  withPadding = true
+  withPadding = true,
+  centered = false,
 }) => {
   const { colors, spacing } = useTheme();
 
   const content = (
-    <View style={[styles.container, withPadding && { padding: spacing.lg }]}>
+    <View
+      style={[
+        styles.container,
+        withPadding && { paddingHorizontal: wp(4), paddingVertical: spacing.lg },
+        centered && styles.centeredContent,
+      ]}
+    >
       {children}
     </View>
   );
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      {scrollable ? (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            onRefresh ? (
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-            ) : undefined
-          }
-        >
-          {content}
-        </ScrollView>
-      ) : (
-        content
-      )}
+      <KeyboardAvoidingView
+        style={styles.safeArea}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {scrollable ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={[styles.scrollContent, centered && styles.centeredScrollContent]}
+            refreshControl={
+              onRefresh ? (
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+              ) : undefined
+            }
+          >
+            {content}
+          </ScrollView>
+        ) : (
+          content
+        )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -54,5 +70,16 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-  }
+    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: hp(2),
+  },
+  centeredContent: {
+    justifyContent: 'center',
+  },
+  centeredScrollContent: {
+    justifyContent: 'center',
+  },
 });

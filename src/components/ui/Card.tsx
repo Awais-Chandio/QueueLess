@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewProps, StyleProp, ViewStyle } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { scaleFont } from '../../utils/responsive';
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
@@ -22,7 +23,7 @@ export const Card: React.FC<CardProps> = ({ children, style, variant = 'elevated
         },
         variant === 'elevated' && {
           shadowColor: colors.text,
-          shadowOffset: { width: 0, height: 4 },
+          shadowOffset: { width: 0, height: scaleFont(4) },
           shadowOpacity: 0.05,
           shadowRadius: 12,
           elevation: 3,

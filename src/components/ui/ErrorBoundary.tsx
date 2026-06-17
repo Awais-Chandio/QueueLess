@@ -3,6 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import AppButton from './AppButton';
 import { colors, spacing, typography } from '../../theme';
 import { AlertTriangle } from 'lucide-react-native';
+import { scaleFont } from '../../utils/responsive';
 
 interface Props {
   children?: ReactNode;
@@ -35,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <AlertTriangle size={64} color={colors.error} style={{ marginBottom: spacing.lg }} />
+          <AlertTriangle size={scaleFont(64)} color={colors.error} style={{ marginBottom: spacing.lg }} />
           <Text style={styles.title}>Oops! Something went wrong.</Text>
           <Text style={styles.subtitle}>
             {this.state.error?.message || 'An unexpected error occurred.'}

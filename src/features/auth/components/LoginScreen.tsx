@@ -37,7 +37,7 @@ const LoginScreen = () => {
         }
     }
     return (
-        <ScreenWrapper>
+        <ScreenWrapper scrollable centered>
             <View style={styles.container}>
                 <Text style={styles.title}>
                     Login
@@ -111,11 +111,13 @@ const styles = StyleSheet.create({
     footerText: {
         marginTop: spacing.lg,
         textAlign: 'center',
-        color: colors.primary
+        color: colors.primary,
+        fontSize: typography.body,
     },
     errorMessage: {
         color: colors.error,
         textAlign: 'center',
         marginTop: spacing.sm,
+        fontSize: typography.small,
     }
 });

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { RouteProp } from '@react-navigation/native';
@@ -14,7 +14,8 @@ import { useTheme } from '../../../hooks/useTheme';
 import { appointmentsService } from '../api/appointmentsService';
 import { useToastStore } from '../../../store/toastStore';
 import type { AppStackParamList } from '../../../navigation/types';
-import { MapPin, Calendar, CircleDot, Clock, AlignLeft } from 'lucide-react-native';
+import { Calendar, CircleDot, Clock, AlignLeft } from 'lucide-react-native';
+import { scaleFont } from '../../../utils/responsive';
 
 type AppointmentDetailsRouteProp = RouteProp<AppStackParamList, 'AppointmentDetails'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'AppointmentDetails'>;
@@ -23,7 +24,7 @@ const AppointmentDetailsScreen = () => {
   const route = useRoute<AppointmentDetailsRouteProp>();
   const navigation = useNavigation<NavigationProp>();
   const appointmentId = route.params?.appointmentId;
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, typography } = useTheme();
   const showToast = useToastStore(state => state.showToast);
   const queryClient = useQueryClient();
 
@@ -82,8 +83,8 @@ const AppointmentDetailsScreen = () => {
       </Text>
 
       <Card style={{ marginBottom: spacing.md }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <View>
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
             <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '700', marginBottom: spacing.xs }}>
               {appointment.service_name || 'Service'}
             </Text>
@@ -97,23 +98,23 @@ const AppointmentDetailsScreen = () => {
           />
         </View>
 
-        <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing.md }} />
+        <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.md }} />
 
         <View style={{ gap: spacing.md }}>
           <View style={styles.detailRow}>
-            <Calendar color={colors.primary} size={20} />
+            <Calendar color={colors.primary} size={scaleFont(20)} />
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
               {new Date(appointment.scheduled_at).toLocaleDateString()}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <Clock color={colors.primary} size={20} />
+            <Clock color={colors.primary} size={scaleFont(20)} />
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
               {new Date(appointment.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             </Text>
           </View>
           <View style={styles.detailRow}>
-            <CircleDot color={colors.primary} size={20} />
+            <CircleDot color={colors.primary} size={scaleFont(20)} />
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
               Token #{appointment.token_number || 'N/A'}
             </Text>
@@ -124,7 +125,7 @@ const AppointmentDetailsScreen = () => {
       {appointment.notes && (
         <Card style={{ marginBottom: spacing.md }}>
           <View style={styles.detailRow}>
-            <AlignLeft color={colors.primary} size={20} />
+            <AlignLeft color={colors.primary} size={scaleFont(20)} />
             <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>Notes</Text>
           </View>
           <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm }}>
@@ -158,9 +159,20 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: scaleFont(8),
+  },
+  headerText: {
+    flex: 1,
+    minWidth: '60%',
+  },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: scaleFont(12),
   }
 });

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, DimensionValue } from 'react-native';
+import { View, Animated, StyleSheet } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
+import { hp } from '../../utils/responsive';
 
 interface ProgressBarProps {
   progress: number; // 0 to 1
@@ -9,7 +10,7 @@ interface ProgressBarProps {
   trackColor?: string;
 }
 
-export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, height = 8, color, trackColor }) => {
+export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, height, color, trackColor }) => {
   const { colors, radius } = useTheme();
   const animatedProgress = useRef(new Animated.Value(0)).current;
 
@@ -19,7 +20,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, height = 8, 
       duration: 500,
       useNativeDriver: false,
     }).start();
-  }, [progress]);
+  }, [animatedProgress, progress]);
 
   const width = animatedProgress.interpolate({
     inputRange: [0, 1],
@@ -27,7 +28,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, height = 8, 
   });
 
   return (
-    <View style={[styles.track, { height, backgroundColor: trackColor || colors.border, borderRadius: radius.full }]}>
+    <View style={[styles.track, { height: height ?? hp(1), backgroundColor: trackColor || colors.border, borderRadius: radius.full }]}>
       <Animated.View style={[styles.fill, { width, backgroundColor: color || colors.primary, borderRadius: radius.full }]} />
     </View>
   );

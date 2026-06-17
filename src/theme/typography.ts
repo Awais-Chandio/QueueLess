@@ -1,17 +1,19 @@
+import { scaleFont } from '../utils/responsive';
+
 export const typography = {
-  h1: 28,
-  h2: 24,
-  h3: 20,
-  body: 16,
-  small: 14,
-  caption: 12,
+  h1: scaleFont(28),
+  h2: scaleFont(24),
+  h3: scaleFont(20),
+  body: scaleFont(16),
+  small: scaleFont(14),
+  caption: scaleFont(12),
   sizes: {
-    xs: 12,
-    sm: 14,
-    md: 16,
-    lg: 18,
-    xl: 20,
-    xxl: 24,
+    xs: scaleFont(12),
+    sm: scaleFont(14),
+    md: scaleFont(16),
+    lg: scaleFont(18),
+    xl: scaleFont(20),
+    xxl: scaleFont(24),
   },
   weights: {
     normal: '400' as const,

@@ -3,6 +3,7 @@ import { View, StyleSheet, Text } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import AppButton from "./AppButton";
 import { LucideIcon } from "lucide-react-native";
+import { scaleFont } from "../../utils/responsive";
 
 type EmptyStateProps = {
   title?: string;
@@ -19,7 +20,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ title, subtitle, buttonT
     <View style={[styles.container, { padding: spacing.lg }]}>
       {Icon && (
         <View style={{ marginBottom: spacing.md }}>
-          <Icon size={48} color={colors.textSecondary} />
+          <Icon size={scaleFont(48)} color={colors.textSecondary} />
         </View>
       )}
       <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: typography.weights.semibold }]}>

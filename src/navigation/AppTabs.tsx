@@ -8,11 +8,12 @@ import ProfileScreen from "../features/profile/components/ProfileScreen";
 import type { AppTabParamList } from "./types";
 import { useTheme } from "../hooks/useTheme";
 import { Home, MapPin, Calendar, Bell, User } from "lucide-react-native";
+import { hp } from "../utils/responsive";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
 const AppTabs = () => {
-    const { colors, typography } = useTheme();
+    const { colors, spacing, typography } = useTheme();
 
     return (
         <Tab.Navigator
@@ -23,6 +24,9 @@ const AppTabs = () => {
                 tabBarStyle: {
                     backgroundColor: colors.surface,
                     borderTopColor: colors.border,
+                    minHeight: hp(7),
+                    paddingBottom: spacing.xs,
+                    paddingTop: spacing.xs,
                 },
                 tabBarLabelStyle: {
                     fontSize: typography.sizes.xs,
