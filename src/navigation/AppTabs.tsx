@@ -1,5 +1,7 @@
 import React from "react";
+import { Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import HomeScreen from "../features/home/components/HomeScreen";
 import CentersScreen from "../features/centers/components/CentersScreen";
 import MyAppointmentsScreen from "../features/appointments/components/MyAppointmentsScreen";
@@ -14,6 +16,11 @@ const Tab = createBottomTabNavigator<AppTabParamList>();
 
 const AppTabs = () => {
     const { colors, spacing, typography } = useTheme();
+    const insets = useSafeAreaInsets();
+    const bottomInset = Math.max(
+        insets.bottom,
+        Platform.OS === "android" ? spacing.xl : spacing.sm,
+    );
 
     return (
         <Tab.Navigator
@@ -24,14 +31,19 @@ const AppTabs = () => {
                 tabBarStyle: {
                     backgroundColor: colors.surface,
                     borderTopColor: colors.border,
-                    minHeight: hp(7),
-                    paddingBottom: spacing.xs,
-                    paddingTop: spacing.xs,
+                    height: hp(8) + bottomInset,
+                    paddingBottom: bottomInset,
+                    paddingTop: spacing.sm,
                 },
                 tabBarLabelStyle: {
                     fontSize: typography.sizes.xs,
                     fontWeight: '500',
-                }
+                    lineHeight: typography.sizes.sm,
+                },
+                tabBarItemStyle: {
+                    paddingVertical: spacing.xs,
+                },
+                tabBarHideOnKeyboard: true,
             }}>
             <Tab.Screen 
                 name="Home" 
@@ -47,14 +59,17 @@ const AppTabs = () => {
                 name="MyAppointments"
                 component={MyAppointmentsScreen}
                 options={{ 
-                    title: "Appointments",
+                    title: "Appts",
                     tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />
                 }}
             />
             <Tab.Screen 
                 name="Notifications" 
                 component={NotificationsScreen} 
-                options={{ tabBarIcon: ({ color, size }) => <Bell color={color} size={size} /> }}
+                options={{
+                    title: "Alerts",
+                    tabBarIcon: ({ color, size }) => <Bell color={color} size={size} />
+                }}
             />
             <Tab.Screen 
                 name="Profile" 
