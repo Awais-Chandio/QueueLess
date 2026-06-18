@@ -1,12 +1,17 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 import HomeScreen from "../features/home/components/HomeScreen";
 import CentersScreen from "../features/centers/components/CentersScreen";
 import MyAppointmentsScreen from "../features/appointments/components/MyAppointmentsScreen";
 import NotificationsScreen from "../features/notifications/components/NotificationsScreen";
 import ProfileScreen from "../features/profile/components/ProfileScreen";
+import { supabase } from "../lib/supabase";
+import { useAuthStore } from "../store/authStore";
+import { useNotificationsStore } from "../store/notificationsStore";
+import type { Notification } from "../types/notification";
 import type { AppTabParamList } from "./types";
 import { useTheme } from "../hooks/useTheme";
 import { Home, MapPin, Calendar, Bell, User } from "lucide-react-native";
@@ -14,9 +19,159 @@ import { hp } from "../utils/responsive";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 
+type TabIconProps = {
+    color: string;
+    size: number;
+};
+
+const AlertsTabIcon = ({ color, size }: TabIconProps) => (
+    <Bell color={color} size={size} />
+);
+
+const HomeTabIcon = ({ color, size }: TabIconProps) => (
+    <Home color={color} size={size} />
+);
+
+const CentersTabIcon = ({ color, size }: TabIconProps) => (
+    <MapPin color={color} size={size} />
+);
+
+const AppointmentsTabIcon = ({ color, size }: TabIconProps) => (
+    <Calendar color={color} size={size} />
+);
+
+const ProfileTabIcon = ({ color, size }: TabIconProps) => (
+    <User color={color} size={size} />
+);
+
+const sortNotifications = (notifications: Notification[]) =>
+    [...notifications].sort(
+        (a, b) =>
+            new Date(b.created_at).getTime() -
+            new Date(a.created_at).getTime(),
+    );
+
+const upsertNotificationIntoList = (
+    notifications: Notification[],
+    notification: Notification,
+) =>
+    sortNotifications([
+        notification,
+        ...notifications.filter(item => item.id !== notification.id),
+    ]);
+
+const getRealtimeNotification = (value: unknown): Notification | null => {
+    if (!value || typeof value !== "object") {
+        return null;
+    }
+
+    const row = value as Partial<Notification>;
+    if (
+        typeof row.id !== "string" ||
+        typeof row.user_id !== "string" ||
+        typeof row.title !== "string" ||
+        typeof row.message !== "string" ||
+        typeof row.is_read !== "boolean" ||
+        typeof row.created_at !== "string"
+    ) {
+        return null;
+    }
+
+    return {
+        id: row.id,
+        user_id: row.user_id,
+        title: row.title,
+        message: row.message,
+        is_read: row.is_read,
+        created_at: row.created_at,
+        appointment_id: row.appointment_id ?? null,
+    };
+};
+
+const getRealtimeNotificationId = (value: unknown) => {
+    if (!value || typeof value !== "object") {
+        return null;
+    }
+
+    const row = value as Partial<Notification>;
+    return typeof row.id === "string" ? row.id : null;
+};
+
 const AppTabs = () => {
     const { colors, spacing, typography } = useTheme();
+    const userId = useAuthStore(state => state.user?.id);
+    const unreadCount = useNotificationsStore(state => state.unreadCount);
+    const fetchNotifications = useNotificationsStore(state => state.fetchNotifications);
+    const upsertStoreNotification = useNotificationsStore(state => state.upsertNotification);
+    const removeStoreNotification = useNotificationsStore(state => state.removeNotification);
+    const queryClient = useQueryClient();
     const insets = useSafeAreaInsets();
+
+    useEffect(() => {
+        if (userId) {
+            fetchNotifications(userId);
+        }
+    }, [fetchNotifications, userId]);
+
+    useEffect(() => {
+        if (!userId) {
+            return;
+        }
+
+        const channel = supabase
+            .channel(`tab-notifications-${userId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'notifications',
+                    filter: `user_id=eq.${userId}`,
+                },
+                payload => {
+                    console.log('NEW NOTIFICATION:', payload.new);
+
+                    if (payload.eventType === 'DELETE') {
+                        const notificationId = getRealtimeNotificationId(payload.old);
+                        if (!notificationId) {
+                            return;
+                        }
+
+                        removeStoreNotification(notificationId);
+                        queryClient.setQueryData<Notification[]>(
+                            ['notifications', userId],
+                            current =>
+                                (current ?? []).filter(
+                                    notification => notification.id !== notificationId,
+                                ),
+                        );
+                        return;
+                    }
+
+                    const notification = getRealtimeNotification(payload.new);
+                    if (!notification) {
+                        console.warn('[APP_TABS] Invalid notification payload:', payload);
+                        return;
+                    }
+
+                    upsertStoreNotification(notification);
+                    queryClient.setQueryData<Notification[]>(
+                        ['notifications', userId],
+                        current => upsertNotificationIntoList(current ?? [], notification),
+                    );
+                },
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [
+        queryClient,
+        removeStoreNotification,
+        upsertStoreNotification,
+        userId,
+    ]);
     const bottomInset = Math.max(
         insets.bottom,
         Platform.OS === "android" ? spacing.xl : spacing.sm,
@@ -48,19 +203,19 @@ const AppTabs = () => {
             <Tab.Screen 
                 name="Home" 
                 component={HomeScreen} 
-                options={{ tabBarIcon: ({ color, size }) => <Home color={color} size={size} /> }}
+                options={{ tabBarIcon: HomeTabIcon }}
             />
             <Tab.Screen 
                 name="Centers" 
                 component={CentersScreen} 
-                options={{ tabBarIcon: ({ color, size }) => <MapPin color={color} size={size} /> }}
+                options={{ tabBarIcon: CentersTabIcon }}
             />
             <Tab.Screen
                 name="MyAppointments"
                 component={MyAppointmentsScreen}
                 options={{ 
                     title: "Appts",
-                    tabBarIcon: ({ color, size }) => <Calendar color={color} size={size} />
+                    tabBarIcon: AppointmentsTabIcon,
                 }}
             />
             <Tab.Screen 
@@ -68,13 +223,24 @@ const AppTabs = () => {
                 component={NotificationsScreen} 
                 options={{
                     title: "Alerts",
-                    tabBarIcon: ({ color, size }) => <Bell color={color} size={size} />
+                    tabBarIcon: AlertsTabIcon,
+                    tabBarBadge:
+                        unreadCount > 0
+                            ? unreadCount > 99
+                                ? "99+"
+                                : unreadCount
+                            : undefined,
+                    tabBarBadgeStyle: {
+                        backgroundColor: colors.error,
+                        color: "#FFFFFF",
+                        fontSize: typography.sizes.xs,
+                    },
                 }}
             />
             <Tab.Screen 
                 name="Profile" 
                 component={ProfileScreen} 
-                options={{ tabBarIcon: ({ color, size }) => <User color={color} size={size} /> }}
+                options={{ tabBarIcon: ProfileTabIcon }}
             />
         </Tab.Navigator>
     );

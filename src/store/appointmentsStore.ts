@@ -6,6 +6,19 @@ import {
 } from '../types/appointment';
 import { appointmentsService } from '../features/appointments/api/appointmentsService';
 
+const sortAppointments = (appointments: AppointmentFull[]) =>
+  [...appointments].sort(
+    (a, b) =>
+      new Date(a.scheduled_at).getTime() -
+      new Date(b.scheduled_at).getTime(),
+  );
+
+const toAppointmentFull = (appointment: Appointment): AppointmentFull => ({
+  ...appointment,
+  center_name: undefined,
+  service_name: undefined,
+});
+
 interface AppointmentsState {
   appointments: AppointmentFull[];
 
@@ -19,7 +32,7 @@ interface AppointmentsState {
     scheduled_at: string;
   }) => Promise<Appointment>;
 
-  fetchUserAppointments: (userId: string) => Promise<void>;
+  fetchUserAppointments: (userId: string) => Promise<AppointmentFull[]>;
 
   reset: () => void;
 }
@@ -37,7 +50,15 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
       const newAppointment =
         await appointmentsService.createAppointment(payload);
 
-      set({ loading: false });
+      set(state => ({
+        appointments: sortAppointments([
+          toAppointmentFull(newAppointment),
+          ...state.appointments.filter(
+            appointment => appointment.id !== newAppointment.id,
+          ),
+        ]),
+        loading: false,
+      }));
       console.log('[DEBUG] Store: Appointment created:', newAppointment.id);
       return newAppointment;
     } catch (error) {
@@ -69,6 +90,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
         loading: false,
       });
       console.log('[DEBUG] Store: Appointments fetched and updated in state');
+      return appointments;
     } catch (error) {
       console.error('[DEBUG] Store: Failed to fetch appointments:', error);
       set({
@@ -78,6 +100,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
             ? error.message
             : 'Failed to fetch appointments',
       });
+      return [];
     }
   },
 

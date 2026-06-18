@@ -36,18 +36,8 @@ export const useAuthStore = create<AuthState>(set => ({
     }),
 
   setRole: role =>
-    set(state => {
-      const normalizedRole = normalizeUserRole(role);
-
-      if (__DEV__ && state.user?.id) {
-        console.log(
-          `[authStore] Session set for user: ${state.user.id} role: ${normalizedRole}`,
-        );
-      }
-
-      return {
-        role: normalizedRole,
-      };
+    set({
+      role: normalizeUserRole(role),
     }),
 
   clearAuth: () =>

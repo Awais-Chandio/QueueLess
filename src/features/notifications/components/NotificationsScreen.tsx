@@ -1,112 +1,291 @@
-import React, { useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import React, { useCallback, useMemo, useState } from 'react';
+import {
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { Bell, CheckCheck } from 'lucide-react-native';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import ErrorState from '../../../components/ui/ErrorState';
+import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useTheme } from '../../../hooks/useTheme';
-import { notificationsService } from '../api/notificationsService';
 import { useAuthStore } from '../../../store/authStore';
-import { supabase } from '../../../lib/supabase';
-import { Bell, CheckCheck } from 'lucide-react-native';
+import { useNotificationsStore } from '../../../store/notificationsStore';
+import { toastService } from '../../../services/toastService';
+import type { Notification } from '../../../types/notification';
 import { scaleFont } from '../../../utils/responsive';
+import { notificationsService } from '../api/notificationsService';
 
 const NotificationsScreen = () => {
   const { colors, spacing, typography } = useTheme();
-  const user = useAuthStore(state => state.user);
-  const queryClient = useQueryClient();
+  const userId = useAuthStore(state => state.user?.id);
+  const storeNotifications = useNotificationsStore(state => state.notifications);
+  const loading = useNotificationsStore(state => state.loading);
+  const error = useNotificationsStore(state => state.error);
+  const fetchNotifications = useNotificationsStore(state => state.fetchNotifications);
+  const setNotifications = useNotificationsStore(state => state.setNotifications);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const { data: notifications = [], isLoading, refetch } = useQuery({
-    queryKey: ['notifications', user?.id],
-    queryFn: () => notificationsService.fetchNotifications(user!.id),
-    enabled: !!user?.id,
-  });
+  const unreadCount = useMemo(
+    () =>
+      storeNotifications.filter(notification => !notification.is_read).length,
+    [storeNotifications],
+  );
 
-  const markAsReadMutation = useMutation({
-    mutationFn: (id: string) => notificationsService.markAsRead(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
-  });
+  const loadNotifications = useCallback(async () => {
+    if (!userId) {
+      return;
+    }
 
-  const markAllAsReadMutation = useMutation({
-    mutationFn: () => notificationsService.markAllAsRead(user!.id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
-  });
+    await fetchNotifications(userId);
+  }, [fetchNotifications, userId]);
 
-  // Realtime subscription for new notifications
-  useEffect(() => {
-    if (!user?.id) return;
-    const channel = supabase
-      .channel('public:notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
-        refetch();
-      })
-      .subscribe();
+  useFocusEffect(
+    useCallback(() => {
+      loadNotifications();
+    }, [loadNotifications]),
+  );
 
-    return () => { supabase.removeChannel(channel); };
-  }, [refetch, user?.id]);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await loadNotifications();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadNotifications]);
 
-  const renderItem = ({ item }: { item: any }) => (
-    <Pressable onPress={() => { if (!item.is_read) markAsReadMutation.mutate(item.id); }}>
-      <Card style={{ marginBottom: spacing.md, backgroundColor: item.is_read ? colors.surface : colors.primary + '10' }}>
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <View style={{ marginTop: spacing.xs }}>
-            <Bell size={scaleFont(20)} color={item.is_read ? colors.textSecondary : colors.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: item.is_read ? '500' : '700' }}>
+  const handleMarkAsRead = useCallback(
+    async (notificationId: string) => {
+      try {
+        await notificationsService.markAsRead(notificationId);
+        const nextNotifications = storeNotifications.map(notification =>
+          notification.id === notificationId
+            ? { ...notification, is_read: true }
+            : notification,
+        );
+        setNotifications(nextNotifications);
+      } catch (markError) {
+        toastService.error(
+          markError instanceof Error
+            ? markError.message
+            : 'Failed to mark notification as read',
+        );
+      }
+    },
+    [setNotifications, storeNotifications],
+  );
+
+  const handleMarkAllAsRead = useCallback(async () => {
+    if (!userId) {
+      return;
+    }
+
+    try {
+      await notificationsService.markAllAsRead(userId);
+      const nextNotifications = storeNotifications.map(notification => ({
+        ...notification,
+        is_read: true,
+      }));
+      setNotifications(nextNotifications);
+      toastService.success('All notifications marked as read');
+    } catch (markError) {
+      toastService.error(
+        markError instanceof Error
+          ? markError.message
+          : 'Failed to mark notifications as read',
+      );
+    }
+  }, [setNotifications, storeNotifications, userId]);
+
+  const renderNotification = (item: Notification) => (
+    <Pressable
+      key={item.id}
+      onPress={() => {
+        if (!item.is_read) {
+          handleMarkAsRead(item.id);
+        }
+      }}
+    >
+      <Card
+        style={[
+          styles.notificationCard,
+          {
+            marginBottom: spacing.md,
+            backgroundColor: item.is_read ? colors.surface : colors.primary + '10',
+          },
+        ]}
+      >
+        <View style={[styles.notificationRow, { gap: spacing.md }]}>
+          <Bell
+            size={scaleFont(20)}
+            color={item.is_read ? colors.textSecondary : colors.primary}
+          />
+          <View style={styles.notificationBody}>
+            <Text
+              style={[
+                styles.notificationTitle,
+                {
+                  color: colors.text,
+                  fontSize: typography.sizes.md,
+                },
+                item.is_read
+                  ? styles.readNotificationTitle
+                  : styles.unreadNotificationTitle,
+              ]}
+            >
               {item.title}
             </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: spacing.xs }}>
+            <Text
+              style={[
+                styles.notificationMessage,
+                {
+                  color: colors.textSecondary,
+                  fontSize: typography.sizes.sm,
+                  marginTop: spacing.xs,
+                },
+              ]}
+            >
               {item.message}
             </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.sm }}>
+            <Text
+              style={[
+                styles.notificationTime,
+                {
+                  color: colors.textSecondary,
+                  fontSize: typography.sizes.xs,
+                  marginTop: spacing.sm,
+                },
+              ]}
+            >
               {new Date(item.created_at).toLocaleString()}
             </Text>
+            {!!item.appointment_id && (
+              <Text
+                style={[
+                  styles.appointmentLink,
+                  {
+                    color: colors.textSecondary,
+                    fontSize: typography.sizes.xs,
+                    marginTop: spacing.xs,
+                  },
+                ]}
+              >
+                Appointment linked
+              </Text>
+            )}
           </View>
           {!item.is_read && (
-            <View style={{ width: scaleFont(8), height: scaleFont(8), borderRadius: scaleFont(4), backgroundColor: colors.primary, marginTop: spacing.sm }} />
+            <View
+              style={[
+                styles.unreadDot,
+                {
+                  backgroundColor: colors.primary,
+                  borderRadius: scaleFont(4),
+                  height: scaleFont(8),
+                  marginTop: spacing.sm,
+                  width: scaleFont(8),
+                },
+              ]}
+            />
           )}
         </View>
       </Card>
     </Pressable>
   );
 
+  if (error) {
+    return (
+      <ScreenWrapper>
+        <ErrorState
+          title="Notifications Unavailable"
+          message={error}
+          buttonTitle="Retry"
+          onRetry={handleRefresh}
+        />
+      </ScreenWrapper>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <ScreenWrapper>
+        <EmptyState
+          Icon={Bell}
+          title="Login Required"
+          subtitle="Please login to view alerts."
+        />
+      </ScreenWrapper>
+    );
+  }
+
   return (
     <ScreenWrapper>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.lg }}>
-        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
-          Notifications
-        </Text>
-        {notifications.some((n: any) => !n.is_read) && (
-          <Pressable onPress={() => markAllAsReadMutation.mutate()} style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View style={[styles.header, { marginBottom: spacing.lg }]}>
+        <View>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+            Notifications
+          </Text>
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
+            {unreadCount} unread
+          </Text>
+        </View>
+        {unreadCount > 0 && (
+          <Pressable
+            onPress={handleMarkAllAsRead}
+            style={styles.markAllButton}
+          >
             <CheckCheck size={scaleFont(16)} color={colors.primary} />
-            <Text style={{ color: colors.primary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, fontWeight: '600' }}>
+            <Text
+              style={[
+                styles.markAllText,
+                {
+                  color: colors.primary,
+                  fontSize: typography.sizes.sm,
+                  marginLeft: spacing.xs,
+                },
+              ]}
+            >
               Mark all read
             </Text>
           </Pressable>
         )}
       </View>
 
-      {isLoading ? (
+      {loading && storeNotifications.length === 0 ? (
         <View style={{ gap: spacing.md }}>
           <Skeleton height={100} />
           <Skeleton height={100} />
           <Skeleton height={100} />
         </View>
       ) : (
-        <FlatList
-          data={notifications}
-          keyExtractor={item => item.id}
-          renderItem={renderItem}
+        <ScrollView
           showsVerticalScrollIndicator={false}
-          initialNumToRender={10}
-          maxToRenderPerBatch={10}
-          windowSize={5}
-          ListEmptyComponent={
-            <EmptyState Icon={Bell} title="No Notifications" subtitle="You're all caught up!" />
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              tintColor={colors.primary}
+              onRefresh={handleRefresh}
+            />
           }
-        />
+          contentContainerStyle={styles.listContent}
+        >
+          {storeNotifications.length === 0 ? (
+            <EmptyState
+              Icon={Bell}
+              title="No Notifications"
+              subtitle="You're all caught up!"
+            />
+          ) : (
+            storeNotifications.map(renderNotification)
+          )}
+        </ScrollView>
       )}
     </ScreenWrapper>
   );
@@ -115,7 +294,42 @@ const NotificationsScreen = () => {
 export default NotificationsScreen;
 
 const styles = StyleSheet.create({
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  appointmentLink: {},
+  listContent: {
+    flexGrow: 1,
+  },
+  markAllButton: {
+    alignItems: 'center',
+    flexDirection: 'row',
+  },
+  markAllText: {
+    fontWeight: '600',
+  },
+  notificationBody: {
+    flex: 1,
+  },
+  notificationCard: {},
+  notificationMessage: {
+    lineHeight: 20,
+  },
+  notificationRow: {
+    flexDirection: 'row',
+  },
+  notificationTime: {},
+  notificationTitle: {},
+  readNotificationTitle: {
+    fontWeight: '500',
+  },
   title: {
     fontWeight: 'bold',
-  }
+  },
+  unreadDot: {},
+  unreadNotificationTitle: {
+    fontWeight: '700',
+  },
 });

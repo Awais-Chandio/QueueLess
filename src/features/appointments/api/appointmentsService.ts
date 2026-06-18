@@ -6,13 +6,13 @@ import {
 } from '../../../types/appointment';
 
 const appointmentFullSelect =
-  'id, user_id, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, current_position, people_ahead, queue_status';
+  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, started_at, completed_at, current_position, people_ahead, queue_status';
 
 const appointmentFullLegacySelect =
   'id, user_id, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at';
 
 const appointmentSelect =
-  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at';
+  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, cancel_reason, cancelled_by, cancelled_at, checked_in_at, started_at, completed_at, created_at';
 
 const appointmentLegacySelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, created_at';
@@ -44,14 +44,14 @@ const getAuthenticatedUserId = async (
     });
 
     if (error) {
-      throw new Error('Please login again before booking an appointment.');
+      throw new Error('Please login again to continue.');
     }
 
     session = data.session;
   }
 
   if (!session?.user?.id) {
-    throw new Error('Please login again before booking an appointment.');
+    throw new Error('Please login again to continue.');
   }
 
   if (expectedUserId && expectedUserId !== session.user.id) {
@@ -203,12 +203,13 @@ export const appointmentsService = {
   async fetchUserAppointments(
     userId: string,
   ): Promise<AppointmentFull[]> {
-    console.log('[DEBUG] Fetching appointments for user:', userId);
+    const authenticatedUserId = await getAuthenticatedUserId(userId);
+    console.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
     
     const response = await supabase
       .from('appointments_full')
       .select(appointmentFullSelect)
-      .eq('user_id', userId)
+      .eq('user_id', authenticatedUserId)
       .order('scheduled_at', {
         ascending: true,
       });
@@ -220,7 +221,7 @@ export const appointmentsService = {
       const fallback = await supabase
         .from('appointments_full')
         .select(appointmentFullLegacySelect)
-        .eq('user_id', userId)
+        .eq('user_id', authenticatedUserId)
         .order('scheduled_at', {
           ascending: true,
         });
@@ -230,7 +231,7 @@ export const appointmentsService = {
     }
 
     if (shouldFallbackFromAppointmentsFull(error?.code)) {
-      const appointments = await fetchAppointmentsFromTable(userId);
+      const appointments = await fetchAppointmentsFromTable(authenticatedUserId);
       console.log('[DEBUG] Fetched appointments count:', appointments.length);
       return appointments;
     }

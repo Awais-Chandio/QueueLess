@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type ToastType = 'success' | 'error' | 'info';
+type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 type ToastState = {
   visible: boolean;
@@ -10,15 +10,28 @@ type ToastState = {
   hideToast: () => void;
 };
 
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const useToastStore = create<ToastState>(set => ({
   visible: false,
   message: '',
   type: 'info',
   showToast: (message, type = 'info') => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+    }
+
     set({ visible: true, message, type });
-    setTimeout(() => {
+    hideTimer = setTimeout(() => {
       set({ visible: false });
+      hideTimer = null;
     }, 2500);
   },
-  hideToast: () => set({ visible: false }),
+  hideToast: () => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+    set({ visible: false });
+  },
 }));

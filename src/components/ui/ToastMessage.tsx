@@ -9,6 +9,7 @@ const toastColors = {
   success: colors.success,
   error: colors.error,
   info: colors.primary,
+  warning: colors.warning,
 };
 
 const ToastMessage = () => {

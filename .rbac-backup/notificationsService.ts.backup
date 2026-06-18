@@ -1,5 +1,8 @@
 import { supabase } from '../../../lib/supabase';
-import type { Notification } from '../../../types/notification';
+import type {
+  CreateNotificationPayload,
+  Notification,
+} from '../../../types/notification';
 
 export const notificationsService = {
   async fetchNotifications(userId: string): Promise<Notification[]> {
@@ -53,6 +56,28 @@ export const notificationsService = {
 
     console.log('[NOTIFICATIONS] fetched count:', data?.length ?? 0);
     return (data ?? []) as Notification[];
+  },
+
+  async createNotification(payload: CreateNotificationPayload) {
+    const insertPayload = {
+      user_id: payload.user_id,
+      title: payload.title,
+      message: payload.message,
+      appointment_id: payload.appointment_id ?? null,
+      is_read: false,
+    };
+
+    const { error } = await supabase.from('notifications').insert(insertPayload);
+
+    if (error) {
+      console.error('[NOTIFICATIONS] insert error:', {
+        payload: insertPayload,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+      });
+      throw new Error(error.message);
+    }
   },
 
   async markAsRead(notificationId: string) {

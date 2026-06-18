@@ -17,6 +17,7 @@ type AppInputProps = {
     autoCorrect?: TextInputProps["autoCorrect"];
     textContentType?: TextInputProps["textContentType"];
     autoComplete?: TextInputProps["autoComplete"];
+    editable?: TextInputProps["editable"];
 }
 
 const AppInput = (props: AppInputProps) => {
@@ -39,6 +40,7 @@ const AppInput = (props: AppInputProps) => {
                     autoCorrect={props.autoCorrect}
                     textContentType={props.textContentType}
                     autoComplete={props.autoComplete}
+                    editable={props.editable}
                     style={[Styles.input, isPasswordField && { paddingRight: wp(12) }]}
                     placeholderTextColor={colors.textSecondary}
                 />

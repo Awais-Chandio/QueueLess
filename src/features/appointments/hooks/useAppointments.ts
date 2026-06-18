@@ -1,13 +1,43 @@
+import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { appointmentsService } from '../api/appointmentsService';
 import { useAuthStore } from '../../../store/authStore';
+import { useAppointmentsStore } from '../../../store/appointmentsStore';
 
 export const useAppointments = () => {
   const user = useAuthStore(state => state.user);
+  const userId = user?.id;
 
-  return useQuery({
-    queryKey: ['appointments', user?.id],
-    queryFn: () => appointmentsService.fetchUserAppointments(user!.id),
-    enabled: !!user?.id,
+  const query = useQuery({
+    queryKey: ['appointments', userId],
+    queryFn: async () => {
+      const appointments =
+        await appointmentsService.fetchUserAppointments(userId!);
+
+      useAppointmentsStore.setState({
+        appointments,
+        error: null,
+        loading: false,
+      });
+
+      return appointments;
+    },
+    enabled: !!userId,
+    refetchOnMount: 'always',
+    staleTime: 0,
   });
+  const { refetch } = query;
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active' && userId) {
+        refetch();
+      }
+    });
+
+    return () => subscription.remove();
+  }, [refetch, userId]);
+
+  return query;
 };

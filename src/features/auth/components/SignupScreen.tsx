@@ -8,6 +8,7 @@ import AppInput from "../../../components/ui/AppInput";
 import AppButton from "../../../components/ui/AppButton";
 import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
+import { toastService } from "../../../services/toastService";
 
 type SignupScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "Signup">;
 
@@ -27,11 +28,27 @@ const SignupScreen = () => {
         setSuccessMessage("");
 
         if (name.trim() === "" || email.trim() === "" || password.trim() === "" || confirmPassword.trim() === "") {
-            setErrorMessage("All fields are required");
+            const message = "All fields are required";
+            setErrorMessage(message);
+            toastService.error(message);
+            return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            const message = "Please enter a valid email address";
+            setErrorMessage(message);
+            toastService.error(message);
+            return;
+        }
+        if (password.length < 6) {
+            const message = "Password must be at least 6 characters";
+            setErrorMessage(message);
+            toastService.error(message);
             return;
         }
         if (password !== confirmPassword) {
-            setErrorMessage("Passwords do not match");
+            const message = "Passwords do not match";
+            setErrorMessage(message);
+            toastService.error(message);
             return;
         }
         try {
@@ -44,9 +61,13 @@ const SignupScreen = () => {
             });
             setPassword("");
             setConfirmPassword("");
-            setSuccessMessage("Account created. Please check your email, then login.");
+            const message = "Account created successfully. Check your email if confirmation is required.";
+            setSuccessMessage(message);
+            toastService.success(message);
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : "Signup failed");
+            const message = error instanceof Error ? error.message : "Signup failed";
+            setErrorMessage(message);
+            toastService.error(message);
         }
     }
     return (
@@ -69,6 +90,7 @@ const SignupScreen = () => {
                     label="Name"
                     value={name}
                     onChangeText={setName}
+                    editable={!isLoading}
                 />
 
                 <AppInput
@@ -81,6 +103,7 @@ const SignupScreen = () => {
                     autoCorrect={false}
                     textContentType="emailAddress"
                     autoComplete="email"
+                    editable={!isLoading}
 
                 />
                 <AppInput
@@ -93,6 +116,7 @@ const SignupScreen = () => {
                     autoCorrect={false}
                     textContentType="newPassword"
                     autoComplete="new-password"
+                    editable={!isLoading}
                 />
 
                 <AppInput
@@ -105,9 +129,10 @@ const SignupScreen = () => {
                     autoCorrect={false}
                     textContentType="newPassword"
                     autoComplete="new-password"
+                    editable={!isLoading}
                 />
                 <AppButton
-                    title="Sign Up"
+                    title={isLoading ? "Creating account..." : "Sign Up"}
                     onPress={() => handleSignup()}
                     loading={isLoading}
                 />

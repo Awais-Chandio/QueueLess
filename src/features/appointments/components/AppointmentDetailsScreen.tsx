@@ -66,8 +66,20 @@ const AppointmentDetailsScreen = () => {
     );
   }
 
-  const formatStatus = (status: string) => status.charAt(0).toUpperCase() + status.slice(1);
+  const formatStatus = (status: string) =>
+    status
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   const canCancel = ['pending', 'confirmed'].includes(appointment.status);
+  const statusVariant =
+    appointment.status === 'completed'
+      ? 'success'
+      : appointment.status === 'cancelled'
+        ? 'error'
+        : appointment.status === 'checked_in'
+          ? 'info'
+          : 'warning';
 
   const confirmCancel = () => {
     Alert.alert('Cancel Appointment', 'Are you sure you want to cancel this appointment?', [
@@ -94,7 +106,7 @@ const AppointmentDetailsScreen = () => {
           </View>
           <Badge 
             label={formatStatus(appointment.status)} 
-            variant={appointment.status === 'confirmed' ? 'success' : appointment.status === 'cancelled' ? 'error' : 'warning'} 
+            variant={statusVariant}
           />
         </View>
 

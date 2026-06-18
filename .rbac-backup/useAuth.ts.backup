@@ -80,7 +80,6 @@ export const useAuth = () => {
           },
         );
         setRole(verifiedRole);
-        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
         if (__DEV__) console.log('[AUTH] restoreSession complete');
       } catch (e) {
         if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
@@ -119,7 +118,6 @@ export const useAuth = () => {
           email: data.user.email || '',
         });
         setRole(verifiedRole);
-        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
         if (__DEV__) console.log('[AUTH] login complete');
       } catch (e) {
         if (__DEV__) console.warn('[LOGIN] Profile fetch/restore warning:', e);
@@ -154,7 +152,6 @@ export const useAuth = () => {
             email: data.user.email || '',
           });
           setRole(verifiedRole);
-          if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
         } catch (e) {
           if (__DEV__) console.warn('[SIGNUP] Profile fetch warning:', e);
           setRole('client');

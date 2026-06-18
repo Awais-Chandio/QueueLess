@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, StyleSheet, Pressable, Text, ViewStyle, TextStyle } from "react-native";
+import { ActivityIndicator, StyleSheet, Pressable, Text, View, ViewStyle, TextStyle } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import { hp } from "../../utils/responsive";
 
@@ -54,7 +54,12 @@ const AppButton = ({ onPress, title, loading = false, disabled = false, variant 
       accessibilityState={{ busy: loading, disabled: isDisabled }}
     >
       {loading ? (
-        <ActivityIndicator color={text} />
+        <View style={styles.loadingContent}>
+          <ActivityIndicator color={text} />
+          <Text style={[styles.buttonText, styles.loadingText, { color: text, fontSize: typography.sizes.md }, textStyle]}>
+            {title}
+          </Text>
+        </View>
       ) : (
         <Text style={[styles.buttonText, { color: text, fontSize: typography.sizes.md }, textStyle]}>
           {title}
@@ -76,6 +81,14 @@ const styles = StyleSheet.create({
   buttonText: {
     fontWeight: '600',
     textAlign: 'center',
+  },
+  loadingContent: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    marginLeft: 8,
   },
   pressedButton: {
     opacity: 0.85,

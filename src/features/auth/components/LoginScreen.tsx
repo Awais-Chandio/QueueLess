@@ -8,6 +8,7 @@ import AppInput from "../../../components/ui/AppInput";
 import AppButton from "../../../components/ui/AppButton";
 import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
+import { toastService } from "../../../services/toastService";
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "Login">;
 
@@ -21,7 +22,9 @@ const LoginScreen = () => {
         if (isLoading) return;
 
         if (!email.trim() || !password.trim()) {
-            setErrorMessage('Email and password are required');
+            const message = 'Email and password are required';
+            setErrorMessage(message);
+            toastService.error(message);
             return;
         }
 
@@ -32,8 +35,11 @@ const LoginScreen = () => {
                 email: email.trim().toLowerCase(),
                 password,
             });
+            toastService.success('Logged in successfully');
         } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : 'Login failed');
+            const message = error instanceof Error ? error.message : 'Login failed';
+            setErrorMessage(message);
+            toastService.error(message);
         }
     }
     return (
@@ -55,6 +61,7 @@ const LoginScreen = () => {
                     autoCorrect={false}
                     textContentType="emailAddress"
                     autoComplete="email"
+                    editable={!isLoading}
                 />
                 <AppInput
                     placeholder="Password"
@@ -66,10 +73,11 @@ const LoginScreen = () => {
                     autoCorrect={false}
                     textContentType="password"
                     autoComplete="password"
+                    editable={!isLoading}
                 />
 
                 <AppButton
-                    title="Login"
+                    title={isLoading ? "Logging in..." : "Login"}
                     onPress={handleLogin}
                     loading={isLoading}
                 />

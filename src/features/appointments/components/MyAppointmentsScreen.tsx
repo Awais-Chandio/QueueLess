@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+} from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
 import { Badge, BadgeVariant } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
+import ErrorState from '../../../components/ui/ErrorState';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAppointments } from '../hooks/useAppointments';
+import { useAuthStore } from '../../../store/authStore';
 import type { AppStackParamList } from '../../../navigation/types';
 import type { AppointmentStatus } from '../../../types/appointment';
 import { Calendar, Clock, MapPin, SearchX } from 'lucide-react-native';
@@ -17,23 +26,61 @@ import { scaleFont } from '../../../utils/responsive';
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 type StatusFilter = 'all' | AppointmentStatus;
 
-const statusFilters: StatusFilter[] = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
+const statusFilters: StatusFilter[] = [
+  'all',
+  'pending',
+  'confirmed',
+  'completed',
+  'cancelled',
+];
 
 const MyAppointmentsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { colors, spacing, typography, radius } = useTheme();
-  const { data: appointments = [], isLoading, isRefetching, refetch } = useAppointments();
+  const userId = useAuthStore(state => state.user?.id);
+  const {
+    data: appointments = [],
+    error,
+    isError,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useAppointments();
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        refetch();
+      }
+    }, [refetch, userId]),
+  );
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [refetch]);
 
   const filteredAppointments = selectedStatus === 'all' 
     ? appointments 
     : appointments.filter(item => item.status === selectedStatus);
 
-  const formatStatus = (status: AppointmentStatus) => status.charAt(0).toUpperCase() + status.slice(1);
+  const formatStatus = (status: AppointmentStatus) =>
+    status
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
 
   const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
     switch (status) {
       case 'confirmed': return 'success';
+      case 'checked_in': return 'info';
+      case 'in_progress': return 'warning';
       case 'cancelled': return 'error';
       case 'completed': return 'default';
       case 'pending':
@@ -86,7 +133,18 @@ const MyAppointmentsScreen = () => {
           })}
         </View>
 
-        {isLoading ? (
+        {isError ? (
+          <ErrorState
+            title="Failed To Load Appointments"
+            message={
+              error instanceof Error
+                ? error.message
+                : 'Please try again.'
+            }
+            buttonTitle="Retry"
+            onRetry={handleRefresh}
+          />
+        ) : isLoading && appointments.length === 0 ? (
           renderSkeleton()
         ) : (
           <FlatList
@@ -97,8 +155,13 @@ const MyAppointmentsScreen = () => {
             maxToRenderPerBatch={10}
             windowSize={5}
             contentContainerStyle={{ paddingBottom: spacing.xl, flexGrow: 1 }}
-            onRefresh={refetch}
-            refreshing={isRefetching}
+            refreshControl={
+              <RefreshControl
+                tintColor={colors.primary}
+                refreshing={isRefreshing || isRefetching}
+                onRefresh={handleRefresh}
+              />
+            }
             ListEmptyComponent={
               <EmptyState
                 Icon={SearchX}

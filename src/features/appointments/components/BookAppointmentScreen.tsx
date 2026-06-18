@@ -39,7 +39,9 @@ import type { AppStackParamList } from '../../../navigation/types';
 import { useAuthStore } from '../../../store/authStore';
 import { useAppointmentsStore } from '../../../store/appointmentsStore';
 import { useCentersStore } from '../../../store/centersStore';
+import { toastService } from '../../../services/toastService';
 
+import type { AppointmentFull } from '../../../types/appointment';
 import type { CenterService } from '../../../types/center';
 
 type BookAppointmentRouteProp = RouteProp<
@@ -145,13 +147,41 @@ const BookAppointmentScreen = () => {
         scheduled_at: date.toISOString(),
       });
 
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.setQueryData<AppointmentFull[]>(
+        ['appointments', user.id],
+        currentAppointments => {
+          const nextAppointment: AppointmentFull = {
+            ...appointment,
+          };
 
+          const appointments = currentAppointments ?? [];
+          return [
+            nextAppointment,
+            ...appointments.filter(item => item.id !== appointment.id),
+          ].sort(
+            (a, b) =>
+              new Date(a.scheduled_at).getTime() -
+              new Date(b.scheduled_at).getTime(),
+          );
+        },
+      );
+
+      await queryClient.invalidateQueries({
+        queryKey: ['appointments', user.id],
+        refetchType: 'all',
+      });
+
+      toastService.success('Appointment booked successfully');
       navigation.navigate('QueueStatus', {
         appointmentId: appointment.id,
       });
     } catch (createError) {
       console.error('[DEBUG] BookAppointmentScreen: Failed to create appointment:', createError);
+      toastService.error(
+        createError instanceof Error
+          ? `Failed to book appointment: ${createError.message}`
+          : 'Failed to book appointment. Please try again.',
+      );
     }
   };
 
