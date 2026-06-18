@@ -29,7 +29,7 @@ const calculateStats = (appointments: AppointmentFull[]): StaffDashboardStats =>
   completed: appointments.filter(item => item.status === 'completed').length,
   cancelled: appointments.filter(item => item.status === 'cancelled').length,
   activeQueue: appointments.filter(item =>
-    ['confirmed', 'checked_in', 'in_progress'].includes(item.status),
+    ['confirmed', 'in_progress'].includes(item.status),
   ).length,
 });
 

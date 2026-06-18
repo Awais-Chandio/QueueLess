@@ -30,6 +30,7 @@ const statusFilters: StatusFilter[] = [
   'all',
   'pending',
   'confirmed',
+  'in_progress',
   'completed',
   'cancelled',
 ];
@@ -79,7 +80,6 @@ const MyAppointmentsScreen = () => {
   const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
     switch (status) {
       case 'confirmed': return 'success';
-      case 'checked_in': return 'info';
       case 'in_progress': return 'warning';
       case 'cancelled': return 'error';
       case 'completed': return 'default';

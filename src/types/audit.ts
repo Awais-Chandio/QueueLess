@@ -1,7 +1,6 @@
 export type AuditAction =
   | 'confirm'
   | 'cancel'
-  | 'check_in'
   | 'start_service'
   | 'complete_service'
   | string;

@@ -29,15 +29,14 @@ export type StaffDashboardData = {
 
 const activeStatuses: AppointmentStatus[] = [
   'confirmed',
-  'checked_in',
   'in_progress',
 ];
 
 const appointmentSelect =
-  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, started_at, completed_at, current_position, people_ahead, queue_status, created_at';
+  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, current_position, people_ahead, queue_status, created_at';
 
 const appointmentFallbackSelect =
-  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, started_at, completed_at, created_at';
+  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, created_at';
 
 const baseAppointmentSelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, created_at';
@@ -311,21 +310,6 @@ export const staffQueueService = {
     return updatedAppointment;
   },
 
-  async checkInAppointment(appointment: AppointmentFull, queue: QueueMetricsInput) {
-    return updateAppointment(
-      appointment,
-      'checked_in',
-      {
-        checked_in_at: new Date().toISOString(),
-      },
-      'check_in',
-      {
-        ...queue,
-        queue_status: 'checked_in',
-      },
-    );
-  },
-
   async updateQueueMetrics(
     appointment: AppointmentFull,
     queue: Required<Pick<
@@ -347,15 +331,17 @@ export const staffQueueService = {
     });
   },
 
-  async startService(appointment: AppointmentFull) {
+  async startService(
+    appointment: AppointmentFull,
+    queue: QueueMetricsInput,
+  ) {
     const updatedAppointment = await updateAppointment(
       appointment,
       'in_progress',
-      {
-        started_at: new Date().toISOString(),
-      },
+      {},
       'start_service',
       {
+        ...queue,
         current_position: 0,
         people_ahead: 0,
         estimated_wait_mins: 0,

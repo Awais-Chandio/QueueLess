@@ -47,7 +47,6 @@ type StatusFilter =
   | 'all'
   | 'pending'
   | 'confirmed'
-  | 'checked_in'
   | 'in_progress'
   | 'completed'
   | 'cancelled';
@@ -55,7 +54,6 @@ type StatusFilter =
 type QueueAction =
   | 'confirm'
   | 'cancel'
-  | 'check_in'
   | 'start_service'
   | 'complete_service';
 
@@ -63,7 +61,6 @@ const statusFilters: StatusFilter[] = [
   'all',
   'pending',
   'confirmed',
-  'checked_in',
   'in_progress',
   'completed',
   'cancelled',
@@ -79,7 +76,6 @@ const cancelReasons: CancelReason[] = [
 
 const activeQueueStatuses: AppointmentStatus[] = [
   'confirmed',
-  'checked_in',
   'in_progress',
 ];
 
@@ -92,7 +88,6 @@ const statusLabel = (status: string) =>
 const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
   switch (status) {
     case 'confirmed':
-    case 'checked_in':
       return 'info';
     case 'in_progress':
       return 'warning';
@@ -128,9 +123,7 @@ const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
     case 'pending':
       return ['confirm', 'cancel'];
     case 'confirmed':
-      return ['check_in', 'cancel'];
-    case 'checked_in':
-      return ['start_service'];
+      return ['start_service', 'cancel'];
     case 'in_progress':
       return ['complete_service'];
     default:
@@ -228,12 +221,8 @@ const StaffDashboardScreen = () => {
         );
       }
 
-      if (action === 'check_in') {
-        return staffQueueService.checkInAppointment(appointment, queueMetrics);
-      }
-
       if (action === 'start_service') {
-        return staffQueueService.startService(appointment);
+        return staffQueueService.startService(appointment, queueMetrics);
       }
 
       return staffQueueService.completeAppointment(appointment);
@@ -333,7 +322,6 @@ const StaffDashboardScreen = () => {
     const labels: Record<QueueAction, string> = {
       confirm: 'Confirm',
       cancel: 'Cancel',
-      check_in: 'Check In',
       start_service: 'Start Service',
       complete_service: 'Complete',
     };

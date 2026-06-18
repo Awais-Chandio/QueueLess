@@ -77,7 +77,7 @@ const AppointmentDetailsScreen = () => {
       ? 'success'
       : appointment.status === 'cancelled'
         ? 'error'
-        : appointment.status === 'checked_in'
+        : appointment.status === 'confirmed'
           ? 'info'
           : 'warning';
 

@@ -6,13 +6,13 @@ import {
 } from '../../../types/appointment';
 
 const appointmentFullSelect =
-  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, started_at, completed_at, current_position, people_ahead, queue_status';
+  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, current_position, people_ahead, queue_status';
 
 const appointmentFullLegacySelect =
   'id, user_id, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at';
 
 const appointmentSelect =
-  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, cancel_reason, cancelled_by, cancelled_at, checked_in_at, started_at, completed_at, created_at';
+  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, cancel_reason, cancelled_by, cancelled_at, completed_at, created_at';
 
 const appointmentLegacySelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, created_at';
@@ -284,25 +284,33 @@ export const appointmentsService = {
 
   async cancelAppointment(
     appointmentId: string,
-  ): Promise<Appointment> {
-    console.log('[DEBUG] Cancelling appointment:', appointmentId);
+    reason?: string,
+  ): Promise<{ success: true }> {
+    try {
+      console.log('[DEBUG] Cancelling appointment:', appointmentId);
 
-    const { data, error } = await supabase
-      .from('appointments')
-      .update({
-        status: 'cancelled',
-      })
-      .eq('id', appointmentId)
-      .select(appointmentSelect)
-      .single();
+      const authenticatedUserId = await getAuthenticatedUserId();
+      const { error } = await supabase
+        .from('appointments')
+        .update({
+          status: 'cancelled',
+          cancel_reason: reason || 'User cancelled',
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq('id', appointmentId)
+        .eq('user_id', authenticatedUserId);
 
-    if (error) {
-      console.error('[DEBUG] Failed to cancel appointment:', error.message);
-      throw new Error(error.message);
+      if (error) {
+        console.error('[DEBUG] Failed to cancel appointment:', error.message);
+        throw error;
+      }
+
+      console.log('[DEBUG] Appointment cancelled successfully');
+      return { success: true };
+    } catch (err: any) {
+      console.error('[APPOINTMENTS] Cancel error:', err.message);
+      throw err;
     }
-
-    console.log('[DEBUG] Appointment cancelled successfully:', data?.id);
-    return data as Appointment;
   },
 
   async rescheduleAppointment(
