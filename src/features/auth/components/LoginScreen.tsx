@@ -76,6 +76,13 @@ const LoginScreen = () => {
                     editable={!isLoading}
                 />
 
+                <Pressable
+                    disabled={isLoading}
+                    onPress={() => navigation.navigate("ForgotPassword")}
+                >
+                    <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                </Pressable>
+
                 <AppButton
                     title={isLoading ? "Logging in..." : "Login"}
                     onPress={handleLogin}
@@ -121,6 +128,13 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: colors.primary,
         fontSize: typography.body,
+    },
+    forgotPasswordText: {
+        marginBottom: spacing.md,
+        textAlign: 'right',
+        color: colors.primary,
+        fontSize: typography.small,
+        fontWeight: '600',
     },
     errorMessage: {
         color: colors.error,

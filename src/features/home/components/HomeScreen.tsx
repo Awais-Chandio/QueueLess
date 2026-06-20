@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
@@ -7,12 +7,24 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { useDashboardStats } from "../hooks/useDashboardStats";
 import { Users, Clock, CheckCircle, XCircle } from "lucide-react-native";
 import { useAuthStore } from "../../../store/authStore";
+import { useProfileStore } from "../../../store/profileStore";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
+import ProfileAvatar from "../../../components/ui/ProfileAvatar";
 
 const HomeScreen = () => {
   const { colors, spacing, typography } = useTheme();
   const { data: stats, isLoading, refetch, isRefetching } = useDashboardStats();
   const user = useAuthStore(state => state.user);
+  const profile = useProfileStore(state => state.profile);
+  const fetchProfile = useProfileStore(state => state.fetchProfile);
+  const isProfileLoading = useProfileStore(state => state.isLoading);
+
+  const refreshHome = useCallback(async () => {
+    await Promise.all([
+      refetch(),
+      user?.id ? fetchProfile(user.id) : Promise.resolve(),
+    ]);
+  }, [fetchProfile, refetch, user?.id]);
 
   const StatCard = ({ title, value, icon: Icon, color }: { title: string, value: string | number, icon: any, color: string }) => (
     <Card style={[styles.statCard, { marginBottom: spacing.md }]}>
@@ -29,14 +41,17 @@ const HomeScreen = () => {
   );
 
   return (
-    <ScreenWrapper scrollable onRefresh={refetch} refreshing={isRefetching}>
-      <View style={{ marginBottom: spacing.xl }}>
-        <Text style={[styles.welcomeText, { color: colors.textSecondary, fontSize: typography.sizes.md }]}>
-          Welcome back,
-        </Text>
-        <Text style={[styles.nameText, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: typography.weights.bold }]}>
-          {user?.user_metadata?.full_name || 'User'}
-        </Text>
+    <ScreenWrapper scrollable onRefresh={refreshHome} refreshing={isRefetching || isProfileLoading}>
+      <View style={[styles.header, { marginBottom: spacing.xl }]}>
+        <View style={styles.headerText}>
+          <Text style={[styles.welcomeText, { color: colors.textSecondary, fontSize: typography.sizes.md }]}>
+            Welcome back,
+          </Text>
+          <Text style={[styles.nameText, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: typography.weights.bold }]}>
+            {profile?.full_name || 'User'}
+          </Text>
+        </View>
+        <ProfileAvatar uri={profile?.avatar_url} size={56} />
       </View>
 
       <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md }]}>
@@ -76,6 +91,15 @@ const HomeScreen = () => {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  headerText: {
+    flex: 1,
+    paddingRight: scaleFont(12),
+  },
   welcomeText: {
     marginBottom: scaleFont(4),
   },

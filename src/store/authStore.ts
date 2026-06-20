@@ -13,8 +13,10 @@ interface AuthState {
   role: AuthRole | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isPasswordRecovery: boolean;
   setSession: (session: Session | null) => void;
   setRole: (role: unknown) => void;
+  setPasswordRecovery: (isPasswordRecovery: boolean) => void;
   clearAuth: () => void;
   setLoading: (isLoading: boolean) => void;
 }
@@ -25,6 +27,7 @@ export const useAuthStore = create<AuthState>(set => ({
   role: null,
   isAuthenticated: false,
   isLoading: true,
+  isPasswordRecovery: false,
 
   setSession: session =>
     set({
@@ -50,6 +53,11 @@ export const useAuthStore = create<AuthState>(set => ({
       };
     }),
 
+  setPasswordRecovery: isPasswordRecovery =>
+    set({
+      isPasswordRecovery,
+    }),
+
   clearAuth: () =>
     set({
       session: null,
@@ -57,6 +65,7 @@ export const useAuthStore = create<AuthState>(set => ({
       role: null,
       isAuthenticated: false,
       isLoading: false,
+      isPasswordRecovery: false,
     }),
 
   setLoading: isLoading =>

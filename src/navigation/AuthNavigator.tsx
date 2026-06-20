@@ -2,19 +2,29 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
 import LoginScreen from "../features/auth/components/LoginScreen";
 import SignupScreen from "../features/auth/components/SignupScreen";
+import ForgotPasswordScreen from "../features/auth/components/ForgotPasswordScreen";
+import ResetPasswordScreen from "../features/auth/components/ResetPasswordScreen";
+import { useAuthStore } from "../store/authStore";
 
 export type AuthStackParamList = {
     Login: undefined;
     Signup: undefined;
+    ForgotPassword: undefined;
+    ResetPassword: undefined;
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 const AuthNavigator = () => {
+    const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
+
     return (
         <Stack.Navigator
+            initialRouteName={isPasswordRecovery ? "ResetPassword" : "Login"}
             screenOptions={{ headerShown: false }}>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
         </Stack.Navigator>
     )

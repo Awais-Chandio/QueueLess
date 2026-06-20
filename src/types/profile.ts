@@ -20,6 +20,12 @@ export type CreateProfilePayload = {
 
 export type UpdateProfilePayload = {
   full_name?: string;
-  phone?: string;
+  phone?: string | null;
   avatar_url?: string;
+};
+
+export type UploadAvatarPayload = {
+  uri: string;
+  fileName?: string | null;
+  type?: string | null;
 };

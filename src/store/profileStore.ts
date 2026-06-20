@@ -1,20 +1,23 @@
 import { create } from "zustand";
 import { profileService } from "../features/profile/api/profileService";
-import { CreateProfilePayload, UpdateProfilePayload, Profile } from "../types/profile";
+import { CreateProfilePayload, UpdateProfilePayload, Profile, UploadAvatarPayload } from "../types/profile";
 
 type ProfileState = {
     profile: Profile | null;
     isLoading: boolean;
+    isUploadingAvatar: boolean;
     error: string | null;
 
     fetchProfile: (userId: string) => Promise<void>;
     createProfile: (payload: CreateProfilePayload) => Promise<void>;
     updateProfile: (userId: string, payload: UpdateProfilePayload) => Promise<void>;
+    uploadAvatar: (userId: string, payload: UploadAvatarPayload) => Promise<void>;
     clearProfile: () => void;
 }
 export const useProfileStore = create<ProfileState>((set) => ({
     profile: null,
     isLoading: false,
+    isUploadingAvatar: false,
     error: null,
     fetchProfile: async (userId) => {
         if (__DEV__) console.log('[profileStore.fetchProfile] fetching for userId:', userId);
@@ -51,14 +54,31 @@ export const useProfileStore = create<ProfileState>((set) => ({
                 set({ error: error.message, isLoading: false });
                 return;
             }
-            // Refresh profile from DB to ensure store is in sync
+            set({ profile: data, isLoading: false });
             await useProfileStore.getState().fetchProfile(userId);
         } catch (e) {
             const message = e instanceof Error ? e.message : 'Network error while updating profile';
             set({ error: message, isLoading: false });
         }
     },
+    uploadAvatar: async (userId, payload) => {
+        set({ isUploadingAvatar: true, error: null });
+        try {
+            const { data, error } = await profileService.uploadAvatar(userId, payload);
+
+            if (error) {
+                set({ error: error.message, isUploadingAvatar: false });
+                return;
+            }
+
+            set({ profile: data, isUploadingAvatar: false });
+            await useProfileStore.getState().fetchProfile(userId);
+        } catch (e) {
+            const message = e instanceof Error ? e.message : 'Network error while uploading avatar';
+            set({ error: message, isUploadingAvatar: false });
+        }
+    },
     clearProfile: () => {
-        set({ profile: null, isLoading: false, error: null });
+        set({ profile: null, isLoading: false, isUploadingAvatar: false, error: null });
     },
 }));

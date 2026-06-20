@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback, useState } from "react";
 import { View, StyleSheet, Text, Pressable } from "react-native";
+import { launchImageLibrary } from "react-native-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../../../hooks/useAuth";
@@ -9,16 +10,18 @@ import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
-import { User, Camera, Settings, Activity } from "lucide-react-native";
+import ProfileAvatar from "../../../components/ui/ProfileAvatar";
+import { Camera, Settings, Activity, Mail, Phone } from "lucide-react-native";
 import type { AppStackParamList } from "../../../navigation/types";
 import { scaleFont } from "../../../utils/responsive";
+import { toastService } from "../../../services/toastService";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const ProfileScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useAuth();
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, fetchProfile, uploadAvatar, isUploadingAvatar, error } = useProfileStore();
   const { data: stats, refetch: refetchStats } = useDashboardStats();
   const { colors, spacing, typography } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
@@ -36,9 +39,57 @@ const ProfileScreen = () => {
     loadData();
   }, [loadData]);
 
-  const handleAvatarUpload = () => {
-    // In a real app, use react-native-image-picker and upload to Supabase Storage
-    console.log("Avatar upload triggered");
+  const handleAvatarUpload = async () => {
+    if (!user?.id || isUploadingAvatar) return;
+
+    let result;
+
+    try {
+      result = await launchImageLibrary({
+        mediaType: 'photo',
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+    } catch (error) {
+      const message =
+        error instanceof TypeError
+          ? 'Image picker is not linked yet. Rebuild and reinstall the Android app.'
+          : error instanceof Error
+            ? error.message
+            : 'Unable to open image picker';
+      toastService.error(message);
+      return;
+    }
+
+    if (result.didCancel) {
+      return;
+    }
+
+    if (result.errorMessage) {
+      toastService.error(result.errorMessage);
+      return;
+    }
+
+    const asset = result.assets?.[0];
+
+    if (!asset?.uri) {
+      toastService.error('Unable to read selected image');
+      return;
+    }
+
+    await uploadAvatar(user.id, {
+      uri: asset.uri,
+      fileName: asset.fileName,
+      type: asset.type,
+    });
+
+    const currentError = useProfileStore.getState().error;
+    if (currentError) {
+      toastService.error(currentError);
+      return;
+    }
+
+    toastService.success('Profile image updated');
   };
 
   return (
@@ -52,15 +103,16 @@ const ProfileScreen = () => {
 
       <View style={styles.profileHeader}>
         <Pressable onPress={handleAvatarUpload} style={[styles.avatarContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {profile?.avatar_url ? (
-            <View style={{ width: '100%', height: '100%', borderRadius: scaleFont(50), backgroundColor: colors.primary }} />
-          ) : (
-            <User size={scaleFont(48)} color={colors.textSecondary} />
-          )}
+          <ProfileAvatar uri={profile?.avatar_url} size={96} iconSize={48} />
           <View style={[styles.cameraIcon, { backgroundColor: colors.primary }]}>
             <Camera size={scaleFont(14)} color="#FFF" />
           </View>
         </Pressable>
+        {isUploadingAvatar ? (
+          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: spacing.sm }}>
+            Uploading image...
+          </Text>
+        ) : null}
         <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '700', marginTop: spacing.md }}>
           {profile?.full_name || 'Add your name'}
         </Text>
@@ -68,6 +120,24 @@ const ProfileScreen = () => {
           {profile?.email || user?.email}
         </Text>
       </View>
+
+      <Card style={{ marginBottom: spacing.lg }}>
+        <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '600', marginBottom: spacing.md }}>
+          Profile Preview
+        </Text>
+        <View style={styles.previewRow}>
+          <Mail color={colors.textSecondary} size={scaleFont(18)} />
+          <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.sm }}>
+            {profile?.email || user?.email || 'No email'}
+          </Text>
+        </View>
+        <View style={[styles.previewRow, { marginTop: spacing.sm }]}>
+          <Phone color={colors.textSecondary} size={scaleFont(18)} />
+          <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.sm }}>
+            {profile?.phone || 'No phone number'}
+          </Text>
+        </View>
+      </Card>
 
       <Card style={{ marginBottom: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
@@ -99,6 +169,11 @@ const ProfileScreen = () => {
         variant="outline" 
         onPress={() => navigation.navigate("EditProfile")} 
       />
+      {error ? (
+        <Text style={{ color: colors.error, fontSize: typography.sizes.sm, marginTop: spacing.sm, textAlign: 'center' }}>
+          {error}
+        </Text>
+      ) : null}
     </ScreenWrapper>
   );
 };
@@ -120,7 +195,7 @@ const styles = StyleSheet.create({
     width: scaleFont(100),
     height: scaleFont(100),
     borderRadius: scaleFont(50),
-    borderWidth: 2,
+    borderWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -144,6 +219,10 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  previewRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
   },
   statDivider: {
     width: StyleSheet.hairlineWidth,

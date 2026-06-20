@@ -7,14 +7,14 @@ import { useAuthStore } from "../store/authStore";
 import { getUserRoute } from "../utils/roleMapping";
 import SplashScreen from "../features/auth/components/SplashScreen";
 const RootNavigator = () => {
-  const { isLoading, role, user } = useAuthStore();
+  const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
 
   if (isLoading) {
     return <SplashScreen />;
   }
 
-  if (!user) {
-    return <AuthNavigator />;
+  if (!user || isPasswordRecovery) {
+    return <AuthNavigator key={isPasswordRecovery ? "recovery" : "auth"} />;
   }
 
   if (!role) {

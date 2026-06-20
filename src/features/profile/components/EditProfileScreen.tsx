@@ -49,8 +49,8 @@ const EditProfileScreen = () => {
     if (!user?.id) return;
     if (__DEV__) console.log('[EditProfileScreen] submitting update:', data);
     await updateProfile(user.id, {
-      full_name: data.full_name,
-      phone: data.phone || undefined,
+      full_name: data.full_name.trim(),
+      phone: data.phone?.trim() || null,
     });
     // Only navigate back if there is no error after update
     const currentError = useProfileStore.getState().error;
