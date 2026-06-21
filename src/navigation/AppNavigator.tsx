@@ -7,6 +7,11 @@ import AppointmentDetailsScreen from "../features/appointments/components/Appoin
 import QueueStatusScreen from "../features/appointments/components/QueueStatusScreen";
 import EditProfileScreen from "../features/profile/components/EditProfileScreen";
 import SettingsScreen from "../features/profile/components/SettingsScreen";
+import {
+  AboutScreen,
+  PrivacyPolicyScreen,
+  TermsScreen,
+} from "../features/profile/components/InfoScreens";
 import type { AppStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
@@ -21,6 +26,9 @@ const AppNavigator = () => {
       <Stack.Screen name="QueueStatus" component={QueueStatusScreen} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <Stack.Screen name="About" component={AboutScreen} />
+      <Stack.Screen name="Terms" component={TermsScreen} />
     </Stack.Navigator>
   );
 };

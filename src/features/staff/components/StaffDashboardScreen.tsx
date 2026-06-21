@@ -37,7 +37,7 @@ import type {
   AppointmentStatus,
   CancelReason,
 } from '../../../types/appointment';
-import { scaleFont } from '../../../utils/responsive';
+import { hp, scaleFont, wp } from '../../../utils/responsive';
 import {
   QueueMetricsInput,
   staffQueueService,
@@ -448,7 +448,7 @@ const StaffDashboardScreen = () => {
             onRefresh={refreshDashboard}
           />
         }
-        contentContainerStyle={[styles.listContent, { padding: spacing.lg }]}
+        contentContainerStyle={[styles.listContent, { paddingHorizontal: wp(4), paddingVertical: hp(2) }]}
         ListHeaderComponent={
           <View>
             <View style={styles.header}>
@@ -463,7 +463,7 @@ const StaffDashboardScreen = () => {
               <AppButton title="Logout" variant="outline" onPress={logout} style={styles.logoutButton} />
             </View>
 
-            <View style={[styles.statsGrid, { gap: spacing.md }]}>
+            <View style={[styles.statsGrid, { gap: wp(3) }]}>
               {statCards.map(({ label, value, color, Icon }) => (
                 <Card key={label} style={styles.statCard}>
                   <View style={styles.statHeader}>
@@ -504,7 +504,7 @@ const StaffDashboardScreen = () => {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.filterRow, { gap: spacing.sm, marginVertical: spacing.md }]}
+              contentContainerStyle={[styles.filterRow, { gap: wp(2), marginVertical: hp(1.6) }]}
             >
               {statusFilters.map(filter => {
                 const selected = selectedStatus === filter;
@@ -671,56 +671,60 @@ const styles = StyleSheet.create({
   },
   appointmentTitleWrap: {
     flex: 1,
-    paddingRight: 8,
+    paddingRight: wp(2),
   },
   filterChip: {
     borderWidth: 1,
   },
   filterRow: {
-    paddingRight: 16,
+    paddingRight: wp(4),
   },
   header: {
     alignItems: 'flex-start',
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: wp(3),
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: hp(2.4),
   },
   listContent: {
     flexGrow: 1,
   },
   logoutButton: {
     alignSelf: 'flex-start',
-    width: 110,
+    minWidth: wp(28),
   },
   metaText: {
-    lineHeight: 20,
+    lineHeight: scaleFont(20),
   },
   modalBackdrop: {
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.45)',
     flex: 1,
     justifyContent: 'center',
-    padding: 20,
+    paddingHorizontal: wp(5),
+    paddingVertical: hp(3),
   },
   modalCard: {
     width: '100%',
+    maxWidth: wp(92),
   },
   modalText: {
-    marginBottom: 12,
+    marginBottom: hp(1.4),
   },
   modalTitle: {
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: hp(0.5),
   },
   inputLabel: {
     fontWeight: '600',
-    marginTop: 10,
+    marginTop: hp(1.2),
   },
   modalInput: {
     borderWidth: 1,
-    marginTop: 6,
-    minHeight: 44,
-    paddingHorizontal: 12,
+    marginTop: hp(0.8),
+    minHeight: hp(5.4),
+    paddingHorizontal: wp(3),
   },
   patientName: {
     fontWeight: '700',
@@ -729,34 +733,35 @@ const styles = StyleSheet.create({
   queueMetaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: wp(3),
   },
   queueButton: {
-    marginTop: 10,
+    marginTop: hp(1.2),
   },
   readOnlyText: {
     fontWeight: '600',
   },
   reasonButton: {
     borderWidth: 1,
-    marginTop: 8,
+    marginTop: hp(1),
   },
   searchBox: {
     alignItems: 'center',
     borderWidth: 1,
     flexDirection: 'row',
-    paddingHorizontal: 12,
+    paddingHorizontal: wp(3),
   },
   searchInput: {
     flex: 1,
-    minHeight: 44,
-    paddingHorizontal: 10,
+    minHeight: hp(5.4),
+    paddingHorizontal: wp(2.5),
   },
   sectionTitle: {
     fontWeight: '700',
   },
   statCard: {
-    flexBasis: '47%',
+    flexBasis: '48%',
+    flexGrow: 1,
   },
   statHeader: {
     alignItems: 'center',
@@ -764,7 +769,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statLabel: {
-    marginTop: 6,
+    marginTop: hp(0.8),
   },
   statValue: {
     fontWeight: 'bold',

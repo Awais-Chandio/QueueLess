@@ -28,4 +28,5 @@ export type UploadAvatarPayload = {
   uri: string;
   fileName?: string | null;
   type?: string | null;
+  base64?: string | null;
 };

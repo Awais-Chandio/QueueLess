@@ -98,13 +98,13 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
-    paddingRight: scaleFont(12),
+    paddingRight: wp(3),
   },
   welcomeText: {
-    marginBottom: scaleFont(4),
+    marginBottom: hp(0.5),
   },
   nameText: {
-    marginBottom: scaleFont(16),
+    marginBottom: hp(1.2),
   },
   sectionTitle: {
     fontWeight: '600',
@@ -112,22 +112,24 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: scaleFont(8),
+    gap: wp(2.4),
   },
   statCard: {
     flex: 1,
   },
   iconContainer: {
-    width: scaleFont(48),
-    height: scaleFont(48),
+    width: wp(12),
+    maxWidth: scaleFont(52),
+    minWidth: scaleFont(42),
+    aspectRatio: 1,
     borderRadius: scaleFont(24),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: scaleFont(12),
+    marginBottom: hp(1.4),
   },
   statValue: {
     fontWeight: '700',
-    marginBottom: scaleFont(4),
+    marginBottom: hp(0.5),
   },
   statTitle: {
     fontWeight: '500',

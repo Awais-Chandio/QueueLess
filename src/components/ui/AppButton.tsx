@@ -1,7 +1,8 @@
 import React from "react";
-import { ActivityIndicator, StyleSheet, Pressable, Text, View, ViewStyle, TextStyle } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View, ViewStyle, TextStyle } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import { hp } from "../../utils/responsive";
+import { AnimatedButton } from "../animations/ButtonScale";
 
 interface AppButtonProps {
   onPress: () => void;
@@ -31,8 +32,8 @@ const AppButton = ({ onPress, title, loading = false, disabled = false, variant 
   const { bg, text, border } = getVariantStyles();
 
   return (
-    <Pressable
-      style={({ pressed }) => [
+    <AnimatedButton
+      style={[
         styles.button,
         {
           backgroundColor: bg,
@@ -44,7 +45,6 @@ const AppButton = ({ onPress, title, loading = false, disabled = false, variant 
           marginTop: spacing.sm,
           minHeight: hp(5.4),
         },
-        pressed && !isDisabled && styles.pressedButton,
         isDisabled && styles.disabledButton,
         style,
       ]}
@@ -65,7 +65,7 @@ const AppButton = ({ onPress, title, loading = false, disabled = false, variant 
           {title}
         </Text>
       )}
-    </Pressable>
+    </AnimatedButton>
   );
 };
 
@@ -89,9 +89,6 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginLeft: 8,
-  },
-  pressedButton: {
-    opacity: 0.85,
   },
   disabledButton: {
     opacity: 0.5,

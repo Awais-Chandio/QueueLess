@@ -14,7 +14,8 @@ import { Card } from '../../../components/ui/Card';
 import { Badge, BadgeVariant } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
-import { Skeleton } from '../../../components/ui/Skeleton';
+import { SkeletonLoader } from '../../../components/animations/SkeletonLoader';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAppointments } from '../hooks/useAppointments';
 import { useAuthStore } from '../../../store/authStore';
@@ -89,10 +90,8 @@ const MyAppointmentsScreen = () => {
   };
 
   const renderSkeleton = () => (
-    <View style={{ gap: spacing.md, paddingBottom: spacing.xl }}>
-      <Skeleton height={140} />
-      <Skeleton height={140} />
-      <Skeleton height={140} />
+    <View style={{ paddingBottom: spacing.xl }}>
+      <SkeletonLoader height={140} count={3} gap={spacing.md} />
     </View>
   );
 
@@ -169,9 +168,10 @@ const MyAppointmentsScreen = () => {
                 subtitle="No appointments found for this status."
               />
             }
-            renderItem={({ item }) => (
-              <Pressable onPress={() => navigation.navigate('AppointmentDetails', { appointmentId: item.id })}>
-                <Card style={{ marginBottom: spacing.md }}>
+            renderItem={({ item, index }) => (
+              <CardFadeIn delay={Math.min(index * 80, 400)}>
+                <Pressable onPress={() => navigation.navigate('AppointmentDetails', { appointmentId: item.id })}>
+                  <Card style={{ marginBottom: spacing.md }}>
                   <View style={styles.cardHeader}>
                     <View style={{ flex: 1 }}>
                       <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
@@ -221,6 +221,7 @@ const MyAppointmentsScreen = () => {
                   </View>
                 </Card>
               </Pressable>
+              </CardFadeIn>
             )}
           />
         )}

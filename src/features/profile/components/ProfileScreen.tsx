@@ -13,7 +13,7 @@ import AppButton from "../../../components/ui/AppButton";
 import ProfileAvatar from "../../../components/ui/ProfileAvatar";
 import { Camera, Settings, Activity, Mail, Phone } from "lucide-react-native";
 import type { AppStackParamList } from "../../../navigation/types";
-import { scaleFont } from "../../../utils/responsive";
+import { hp, scaleFont, wp } from "../../../utils/responsive";
 import { toastService } from "../../../services/toastService";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
@@ -47,6 +47,7 @@ const ProfileScreen = () => {
     try {
       result = await launchImageLibrary({
         mediaType: 'photo',
+        includeBase64: true,
         quality: 0.8,
         selectionLimit: 1,
       });
@@ -77,10 +78,20 @@ const ProfileScreen = () => {
       return;
     }
 
+    if (__DEV__) {
+      console.log('[ProfileScreen.handleAvatarUpload] image asset:', {
+        uri: asset.uri,
+        fileName: asset.fileName,
+        mimeType: asset.type,
+        hasBase64: Boolean(asset.base64),
+      });
+    }
+
     await uploadAvatar(user.id, {
       uri: asset.uri,
       fileName: asset.fileName,
       type: asset.type,
+      base64: asset.base64,
     });
 
     const currentError = useProfileStore.getState().error;
@@ -185,15 +196,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: scaleFont(24),
+    marginBottom: hp(3),
   },
   profileHeader: {
     alignItems: 'center',
-    marginBottom: scaleFont(32),
+    marginBottom: hp(4),
   },
   avatarContainer: {
-    width: scaleFont(100),
-    height: scaleFont(100),
+    width: wp(26),
+    maxWidth: scaleFont(112),
+    minWidth: scaleFont(88),
+    aspectRatio: 1,
     borderRadius: scaleFont(50),
     borderWidth: 0,
     alignItems: 'center',

@@ -1,8 +1,10 @@
+import { scaleFont } from '../utils/responsive';
+
 export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
+  xs: scaleFont(4),
+  sm: scaleFont(8),
+  md: scaleFont(12),
+  lg: scaleFont(16),
+  xl: scaleFont(20),
+  xxl: scaleFont(24),
 };

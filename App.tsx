@@ -11,6 +11,7 @@ import { authService } from "./src/features/auth/api/authService";
 import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
 import { supabaseConfig } from "./src/lib/supabase";
+import { hp, scaleFont, wp } from "./src/utils/responsive";
 
 const linking = {
   prefixes: ["queueless://"],
@@ -157,27 +158,27 @@ const styles = StyleSheet.create({
   startupErrorContainer: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: wp(6),
     backgroundColor: "#FFFFFF",
   },
   startupErrorTitle: {
-    marginBottom: 12,
+    marginBottom: hp(1.5),
     color: "#B42318",
-    fontSize: 24,
+    fontSize: scaleFont(24),
     fontWeight: "700",
     textAlign: "center",
   },
   startupErrorMessage: {
     color: "#111827",
-    fontSize: 16,
-    lineHeight: 22,
+    fontSize: scaleFont(16),
+    lineHeight: scaleFont(22),
     textAlign: "center",
   },
   startupErrorHint: {
-    marginTop: 12,
+    marginTop: hp(1.5),
     color: "#4B5563",
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: scaleFont(14),
+    lineHeight: scaleFont(20),
     textAlign: "center",
   },
 });

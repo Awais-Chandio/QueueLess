@@ -1,23 +1,28 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, Pressable } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigation } from "@react-navigation/native";
+import { launchImageLibrary } from "react-native-image-picker";
+import { Camera } from "lucide-react-native";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import AppInput from "../../../components/ui/AppInput";
 import AppButton from "../../../components/ui/AppButton";
 import Loader from "../../../components/ui/Loader";
 import ErrorState from "../../../components/ui/ErrorState";
+import ProfileAvatar from "../../../components/ui/ProfileAvatar";
 import { useAuth } from "../../../hooks/useAuth";
 import { useProfileStore } from "../../../store/profileStore";
 import { useToastStore } from "../../../store/toastStore";
 import { profileSchema, type ProfileFormData } from "../../../validations/profileSchema";
 import { colors, spacing, typography } from "../../../theme";
+import { scaleFont, wp } from "../../../utils/responsive";
 
 const EditProfileScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
-  const { profile, isLoading, error, fetchProfile, updateProfile } = useProfileStore();
+  const { profile, isLoading, isUploadingAvatar, error, fetchProfile, updateProfile, uploadAvatar } =
+    useProfileStore();
   const { showToast } = useToastStore();
 
   const {
@@ -33,7 +38,6 @@ const EditProfileScreen = () => {
     },
   });
 
-  // Prefill form when profile data is available
   useEffect(() => {
     if (profile) {
       reset({
@@ -45,22 +49,75 @@ const EditProfileScreen = () => {
     }
   }, [profile, user?.id, reset, fetchProfile]);
 
+  const handleAvatarUpload = async () => {
+    if (!user?.id || isUploadingAvatar) return;
+
+    let result;
+
+    try {
+      result = await launchImageLibrary({
+        mediaType: "photo",
+        includeBase64: true,
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+    } catch (pickerError) {
+      const message =
+        pickerError instanceof TypeError
+          ? "Image picker is not linked yet. Rebuild and reinstall the app."
+          : pickerError instanceof Error
+            ? pickerError.message
+            : "Unable to open image picker";
+      showToast(message, "error");
+      return;
+    }
+
+    if (result.didCancel) {
+      return;
+    }
+
+    if (result.errorMessage) {
+      showToast(result.errorMessage, "error");
+      return;
+    }
+
+    const asset = result.assets?.[0];
+
+    if (!asset?.uri) {
+      showToast("Unable to read selected image", "error");
+      return;
+    }
+
+    await uploadAvatar(user.id, {
+      uri: asset.uri,
+      fileName: asset.fileName,
+      type: asset.type,
+      base64: asset.base64,
+    });
+
+    const currentError = useProfileStore.getState().error;
+    if (currentError) {
+      showToast(currentError, "error");
+      return;
+    }
+
+    showToast("Avatar updated successfully", "success");
+  };
+
   const onSubmit = async (data: ProfileFormData) => {
     if (!user?.id) return;
-    if (__DEV__) console.log('[EditProfileScreen] submitting update:', data);
+    if (__DEV__) console.log("[EditProfileScreen] submitting update:", data);
     await updateProfile(user.id, {
       full_name: data.full_name.trim(),
       phone: data.phone?.trim() || null,
     });
-    // Only navigate back if there is no error after update
     const currentError = useProfileStore.getState().error;
     if (!currentError) {
-      showToast('Profile updated successfully', 'success');
+      showToast("Profile updated successfully", "success");
       navigation.goBack();
     }
   };
 
-  // Show loader only on initial profile fetch, not during form submission
   if (isLoading && !profile) {
     return (
       <ScreenWrapper>
@@ -86,6 +143,22 @@ const EditProfileScreen = () => {
       <View style={styles.container}>
         <Text style={styles.title}>Edit Profile</Text>
         <Text style={styles.subtitle}>Update your personal information</Text>
+
+        <Pressable
+          onPress={handleAvatarUpload}
+          disabled={isUploadingAvatar}
+          style={[styles.avatarSection, { opacity: isUploadingAvatar ? 0.7 : 1 }]}
+        >
+          <View style={styles.avatarWrapper}>
+            <ProfileAvatar uri={profile?.avatar_url} size={96} iconSize={48} />
+            <View style={[styles.cameraIcon, { backgroundColor: colors.primary }]}>
+              <Camera size={scaleFont(14)} color="#FFF" />
+            </View>
+          </View>
+          <Text style={styles.changeAvatarText}>
+            {isUploadingAvatar ? "Uploading..." : "Change Avatar"}
+          </Text>
+        </Pressable>
 
         <Controller
           name="full_name"
@@ -121,12 +194,10 @@ const EditProfileScreen = () => {
           title="Save Changes"
           onPress={handleSubmit(onSubmit)}
           loading={isSubmitting || isLoading}
-          disabled={isSubmitting || isLoading}
+          disabled={isSubmitting || isLoading || isUploadingAvatar}
         />
 
-        {error && (
-          <Text style={styles.errorMessage}>{error}</Text>
-        )}
+        {error && <Text style={styles.errorMessage}>{error}</Text>}
       </View>
     </ScreenWrapper>
   );
@@ -149,6 +220,37 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: spacing.lg,
     textAlign: "center",
+  },
+  avatarSection: {
+    alignItems: "center",
+    marginBottom: spacing.lg,
+  },
+  avatarWrapper: {
+    width: wp(26),
+    maxWidth: scaleFont(112),
+    minWidth: scaleFont(88),
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  cameraIcon: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: scaleFont(28),
+    height: scaleFont(28),
+    borderRadius: scaleFont(14),
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  changeAvatarText: {
+    color: colors.primary,
+    fontSize: typography.small,
+    fontWeight: "600",
+    marginTop: spacing.sm,
   },
   errorMessage: {
     color: colors.error,

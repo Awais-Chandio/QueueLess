@@ -1,23 +1,10 @@
 import { supabase } from '../../../lib/supabase';
+import { imageUploadService } from '../../../services/imageUploadService';
 import {
     CreateProfilePayload,
     UploadAvatarPayload,
     UpdateProfilePayload,
 } from "../../../types/profile";
-
-const AVATAR_BUCKET = 'avatars';
-
-const getAvatarExtension = (payload: UploadAvatarPayload) => {
-    if (payload.fileName?.includes('.')) {
-        return payload.fileName.split('.').pop()?.toLowerCase() || 'jpg';
-    }
-
-    if (payload.type?.includes('/')) {
-        return payload.type.split('/').pop()?.toLowerCase() || 'jpg';
-    }
-
-    return 'jpg';
-};
 
 export const profileService = {
 
@@ -58,30 +45,13 @@ export const profileService = {
     },
 
     async uploadAvatar(userId: string, payload: UploadAvatarPayload) {
-        const extension = getAvatarExtension(payload);
-        const contentType = payload.type || `image/${extension}`;
-        const path = `${userId}/avatar.${extension}`;
-        const response = await fetch(payload.uri);
-        const blob = await response.blob();
+        const result = await imageUploadService.uploadAvatar(userId, payload);
 
-        const uploadResult = await supabase.storage
-            .from(AVATAR_BUCKET)
-            .upload(path, blob, {
-                cacheControl: '3600',
-                contentType,
-                upsert: true,
-            });
-
-        if (uploadResult.error) {
-            return { data: null, error: uploadResult.error };
+        if (!result.success) {
+            return { data: null, error: new Error(result.error || 'Failed to upload avatar') };
         }
 
-        const { data } = supabase.storage
-            .from(AVATAR_BUCKET)
-            .getPublicUrl(path);
-
-        const publicUrl = `${data.publicUrl}?v=${Date.now()}`;
-        return this.updateProfile(userId, { avatar_url: publicUrl });
+        return this.getProfileById(userId);
     },
 
 }

@@ -1,5 +1,7 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AppStackParamList = {
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<AppTabParamList> | undefined;
   CenterDetails: { centerId?: string };
   BookAppointment: { centerId?: string; serviceId?: string };
   AppointmentDetails: { appointmentId?: string };
@@ -8,6 +10,9 @@ export type AppStackParamList = {
   };
   EditProfile: undefined;
   Settings: undefined;
+  PrivacyPolicy: undefined;
+  About: undefined;
+  Terms: undefined;
 };
 
 export type AppTabParamList = {

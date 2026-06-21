@@ -1,15 +1,21 @@
 import React from "react";
 import { View, StyleSheet, Text, Pressable, Alert, Switch } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../../../hooks/useAuth";
 import { useTheme } from "../../../hooks/useTheme";
 import { useThemeStore } from "../../../store/themeStore";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
-import { Moon, Bell, Shield, Info, ChevronRight } from "lucide-react-native";
-import { scaleFont } from "../../../utils/responsive";
+import { Moon, Bell, Shield, Info, ChevronRight, FileText } from "lucide-react-native";
+import type { AppStackParamList } from "../../../navigation/types";
+import { hp, scaleFont, wp } from "../../../utils/responsive";
+
+type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const SettingsScreen = () => {
+  const navigation = useNavigation<NavigationProp>();
   const { logout } = useAuth();
   const { colors, spacing, typography } = useTheme();
   const { isDarkMode, toggleTheme } = useThemeStore();
@@ -53,15 +59,16 @@ const SettingsScreen = () => {
           icon={Moon} 
           rightElement={<Switch value={isDarkMode} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.primary }} />} 
         />
-        <SettingRow title="Notifications" icon={Bell} onPress={() => {}} />
+        <SettingRow title="Notifications" icon={Bell} onPress={() => navigation.navigate("MainTabs", { screen: "Notifications" })} />
       </Card>
 
       <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
         Support
       </Text>
       <Card style={{ padding: 0, marginBottom: spacing.xl }}>
-        <SettingRow title="Privacy Policy" icon={Shield} onPress={() => {}} />
-        <SettingRow title="About QueueLess" icon={Info} onPress={() => {}} />
+        <SettingRow title="Privacy Policy" icon={Shield} onPress={() => navigation.navigate("PrivacyPolicy")} />
+        <SettingRow title="About QueueLess" icon={Info} onPress={() => navigation.navigate("About")} />
+        <SettingRow title="Terms & Conditions" icon={FileText} onPress={() => navigation.navigate("Terms")} />
       </Card>
 
       <AppButton 
@@ -84,16 +91,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: scaleFont(16),
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(1.8),
     borderBottomWidth: 1,
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   iconContainer: {
-    width: scaleFont(36),
-    height: scaleFont(36),
+    width: wp(9.6),
+    maxWidth: scaleFont(42),
+    minWidth: scaleFont(34),
+    aspectRatio: 1,
     borderRadius: scaleFont(8),
     borderWidth: 1,
     alignItems: 'center',
