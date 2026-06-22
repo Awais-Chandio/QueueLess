@@ -1,18 +1,32 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
-  getLatestQueueUpdate,
-  subscribeToQueueUpdates,
+  getQueueSnapshot,
+  subscribeToQueueChanges,
   unsubscribeQueue,
 } from '../api/queueService';
 
-import type { QueueUpdate } from '../../../types/queue';
+import type { QueueSnapshot } from '../../../types/queue';
+
+const getQueueErrorMessage = (error: unknown) => {
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    return error.message;
+  }
+
+  return 'Failed to load queue status';
+};
 
 export const useRealtimeQueue = (
-  appointmentId: string,
+  myToken: number | null,
+  onAppointmentChange?: () => void,
 ) => {
   const [queueData, setQueueData] =
-    useState<QueueUpdate | null>(null);
+    useState<QueueSnapshot | null>(null);
 
   const [loading, setLoading] =
     useState(true);
@@ -21,46 +35,48 @@ export const useRealtimeQueue = (
     useState<string | null>(null);
 
   const loadInitialData = useCallback(async () => {
+    if (myToken == null) {
+      setQueueData(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
 
-      const data =
-        await getLatestQueueUpdate(
-          appointmentId,
-        );
+      const data = await getQueueSnapshot(myToken);
 
       setQueueData(data);
       setError(null);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to load queue status',
-      );
+      setError(getQueueErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [appointmentId]);
+  }, [myToken]);
 
   useEffect(() => {
     loadInitialData();
 
-    subscribeToQueueUpdates(
-      appointmentId,
-      queueUpdate => {
-        setQueueData(queueUpdate);
-        setError(null);
-      },
-    );
+    const queueChannel = subscribeToQueueChanges(() => {
+      loadInitialData();
+      onAppointmentChange?.();
+    });
+    const fallbackInterval = setInterval(() => {
+      loadInitialData();
+      onAppointmentChange?.();
+    }, 5000);
 
     return () => {
-      unsubscribeQueue();
+      clearInterval(fallbackInterval);
+      unsubscribeQueue(queueChannel);
     };
-  }, [appointmentId, loadInitialData]);
+  }, [loadInitialData, onAppointmentChange]);
 
   return {
     queueData,
     loading,
     error,
+    refresh: loadInitialData,
   };
 };

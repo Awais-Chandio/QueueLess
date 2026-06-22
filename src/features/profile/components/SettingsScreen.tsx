@@ -59,7 +59,17 @@ const SettingsScreen = () => {
           icon={Moon} 
           rightElement={<Switch value={isDarkMode} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.primary }} />} 
         />
-        <SettingRow title="Notifications" icon={Bell} onPress={() => navigation.navigate("MainTabs", { screen: "Notifications" })} />
+        <SettingRow
+          title="Notifications"
+          icon={Bell}
+          onPress={() =>
+            navigation.navigate(
+              "MainTabs",
+              { screen: "Notifications" },
+              { pop: true },
+            )
+          }
+        />
       </Card>
 
       <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>

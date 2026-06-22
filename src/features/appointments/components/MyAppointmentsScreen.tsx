@@ -10,6 +10,7 @@ import {
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import AppButton from '../../../components/ui/AppButton';
 import { Card } from '../../../components/ui/Card';
 import { Badge, BadgeVariant } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -31,6 +32,8 @@ const statusFilters: StatusFilter[] = [
   'all',
   'pending',
   'confirmed',
+  'checked_in',
+  'called',
   'in_progress',
   'completed',
   'cancelled',
@@ -81,6 +84,8 @@ const MyAppointmentsScreen = () => {
   const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
     switch (status) {
       case 'confirmed': return 'success';
+      case 'checked_in': return 'info';
+      case 'called':
       case 'in_progress': return 'warning';
       case 'cancelled': return 'error';
       case 'completed': return 'default';
@@ -170,57 +175,75 @@ const MyAppointmentsScreen = () => {
             }
             renderItem={({ item, index }) => (
               <CardFadeIn delay={Math.min(index * 80, 400)}>
-                <Pressable onPress={() => navigation.navigate('AppointmentDetails', { appointmentId: item.id })}>
-                  <Card style={{ marginBottom: spacing.md }}>
-                  <View style={styles.cardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
-                        {item.service_name ?? 'Service'}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
-                        <MapPin size={scaleFont(14)} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, flex: 1 }}>
-                          {item.center_name ?? 'Center'}
+                <Card style={{ marginBottom: spacing.md }}>
+                  <Pressable
+                    onPress={() =>
+                      navigation.navigate('AppointmentDetails', {
+                        appointmentId: item.id,
+                      })
+                    }
+                  >
+                    <View style={styles.cardHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
+                          {item.service_name ?? 'Service'}
                         </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
+                          <MapPin size={scaleFont(14)} color={colors.textSecondary} />
+                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, flex: 1 }}>
+                            {item.center_name ?? 'Center'}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                    <Badge label={formatStatus(item.status as AppointmentStatus)} variant={getStatusVariant(item.status as AppointmentStatus)} />
-                  </View>
-
-                  <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
-
-                  <View style={styles.detailsRow}>
-                    <View style={styles.detailItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
-                        <Calendar size={scaleFont(14)} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Date</Text>
-                      </View>
-                      <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                        {new Date(item.scheduled_at).toLocaleDateString()}
-                      </Text>
+                      <Badge label={formatStatus(item.status as AppointmentStatus)} variant={getStatusVariant(item.status as AppointmentStatus)} />
                     </View>
 
-                    <View style={styles.detailItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
-                        <Clock size={scaleFont(14)} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Time</Text>
-                      </View>
-                      <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                        {new Date(item.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
+                    <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
 
-                    {typeof item.token_number === 'number' && (
+                    <View style={styles.detailsRow}>
                       <View style={styles.detailItem}>
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.xs / 2 }}>Token</Text>
-                        <Text style={{ color: colors.primary, fontSize: typography.sizes.md, fontWeight: 'bold' }}>
-                          #{item.token_number}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
+                          <Calendar size={scaleFont(14)} color={colors.textSecondary} />
+                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Date</Text>
+                        </View>
+                        <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
+                          {new Date(item.scheduled_at).toLocaleDateString()}
                         </Text>
                       </View>
-                    )}
-                  </View>
+
+                      <View style={styles.detailItem}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
+                          <Clock size={scaleFont(14)} color={colors.textSecondary} />
+                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Time</Text>
+                        </View>
+                        <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
+                          {new Date(item.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </Text>
+                      </View>
+
+                      {typeof item.token_number === 'number' && (
+                        <View style={styles.detailItem}>
+                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.xs / 2 }}>Token</Text>
+                          <Text style={{ color: colors.primary, fontSize: typography.sizes.md, fontWeight: 'bold' }}>
+                            #{item.token_number}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </Pressable>
+
+                  {['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(item.status) && (
+                    <AppButton
+                      title="View Live Queue"
+                      variant="outline"
+                      onPress={() =>
+                        navigation.navigate('QueueStatus', {
+                          appointmentId: item.id,
+                        })
+                      }
+                    />
+                  )}
                 </Card>
-              </Pressable>
               </CardFadeIn>
             )}
           />

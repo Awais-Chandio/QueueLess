@@ -6,13 +6,6 @@ import type {
 } from '../../../types/appointment';
 import type { CreateAuditLogPayload } from '../../../types/audit';
 
-export type QueueMetricsInput = {
-  current_position?: number | null;
-  people_ahead?: number | null;
-  estimated_wait_mins?: number | null;
-  queue_status?: string | null;
-};
-
 export type StaffDashboardStats = {
   totalToday: number;
   pending: number;
@@ -29,11 +22,13 @@ export type StaffDashboardData = {
 
 const activeStatuses: AppointmentStatus[] = [
   'confirmed',
+  'checked_in',
+  'called',
   'in_progress',
 ];
 
 const appointmentSelect =
-  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, current_position, people_ahead, queue_status, created_at';
+  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, current_position, people_ahead, queue_status, current_serving_token, created_at';
 
 const appointmentFallbackSelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, created_at';
@@ -197,23 +192,6 @@ const buildStats = (appointments: AppointmentFull[]): StaffDashboardStats => ({
   activeQueue: appointments.filter(item => activeStatuses.includes(item.status)).length,
 });
 
-const insertQueueUpdate = async (
-  appointmentId: string,
-  queue: QueueMetricsInput,
-) => {
-  const { error } = await supabase.from('queue_updates').insert({
-    appointment_id: appointmentId,
-    current_position: queue.current_position ?? 0,
-    people_ahead: queue.people_ahead ?? 0,
-    estimated_wait_mins: queue.estimated_wait_mins ?? 0,
-    status: queue.queue_status ?? 'waiting',
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-};
-
 const insertAuditLog = async (payload: CreateAuditLogPayload) => {
   const { error } = await supabase.from('audit_logs').insert(payload);
 
@@ -227,7 +205,6 @@ const updateAppointment = async (
   nextStatus: AppointmentStatus,
   updates: Record<string, unknown>,
   action: string,
-  queue: QueueMetricsInput,
 ) => {
   const staffUserId = await getCurrentUserId();
 
@@ -244,11 +221,6 @@ const updateAppointment = async (
   if (error) {
     throw new Error(error.message);
   }
-
-  await insertQueueUpdate(appointment.id, {
-    ...queue,
-    queue_status: queue.queue_status ?? nextStatus,
-  });
 
   await insertAuditLog({
     staff_user_id: staffUserId,
@@ -271,13 +243,12 @@ export const staffQueueService = {
     };
   },
 
-  async confirmAppointment(appointment: AppointmentFull, queue: QueueMetricsInput) {
+  async confirmAppointment(appointment: AppointmentFull) {
     const updatedAppointment = await updateAppointment(
       appointment,
       'confirmed',
       {},
       'confirm',
-      queue,
     );
 
     return updatedAppointment;
@@ -286,7 +257,6 @@ export const staffQueueService = {
   async cancelAppointment(
     appointment: AppointmentFull,
     reason: CancelReason,
-    queue: QueueMetricsInput,
   ) {
     const staffUserId = await getCurrentUserId();
     const updatedAppointment = await updateAppointment(
@@ -298,55 +268,19 @@ export const staffQueueService = {
         cancelled_at: new Date().toISOString(),
       },
       'cancel',
-      {
-        ...queue,
-        current_position: 0,
-        people_ahead: 0,
-        estimated_wait_mins: 0,
-        queue_status: 'cancelled',
-      },
     );
 
     return updatedAppointment;
   },
 
-  async updateQueueMetrics(
-    appointment: AppointmentFull,
-    queue: Required<Pick<
-      QueueMetricsInput,
-      'current_position' | 'people_ahead' | 'estimated_wait_mins'
-    >>,
-  ) {
-    const staffUserId = await getCurrentUserId();
-    await insertQueueUpdate(appointment.id, {
-      ...queue,
-      queue_status: appointment.status,
-    });
-    await insertAuditLog({
-      staff_user_id: staffUserId,
-      appointment_id: appointment.id,
-      action: 'update_queue',
-      old_status: appointment.status,
-      new_status: appointment.status,
-    });
-  },
-
-  async startService(
-    appointment: AppointmentFull,
-    queue: QueueMetricsInput,
-  ) {
+  async startService(appointment: AppointmentFull) {
     const updatedAppointment = await updateAppointment(
       appointment,
-      'in_progress',
-      {},
-      'start_service',
+      'called',
       {
-        ...queue,
-        current_position: 0,
-        people_ahead: 0,
-        estimated_wait_mins: 0,
-        queue_status: 'in_progress',
+        called_at: new Date().toISOString(),
       },
+      'call_next',
     );
 
     return updatedAppointment;
@@ -360,12 +294,6 @@ export const staffQueueService = {
         completed_at: new Date().toISOString(),
       },
       'complete_service',
-      {
-        current_position: 0,
-        people_ahead: 0,
-        estimated_wait_mins: 0,
-        queue_status: 'completed',
-      },
     );
 
     return updatedAppointment;

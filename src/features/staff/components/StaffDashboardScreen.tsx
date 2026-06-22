@@ -38,15 +38,14 @@ import type {
   CancelReason,
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import {
-  QueueMetricsInput,
-  staffQueueService,
-} from '../api/staffQueueService';
+import { staffQueueService } from '../api/staffQueueService';
 
 type StatusFilter =
   | 'all'
   | 'pending'
   | 'confirmed'
+  | 'checked_in'
+  | 'called'
   | 'in_progress'
   | 'completed'
   | 'cancelled';
@@ -61,6 +60,8 @@ const statusFilters: StatusFilter[] = [
   'all',
   'pending',
   'confirmed',
+  'checked_in',
+  'called',
   'in_progress',
   'completed',
   'cancelled',
@@ -74,11 +75,6 @@ const cancelReasons: CancelReason[] = [
   'Other',
 ];
 
-const activeQueueStatuses: AppointmentStatus[] = [
-  'confirmed',
-  'in_progress',
-];
-
 const statusLabel = (status: string) =>
   status
     .split('_')
@@ -88,7 +84,9 @@ const statusLabel = (status: string) =>
 const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
   switch (status) {
     case 'confirmed':
+    case 'checked_in':
       return 'info';
+    case 'called':
     case 'in_progress':
       return 'warning';
     case 'completed':
@@ -101,29 +99,14 @@ const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
   }
 };
 
-const getQueueMetrics = (
-  appointment: AppointmentFull,
-  appointments: AppointmentFull[],
-): QueueMetricsInput => {
-  const activeQueue = appointments.filter(item =>
-    activeQueueStatuses.includes(item.status),
-  );
-  const index = activeQueue.findIndex(item => item.id === appointment.id);
-  const peopleAhead = Math.max(index, 0);
-
-  return {
-    current_position: peopleAhead + 1,
-    people_ahead: peopleAhead,
-    estimated_wait_mins: peopleAhead * 15,
-  };
-};
-
 const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
   switch (status) {
     case 'pending':
       return ['confirm', 'cancel'];
     case 'confirmed':
+    case 'checked_in':
       return ['start_service', 'cancel'];
+    case 'called':
     case 'in_progress':
       return ['complete_service'];
     default:
@@ -140,10 +123,6 @@ const StaffDashboardScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [cancelTarget, setCancelTarget] = useState<AppointmentFull | null>(null);
-  const [queueTarget, setQueueTarget] = useState<AppointmentFull | null>(null);
-  const [queuePosition, setQueuePosition] = useState('');
-  const [queuePeopleAhead, setQueuePeopleAhead] = useState('');
-  const [queueWait, setQueueWait] = useState('');
 
   const {
     data,
@@ -162,6 +141,14 @@ const StaffDashboardScreen = () => {
 
   const appointments = useMemo(() => data?.appointments ?? [], [data?.appointments]);
   const stats = data?.stats;
+  const hasActiveService = appointments.some(
+    appointment =>
+      appointment.status === 'called' ||
+      appointment.status === 'in_progress',
+  );
+  const nextCallableAppointmentId =
+    appointments.find(appointment => appointment.status === 'checked_in')?.id ??
+    appointments.find(appointment => appointment.status === 'confirmed')?.id;
 
   useEffect(() => {
     if (appointments.length || data) {
@@ -172,13 +159,6 @@ const StaffDashboardScreen = () => {
   useEffect(() => {
     const channel = supabase
       .channel('staff-dashboard-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'queue_updates' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
-        },
-      )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointments' },
@@ -207,22 +187,19 @@ const StaffDashboardScreen = () => {
       appointment: AppointmentFull;
       reason?: CancelReason;
     }) => {
-      const queueMetrics = getQueueMetrics(appointment, appointments);
-
       if (action === 'confirm') {
-        return staffQueueService.confirmAppointment(appointment, queueMetrics);
+        return staffQueueService.confirmAppointment(appointment);
       }
 
       if (action === 'cancel') {
         return staffQueueService.cancelAppointment(
           appointment,
           reason ?? 'Other',
-          queueMetrics,
         );
       }
 
       if (action === 'start_service') {
-        return staffQueueService.startService(appointment, queueMetrics);
+        return staffQueueService.startService(appointment);
       }
 
       return staffQueueService.completeAppointment(appointment);
@@ -233,31 +210,6 @@ const StaffDashboardScreen = () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
     },
   });
-
-  const updateQueueMutation = useMutation({
-    mutationFn: () => {
-      if (!queueTarget) {
-        throw new Error('No appointment selected.');
-      }
-
-      return staffQueueService.updateQueueMetrics(queueTarget, {
-        current_position: Number(queuePosition) || 0,
-        people_ahead: Number(queuePeopleAhead) || 0,
-        estimated_wait_mins: Number(queueWait) || 0,
-      });
-    },
-    onSuccess: () => {
-      setQueueTarget(null);
-      queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
-    },
-  });
-
-  const openQueueModal = (appointment: AppointmentFull) => {
-    setQueueTarget(appointment);
-    setQueuePosition(String(appointment.current_position ?? ''));
-    setQueuePeopleAhead(String(appointment.people_ahead ?? ''));
-    setQueueWait(String(appointment.estimated_wait_mins ?? 0));
-  };
 
   const filteredAppointments = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -322,11 +274,14 @@ const StaffDashboardScreen = () => {
     const labels: Record<QueueAction, string> = {
       confirm: 'Confirm',
       cancel: 'Cancel',
-      start_service: 'Start Service',
+      start_service: 'Call Next',
       complete_service: 'Complete',
     };
 
     const isCancel = action === 'cancel';
+    const isCallBlocked =
+      action === 'start_service' &&
+      (hasActiveService || appointment.id !== nextCallableAppointmentId);
     const isBusy =
       runActionMutation.isPending &&
       runActionMutation.variables?.appointment.id === appointment.id &&
@@ -338,7 +293,7 @@ const StaffDashboardScreen = () => {
         title={labels[action]}
         variant={isCancel ? 'danger' : action === 'confirm' ? 'primary' : 'outline'}
         loading={isBusy}
-        disabled={runActionMutation.isPending}
+        disabled={runActionMutation.isPending || isCallBlocked}
         style={styles.actionButton}
         textStyle={{ fontSize: typography.sizes.sm }}
         onPress={() => {
@@ -393,14 +348,6 @@ const StaffDashboardScreen = () => {
           <Text style={[styles.readOnlyText, { color: colors.textSecondary, marginTop: spacing.md }]}>
             Read only
           </Text>
-        )}
-        {!['completed', 'cancelled'].includes(item.status) && (
-          <AppButton
-            title="Update Queue"
-            variant="secondary"
-            onPress={() => openQueueModal(item)}
-            style={styles.queueButton}
-          />
         )}
       </Card>
     );
@@ -590,65 +537,6 @@ const StaffDashboardScreen = () => {
         </View>
       </Modal>
 
-      <Modal
-        animationType="fade"
-        transparent
-        visible={!!queueTarget}
-        onRequestClose={() => setQueueTarget(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.lg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg }]}>
-              Update Queue
-            </Text>
-            <Text style={[styles.modalText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-              These values update the live client queue screen.
-            </Text>
-
-            <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-              Current Position
-            </Text>
-            <TextInput
-              value={queuePosition}
-              keyboardType="number-pad"
-              onChangeText={setQueuePosition}
-              style={[styles.modalInput, { borderColor: colors.border, color: colors.text, borderRadius: radius.md }]}
-            />
-
-            <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-              People Ahead
-            </Text>
-            <TextInput
-              value={queuePeopleAhead}
-              keyboardType="number-pad"
-              onChangeText={setQueuePeopleAhead}
-              style={[styles.modalInput, { borderColor: colors.border, color: colors.text, borderRadius: radius.md }]}
-            />
-
-            <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-              Estimated Wait Minutes
-            </Text>
-            <TextInput
-              value={queueWait}
-              keyboardType="number-pad"
-              onChangeText={setQueueWait}
-              style={[styles.modalInput, { borderColor: colors.border, color: colors.text, borderRadius: radius.md }]}
-            />
-
-            <AppButton
-              title="Save Queue Update"
-              loading={updateQueueMutation.isPending}
-              onPress={() => updateQueueMutation.mutate()}
-            />
-            <AppButton
-              title="Close"
-              variant="outline"
-              onPress={() => setQueueTarget(null)}
-              disabled={updateQueueMutation.isPending}
-            />
-          </View>
-        </View>
-      </Modal>
     </ScreenWrapper>
   );
 };
@@ -716,16 +604,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: hp(0.5),
   },
-  inputLabel: {
-    fontWeight: '600',
-    marginTop: hp(1.2),
-  },
-  modalInput: {
-    borderWidth: 1,
-    marginTop: hp(0.8),
-    minHeight: hp(5.4),
-    paddingHorizontal: wp(3),
-  },
   patientName: {
     fontWeight: '700',
     marginTop: 2,
@@ -734,9 +612,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: wp(3),
-  },
-  queueButton: {
-    marginTop: hp(1.2),
   },
   readOnlyText: {
     fontWeight: '600',

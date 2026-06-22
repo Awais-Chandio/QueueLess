@@ -18,6 +18,7 @@ import { Home, MapPin, Calendar, Bell, User } from "lucide-react-native";
 import { hp } from "../utils/responsive";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
+let notificationChannelInstance = 0;
 
 type TabIconProps = {
     color: string;
@@ -119,7 +120,9 @@ const AppTabs = () => {
         }
 
         const channel = supabase
-            .channel(`tab-notifications-${userId}`)
+            .channel(
+                `tab-notifications-${userId}-${++notificationChannelInstance}`,
+            )
             .on(
                 'postgres_changes',
                 {

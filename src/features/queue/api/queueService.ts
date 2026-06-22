@@ -1,60 +1,103 @@
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../../../lib/supabase';
-import type { QueueUpdate } from '../../../types/queue';
+import type { QueueSnapshot } from '../../../types/queue';
 
-let queueChannel: RealtimeChannel | null = null;
-
-export const getLatestQueueUpdate = async (
-  appointmentId: string,
-): Promise<QueueUpdate | null> => {
+export const getCurrentToken = async (): Promise<number> => {
   const { data, error } = await supabase
-    .from('queue_updates')
-    .select('*')
-    .eq('appointment_id', appointmentId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .rpc('get_current_token');
 
   if (error) {
-    throw error;
+    throw new Error(error.message);
   }
 
-  return data as QueueUpdate | null;
+  return typeof data === 'number' ? data : 0;
 };
 
-export const subscribeToQueueUpdates = (
+export const getPeopleAhead = async (
+  myToken: number,
+): Promise<number> => {
+  const { data, error } = await supabase
+    .rpc('people_ahead', {
+      my_token: myToken,
+    });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return typeof data === 'number' ? data : 0;
+};
+
+export const getQueueSnapshot = async (
+  myToken: number,
+): Promise<QueueSnapshot> => {
+  const [currentToken, peopleAhead] = await Promise.all([
+    getCurrentToken(),
+    getPeopleAhead(myToken),
+  ]);
+
+  return {
+    currentToken,
+    peopleAhead,
+    estimatedWaitMins: peopleAhead * 5,
+    currentPosition: peopleAhead + 1,
+  };
+};
+
+export const checkInAppointment = async (
   appointmentId: string,
-  callback: (queueUpdate: QueueUpdate) => void,
+): Promise<void> => {
+  const { error } = await supabase.rpc('check_in_appointment', {
+    p_appointment_id: appointmentId,
+  });
+
+  if (!error) {
+    return;
+  }
+
+  if (error.code !== 'PGRST202') {
+    throw new Error(error.message);
+  }
+
+  // Temporary compatibility path for environments where the live queue
+  // migration has not been applied yet. RLS still limits the update to the
+  // signed-in patient's own appointment.
+  const { error: fallbackError } = await supabase
+    .from('appointments')
+    .update({
+      status: 'checked_in',
+      checked_in_at: new Date().toISOString(),
+    })
+    .eq('id', appointmentId);
+
+  if (fallbackError) {
+    throw new Error(
+      `Backend check-in setup is incomplete: ${fallbackError.message}`,
+    );
+  }
+};
+
+export const subscribeToQueueChanges = (
+  callback: () => void,
 ) => {
-  queueChannel = supabase
-    .channel(`queue-${appointmentId}`)
+  return supabase
+    .channel(`queue-live-${Date.now()}`)
     .on(
       'postgres_changes',
       {
         event: '*',
         schema: 'public',
-        table: 'queue_updates',
-        filter: `appointment_id=eq.${appointmentId}`,
+        table: 'appointments',
       },
       payload => {
-        console.log(
-          '[QUEUE UPDATE RECEIVED]',
-          payload,
-        );
-
-        if (payload.new && 'id' in payload.new) {
-          callback(payload.new as QueueUpdate);
-        }
+        console.log('[QUEUE APPOINTMENT CHANGE]', payload.eventType);
+        callback();
       },
     )
     .subscribe();
-
-  return queueChannel;
 };
 
-export const unsubscribeQueue = () => {
-  if (queueChannel) {
-    supabase.removeChannel(queueChannel);
-    queueChannel = null;
-  }
+export const unsubscribeQueue = (
+  queueChannel: ReturnType<typeof supabase.channel>,
+) => {
+  supabase.removeChannel(queueChannel);
 };

@@ -6,13 +6,13 @@ import {
 } from '../../../types/appointment';
 
 const appointmentFullSelect =
-  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, current_position, people_ahead, queue_status';
+  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, current_position, people_ahead, queue_status, current_serving_token';
 
 const appointmentFullLegacySelect =
   'id, user_id, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at';
 
 const appointmentSelect =
-  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, cancel_reason, cancelled_by, cancelled_at, completed_at, created_at';
+  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, created_at';
 
 const appointmentLegacySelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, created_at';
