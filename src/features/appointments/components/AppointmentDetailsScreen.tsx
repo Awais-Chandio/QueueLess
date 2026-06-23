@@ -12,9 +12,16 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import AppButton from '../../../components/ui/AppButton';
 import { useTheme } from '../../../hooks/useTheme';
 import { appointmentsService } from '../api/appointmentsService';
+import { useAppointmentsStore } from '../../../store/appointmentsStore';
 import { useToastStore } from '../../../store/toastStore';
 import type { AppStackParamList } from '../../../navigation/types';
-import { Calendar, CircleDot, Clock, AlignLeft } from 'lucide-react-native';
+import {
+  AlignLeft,
+  Calendar,
+  CheckCircle2,
+  CircleDot,
+  Clock,
+} from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 
 type AppointmentDetailsRouteProp = RouteProp<AppStackParamList, 'AppointmentDetails'>;
@@ -26,6 +33,10 @@ const AppointmentDetailsScreen = () => {
   const appointmentId = route.params?.appointmentId;
   const { colors, spacing, typography } = useTheme();
   const showToast = useToastStore(state => state.showToast);
+  const checkInAppointment = useAppointmentsStore(
+    state => state.checkInAppointment,
+  );
+  const checkingInId = useAppointmentsStore(state => state.checkingInId);
   const queryClient = useQueryClient();
 
   const { data: appointment, isLoading, isError, refetch } = useQuery({
@@ -72,20 +83,54 @@ const AppointmentDetailsScreen = () => {
       .map(part => part.charAt(0).toUpperCase() + part.slice(1))
       .join(' ');
   const canCancel = ['pending', 'confirmed'].includes(appointment.status);
+  const canCheckIn = appointment.status === 'confirmed';
+  const isCheckedIn = appointment.status === 'checked_in';
+  const isCheckingIn = checkingInId === appointmentId;
   const statusVariant =
     appointment.status === 'completed'
       ? 'success'
       : appointment.status === 'cancelled'
         ? 'error'
-        : appointment.status === 'confirmed'
-          ? 'info'
-          : 'warning';
+        : appointment.status === 'checked_in'
+          ? 'success'
+          : appointment.status === 'confirmed'
+            ? 'info'
+            : 'warning';
 
   const confirmCancel = () => {
     Alert.alert('Cancel Appointment', 'Are you sure you want to cancel this appointment?', [
       { text: 'Keep', style: 'cancel' },
       { text: 'Cancel', style: 'destructive', onPress: () => cancelMutation.mutate(appointmentId) },
     ]);
+  };
+
+  const handleCheckIn = async () => {
+    try {
+      const updatedAppointment = await checkInAppointment(appointmentId);
+
+      queryClient.setQueryData(
+        ['appointment', appointmentId],
+        updatedAppointment,
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboardStats'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      ]);
+
+      showToast('Successfully checked in.', 'success');
+      console.log('[APPOINTMENT_DETAILS] Patient check-in UI completed:', {
+        appointmentId,
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to check in.';
+      console.error('[APPOINTMENT_DETAILS] Patient check-in UI failed:', {
+        appointmentId,
+        message,
+      });
+      showToast(message, 'error');
+    }
   };
 
   return (
@@ -152,6 +197,35 @@ const AppointmentDetailsScreen = () => {
         onPress={() => navigation.navigate('QueueStatus', { appointmentId })} 
       />
 
+      {(canCheckIn || isCheckedIn) && (
+        <View style={{ marginTop: spacing.md }}>
+          <AppButton
+            title={isCheckedIn ? 'Checked In' : "I'm Here"}
+            variant="outline"
+            loading={isCheckingIn}
+            disabled={isCheckedIn || isCheckingIn}
+            onPress={handleCheckIn}
+          />
+          {isCheckedIn && (
+            <View style={[styles.arrivedRow, { marginTop: spacing.sm }]}>
+              <CheckCircle2
+                color={colors.success}
+                size={scaleFont(18)}
+              />
+              <Text
+                style={{
+                  color: colors.success,
+                  fontSize: typography.sizes.sm,
+                  fontWeight: '600',
+                }}
+              >
+                Arrived at clinic
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
       {canCancel && (
         <AppButton 
           title="Cancel Appointment" 
@@ -186,5 +260,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleFont(12),
-  }
+  },
+  arrivedRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: scaleFont(8),
+    justifyContent: 'center',
+  },
 });

@@ -84,7 +84,7 @@ const MyAppointmentsScreen = () => {
   const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
     switch (status) {
       case 'confirmed': return 'success';
-      case 'checked_in': return 'info';
+      case 'checked_in': return 'success';
       case 'called':
       case 'in_progress': return 'warning';
       case 'cancelled': return 'error';

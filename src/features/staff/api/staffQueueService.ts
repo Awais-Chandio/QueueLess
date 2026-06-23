@@ -65,8 +65,23 @@ const getCurrentUserId = async () => {
   return session.user.id;
 };
 
-const sortQueue = (appointments: AppointmentFull[]) =>
+const queueStatusPriority: Partial<Record<AppointmentStatus, number>> = {
+  checked_in: 0,
+  confirmed: 1,
+  pending: 2,
+};
+
+export const sortStaffQueueAppointments = (
+  appointments: AppointmentFull[],
+) =>
   [...appointments].sort((a, b) => {
+    const statusPriorityA = queueStatusPriority[a.status] ?? 3;
+    const statusPriorityB = queueStatusPriority[b.status] ?? 3;
+
+    if (statusPriorityA !== statusPriorityB) {
+      return statusPriorityA - statusPriorityB;
+    }
+
     const tokenA =
       typeof a.token_number === 'number' ? a.token_number : Number.MAX_SAFE_INTEGER;
     const tokenB =
@@ -235,7 +250,17 @@ const updateAppointment = async (
 
 export const staffQueueService = {
   async fetchDashboard(): Promise<StaffDashboardData> {
-    const appointments = sortQueue(await fetchTodayAppointments());
+    const appointments = sortStaffQueueAppointments(
+      await fetchTodayAppointments(),
+    );
+    console.log(
+      '[STAFF_QUEUE] Sorted appointment order:',
+      appointments.map(item => ({
+        id: item.id,
+        status: item.status,
+        token: item.token_number,
+      })),
+    );
 
     return {
       stats: buildStats(appointments),

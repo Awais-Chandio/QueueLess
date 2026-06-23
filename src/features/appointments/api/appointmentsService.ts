@@ -282,6 +282,73 @@ export const appointmentsService = {
     return data as AppointmentFull;
   },
 
+  async checkInAppointment(
+    appointmentId: string,
+  ): Promise<AppointmentFull> {
+    const authenticatedUserId = await getAuthenticatedUserId();
+    const checkedInAt = new Date().toISOString();
+
+    console.log('[CHECK_IN] Starting patient check-in:', {
+      appointmentId,
+      userId: authenticatedUserId,
+    });
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({
+        status: 'checked_in',
+        checked_in_at: checkedInAt,
+      })
+      .eq('id', appointmentId)
+      .eq('user_id', authenticatedUserId)
+      .eq('status', 'confirmed')
+      .select(appointmentSelect)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[CHECK_IN] Database update failed:', {
+        appointmentId,
+        code: error.code,
+        message: error.message,
+      });
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      const { data: currentAppointment, error: fetchError } = await supabase
+        .from('appointments')
+        .select('id, status')
+        .eq('id', appointmentId)
+        .eq('user_id', authenticatedUserId)
+        .maybeSingle();
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      if (!currentAppointment) {
+        throw new Error('Appointment not found.');
+      }
+
+      console.warn('[CHECK_IN] Invalid status transition:', {
+        appointmentId,
+        currentStatus: currentAppointment.status,
+      });
+      throw new Error('Only confirmed appointments can be checked in.');
+    }
+
+    console.log('[CHECK_IN] Appointment checked in successfully:', {
+      appointmentId,
+      status: data.status,
+      checkedInAt: data.checked_in_at,
+    });
+
+    const [appointment] = await enrichAppointments([
+      data as AppointmentFull,
+    ]);
+    return appointment;
+  },
+
   async cancelAppointment(
     appointmentId: string,
     reason?: string,

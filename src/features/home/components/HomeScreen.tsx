@@ -5,7 +5,13 @@ import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { useDashboardStats } from "../hooks/useDashboardStats";
-import { Users, Clock, CheckCircle, XCircle } from "lucide-react-native";
+import {
+  CheckCircle,
+  Clock,
+  MapPinCheck,
+  Users,
+  XCircle,
+} from "lucide-react-native";
 import { useAuthStore } from "../../../store/authStore";
 import { useProfileStore } from "../../../store/profileStore";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
@@ -78,7 +84,31 @@ const HomeScreen = () => {
                   <Skeleton height={24} width="50%" />
                </View>
             ) : stats?.active && stats.active > 0 ? (
-               <Text style={{ color: colors.textSecondary }}>You have {stats.active} active appointments.</Text>
+               <View style={styles.queueStatusRow}>
+                  {stats.queueStatus === 'Arrived at Clinic' && (
+                    <MapPinCheck
+                      color={colors.success}
+                      size={scaleFont(20)}
+                    />
+                  )}
+                  <View style={styles.queueStatusText}>
+                    <Text style={{ color: colors.textSecondary }}>
+                      Status:
+                    </Text>
+                    <Text
+                      style={{
+                        color:
+                          stats.queueStatus === 'Arrived at Clinic'
+                            ? colors.success
+                            : colors.text,
+                        fontSize: typography.sizes.md,
+                        fontWeight: '700',
+                      }}
+                    >
+                      {stats.queueStatus ?? 'Waiting'}
+                    </Text>
+                  </View>
+               </View>
             ) : (
                <Text style={{ color: colors.textSecondary }}>No active appointments right now.</Text>
             )}
@@ -108,6 +138,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontWeight: '600',
+  },
+  queueStatusRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: scaleFont(10),
+  },
+  queueStatusText: {
+    flex: 1,
   },
   statsRow: {
     flexDirection: 'row',

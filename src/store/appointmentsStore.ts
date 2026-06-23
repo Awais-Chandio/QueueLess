@@ -5,6 +5,7 @@ import {
   AppointmentFull,
 } from '../types/appointment';
 import { appointmentsService } from '../features/appointments/api/appointmentsService';
+import { useAuthStore } from './authStore';
 
 const sortAppointments = (appointments: AppointmentFull[]) =>
   [...appointments].sort(
@@ -34,6 +35,9 @@ interface AppointmentsState {
 
   fetchUserAppointments: (userId: string) => Promise<AppointmentFull[]>;
 
+  checkInAppointment: (id: string) => Promise<AppointmentFull>;
+  checkingInId: string | null;
+
   reset: () => void;
 }
 
@@ -41,6 +45,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
   appointments: [],
   loading: false,
   error: null,
+  checkingInId: null,
 
   createAppointment: async (payload) => {
     try {
@@ -104,11 +109,79 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
     }
   },
 
+  checkInAppointment: async (id) => {
+    const userId = useAuthStore.getState().user?.id;
+
+    if (!userId) {
+      throw new Error('Please login again to check in.');
+    }
+
+    try {
+      console.log('[CHECK_IN_STORE] Checking in appointment:', id);
+      set({ checkingInId: id, error: null });
+
+      const updatedAppointment =
+        await appointmentsService.checkInAppointment(id);
+
+      set(state => ({
+        appointments: sortAppointments(
+          state.appointments.map(appointment =>
+            appointment.id === id ? updatedAppointment : appointment,
+          ),
+        ),
+        checkingInId: null,
+        error: null,
+      }));
+
+      try {
+        const appointments =
+          await appointmentsService.fetchUserAppointments(userId);
+
+        set({
+          appointments,
+          checkingInId: null,
+          error: null,
+        });
+
+        console.log('[CHECK_IN_STORE] Check-in completed and appointments refreshed:', {
+          appointmentId: id,
+          appointmentsCount: appointments.length,
+        });
+      } catch (refreshError) {
+        console.warn('[CHECK_IN_STORE] Check-in succeeded but refresh failed:', {
+          appointmentId: id,
+          message:
+            refreshError instanceof Error
+              ? refreshError.message
+              : 'Unknown refresh error',
+        });
+      }
+
+      return updatedAppointment;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to check in';
+
+      console.error('[CHECK_IN_STORE] Check-in failed:', {
+        appointmentId: id,
+        message,
+      });
+      set({
+        checkingInId: null,
+        error: message,
+      });
+      throw new Error(message);
+    }
+  },
+
   reset: () => {
     set({
       appointments: [],
       loading: false,
       error: null,
+      checkingInId: null,
     });
   },
 }));

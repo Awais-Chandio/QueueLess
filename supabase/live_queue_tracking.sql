@@ -20,6 +20,7 @@ ALTER TABLE public.appointments
       'pending',
       'confirmed',
       'checked_in',
+      'called',
       'in_progress',
       'completed',
       'cancelled'
@@ -73,7 +74,7 @@ BEGIN
   FROM public.appointments
   WHERE center_id = p_center_id
     AND scheduled_at::date = p_queue_date
-    AND status = 'in_progress';
+    AND status IN ('called', 'in_progress');
 
   INSERT INTO public.queue_updates (
     appointment_id,
@@ -102,7 +103,7 @@ BEGIN
     END,
     v_current_serving_token,
     CASE
-      WHEN appointment.status = 'in_progress' THEN 'called'
+      WHEN appointment.status IN ('called', 'in_progress') THEN 'called'
       WHEN appointment.status = 'checked_in' THEN 'checked_in'
       WHEN appointment.status = 'confirmed' THEN 'waiting'
       ELSE appointment.status
@@ -113,7 +114,7 @@ BEGIN
     FROM public.appointments ahead
     WHERE ahead.center_id = appointment.center_id
       AND ahead.scheduled_at::date = appointment.scheduled_at::date
-      AND ahead.status IN ('confirmed', 'checked_in', 'in_progress')
+      AND ahead.status IN ('confirmed', 'checked_in', 'called', 'in_progress')
       AND ahead.token_number < appointment.token_number
   ) queue_metrics
   WHERE appointment.center_id = p_center_id
@@ -182,17 +183,15 @@ BEGIN
     RAISE EXCEPTION 'Appointment not found';
   END IF;
 
-  IF v_appointment.status NOT IN ('pending', 'confirmed', 'checked_in') THEN
-    RAISE EXCEPTION 'This appointment cannot be checked in';
+  IF v_appointment.status <> 'confirmed' THEN
+    RAISE EXCEPTION 'Only confirmed appointments can be checked in';
   END IF;
 
-  IF v_appointment.status <> 'checked_in' THEN
-    UPDATE public.appointments
-    SET
-      status = 'checked_in',
-      checked_in_at = COALESCE(checked_in_at, now())
-    WHERE id = p_appointment_id;
-  END IF;
+  UPDATE public.appointments
+  SET
+    status = 'checked_in',
+    checked_in_at = now()
+  WHERE id = p_appointment_id;
 END;
 $$;
 

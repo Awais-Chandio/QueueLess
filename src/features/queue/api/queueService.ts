@@ -43,39 +43,6 @@ export const getQueueSnapshot = async (
   };
 };
 
-export const checkInAppointment = async (
-  appointmentId: string,
-): Promise<void> => {
-  const { error } = await supabase.rpc('check_in_appointment', {
-    p_appointment_id: appointmentId,
-  });
-
-  if (!error) {
-    return;
-  }
-
-  if (error.code !== 'PGRST202') {
-    throw new Error(error.message);
-  }
-
-  // Temporary compatibility path for environments where the live queue
-  // migration has not been applied yet. RLS still limits the update to the
-  // signed-in patient's own appointment.
-  const { error: fallbackError } = await supabase
-    .from('appointments')
-    .update({
-      status: 'checked_in',
-      checked_in_at: new Date().toISOString(),
-    })
-    .eq('id', appointmentId);
-
-  if (fallbackError) {
-    throw new Error(
-      `Backend check-in setup is incomplete: ${fallbackError.message}`,
-    );
-  }
-};
-
 export const subscribeToQueueChanges = (
   callback: () => void,
 ) => {

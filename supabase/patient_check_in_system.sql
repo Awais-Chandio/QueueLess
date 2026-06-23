@@ -1,6 +1,25 @@
--- QueueLess notifications permission hotfix
--- Apply this in Supabase SQL Editor when authenticated users see:
--- "permission denied for table notifications" / SQLSTATE 42501.
+-- QueueLess Patient Check-In System
+-- Apply in Supabase SQL Editor after the appointments and notifications setup.
+
+ALTER TABLE public.appointments
+  ADD COLUMN IF NOT EXISTS checked_in_at timestamptz;
+
+ALTER TABLE public.appointments
+  DROP CONSTRAINT IF EXISTS appointments_status_check;
+
+ALTER TABLE public.appointments
+  ADD CONSTRAINT appointments_status_check
+  CHECK (
+    status IN (
+      'pending',
+      'confirmed',
+      'checked_in',
+      'called',
+      'in_progress',
+      'completed',
+      'cancelled'
+    )
+  );
 
 CREATE TABLE IF NOT EXISTS public.notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -77,6 +96,78 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
   ON public.notifications(user_id)
   WHERE is_read = false;
 
+CREATE OR REPLACE FUNCTION public.enforce_patient_check_in_transition()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.status = 'checked_in'
+    AND OLD.status IS DISTINCT FROM 'checked_in'
+    AND OLD.status <> 'confirmed'
+  THEN
+    RAISE EXCEPTION 'Only confirmed appointments can be checked in';
+  END IF;
+
+  IF NEW.status = 'checked_in'
+    AND OLD.status IS DISTINCT FROM 'checked_in'
+  THEN
+    NEW.checked_in_at := COALESCE(NEW.checked_in_at, now());
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_enforce_patient_check_in_transition
+  ON public.appointments;
+
+CREATE TRIGGER trigger_enforce_patient_check_in_transition
+  BEFORE UPDATE OF status
+  ON public.appointments
+  FOR EACH ROW
+  EXECUTE FUNCTION public.enforce_patient_check_in_transition();
+
+CREATE OR REPLACE FUNCTION public.check_in_appointment(
+  p_appointment_id uuid
+)
+RETURNS public.appointments
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  checked_in_appointment public.appointments%ROWTYPE;
+BEGIN
+  SELECT *
+  INTO checked_in_appointment
+  FROM public.appointments
+  WHERE id = p_appointment_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR checked_in_appointment.user_id <> auth.uid() THEN
+    RAISE EXCEPTION 'Appointment not found';
+  END IF;
+
+  IF checked_in_appointment.status <> 'confirmed' THEN
+    RAISE EXCEPTION 'Only confirmed appointments can be checked in';
+  END IF;
+
+  UPDATE public.appointments
+  SET
+    status = 'checked_in',
+    checked_in_at = now()
+  WHERE id = p_appointment_id
+  RETURNING *
+  INTO checked_in_appointment;
+
+  RETURN checked_in_appointment;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.check_in_appointment(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.check_in_appointment(uuid) TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.queue_less_notify_appointment_status_change()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -104,11 +195,7 @@ BEGIN
     notification_type := 'appointment_checked_in';
     notification_title := 'Check-In Successful';
     notification_message := 'You have successfully checked in. Please wait for your turn.';
-  ELSIF NEW.status = 'cancelled' THEN
-    notification_type := 'appointment_cancelled';
-    notification_title := 'Appointment Cancelled';
-    notification_message := 'Your appointment has been cancelled.';
-  ELSIF NEW.status = 'in_progress' THEN
+  ELSIF NEW.status IN ('called', 'in_progress') THEN
     notification_type := 'service_started';
     notification_title := 'Your Turn Started';
     notification_message := 'Please proceed to the service counter.';
@@ -116,6 +203,10 @@ BEGIN
     notification_type := 'appointment_completed';
     notification_title := 'Appointment Completed';
     notification_message := 'Thank you for visiting.';
+  ELSIF NEW.status = 'cancelled' THEN
+    notification_type := 'appointment_cancelled';
+    notification_title := 'Appointment Cancelled';
+    notification_message := 'Your appointment has been cancelled.';
   ELSE
     RETURN NEW;
   END IF;
@@ -134,7 +225,10 @@ BEGIN
     notification_type,
     notification_title,
     notification_message,
-    jsonb_build_object('appointment_id', NEW.id, 'status', NEW.status)
+    jsonb_build_object(
+      'appointment_id', NEW.id,
+      'status', NEW.status
+    )
   WHERE NOT EXISTS (
     SELECT 1
     FROM public.notifications
@@ -174,3 +268,5 @@ BEGIN
     END;
   END IF;
 END $$;
+
+NOTIFY pgrst, 'reload schema';

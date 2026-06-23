@@ -84,8 +84,9 @@ const statusLabel = (status: string) =>
 const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
   switch (status) {
     case 'confirmed':
-    case 'checked_in':
       return 'info';
+    case 'checked_in':
+      return 'success';
     case 'called':
     case 'in_progress':
       return 'warning';
@@ -340,6 +341,32 @@ const StaffDashboardScreen = () => {
           </Text>
         </View>
 
+        {item.status === 'checked_in' && (
+          <View
+            style={[
+              styles.arrivedStatus,
+              {
+                backgroundColor: `${colors.success}18`,
+                borderColor: `${colors.success}55`,
+                marginTop: spacing.md,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+              },
+            ]}
+          >
+            <CheckCircle2 color={colors.success} size={scaleFont(18)} />
+            <Text
+              style={{
+                color: colors.success,
+                fontSize: typography.sizes.sm,
+                fontWeight: '700',
+              }}
+            >
+              Arrived
+            </Text>
+          </View>
+        )}
+
         {actions.length ? (
           <View style={[styles.actionsRow, { gap: spacing.sm, marginTop: spacing.md }]}>
             {actions.map(action => renderActionButton(action, item))}
@@ -544,6 +571,14 @@ const StaffDashboardScreen = () => {
 export default StaffDashboardScreen;
 
 const styles = StyleSheet.create({
+  arrivedStatus: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderRadius: scaleFont(999),
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: scaleFont(7),
+  },
   actionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

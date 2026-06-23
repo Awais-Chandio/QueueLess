@@ -11,8 +11,8 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { useTheme } from '../../../hooks/useTheme';
 import { appointmentsService } from '../api/appointmentsService'; // adjusted path
-import { checkInAppointment } from '../../queue/api/queueService';
 import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue';
+import { useAppointmentsStore } from '../../../store/appointmentsStore';
 import type { AppStackParamList } from '../../../navigation/types'; // adjusted path
 import type { AppointmentFull } from '../../../types/appointment'; // adjusted path
 import { MapPin, Calendar, CircleDot } from 'lucide-react-native';
@@ -28,7 +28,10 @@ const QueueStatusScreen = () => {
 
   const [appointment, setAppointment] = useState<AppointmentFull | null>(null);
   const [loading, setLoading] = useState(true);
-  const [checkingIn, setCheckingIn] = useState(false);
+  const checkInAppointment = useAppointmentsStore(
+    state => state.checkInAppointment,
+  );
+  const checkingInId = useAppointmentsStore(state => state.checkingInId);
 
   const fetchAppointment = useCallback(async () => {
     try {
@@ -80,33 +83,21 @@ const QueueStatusScreen = () => {
   const currentServingToken = queueData?.currentToken;
   const status = appointment.status;
   const hasQueueMetrics = queueData != null;
-  const canCheckIn =
-    ['pending', 'confirmed'].includes(appointment.status) &&
-    !['checked_in', 'called', 'in_progress'].includes(status);
+  const canCheckIn = appointment.status === 'confirmed';
+  const checkingIn = checkingInId === appointmentId;
 
   const handleCheckIn = async () => {
     try {
-      setCheckingIn(true);
-      await checkInAppointment(appointmentId);
+      const updatedAppointment = await checkInAppointment(appointmentId);
       await refreshQueue();
-      setAppointment(current =>
-        current
-          ? {
-              ...current,
-              status: 'checked_in',
-              checked_in_at: new Date().toISOString(),
-            }
-          : current,
-      );
-      toastService.success("You're checked in and added to the live queue.");
+      setAppointment(updatedAppointment);
+      toastService.success('Successfully checked in.');
     } catch (checkInError) {
       toastService.error(
         checkInError instanceof Error
           ? checkInError.message
           : 'Unable to check in. Please try again.',
       );
-    } finally {
-      setCheckingIn(false);
     }
   };
 
