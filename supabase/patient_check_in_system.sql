@@ -195,7 +195,11 @@ BEGIN
     notification_type := 'appointment_checked_in';
     notification_title := 'Check-In Successful';
     notification_message := 'You have successfully checked in. Please wait for your turn.';
-  ELSIF NEW.status IN ('called', 'in_progress') THEN
+  ELSIF NEW.status = 'called' THEN
+    notification_type := 'token_called';
+    notification_title := 'Token Called';
+    notification_message := 'Your token has been called. Please proceed to the counter.';
+  ELSIF NEW.status = 'in_progress' THEN
     notification_type := 'service_started';
     notification_title := 'Your Turn Started';
     notification_message := 'Please proceed to the service counter.';

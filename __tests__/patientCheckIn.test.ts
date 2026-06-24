@@ -1,4 +1,5 @@
 import { sortStaffQueueAppointments } from '../src/features/staff/api/staffQueueService';
+import { getPeopleAhead } from '../src/features/queue/api/queueService';
 import type { AppointmentFull } from '../src/types/appointment';
 
 const createAppointment = (
@@ -40,5 +41,15 @@ describe('Patient check-in queue sorting', () => {
     const sorted = sortStaffQueueAppointments(appointments);
 
     expect(sorted.map(appointment => appointment.token_number)).toEqual([4, 8]);
+  });
+});
+
+describe('Call token queue calculation', () => {
+  it('calculates people ahead from your token and the current called token', async () => {
+    await expect(getPeopleAhead(12, 9)).resolves.toBe(3);
+  });
+
+  it('never shows negative people ahead', async () => {
+    await expect(getPeopleAhead(4, 9)).resolves.toBe(0);
   });
 });

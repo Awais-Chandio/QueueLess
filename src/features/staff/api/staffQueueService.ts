@@ -20,6 +20,8 @@ export type StaffDashboardData = {
   appointments: AppointmentFull[];
 };
 
+export type StaffDashboardScope = 'today' | 'upcoming' | 'history';
+
 const activeStatuses: AppointmentStatus[] = [
   'confirmed',
   'checked_in',
@@ -34,7 +36,7 @@ const appointmentFallbackSelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, created_at';
 
 const baseAppointmentSelect =
-  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, created_at';
+  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, checked_in_at, called_at, completed_at, created_at';
 
 const shouldFallback = (code?: string) =>
   code === '42703' || code === '42501' || code === 'PGRST205';
@@ -50,6 +52,25 @@ const getTodayRange = () => {
     start: start.toISOString(),
     end: end.toISOString(),
   };
+};
+
+const applyScopeRange = <T extends { gte: Function; lt: Function }>(
+  query: T,
+  scope: StaffDashboardScope,
+) => {
+  const { start, end } = getTodayRange();
+
+  if (scope === 'today') {
+    return query
+      .gte('scheduled_at', start)
+      .lt('scheduled_at', end);
+  }
+
+  if (scope === 'upcoming') {
+    return query.gte('scheduled_at', end);
+  }
+
+  return query.lt('scheduled_at', start);
 };
 
 const getCurrentUserId = async () => {
@@ -152,48 +173,88 @@ const enrichAppointments = async (appointments: AppointmentFull[]) => {
   }));
 };
 
-const fetchTodayAppointments = async (): Promise<AppointmentFull[]> => {
+const fetchScopedAppointments = async (
+  scope: StaffDashboardScope,
+): Promise<AppointmentFull[]> => {
   const { start, end } = getTodayRange();
-  const response = await supabase
-    .from('appointments_full')
-    .select(appointmentSelect)
-    .gte('scheduled_at', start)
-    .lt('scheduled_at', end)
-    .order('scheduled_at', { ascending: true });
+
+  console.log('[STAFF_QUEUE] Fetching appointments:', {
+    scope,
+    todayStart: start,
+    todayEnd: end,
+  });
+
+  const response = await applyScopeRange(
+    supabase
+      .from('appointments_full')
+      .select(appointmentSelect),
+    scope,
+  ).order('scheduled_at', { ascending: scope !== 'history' });
 
   let data = response.data as AppointmentFull[] | null;
   let error = response.error;
 
   if (error?.code === '42703') {
-    const fallback = await supabase
-      .from('appointments_full')
-      .select(appointmentFallbackSelect)
-      .gte('scheduled_at', start)
-      .lt('scheduled_at', end)
-      .order('scheduled_at', { ascending: true });
+    console.warn('[STAFF_QUEUE] appointments_full column mismatch, retrying legacy select:', {
+      code: error.code,
+      message: error.message,
+      scope,
+    });
+
+    const fallback = await applyScopeRange(
+      supabase
+        .from('appointments_full')
+        .select(appointmentFallbackSelect),
+      scope,
+    ).order('scheduled_at', { ascending: scope !== 'history' });
 
     data = fallback.data as AppointmentFull[] | null;
     error = fallback.error;
   }
 
   if (shouldFallback(error?.code)) {
-    const fallback = await supabase
-      .from('appointments')
-      .select(baseAppointmentSelect)
-      .gte('scheduled_at', start)
-      .lt('scheduled_at', end)
-      .order('scheduled_at', { ascending: true });
+    console.warn('[STAFF_QUEUE] Falling back to appointments table:', {
+      code: error?.code,
+      message: error?.message,
+      scope,
+    });
+
+    const fallback = await applyScopeRange(
+      supabase
+        .from('appointments')
+        .select(baseAppointmentSelect),
+      scope,
+    ).order('scheduled_at', { ascending: scope !== 'history' });
 
     if (fallback.error) {
+      console.error('[STAFF_QUEUE] Staff appointments fallback failed:', {
+        code: fallback.error.code,
+        message: fallback.error.message,
+        scope,
+      });
       throw new Error(fallback.error.message);
     }
 
+    console.log('[STAFF_QUEUE] Fallback appointments fetched:', {
+      scope,
+      count: fallback.data?.length ?? 0,
+    });
     return enrichAppointments((fallback.data ?? []) as AppointmentFull[]);
   }
 
   if (error) {
+    console.error('[STAFF_QUEUE] Staff appointments fetch failed:', {
+      code: error.code,
+      message: error.message,
+      scope,
+    });
     throw new Error(error.message);
   }
+
+  console.log('[STAFF_QUEUE] Appointments fetched:', {
+    scope,
+    count: data?.length ?? 0,
+  });
 
   return enrichAppointments((data ?? []) as AppointmentFull[]);
 };
@@ -220,21 +281,39 @@ const updateAppointment = async (
   nextStatus: AppointmentStatus,
   updates: Record<string, unknown>,
   action: string,
+  allowedCurrentStatuses?: AppointmentStatus[],
 ) => {
   const staffUserId = await getCurrentUserId();
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('appointments')
     .update({
       ...updates,
       status: nextStatus,
     })
-    .eq('id', appointment.id)
+    .eq('id', appointment.id);
+
+  if (allowedCurrentStatuses?.length) {
+    query = query.in('status', allowedCurrentStatuses);
+  }
+
+  const { data, error } = await query
     .select(baseAppointmentSelect)
-    .single();
+    .maybeSingle();
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  if (!data) {
+    console.warn('[STAFF_QUEUE] Invalid status transition:', {
+      appointmentId: appointment.id,
+      action,
+      currentStatus: appointment.status,
+      allowedCurrentStatuses,
+      nextStatus,
+    });
+    throw new Error(`Cannot ${action.replace('_', ' ')} this appointment from ${appointment.status}.`);
   }
 
   await insertAuditLog({
@@ -249,9 +328,11 @@ const updateAppointment = async (
 };
 
 export const staffQueueService = {
-  async fetchDashboard(): Promise<StaffDashboardData> {
+  async fetchDashboard(
+    scope: StaffDashboardScope = 'today',
+  ): Promise<StaffDashboardData> {
     const appointments = sortStaffQueueAppointments(
-      await fetchTodayAppointments(),
+      await fetchScopedAppointments(scope),
     );
     console.log(
       '[STAFF_QUEUE] Sorted appointment order:',
@@ -299,13 +380,22 @@ export const staffQueueService = {
   },
 
   async startService(appointment: AppointmentFull) {
+    const calledAt = new Date().toISOString();
+    console.log('[STAFF_QUEUE] Calling token:', {
+      appointmentId: appointment.id,
+      tokenNumber: appointment.token_number,
+      previousStatus: appointment.status,
+      calledAt,
+    });
+
     const updatedAppointment = await updateAppointment(
       appointment,
       'called',
       {
-        called_at: new Date().toISOString(),
+        called_at: calledAt,
       },
       'call_next',
+      ['confirmed', 'checked_in'],
     );
 
     return updatedAppointment;

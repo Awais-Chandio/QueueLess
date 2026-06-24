@@ -13,6 +13,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
+  BellRing,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -39,6 +40,7 @@ import type {
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { staffQueueService } from '../api/staffQueueService';
+import type { StaffDashboardScope } from '../api/staffQueueService';
 
 type StatusFilter =
   | 'all'
@@ -65,6 +67,12 @@ const statusFilters: StatusFilter[] = [
   'in_progress',
   'completed',
   'cancelled',
+];
+
+const queueScopes: StaffDashboardScope[] = [
+  'today',
+  'upcoming',
+  'history',
 ];
 
 const cancelReasons: CancelReason[] = [
@@ -105,6 +113,7 @@ const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
     case 'pending':
       return ['confirm', 'cancel'];
     case 'confirmed':
+      return ['start_service', 'complete_service', 'cancel'];
     case 'checked_in':
       return ['start_service', 'cancel'];
     case 'called':
@@ -123,6 +132,8 @@ const StaffDashboardScreen = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
+  const [selectedScope, setSelectedScope] =
+    useState<StaffDashboardScope>('today');
   const [cancelTarget, setCancelTarget] = useState<AppointmentFull | null>(null);
 
   const {
@@ -133,8 +144,8 @@ const StaffDashboardScreen = () => {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ['staff-dashboard'],
-    queryFn: staffQueueService.fetchDashboard,
+    queryKey: ['staff-dashboard', selectedScope],
+    queryFn: () => staffQueueService.fetchDashboard(selectedScope),
     refetchInterval: 30000,
     refetchOnMount: 'always',
     staleTime: 0,
@@ -231,7 +242,12 @@ const StaffDashboardScreen = () => {
 
   const statCards = [
     {
-      label: 'Total Today',
+      label:
+        selectedScope === 'today'
+          ? 'Total Today'
+          : selectedScope === 'upcoming'
+            ? 'Upcoming'
+            : 'History',
       value: stats?.totalToday ?? 0,
       color: colors.primary,
       Icon: CalendarDays,
@@ -275,7 +291,7 @@ const StaffDashboardScreen = () => {
     const labels: Record<QueueAction, string> = {
       confirm: 'Confirm',
       cancel: 'Cancel',
-      start_service: 'Call Next',
+      start_service: 'Call',
       complete_service: 'Complete',
     };
 
@@ -367,6 +383,32 @@ const StaffDashboardScreen = () => {
           </View>
         )}
 
+        {item.status === 'called' && (
+          <View
+            style={[
+              styles.arrivedStatus,
+              {
+                backgroundColor: `${colors.info}18`,
+                borderColor: `${colors.info}55`,
+                marginTop: spacing.md,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+              },
+            ]}
+          >
+            <BellRing color={colors.info} size={scaleFont(18)} />
+            <Text
+              style={{
+                color: colors.info,
+                fontSize: typography.sizes.sm,
+                fontWeight: '700',
+              }}
+            >
+              Called
+            </Text>
+          </View>
+        )}
+
         {actions.length ? (
           <View style={[styles.actionsRow, { gap: spacing.sm, marginTop: spacing.md }]}>
             {actions.map(action => renderActionButton(action, item))}
@@ -454,8 +496,53 @@ const StaffDashboardScreen = () => {
             </View>
 
             <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.lg, marginTop: spacing.xl }]}>
-              Today's Queue
+              {selectedScope === 'today'
+                ? "Today's Queue"
+                : selectedScope === 'upcoming'
+                  ? 'Upcoming Appointments'
+                  : 'Appointment History'}
             </Text>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[styles.filterRow, { gap: wp(2), marginTop: hp(1.4) }]}
+            >
+              {queueScopes.map(scope => {
+                const selected = selectedScope === scope;
+                const label =
+                  scope === 'today'
+                    ? 'Today'
+                    : scope === 'upcoming'
+                      ? 'Upcoming'
+                      : 'History';
+
+                return (
+                  <Pressable
+                    key={scope}
+                    style={[
+                      styles.filterChip,
+                      {
+                        borderColor: selected ? colors.primary : colors.border,
+                        backgroundColor: selected ? colors.primary : colors.surface,
+                        borderRadius: radius.full,
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.xs,
+                      },
+                    ]}
+                    onPress={() => setSelectedScope(scope)}
+                  >
+                    <Text style={{
+                      color: selected ? '#FFF' : colors.textSecondary,
+                      fontSize: typography.sizes.sm,
+                      fontWeight: '600',
+                    }}>
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
 
             <View style={[
               styles.searchBox,
@@ -514,7 +601,11 @@ const StaffDashboardScreen = () => {
           <EmptyState
             Icon={AlertCircle}
             title="No Appointments"
-            subtitle="No appointments match the selected filters."
+            subtitle={
+              selectedScope === 'today'
+                ? 'No appointments match today or the selected filters.'
+                : 'No appointments match this scope or the selected filters.'
+            }
           />
         }
       />

@@ -69,7 +69,7 @@ AS $$
 DECLARE
   v_current_serving_token integer;
 BEGIN
-  SELECT MIN(token_number)
+  SELECT MAX(token_number)
   INTO v_current_serving_token
   FROM public.appointments
   WHERE center_id = p_center_id

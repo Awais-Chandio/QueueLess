@@ -15,7 +15,14 @@ import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue';
 import { useAppointmentsStore } from '../../../store/appointmentsStore';
 import type { AppStackParamList } from '../../../navigation/types'; // adjusted path
 import type { AppointmentFull } from '../../../types/appointment'; // adjusted path
-import { MapPin, Calendar, CircleDot } from 'lucide-react-native';
+import {
+  BellRing,
+  Calendar,
+  CircleDot,
+  Clock,
+  MapPin,
+  Users,
+} from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import { toastService } from '../../../services/toastService';
 
@@ -55,6 +62,10 @@ const QueueStatusScreen = () => {
   } = useRealtimeQueue(
     appointment?.token_number ?? null,
     fetchAppointment,
+    {
+      centerId: appointment?.center_id,
+      scheduledAt: appointment?.scheduled_at,
+    },
   );
 
   if (loading) {
@@ -82,6 +93,16 @@ const QueueStatusScreen = () => {
   const currentPosition = queueData?.currentPosition;
   const currentServingToken = queueData?.currentToken;
   const status = appointment.status;
+  const queueStatusLabel =
+    status === 'called' || status === 'in_progress'
+      ? 'Called'
+      : status === 'checked_in'
+        ? 'Arrived'
+        : status === 'completed'
+          ? 'Completed'
+          : status === 'cancelled'
+            ? 'Cancelled'
+            : 'Waiting';
   const hasQueueMetrics = queueData != null;
   const canCheckIn = appointment.status === 'confirmed';
   const checkingIn = checkingInId === appointmentId;
@@ -162,18 +183,59 @@ const QueueStatusScreen = () => {
           <View style={styles.tokenSummary}>
             <View style={styles.tokenColumn}>
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
+                Current Token
+              </Text>
+              <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '700' }}>
+                {currentServingToken || '--'}
+              </Text>
+            </View>
+            <View style={styles.tokenColumn}>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
                 Your Token
               </Text>
               <Text style={{ color: colors.primary, fontSize: typography.sizes.xxl, fontWeight: '700' }}>
                 {appointment.token_number ?? '--'}
               </Text>
             </View>
-            <View style={styles.tokenColumn}>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
-                Current Token
+          </View>
+
+          <View style={[styles.queueCardRows, { marginTop: spacing.lg }]}>
+            <View style={styles.queueCardRow}>
+              <Users color={colors.primary} size={scaleFont(18)} />
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, flex: 1 }}>
+                People Ahead
               </Text>
-              <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '700' }}>
-                {currentServingToken ?? '--'}
+              <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '700' }}>
+                {peopleAhead}
+              </Text>
+            </View>
+
+            <View style={styles.queueCardRow}>
+              <Clock color={colors.primary} size={scaleFont(18)} />
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, flex: 1 }}>
+                Estimated Wait
+              </Text>
+              <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '700' }}>
+                {waitMins != null ? `${waitMins} mins` : '--'}
+              </Text>
+            </View>
+
+            <View style={styles.queueCardRow}>
+              <BellRing
+                color={queueStatusLabel === 'Called' ? colors.info : colors.primary}
+                size={scaleFont(18)}
+              />
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, flex: 1 }}>
+                Status
+              </Text>
+              <Text
+                style={{
+                  color: queueStatusLabel === 'Called' ? colors.info : colors.text,
+                  fontSize: typography.sizes.md,
+                  fontWeight: '700',
+                }}
+              >
+                {queueStatusLabel}
               </Text>
             </View>
           </View>
@@ -266,5 +328,13 @@ const styles = StyleSheet.create({
   tokenSummary: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  queueCardRows: {
+    gap: scaleFont(12),
+  },
+  queueCardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleFont(10),
   },
 });

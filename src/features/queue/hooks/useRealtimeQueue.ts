@@ -6,6 +6,7 @@ import {
   unsubscribeQueue,
 } from '../api/queueService';
 
+import type { QueueScope } from '../api/queueService';
 import type { QueueSnapshot } from '../../../types/queue';
 
 const getQueueErrorMessage = (error: unknown) => {
@@ -24,6 +25,7 @@ const getQueueErrorMessage = (error: unknown) => {
 export const useRealtimeQueue = (
   myToken: number | null,
   onAppointmentChange?: () => void,
+  scope?: QueueScope,
 ) => {
   const [queueData, setQueueData] =
     useState<QueueSnapshot | null>(null);
@@ -44,7 +46,7 @@ export const useRealtimeQueue = (
     try {
       setLoading(true);
 
-      const data = await getQueueSnapshot(myToken);
+      const data = await getQueueSnapshot(myToken, scope);
 
       setQueueData(data);
       setError(null);
@@ -53,7 +55,7 @@ export const useRealtimeQueue = (
     } finally {
       setLoading(false);
     }
-  }, [myToken]);
+  }, [myToken, scope?.centerId, scope?.scheduledAt]);
 
   useEffect(() => {
     loadInitialData();

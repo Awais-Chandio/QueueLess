@@ -349,6 +349,71 @@ export const appointmentsService = {
     return appointment;
   },
 
+  async callAppointment(
+    appointmentId: string,
+  ): Promise<AppointmentFull> {
+    await getAuthenticatedUserId();
+    const calledAt = new Date().toISOString();
+
+    console.log('[CALL_TOKEN] Starting token call:', {
+      appointmentId,
+    });
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({
+        status: 'called',
+        called_at: calledAt,
+      })
+      .eq('id', appointmentId)
+      .eq('status', 'confirmed')
+      .select(appointmentSelect)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[CALL_TOKEN] Database update failed:', {
+        appointmentId,
+        code: error.code,
+        message: error.message,
+      });
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      const { data: currentAppointment, error: fetchError } = await supabase
+        .from('appointments')
+        .select('id, status')
+        .eq('id', appointmentId)
+        .maybeSingle();
+
+      if (fetchError) {
+        throw new Error(fetchError.message);
+      }
+
+      if (!currentAppointment) {
+        throw new Error('Appointment not found.');
+      }
+
+      console.warn('[CALL_TOKEN] Invalid status transition:', {
+        appointmentId,
+        currentStatus: currentAppointment.status,
+      });
+      throw new Error('Only confirmed appointments can be called.');
+    }
+
+    console.log('[CALL_TOKEN] Token called successfully:', {
+      appointmentId,
+      status: data.status,
+      calledAt: data.called_at,
+      tokenNumber: data.token_number,
+    });
+
+    const [appointment] = await enrichAppointments([
+      data as AppointmentFull,
+    ]);
+    return appointment;
+  },
+
   async cancelAppointment(
     appointmentId: string,
     reason?: string,

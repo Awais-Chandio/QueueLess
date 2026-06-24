@@ -38,6 +38,9 @@ interface AppointmentsState {
   checkInAppointment: (id: string) => Promise<AppointmentFull>;
   checkingInId: string | null;
 
+  callAppointment: (id: string) => Promise<AppointmentFull>;
+  callingId: string | null;
+
   reset: () => void;
 }
 
@@ -46,6 +49,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
   loading: false,
   error: null,
   checkingInId: null,
+  callingId: null,
 
   createAppointment: async (payload) => {
     try {
@@ -176,12 +180,80 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
     }
   },
 
+  callAppointment: async (id) => {
+    const userId = useAuthStore.getState().user?.id;
+
+    if (!userId) {
+      throw new Error('Please login again to call token.');
+    }
+
+    try {
+      console.log('[CALL_TOKEN_STORE] Calling appointment token:', id);
+      set({ callingId: id, error: null });
+
+      const updatedAppointment =
+        await appointmentsService.callAppointment(id);
+
+      set(state => ({
+        appointments: sortAppointments(
+          state.appointments.map(appointment =>
+            appointment.id === id ? updatedAppointment : appointment,
+          ),
+        ),
+        callingId: null,
+        error: null,
+      }));
+
+      try {
+        const appointments =
+          await appointmentsService.fetchUserAppointments(userId);
+
+        set({
+          appointments,
+          callingId: null,
+          error: null,
+        });
+
+        console.log('[CALL_TOKEN_STORE] Call completed and appointments refreshed:', {
+          appointmentId: id,
+          appointmentsCount: appointments.length,
+        });
+      } catch (refreshError) {
+        console.warn('[CALL_TOKEN_STORE] Call succeeded but refresh failed:', {
+          appointmentId: id,
+          message:
+            refreshError instanceof Error
+              ? refreshError.message
+              : 'Unknown refresh error',
+        });
+      }
+
+      return updatedAppointment;
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Failed to call token';
+
+      console.error('[CALL_TOKEN_STORE] Call failed:', {
+        appointmentId: id,
+        message,
+      });
+      set({
+        callingId: null,
+        error: message,
+      });
+      throw new Error(message);
+    }
+  },
+
   reset: () => {
     set({
       appointments: [],
       loading: false,
       error: null,
       checkingInId: null,
+      callingId: null,
     });
   },
 }));
