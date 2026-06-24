@@ -28,6 +28,13 @@ const LoginScreen = () => {
             return;
         }
 
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            const message = 'Please enter a valid email address';
+            setErrorMessage(message);
+            toastService.error(message);
+            return;
+        }
+
         try {
             setErrorMessage('');
 

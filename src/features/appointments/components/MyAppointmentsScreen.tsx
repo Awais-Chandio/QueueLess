@@ -24,6 +24,10 @@ import type { AppStackParamList } from '../../../navigation/types';
 import type { AppointmentStatus } from '../../../types/appointment';
 import { Calendar, Clock, MapPin, SearchX } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
+import {
+  getAppointmentDateLabel,
+  getAppointmentTimeLabel,
+} from '../utils/appointmentTime';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 type StatusFilter = 'all' | AppointmentStatus;
@@ -207,7 +211,7 @@ const MyAppointmentsScreen = () => {
                           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Date</Text>
                         </View>
                         <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                          {new Date(item.scheduled_at).toLocaleDateString()}
+                          {getAppointmentDateLabel(item)}
                         </Text>
                       </View>
 
@@ -217,7 +221,7 @@ const MyAppointmentsScreen = () => {
                           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Time</Text>
                         </View>
                         <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                          {new Date(item.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {getAppointmentTimeLabel(item)}
                         </Text>
                       </View>
 

@@ -23,6 +23,10 @@ import {
   Clock,
 } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
+import {
+  getAppointmentDateLabel,
+  getAppointmentTimeLabel,
+} from '../utils/appointmentTime';
 
 type AppointmentDetailsRouteProp = RouteProp<AppStackParamList, 'AppointmentDetails'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'AppointmentDetails'>;
@@ -161,13 +165,13 @@ const AppointmentDetailsScreen = () => {
           <View style={styles.detailRow}>
             <Calendar color={colors.primary} size={scaleFont(20)} />
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
-              {new Date(appointment.scheduled_at).toLocaleDateString()}
+              {getAppointmentDateLabel(appointment)}
             </Text>
           </View>
           <View style={styles.detailRow}>
             <Clock color={colors.primary} size={scaleFont(20)} />
             <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
-              {new Date(appointment.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              {getAppointmentTimeLabel(appointment)}
             </Text>
           </View>
           <View style={styles.detailRow}>

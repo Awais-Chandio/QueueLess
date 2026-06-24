@@ -1,17 +1,17 @@
 import { create } from 'zustand';
 
-import {
-  Appointment,
-  AppointmentFull,
-} from '../types/appointment';
+import { Appointment, AppointmentFull } from '../types/appointment';
 import { appointmentsService } from '../features/appointments/api/appointmentsService';
+import {
+  subscribeToAppointments as subscribeToAppointmentsRealtime,
+  unsubscribeAppointments,
+} from '../features/queue/api/queueService';
 import { useAuthStore } from './authStore';
 
 const sortAppointments = (appointments: AppointmentFull[]) =>
   [...appointments].sort(
     (a, b) =>
-      new Date(a.scheduled_at).getTime() -
-      new Date(b.scheduled_at).getTime(),
+      new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
   );
 
 const toAppointmentFull = (appointment: Appointment): AppointmentFull => ({
@@ -19,6 +19,10 @@ const toAppointmentFull = (appointment: Appointment): AppointmentFull => ({
   center_name: undefined,
   service_name: undefined,
 });
+
+let appointmentsRealtimeChannel: ReturnType<
+  typeof subscribeToAppointmentsRealtime
+> | null = null;
 
 interface AppointmentsState {
   appointments: AppointmentFull[];
@@ -31,6 +35,8 @@ interface AppointmentsState {
     center_id: string;
     service_id: string;
     scheduled_at: string;
+    appointment_date?: string;
+    appointment_time?: string;
   }) => Promise<Appointment>;
 
   fetchUserAppointments: (userId: string) => Promise<AppointmentFull[]>;
@@ -38,26 +44,36 @@ interface AppointmentsState {
   checkInAppointment: (id: string) => Promise<AppointmentFull>;
   checkingInId: string | null;
 
+  cancelAppointment: (id: string, reason?: string) => Promise<AppointmentFull>;
+  cancellingId: string | null;
+
   callAppointment: (id: string) => Promise<AppointmentFull>;
   callingId: string | null;
+
+  subscribeToAppointments: (
+    userId?: string | null,
+    onChange?: () => void,
+  ) => () => void;
 
   reset: () => void;
 }
 
-export const useAppointmentsStore = create<AppointmentsState>((set) => ({
+export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
   appointments: [],
   loading: false,
   error: null,
   checkingInId: null,
+  cancellingId: null,
   callingId: null,
 
-  createAppointment: async (payload) => {
+  createAppointment: async payload => {
     try {
       console.log('[DEBUG] Store: Creating appointment with payload:', payload);
       set({ loading: true, error: null });
 
-      const newAppointment =
-        await appointmentsService.createAppointment(payload);
+      const newAppointment = await appointmentsService.createAppointment(
+        payload,
+      );
 
       set(state => ({
         appointments: sortAppointments([
@@ -72,9 +88,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
       return newAppointment;
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to create appointment';
+        error instanceof Error ? error.message : 'Failed to create appointment';
 
       console.error('[DEBUG] Store: Failed to create appointment:', message);
       set({
@@ -86,13 +100,14 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
     }
   },
 
-  fetchUserAppointments: async (userId) => {
+  fetchUserAppointments: async userId => {
     try {
       console.log('[DEBUG] Store: Fetching appointments for user:', userId);
       set({ loading: true, error: null });
 
-      const appointments =
-        await appointmentsService.fetchUserAppointments(userId);
+      const appointments = await appointmentsService.fetchUserAppointments(
+        userId,
+      );
 
       set({
         appointments,
@@ -113,7 +128,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
     }
   },
 
-  checkInAppointment: async (id) => {
+  checkInAppointment: async id => {
     const userId = useAuthStore.getState().user?.id;
 
     if (!userId) {
@@ -124,8 +139,9 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
       console.log('[CHECK_IN_STORE] Checking in appointment:', id);
       set({ checkingInId: id, error: null });
 
-      const updatedAppointment =
-        await appointmentsService.checkInAppointment(id);
+      const updatedAppointment = await appointmentsService.checkInAppointment(
+        id,
+      );
 
       set(state => ({
         appointments: sortAppointments(
@@ -138,8 +154,9 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
       }));
 
       try {
-        const appointments =
-          await appointmentsService.fetchUserAppointments(userId);
+        const appointments = await appointmentsService.fetchUserAppointments(
+          userId,
+        );
 
         set({
           appointments,
@@ -147,26 +164,30 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
           error: null,
         });
 
-        console.log('[CHECK_IN_STORE] Check-in completed and appointments refreshed:', {
-          appointmentId: id,
-          appointmentsCount: appointments.length,
-        });
+        console.log(
+          '[CHECK_IN_STORE] Check-in completed and appointments refreshed:',
+          {
+            appointmentId: id,
+            appointmentsCount: appointments.length,
+          },
+        );
       } catch (refreshError) {
-        console.warn('[CHECK_IN_STORE] Check-in succeeded but refresh failed:', {
-          appointmentId: id,
-          message:
-            refreshError instanceof Error
-              ? refreshError.message
-              : 'Unknown refresh error',
-        });
+        console.warn(
+          '[CHECK_IN_STORE] Check-in succeeded but refresh failed:',
+          {
+            appointmentId: id,
+            message:
+              refreshError instanceof Error
+                ? refreshError.message
+                : 'Unknown refresh error',
+          },
+        );
       }
 
       return updatedAppointment;
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to check in';
+        error instanceof Error ? error.message : 'Failed to check in';
 
       console.error('[CHECK_IN_STORE] Check-in failed:', {
         appointmentId: id,
@@ -180,7 +201,32 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
     }
   },
 
-  callAppointment: async (id) => {
+  cancelAppointment: async (id, reason) => {
+    try {
+      set({ cancellingId: id, error: null });
+      const updatedAppointment = await appointmentsService.cancelAppointment(
+        id,
+        reason,
+      );
+
+      set(state => ({
+        appointments: sortAppointments(
+          state.appointments.map(appointment =>
+            appointment.id === id ? updatedAppointment : appointment,
+          ),
+        ),
+        cancellingId: null,
+      }));
+      return updatedAppointment;
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Failed to cancel appointment';
+      set({ cancellingId: null, error: message });
+      throw new Error(message);
+    }
+  },
+
+  callAppointment: async id => {
     const userId = useAuthStore.getState().user?.id;
 
     if (!userId) {
@@ -191,8 +237,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
       console.log('[CALL_TOKEN_STORE] Calling appointment token:', id);
       set({ callingId: id, error: null });
 
-      const updatedAppointment =
-        await appointmentsService.callAppointment(id);
+      const updatedAppointment = await appointmentsService.callAppointment(id);
 
       set(state => ({
         appointments: sortAppointments(
@@ -205,8 +250,9 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
       }));
 
       try {
-        const appointments =
-          await appointmentsService.fetchUserAppointments(userId);
+        const appointments = await appointmentsService.fetchUserAppointments(
+          userId,
+        );
 
         set({
           appointments,
@@ -214,10 +260,13 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
           error: null,
         });
 
-        console.log('[CALL_TOKEN_STORE] Call completed and appointments refreshed:', {
-          appointmentId: id,
-          appointmentsCount: appointments.length,
-        });
+        console.log(
+          '[CALL_TOKEN_STORE] Call completed and appointments refreshed:',
+          {
+            appointmentId: id,
+            appointmentsCount: appointments.length,
+          },
+        );
       } catch (refreshError) {
         console.warn('[CALL_TOKEN_STORE] Call succeeded but refresh failed:', {
           appointmentId: id,
@@ -231,9 +280,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
       return updatedAppointment;
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : 'Failed to call token';
+        error instanceof Error ? error.message : 'Failed to call token';
 
       console.error('[CALL_TOKEN_STORE] Call failed:', {
         appointmentId: id,
@@ -247,13 +294,52 @@ export const useAppointmentsStore = create<AppointmentsState>((set) => ({
     }
   },
 
+  subscribeToAppointments: (userId, onChange) => {
+    if (appointmentsRealtimeChannel) {
+      unsubscribeAppointments(appointmentsRealtimeChannel);
+      appointmentsRealtimeChannel = null;
+    }
+
+    const channel = subscribeToAppointmentsRealtime({
+      channelName: `appointments-store-${userId ?? 'all'}-${Date.now()}`,
+      onChange: () => {
+        if (onChange) {
+          onChange();
+          return;
+        }
+
+        if (userId) {
+          get()
+            .fetchUserAppointments(userId)
+            .catch(() => undefined);
+        }
+      },
+    });
+
+    appointmentsRealtimeChannel = channel;
+
+    return () => {
+      if (appointmentsRealtimeChannel === channel) {
+        appointmentsRealtimeChannel = null;
+      }
+
+      unsubscribeAppointments(channel);
+    };
+  },
+
   reset: () => {
+    if (appointmentsRealtimeChannel) {
+      unsubscribeAppointments(appointmentsRealtimeChannel);
+      appointmentsRealtimeChannel = null;
+    }
+
     set({
       appointments: [],
       loading: false,
       error: null,
       checkingInId: null,
       callingId: null,
+      cancellingId: null,
     });
   },
 }));

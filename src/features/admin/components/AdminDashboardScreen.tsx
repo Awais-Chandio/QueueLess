@@ -1,7 +1,24 @@
-import React, { useCallback } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import {
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+  Pressable,
+} from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { Building2, CalendarDays, Settings2, Users } from 'lucide-react-native';
+import { BarChart, PieChart } from 'react-native-chart-kit';
+import {
+  CalendarCheck2,
+  CheckCircle2,
+  ClipboardList,
+  Clock3,
+  Stethoscope,
+  XCircle,
+} from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
 import { Card } from '../../../components/ui/Card';
 import ErrorState from '../../../components/ui/ErrorState';
@@ -10,7 +27,8 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import { adminService } from '../api/adminService';
+import { analyticsService } from '../api/analyticsService';
+import { toastService } from '../../../services/toastService';
 
 const managementSections = [
   {
@@ -33,19 +51,113 @@ const managementSections = [
 const AdminDashboardScreen = () => {
   const { colors, spacing, typography } = useTheme();
   const { logout } = useAuth();
+  const { width } = useWindowDimensions();
   const {
-    data: summary,
+    data: analytics,
     error,
     isError,
     isLoading,
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ['admin-summary'],
-    queryFn: adminService.fetchSummary,
+    queryKey: ['admin-analytics-dashboard'],
+    queryFn: analyticsService.getDashboardStats,
     refetchOnMount: 'always',
     staleTime: 0,
   });
+
+  const horizontalPadding = wp(4);
+  const chartWidth = Math.max(
+    240,
+    Math.floor(width - horizontalPadding * 2 - spacing.md * 2),
+  );
+  const chartHeight = Math.max(190, hp(24));
+
+  const statCards = useMemo(
+    () => [
+      {
+        label: 'Total Appointments',
+        value: analytics?.totalAppointments ?? 0,
+        color: colors.primary,
+        icon: ClipboardList,
+        backgroundColor: colors.primaryLight,
+      },
+      {
+        label: 'Pending',
+        value: analytics?.pendingCount ?? 0,
+        color: colors.warning,
+        icon: Clock3,
+        backgroundColor: '#FEF3C7',
+      },
+      {
+        label: 'Confirmed',
+        value: analytics?.confirmedCount ?? 0,
+        color: colors.info,
+        icon: CalendarCheck2,
+        backgroundColor: colors.primaryLight,
+      },
+      {
+        label: 'Completed',
+        value: analytics?.completedCount ?? 0,
+        color: colors.success,
+        icon: CheckCircle2,
+        backgroundColor: '#DCFCE7',
+      },
+      {
+        label: 'Cancelled',
+        value: analytics?.cancelledCount ?? 0,
+        color: colors.error,
+        icon: XCircle,
+        backgroundColor: '#FEE2E2',
+      },
+    ],
+    [analytics, colors],
+  );
+
+  const weeklyChartData = useMemo(
+    () => ({
+      labels: analytics?.weeklyStats.map(item => item.label) ?? [],
+      datasets: [
+        {
+          data: analytics?.weeklyStats.map(item => item.count) ?? [],
+        },
+      ],
+    }),
+    [analytics?.weeklyStats],
+  );
+
+  const statusDistributionData = useMemo(
+    () =>
+      analytics?.statusDistribution
+        .filter(item => item.count > 0)
+        .map(item => ({
+          ...item,
+          legendFontColor: colors.textSecondary,
+        })) ?? [],
+    [analytics?.statusDistribution, colors.textSecondary],
+  );
+
+  const chartConfig = useMemo(
+    () => ({
+      backgroundColor: colors.card,
+      backgroundGradientFrom: colors.card,
+      backgroundGradientTo: colors.card,
+      backgroundGradientFromOpacity: 1,
+      backgroundGradientToOpacity: 1,
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(46, 125, 255, ${opacity})`,
+      labelColor: () => colors.textSecondary,
+      barPercentage: 0.58,
+      barRadius: 7,
+      propsForBackgroundLines: {
+        stroke: colors.border,
+      },
+      propsForLabels: {
+        fontSize: scaleFont(10),
+      },
+    }),
+    [colors],
+  );
 
   const refreshSummary = useCallback(async () => {
     await refetch();
@@ -54,13 +166,19 @@ const AdminDashboardScreen = () => {
   if (isLoading) {
     return (
       <ScreenWrapper>
-        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+        <Text
+          style={[
+            styles.title,
+            { color: colors.text, fontSize: typography.sizes.xxl },
+          ]}
+        >
           Admin Dashboard
         </Text>
         <View style={{ gap: spacing.md }}>
           <Skeleton height={110} />
           <Skeleton height={110} />
           <Skeleton height={110} />
+          <Skeleton height={220} />
         </View>
       </ScreenWrapper>
     );
@@ -82,7 +200,10 @@ const AdminDashboardScreen = () => {
   return (
     <ScreenWrapper withPadding={false}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingHorizontal: wp(4), paddingVertical: hp(2) }]}
+        contentContainerStyle={[
+          styles.content,
+          { paddingHorizontal: wp(4), paddingVertical: hp(2) },
+        ]}
         refreshControl={
           <RefreshControl
             refreshing={isRefetching}
@@ -94,67 +215,210 @@ const AdminDashboardScreen = () => {
       >
         <View style={styles.header}>
           <View>
-            <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+            <Text
+              style={[
+                styles.title,
+                { color: colors.text, fontSize: typography.sizes.xxl },
+              ]}
+            >
               Admin Dashboard
             </Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.md }]}>
-              Analytics and management
+            <Text
+              style={[
+                styles.subtitle,
+                { color: colors.textSecondary, fontSize: typography.sizes.md },
+              ]}
+            >
+              Appointment analytics and management
             </Text>
           </View>
-          <AppButton title="Logout" variant="outline" onPress={logout} style={styles.logoutButton} />
+          <AppButton
+            title="Logout"
+            variant="outline"
+            onPress={() => {
+              Alert.alert('Logout', 'Are you sure you want to logout?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Logout', style: 'destructive', onPress: logout },
+              ]);
+            }}
+            style={styles.logoutButton}
+          />
         </View>
 
         <View style={[styles.statsGrid, { gap: wp(3) }]}>
-          <Card style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <Building2 color={colors.primary} size={scaleFont(20)} />
-              <Text style={[styles.statValue, { color: colors.primary, fontSize: typography.sizes.xxl }]}>
-                {summary?.centers ?? 0}
-              </Text>
-            </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>Centers</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <Settings2 color={colors.info} size={scaleFont(20)} />
-              <Text style={[styles.statValue, { color: colors.info, fontSize: typography.sizes.xxl }]}>
-                {summary?.services ?? 0}
-              </Text>
-            </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>Services</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <Users color={colors.success} size={scaleFont(20)} />
-              <Text style={[styles.statValue, { color: colors.success, fontSize: typography.sizes.xxl }]}>
-                {summary?.users ?? 0}
-              </Text>
-            </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>Users</Text>
-          </Card>
-          <Card style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <CalendarDays color={colors.warning} size={scaleFont(20)} />
-              <Text style={[styles.statValue, { color: colors.warning, fontSize: typography.sizes.xxl }]}>
-                {summary?.appointments ?? 0}
-              </Text>
-            </View>
-            <Text style={[styles.statLabel, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>Appointments</Text>
-          </Card>
+          {statCards.map(item => {
+            const Icon = item.icon;
+            return (
+              <Card key={item.label} style={styles.statCard}>
+                <View style={styles.statHeader}>
+                  <View
+                    style={[
+                      styles.iconBadge,
+                      { backgroundColor: item.backgroundColor },
+                    ]}
+                  >
+                    <Icon color={item.color} size={scaleFont(20)} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.statValue,
+                      { color: item.color, fontSize: typography.sizes.xxl },
+                    ]}
+                  >
+                    {item.value}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    {
+                      color: colors.textSecondary,
+                      fontSize: typography.sizes.sm,
+                    },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Card>
+            );
+          })}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.lg, marginTop: spacing.xl }]}>
+        <View
+          style={[
+            styles.todayPanel,
+            { backgroundColor: colors.primaryLight, marginTop: spacing.md },
+          ]}
+        >
+          <View style={styles.todayIcon}>
+            <Stethoscope color={colors.primaryDark} size={scaleFont(20)} />
+          </View>
+          <View style={styles.todayText}>
+            <Text
+              style={[
+                styles.todayLabel,
+                { color: colors.primaryDark, fontSize: typography.sizes.sm },
+              ]}
+            >
+              Today Appointments
+            </Text>
+            <Text
+              style={[
+                styles.todayValue,
+                { color: colors.primaryDark, fontSize: typography.sizes.xl },
+              ]}
+            >
+              {analytics?.todayAppointments ?? 0}
+            </Text>
+          </View>
+        </View>
+
+        <Card style={{ marginTop: spacing.lg }}>
+          <Text
+            style={[
+              styles.chartTitle,
+              { color: colors.text, fontSize: typography.sizes.md },
+            ]}
+          >
+            Weekly Appointments
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <BarChart
+              data={weeklyChartData}
+              width={chartWidth}
+              height={chartHeight}
+              yAxisLabel=""
+              yAxisSuffix=""
+              chartConfig={chartConfig}
+              fromZero
+              segments={4}
+              showValuesOnTopOfBars
+              withInnerLines
+              style={styles.chart}
+            />
+          </ScrollView>
+        </Card>
+
+        <Card style={{ marginTop: spacing.lg }}>
+          <Text
+            style={[
+              styles.chartTitle,
+              { color: colors.text, fontSize: typography.sizes.md },
+            ]}
+          >
+            Appointment Status Distribution
+          </Text>
+          {statusDistributionData.length > 0 ? (
+            <PieChart
+              data={statusDistributionData}
+              width={chartWidth}
+              height={chartHeight}
+              accessor="count"
+              backgroundColor="transparent"
+              paddingLeft="8"
+              chartConfig={chartConfig}
+              absolute
+              hasLegend
+              style={styles.chart}
+            />
+          ) : (
+            <View style={[styles.emptyChart, { height: chartHeight }]}>
+              <Text
+                style={[
+                  styles.emptyChartText,
+                  {
+                    color: colors.textSecondary,
+                    fontSize: typography.sizes.sm,
+                  },
+                ]}
+              >
+                No appointment status data yet.
+              </Text>
+            </View>
+          )}
+        </Card>
+
+        <Text
+          style={[
+            styles.sectionTitle,
+            {
+              color: colors.text,
+              fontSize: typography.sizes.lg,
+              marginTop: spacing.xl,
+            },
+          ]}
+        >
           Management
         </Text>
         {managementSections.map(section => (
-          <Card key={section.key} variant="outlined" style={{ marginTop: spacing.md }}>
-            <Text style={[styles.manageTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
-              {section.title}
-            </Text>
-            <Text style={[styles.manageDescription, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-              {section.description}
-            </Text>
-          </Card>
+          <Pressable
+            key={section.key}
+            onPress={() =>
+              toastService.info(`${section.title} management coming soon!`)
+            }
+          >
+            <Card variant="outlined" style={{ marginTop: spacing.md }}>
+              <Text
+                style={[
+                  styles.manageTitle,
+                  { color: colors.text, fontSize: typography.sizes.md },
+                ]}
+              >
+                {section.title}
+              </Text>
+              <Text
+                style={[
+                  styles.manageDescription,
+                  {
+                    color: colors.textSecondary,
+                    fontSize: typography.sizes.sm,
+                  },
+                ]}
+              >
+                {section.description}
+              </Text>
+            </Card>
+          </Pressable>
         ))}
       </ScrollView>
     </ScreenWrapper>
@@ -175,6 +439,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: hp(2.4),
   },
+  chart: {
+    marginLeft: -wp(3),
+    marginTop: hp(1.5),
+  },
+  chartTitle: {
+    fontWeight: '700',
+  },
+  emptyChart: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyChartText: {
+    fontWeight: '600',
+  },
+  iconBadge: {
+    alignItems: 'center',
+    borderRadius: 999,
+    height: scaleFont(40),
+    justifyContent: 'center',
+    width: scaleFont(40),
+  },
   logoutButton: {
     alignSelf: 'flex-start',
     minWidth: wp(28),
@@ -190,8 +475,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   statCard: {
-    flexBasis: '48%',
+    flexBasis: '46%',
     flexGrow: 1,
+    minHeight: hp(12),
   },
   statHeader: {
     alignItems: 'center',
@@ -214,5 +500,27 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
     marginBottom: hp(0.5),
+  },
+  todayIcon: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayLabel: {
+    fontWeight: '700',
+  },
+  todayPanel: {
+    alignItems: 'center',
+    borderRadius: 16,
+    flexDirection: 'row',
+    gap: wp(3),
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(1.6),
+  },
+  todayText: {
+    flex: 1,
+  },
+  todayValue: {
+    fontWeight: 'bold',
+    marginTop: hp(0.2),
   },
 });

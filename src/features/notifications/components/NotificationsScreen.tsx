@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Bell, CheckCheck } from 'lucide-react-native';
+import { Bell, CheckCheck, CalendarClock, CheckCircle, BellRing, XCircle } from 'lucide-react-native';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
@@ -104,6 +104,25 @@ const NotificationsScreen = () => {
     }
   }, [setNotifications, storeNotifications, userId]);
 
+  const getNotificationIcon = (type: string, isRead: boolean) => {
+    const iconProps = { size: scaleFont(20) };
+    
+    switch (type) {
+      case 'appointment_booked':
+        return <CalendarClock {...iconProps} color={isRead ? colors.textSecondary : colors.primary} />;
+      case 'appointment_confirmed':
+        return <CheckCircle {...iconProps} color={isRead ? colors.textSecondary : colors.success} />;
+      case 'token_called':
+        return <BellRing {...iconProps} color={isRead ? colors.textSecondary : colors.info} />;
+      case 'appointment_completed':
+        return <CheckCheck {...iconProps} color={isRead ? colors.textSecondary : colors.success} />;
+      case 'appointment_cancelled':
+        return <XCircle {...iconProps} color={isRead ? colors.textSecondary : colors.error} />;
+      default:
+        return <Bell {...iconProps} color={isRead ? colors.textSecondary : colors.primary} />;
+    }
+  };
+
   const renderNotification = (item: Notification) => (
     <Pressable
       key={item.id}
@@ -123,10 +142,7 @@ const NotificationsScreen = () => {
         ]}
       >
         <View style={[styles.notificationRow, { gap: spacing.md }]}>
-          <Bell
-            size={scaleFont(20)}
-            color={item.is_read ? colors.textSecondary : colors.primary}
-          />
+          {getNotificationIcon(item.type, item.is_read)}
           <View style={styles.notificationBody}>
             <Text
               style={[

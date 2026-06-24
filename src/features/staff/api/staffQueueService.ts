@@ -5,6 +5,7 @@ import type {
   CancelReason,
 } from '../../../types/appointment';
 import type { CreateAuditLogPayload } from '../../../types/audit';
+import { getSlotDateTime } from '../../appointments/utils/appointmentTime';
 
 export type StaffDashboardStats = {
   totalToday: number;
@@ -36,6 +37,9 @@ const appointmentFallbackSelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, created_at';
 
 const baseAppointmentSelect =
+  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, checked_in_at, called_at, completed_at, created_at';
+
+const baseAppointmentLegacySelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, checked_in_at, called_at, completed_at, created_at';
 
 const shouldFallback = (code?: string) =>
@@ -96,6 +100,13 @@ export const sortStaffQueueAppointments = (
   appointments: AppointmentFull[],
 ) =>
   [...appointments].sort((a, b) => {
+    const appointmentTimeA = new Date(a.scheduled_at).getTime();
+    const appointmentTimeB = new Date(b.scheduled_at).getTime();
+
+    if (appointmentTimeA !== appointmentTimeB) {
+      return appointmentTimeA - appointmentTimeB;
+    }
+
     const statusPriorityA = queueStatusPriority[a.status] ?? 3;
     const statusPriorityB = queueStatusPriority[b.status] ?? 3;
 
@@ -219,12 +230,21 @@ const fetchScopedAppointments = async (
       scope,
     });
 
-    const fallback = await applyScopeRange(
+    let fallback = await applyScopeRange(
       supabase
         .from('appointments')
         .select(baseAppointmentSelect),
       scope,
     ).order('scheduled_at', { ascending: scope !== 'history' });
+
+    if (fallback.error?.code === '42703') {
+      fallback = await applyScopeRange(
+        supabase
+          .from('appointments')
+          .select(baseAppointmentLegacySelect),
+        scope,
+      ).order('scheduled_at', { ascending: scope !== 'history' });
+    }
 
     if (fallback.error) {
       console.error('[STAFF_QUEUE] Staff appointments fallback failed:', {

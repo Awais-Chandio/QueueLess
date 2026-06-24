@@ -12,8 +12,9 @@ export const useAppointments = () => {
   const query = useQuery({
     queryKey: ['appointments', userId],
     queryFn: async () => {
-      const appointments =
-        await appointmentsService.fetchUserAppointments(userId!);
+      const appointments = await appointmentsService.fetchUserAppointments(
+        userId!,
+      );
 
       useAppointmentsStore.setState({
         appointments,
@@ -28,6 +29,9 @@ export const useAppointments = () => {
     staleTime: 0,
   });
   const { refetch } = query;
+  const subscribeToAppointments = useAppointmentsStore(
+    state => state.subscribeToAppointments,
+  );
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', state => {
@@ -38,6 +42,14 @@ export const useAppointments = () => {
 
     return () => subscription.remove();
   }, [refetch, userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+
+    return subscribeToAppointments(userId, () => {
+      refetch().catch(() => undefined);
+    });
+  }, [refetch, subscribeToAppointments, userId]);
 
   return query;
 };

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import {
   getQueueSnapshot,
-  subscribeToQueueChanges,
-  unsubscribeQueue,
+  subscribeToAppointments,
+  unsubscribeAppointments,
 } from '../api/queueService';
 
 import type { QueueScope } from '../api/queueService';
@@ -26,15 +26,15 @@ export const useRealtimeQueue = (
   myToken: number | null,
   onAppointmentChange?: () => void,
   scope?: QueueScope,
+  isActive: boolean = true,
 ) => {
-  const [queueData, setQueueData] =
-    useState<QueueSnapshot | null>(null);
+  const scopeCenterId = scope?.centerId;
+  const scopeScheduledAt = scope?.scheduledAt;
+  const [queueData, setQueueData] = useState<QueueSnapshot | null>(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [error, setError] =
-    useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const loadInitialData = useCallback(async () => {
     if (myToken == null) {
@@ -46,7 +46,10 @@ export const useRealtimeQueue = (
     try {
       setLoading(true);
 
-      const data = await getQueueSnapshot(myToken, scope);
+      const data = await getQueueSnapshot(myToken, {
+        centerId: scopeCenterId,
+        scheduledAt: scopeScheduledAt,
+      });
 
       setQueueData(data);
       setError(null);
@@ -55,25 +58,25 @@ export const useRealtimeQueue = (
     } finally {
       setLoading(false);
     }
-  }, [myToken, scope?.centerId, scope?.scheduledAt]);
+  }, [myToken, scopeCenterId, scopeScheduledAt]);
 
   useEffect(() => {
+    if (!isActive) return;
+
     loadInitialData();
 
-    const queueChannel = subscribeToQueueChanges(() => {
-      loadInitialData();
-      onAppointmentChange?.();
+    const queueChannel = subscribeToAppointments({
+      channelName: `queue-live-${myToken ?? 'unknown'}-${Date.now()}`,
+      onChange: () => {
+        loadInitialData();
+        onAppointmentChange?.();
+      },
     });
-    const fallbackInterval = setInterval(() => {
-      loadInitialData();
-      onAppointmentChange?.();
-    }, 5000);
 
     return () => {
-      clearInterval(fallbackInterval);
-      unsubscribeQueue(queueChannel);
+      unsubscribeAppointments(queueChannel);
     };
-  }, [loadInitialData, onAppointmentChange]);
+  }, [loadInitialData, onAppointmentChange, isActive, myToken]);
 
   return {
     queueData,

@@ -9,7 +9,9 @@ import {
   Text,
   TextInput,
   View,
+  Alert,
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -31,7 +33,6 @@ import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
-import { supabase } from '../../../lib/supabase';
 import { useStaffQueueStore } from '../../../store/staffQueueStore';
 import type {
   AppointmentFull,
@@ -41,6 +42,14 @@ import type {
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { staffQueueService } from '../api/staffQueueService';
 import type { StaffDashboardScope } from '../api/staffQueueService';
+import {
+  getAppointmentDateLabel,
+  getAppointmentTimeLabel,
+} from '../../appointments/utils/appointmentTime';
+import {
+  subscribeToAppointments,
+  unsubscribeAppointments,
+} from '../../queue/api/queueService';
 
 type StatusFilter =
   | 'all'
@@ -52,11 +61,7 @@ type StatusFilter =
   | 'completed'
   | 'cancelled';
 
-type QueueAction =
-  | 'confirm'
-  | 'cancel'
-  | 'start_service'
-  | 'complete_service';
+type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service';
 
 const statusFilters: StatusFilter[] = [
   'all',
@@ -69,11 +74,7 @@ const statusFilters: StatusFilter[] = [
   'cancelled',
 ];
 
-const queueScopes: StaffDashboardScope[] = [
-  'today',
-  'upcoming',
-  'history',
-];
+const queueScopes: StaffDashboardScope[] = ['today', 'upcoming', 'history'];
 
 const cancelReasons: CancelReason[] = [
   'Patient Requested',
@@ -128,35 +129,34 @@ const StaffDashboardScreen = () => {
   const { colors, spacing, typography, radius } = useTheme();
   const { logout } = useAuth();
   const queryClient = useQueryClient();
-  const setStaffAppointments = useStaffQueueStore(state => state.setAppointments);
+  const setStaffAppointments = useStaffQueueStore(
+    state => state.setAppointments,
+  );
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
   const [selectedScope, setSelectedScope] =
     useState<StaffDashboardScope>('today');
-  const [cancelTarget, setCancelTarget] = useState<AppointmentFull | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<AppointmentFull | null>(
+    null,
+  );
+  const isFocused = useIsFocused();
 
-  const {
-    data,
-    error,
-    isError,
-    isLoading,
-    isRefetching,
-    refetch,
-  } = useQuery({
+  const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['staff-dashboard', selectedScope],
     queryFn: () => staffQueueService.fetchDashboard(selectedScope),
-    refetchInterval: 30000,
     refetchOnMount: 'always',
     staleTime: 0,
   });
 
-  const appointments = useMemo(() => data?.appointments ?? [], [data?.appointments]);
+  const appointments = useMemo(
+    () => data?.appointments ?? [],
+    [data?.appointments],
+  );
   const stats = data?.stats;
   const hasActiveService = appointments.some(
     appointment =>
-      appointment.status === 'called' ||
-      appointment.status === 'in_progress',
+      appointment.status === 'called' || appointment.status === 'in_progress',
   );
   const nextCallableAppointmentId =
     appointments.find(appointment => appointment.status === 'checked_in')?.id ??
@@ -169,21 +169,19 @@ const StaffDashboardScreen = () => {
   }, [appointments, data, setStaffAppointments]);
 
   useEffect(() => {
-    const channel = supabase
-      .channel('staff-dashboard-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'appointments' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
-        },
-      )
-      .subscribe();
+    if (!isFocused) return;
+
+    const channel = subscribeToAppointments({
+      channelName: `staff-dashboard-${selectedScope}-${Date.now()}`,
+      onChange: () => {
+        queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+      },
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      unsubscribeAppointments(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, isFocused, selectedScope]);
 
   const refreshDashboard = useCallback(async () => {
     await refetch();
@@ -246,8 +244,8 @@ const StaffDashboardScreen = () => {
         selectedScope === 'today'
           ? 'Total Today'
           : selectedScope === 'upcoming'
-            ? 'Upcoming'
-            : 'History',
+          ? 'Upcoming'
+          : 'History',
       value: stats?.totalToday ?? 0,
       color: colors.primary,
       Icon: CalendarDays,
@@ -308,7 +306,9 @@ const StaffDashboardScreen = () => {
       <AppButton
         key={action}
         title={labels[action]}
-        variant={isCancel ? 'danger' : action === 'confirm' ? 'primary' : 'outline'}
+        variant={
+          isCancel ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
+        }
         loading={isBusy}
         disabled={runActionMutation.isPending || isCallBlocked}
         style={styles.actionButton}
@@ -319,7 +319,19 @@ const StaffDashboardScreen = () => {
             return;
           }
 
-          runActionMutation.mutate({ action, appointment });
+          const actionLabel = labels[action];
+          Alert.alert(
+            `${actionLabel} Appointment`,
+            `Are you sure you want to ${actionLabel.toLowerCase()} this appointment?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Yes',
+                onPress: () =>
+                  runActionMutation.mutate({ action, appointment }),
+              },
+            ],
+          );
         }}
       />
     );
@@ -332,27 +344,71 @@ const StaffDashboardScreen = () => {
       <Card style={{ marginBottom: spacing.md }} variant="outlined">
         <View style={styles.appointmentHeader}>
           <View style={styles.appointmentTitleWrap}>
-            <Text style={[styles.tokenText, { color: colors.primary, fontSize: typography.sizes.xl }]}>
-              {typeof item.token_number === 'number' ? `#${item.token_number}` : 'No Token'}
+            <Text
+              style={[
+                styles.tokenText,
+                { color: colors.primary, fontSize: typography.sizes.xl },
+              ]}
+            >
+              {typeof item.token_number === 'number'
+                ? `#${item.token_number}`
+                : 'No Token'}
             </Text>
-            <Text style={[styles.patientName, { color: colors.text, fontSize: typography.sizes.md }]}>
+            <Text
+              style={[
+                styles.patientName,
+                { color: colors.text, fontSize: typography.sizes.md },
+              ]}
+            >
               {item.patient_name ?? 'Patient'}
             </Text>
-            <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-              {item.service_name ?? 'Service'} • {new Date(item.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            <Text
+              style={[
+                styles.metaText,
+                { color: colors.textSecondary, fontSize: typography.sizes.sm },
+              ]}
+            >
+              {item.service_name ?? 'Service'} • Appointment Time:{' '}
+              {getAppointmentTimeLabel(item)}
+            </Text>
+            <Text
+              style={[
+                styles.metaText,
+                { color: colors.textSecondary, fontSize: typography.sizes.sm },
+              ]}
+            >
+              Date: {getAppointmentDateLabel(item)}
             </Text>
           </View>
-          <Badge label={statusLabel(item.status)} variant={getStatusVariant(item.status)} />
+          <Badge
+            label={statusLabel(item.status)}
+            variant={getStatusVariant(item.status)}
+          />
         </View>
 
         <View style={[styles.queueMetaRow, { marginTop: spacing.md }]}>
-          <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+          <Text
+            style={[
+              styles.metaText,
+              { color: colors.textSecondary, fontSize: typography.sizes.sm },
+            ]}
+          >
             Position: {item.current_position ?? '--'}
           </Text>
-          <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+          <Text
+            style={[
+              styles.metaText,
+              { color: colors.textSecondary, fontSize: typography.sizes.sm },
+            ]}
+          >
             Ahead: {item.people_ahead ?? '--'}
           </Text>
-          <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+          <Text
+            style={[
+              styles.metaText,
+              { color: colors.textSecondary, fontSize: typography.sizes.sm },
+            ]}
+          >
             Wait: {item.estimated_wait_mins ?? 0}m
           </Text>
         </View>
@@ -410,11 +466,21 @@ const StaffDashboardScreen = () => {
         )}
 
         {actions.length ? (
-          <View style={[styles.actionsRow, { gap: spacing.sm, marginTop: spacing.md }]}>
+          <View
+            style={[
+              styles.actionsRow,
+              { gap: spacing.sm, marginTop: spacing.md },
+            ]}
+          >
             {actions.map(action => renderActionButton(action, item))}
           </View>
         ) : (
-          <Text style={[styles.readOnlyText, { color: colors.textSecondary, marginTop: spacing.md }]}>
+          <Text
+            style={[
+              styles.readOnlyText,
+              { color: colors.textSecondary, marginTop: spacing.md },
+            ]}
+          >
             Read only
           </Text>
         )}
@@ -425,7 +491,12 @@ const StaffDashboardScreen = () => {
   if (isLoading) {
     return (
       <ScreenWrapper>
-        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+        <Text
+          style={[
+            styles.title,
+            { color: colors.text, fontSize: typography.sizes.xxl },
+          ]}
+        >
           Staff Dashboard
         </Text>
         <View style={{ gap: spacing.md }}>
@@ -464,19 +535,40 @@ const StaffDashboardScreen = () => {
             onRefresh={refreshDashboard}
           />
         }
-        contentContainerStyle={[styles.listContent, { paddingHorizontal: wp(4), paddingVertical: hp(2) }]}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingHorizontal: wp(4), paddingVertical: hp(2) },
+        ]}
         ListHeaderComponent={
           <View>
             <View style={styles.header}>
               <View>
-                <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+                <Text
+                  style={[
+                    styles.title,
+                    { color: colors.text, fontSize: typography.sizes.xxl },
+                  ]}
+                >
                   Staff Dashboard
                 </Text>
-                <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.md }]}>
+                <Text
+                  style={[
+                    styles.subtitle,
+                    {
+                      color: colors.textSecondary,
+                      fontSize: typography.sizes.md,
+                    },
+                  ]}
+                >
                   Queue control panel
                 </Text>
               </View>
-              <AppButton title="Logout" variant="outline" onPress={logout} style={styles.logoutButton} />
+              <AppButton
+                title="Logout"
+                variant="outline"
+                onPress={logout}
+                style={styles.logoutButton}
+              />
             </View>
 
             <View style={[styles.statsGrid, { gap: wp(3) }]}>
@@ -484,29 +576,54 @@ const StaffDashboardScreen = () => {
                 <Card key={label} style={styles.statCard}>
                   <View style={styles.statHeader}>
                     <Icon color={color} size={scaleFont(20)} />
-                    <Text style={[styles.statValue, { color, fontSize: typography.sizes.xl }]}>
+                    <Text
+                      style={[
+                        styles.statValue,
+                        { color, fontSize: typography.sizes.xl },
+                      ]}
+                    >
                       {value}
                     </Text>
                   </View>
-                  <Text style={[styles.statLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                  <Text
+                    style={[
+                      styles.statLabel,
+                      {
+                        color: colors.textSecondary,
+                        fontSize: typography.sizes.xs,
+                      },
+                    ]}
+                  >
                     {label}
                   </Text>
                 </Card>
               ))}
             </View>
 
-            <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.lg, marginTop: spacing.xl }]}>
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: colors.text,
+                  fontSize: typography.sizes.lg,
+                  marginTop: spacing.xl,
+                },
+              ]}
+            >
               {selectedScope === 'today'
                 ? "Today's Queue"
                 : selectedScope === 'upcoming'
-                  ? 'Upcoming Appointments'
-                  : 'Appointment History'}
+                ? 'Upcoming Appointments'
+                : 'Appointment History'}
             </Text>
 
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.filterRow, { gap: wp(2), marginTop: hp(1.4) }]}
+              contentContainerStyle={[
+                styles.filterRow,
+                { gap: wp(2), marginTop: hp(1.4) },
+              ]}
             >
               {queueScopes.map(scope => {
                 const selected = selectedScope === scope;
@@ -514,8 +631,8 @@ const StaffDashboardScreen = () => {
                   scope === 'today'
                     ? 'Today'
                     : scope === 'upcoming'
-                      ? 'Upcoming'
-                      : 'History';
+                    ? 'Upcoming'
+                    : 'History';
 
                 return (
                   <Pressable
@@ -524,7 +641,9 @@ const StaffDashboardScreen = () => {
                       styles.filterChip,
                       {
                         borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary : colors.surface,
+                        backgroundColor: selected
+                          ? colors.primary
+                          : colors.surface,
                         borderRadius: radius.full,
                         paddingHorizontal: spacing.md,
                         paddingVertical: spacing.xs,
@@ -532,11 +651,13 @@ const StaffDashboardScreen = () => {
                     ]}
                     onPress={() => setSelectedScope(scope)}
                   >
-                    <Text style={{
-                      color: selected ? '#FFF' : colors.textSecondary,
-                      fontSize: typography.sizes.sm,
-                      fontWeight: '600',
-                    }}>
+                    <Text
+                      style={{
+                        color: selected ? '#FFF' : colors.textSecondary,
+                        fontSize: typography.sizes.sm,
+                        fontWeight: '600',
+                      }}
+                    >
                       {label}
                     </Text>
                   </Pressable>
@@ -544,28 +665,36 @@ const StaffDashboardScreen = () => {
               })}
             </ScrollView>
 
-            <View style={[
-              styles.searchBox,
-              {
-                borderColor: colors.border,
-                borderRadius: radius.md,
-                marginTop: spacing.md,
-              },
-            ]}>
+            <View
+              style={[
+                styles.searchBox,
+                {
+                  borderColor: colors.border,
+                  borderRadius: radius.md,
+                  marginTop: spacing.md,
+                },
+              ]}
+            >
               <Search color={colors.textSecondary} size={scaleFont(18)} />
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 placeholder="Search patient or token"
                 placeholderTextColor={colors.textSecondary}
-                style={[styles.searchInput, { color: colors.text, fontSize: typography.sizes.md }]}
+                style={[
+                  styles.searchInput,
+                  { color: colors.text, fontSize: typography.sizes.md },
+                ]}
               />
             </View>
 
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[styles.filterRow, { gap: wp(2), marginVertical: hp(1.6) }]}
+              contentContainerStyle={[
+                styles.filterRow,
+                { gap: wp(2), marginVertical: hp(1.6) },
+              ]}
             >
               {statusFilters.map(filter => {
                 const selected = selectedStatus === filter;
@@ -576,7 +705,9 @@ const StaffDashboardScreen = () => {
                       styles.filterChip,
                       {
                         borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected ? colors.primary : colors.surface,
+                        backgroundColor: selected
+                          ? colors.primary
+                          : colors.surface,
                         borderRadius: radius.full,
                         paddingHorizontal: spacing.md,
                         paddingVertical: spacing.xs,
@@ -584,11 +715,13 @@ const StaffDashboardScreen = () => {
                     ]}
                     onPress={() => setSelectedStatus(filter)}
                   >
-                    <Text style={{
-                      color: selected ? '#FFF' : colors.textSecondary,
-                      fontSize: typography.sizes.sm,
-                      fontWeight: '600',
-                    }}>
+                    <Text
+                      style={{
+                        color: selected ? '#FFF' : colors.textSecondary,
+                        fontSize: typography.sizes.sm,
+                        fontWeight: '600',
+                      }}
+                    >
                       {filter === 'all' ? 'All' : statusLabel(filter)}
                     </Text>
                   </Pressable>
@@ -617,17 +750,43 @@ const StaffDashboardScreen = () => {
         onRequestClose={() => setCancelTarget(null)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={[styles.modalCard, { backgroundColor: colors.card, borderRadius: radius.lg, padding: spacing.lg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg }]}>
+          <View
+            style={[
+              styles.modalCard,
+              {
+                backgroundColor: colors.card,
+                borderRadius: radius.lg,
+                padding: spacing.lg,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: colors.text, fontSize: typography.sizes.lg },
+              ]}
+            >
               Cancel Appointment
             </Text>
-            <Text style={[styles.modalText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+            <Text
+              style={[
+                styles.modalText,
+                { color: colors.textSecondary, fontSize: typography.sizes.sm },
+              ]}
+            >
               Choose a cancellation reason.
             </Text>
             {cancelReasons.map(reason => (
               <Pressable
                 key={reason}
-                style={[styles.reasonButton, { borderColor: colors.border, borderRadius: radius.md, padding: spacing.md }]}
+                style={[
+                  styles.reasonButton,
+                  {
+                    borderColor: colors.border,
+                    borderRadius: radius.md,
+                    padding: spacing.md,
+                  },
+                ]}
                 onPress={() => {
                   if (!cancelTarget) {
                     return;
@@ -640,7 +799,9 @@ const StaffDashboardScreen = () => {
                   });
                 }}
               >
-                <Text style={{ color: colors.text, fontSize: typography.sizes.md }}>
+                <Text
+                  style={{ color: colors.text, fontSize: typography.sizes.md }}
+                >
                   {reason}
                 </Text>
               </Pressable>
@@ -654,7 +815,6 @@ const StaffDashboardScreen = () => {
           </View>
         </View>
       </Modal>
-
     </ScreenWrapper>
   );
 };

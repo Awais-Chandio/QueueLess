@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { View, Text, StyleSheet, Alert } from 'react-native';
+import { useRoute, useIsFocused } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import AppButton from '../../../components/ui/AppButton';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -20,11 +20,19 @@ import {
   Calendar,
   CircleDot,
   Clock,
+  Info,
   MapPin,
   Users,
 } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import { toastService } from '../../../services/toastService';
+import {
+  formatWaitDuration,
+  getAppointmentDateTime,
+  getAppointmentDateLabel,
+  getAppointmentTimeLabel,
+  getMinutesUntilAppointment,
+} from '../utils/appointmentTime';
 
 type QueueStatusRouteProp = RouteProp<AppStackParamList, 'QueueStatus'>;
 
@@ -32,6 +40,7 @@ const QueueStatusScreen = () => {
   const route = useRoute<QueueStatusRouteProp>();
   const { appointmentId } = route.params;
   const { colors, spacing, typography } = useTheme();
+  const isFocused = useIsFocused();
 
   const [appointment, setAppointment] = useState<AppointmentFull | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +48,8 @@ const QueueStatusScreen = () => {
     state => state.checkInAppointment,
   );
   const checkingInId = useAppointmentsStore(state => state.checkingInId);
+  const cancelAppointment = useAppointmentsStore(state => state.cancelAppointment);
+  const cancellingId = useAppointmentsStore(state => state.cancellingId);
 
   const fetchAppointment = useCallback(async () => {
     try {
@@ -66,6 +77,7 @@ const QueueStatusScreen = () => {
       centerId: appointment?.center_id,
       scheduledAt: appointment?.scheduled_at,
     },
+    isFocused,
   );
 
   if (loading) {
@@ -93,6 +105,25 @@ const QueueStatusScreen = () => {
   const currentPosition = queueData?.currentPosition;
   const currentServingToken = queueData?.currentToken;
   const status = appointment.status;
+  const now = new Date();
+  const appointmentDateTime = getAppointmentDateTime(appointment);
+  const minutesUntilAppointment = getMinutesUntilAppointment(appointment, now);
+  const activeQueueStatus =
+    status === 'checked_in' ||
+    status === 'called' ||
+    status === 'in_progress';
+  const appointmentStarted =
+    activeQueueStatus ||
+    appointmentDateTime.getTime() <= now.getTime();
+  const appointmentTimePassed =
+    appointmentStarted &&
+    (status === 'pending' || status === 'confirmed') &&
+    appointmentDateTime.getTime() < now.getTime();
+  const showQueueMetrics =
+    appointmentStarted &&
+    !appointmentTimePassed &&
+    status !== 'cancelled' &&
+    status !== 'completed';
   const queueStatusLabel =
     status === 'called' || status === 'in_progress'
       ? 'Called'
@@ -102,10 +133,14 @@ const QueueStatusScreen = () => {
           ? 'Completed'
           : status === 'cancelled'
             ? 'Cancelled'
-            : 'Waiting';
+            : appointmentTimePassed
+              ? 'Time Passed'
+              : 'Scheduled';
   const hasQueueMetrics = queueData != null;
   const canCheckIn = appointment.status === 'confirmed';
   const checkingIn = checkingInId === appointmentId;
+  const canCancel = appointment.status === 'pending' || appointment.status === 'confirmed';
+  const cancelling = cancellingId === appointmentId;
 
   const handleCheckIn = async () => {
     try {
@@ -122,6 +157,31 @@ const QueueStatusScreen = () => {
     }
   };
 
+  const handleCancel = () => {
+    Alert.alert(
+      'Cancel Appointment',
+      'Are you sure you want to cancel this appointment? This action cannot be undone.',
+      [
+        { text: 'Keep Appointment', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const updatedAppointment = await cancelAppointment(appointmentId, 'Patient Requested');
+              setAppointment(updatedAppointment);
+              toastService.success('Appointment cancelled successfully.');
+            } catch (error) {
+              toastService.error(
+                error instanceof Error ? error.message : 'Failed to cancel appointment.'
+              );
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const badgeVariant =
     ['completed'].includes(status)
       ? 'success'
@@ -131,10 +191,25 @@ const QueueStatusScreen = () => {
           ? 'info'
           : 'warning';
   
-  // Progress calculation (arbitrary max wait of 60 for progress visual if not known)
-  const initialWait = appointment.estimated_wait_mins || 60;
+  const estimatedWaitLabel =
+    appointmentTimePassed
+      ? '--'
+      : showQueueMetrics
+        ? waitMins != null
+          ? `${waitMins} mins`
+          : '--'
+        : formatWaitDuration(minutesUntilAppointment);
+  const peopleAheadLabel =
+    showQueueMetrics ? `${peopleAhead}` : '--';
+  const currentPositionLabel =
+    showQueueMetrics ? `${currentPosition ?? '--'}` : '--';
+  const initialWait = Math.max(
+    waitMins ?? 0,
+    appointment.estimated_wait_mins ?? 0,
+    1,
+  );
   const progress =
-    waitMins != null
+    showQueueMetrics && waitMins != null
       ? Math.max(0, 1 - waitMins / initialWait)
       : 0;
 
@@ -157,19 +232,23 @@ const QueueStatusScreen = () => {
             <View>
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Estimated Wait</Text>
               <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '700' }}>
-                {waitMins != null ? `${waitMins} mins` : '--'}
+                {estimatedWaitLabel}
               </Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Queue Position</Text>
               <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '700' }}>
-                {currentPosition ?? '--'}
+                {currentPositionLabel}
               </Text>
             </View>
           </View>
           <ProgressBar progress={progress} color={colors.primary} />
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.sm, textAlign: 'center' }}>
-            {!hasQueueMetrics
+            {appointmentTimePassed
+              ? 'This appointment time has passed. Please contact the clinic.'
+              : !showQueueMetrics
+                ? `Appointment starts at ${getAppointmentTimeLabel(appointment)}.`
+                : !hasQueueMetrics
               ? 'Waiting for live queue data'
               : status === 'called' || status === 'in_progress'
               ? 'Your token has been called. Please proceed to the counter.'
@@ -206,7 +285,7 @@ const QueueStatusScreen = () => {
                 People Ahead
               </Text>
               <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '700' }}>
-                {peopleAhead}
+                {peopleAheadLabel}
               </Text>
             </View>
 
@@ -216,7 +295,7 @@ const QueueStatusScreen = () => {
                 Estimated Wait
               </Text>
               <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '700' }}>
-                {waitMins != null ? `${waitMins} mins` : '--'}
+                {estimatedWaitLabel}
               </Text>
             </View>
 
@@ -245,6 +324,17 @@ const QueueStatusScreen = () => {
               title="I'm Here — Check In"
               loading={checkingIn}
               onPress={handleCheckIn}
+              style={{ marginBottom: spacing.md }}
+            />
+          )}
+
+          {canCancel && (
+            <AppButton
+              title="Cancel Appointment"
+              variant="danger"
+              loading={cancelling}
+              onPress={handleCancel}
+              disabled={checkingIn || cancelling}
             />
           )}
 
@@ -285,7 +375,7 @@ const QueueStatusScreen = () => {
               <View style={styles.detailText}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Date & Time</Text>
                 <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>
-                  {new Date(appointment.scheduled_at).toLocaleString()}
+                  {getAppointmentDateLabel(appointment)} • {getAppointmentTimeLabel(appointment)}
                 </Text>
               </View>
             </View>
@@ -296,6 +386,15 @@ const QueueStatusScreen = () => {
                 <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>{appointment.center_name}</Text>
               </View>
             </View>
+            {status === 'cancelled' && appointment.cancel_reason && (
+              <View style={styles.detailRow}>
+                <Info color={colors.error} size={scaleFont(20)} />
+                <View style={styles.detailText}>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Cancellation Reason</Text>
+                  <Text style={{ color: colors.error, fontSize: typography.sizes.md, fontWeight: '500' }}>{appointment.cancel_reason}</Text>
+                </View>
+              </View>
+            )}
           </View>
         </Card>
 

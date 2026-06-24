@@ -25,6 +25,10 @@ export interface Appointment {
 
   scheduled_at: string;
 
+  appointment_date?: string | null;
+
+  appointment_time?: string | null;
+
   status: AppointmentStatus;
 
   token_number: number | null;
@@ -59,6 +63,8 @@ export interface AppointmentFull {
   center_name?: string;
   service_name?: string;
   scheduled_at: string;
+  appointment_date?: string | null;
+  appointment_time?: string | null;
   status: AppointmentStatus;
   token_number?: number | null;
   estimated_wait_mins?: number | null;

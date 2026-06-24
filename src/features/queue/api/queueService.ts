@@ -62,17 +62,14 @@ const getCurrentTokenFromAppointments = async (
   return typeof data?.token_number === 'number' ? data.token_number : 0;
 };
 
-export const getCurrentToken = async (
-  scope?: QueueScope,
-): Promise<number> => {
+export const getCurrentToken = async (scope?: QueueScope): Promise<number> => {
   const directCurrentToken = await getCurrentTokenFromAppointments(scope);
 
   if (directCurrentToken != null) {
     return directCurrentToken;
   }
 
-  const { data, error } = await supabase
-    .rpc('get_current_token');
+  const { data, error } = await supabase.rpc('get_current_token');
 
   if (error) {
     throw new Error(error.message);
@@ -89,10 +86,9 @@ export const getPeopleAhead = async (
     return Math.max(0, myToken - currentToken);
   }
 
-  const { data, error } = await supabase
-    .rpc('people_ahead', {
-      my_token: myToken,
-    });
+  const { data, error } = await supabase.rpc('people_ahead', {
+    my_token: myToken,
+  });
 
   if (error) {
     throw new Error(error.message);
@@ -124,27 +120,45 @@ export const getQueueSnapshot = async (
   };
 };
 
-export const subscribeToQueueChanges = (
-  callback: () => void,
-) => {
+type AppointmentsSubscriptionOptions = {
+  channelName?: string;
+  onChange: () => void;
+};
+
+export const subscribeToAppointments = ({
+  channelName,
+  onChange,
+}: AppointmentsSubscriptionOptions) => {
   return supabase
-    .channel(`queue-live-${Date.now()}`)
+    .channel(channelName ?? `appointments-live-${Date.now()}`)
     .on(
       'postgres_changes',
       {
-        event: '*',
+        event: 'INSERT',
         schema: 'public',
         table: 'appointments',
       },
       payload => {
-        console.log('[QUEUE APPOINTMENT CHANGE]', payload.eventType);
-        callback();
+        console.log('[QUEUE APPOINTMENT INSERT]', payload.new?.id);
+        onChange();
+      },
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'appointments',
+      },
+      payload => {
+        console.log('[QUEUE APPOINTMENT UPDATE]', payload.new?.id);
+        onChange();
       },
     )
     .subscribe();
 };
 
-export const unsubscribeQueue = (
+export const unsubscribeAppointments = (
   queueChannel: ReturnType<typeof supabase.channel>,
 ) => {
   supabase.removeChannel(queueChannel);

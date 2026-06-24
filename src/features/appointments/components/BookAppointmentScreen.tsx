@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -40,6 +41,15 @@ import { useAuthStore } from '../../../store/authStore';
 import { useAppointmentsStore } from '../../../store/appointmentsStore';
 import { useCentersStore } from '../../../store/centersStore';
 import { toastService } from '../../../services/toastService';
+import { appointmentsService } from '../api/appointmentsService';
+import {
+  APPOINTMENT_SLOT_LABELS,
+  AppointmentSlotLabel,
+  formatAppointmentDateInput,
+  getScheduledAtFromSlot,
+  isPastAppointmentDate,
+  isPastAppointmentSlot,
+} from '../utils/appointmentTime';
 
 import type { AppointmentFull } from '../../../types/appointment';
 import type { CenterService } from '../../../types/center';
@@ -112,8 +122,20 @@ const BookAppointmentScreen = () => {
   const [showDatePicker, setShowDatePicker] =
     useState(false);
 
-  const [showTimePicker, setShowTimePicker] =
+  const [selectedSlot, setSelectedSlot] =
+    useState<AppointmentSlotLabel | null>(null);
+
+  const [availableSlots, setAvailableSlots] =
+    useState<string[]>([]);
+
+  const [slotsLoading, setSlotsLoading] =
     useState(false);
+
+  const [slotsError, setSlotsError] =
+    useState<string | null>(null);
+
+  const appointmentDate =
+    formatAppointmentDateInput(date);
 
   useEffect(() => {
     setSelectedServiceId(
@@ -129,22 +151,104 @@ const BookAppointmentScreen = () => {
     initialServiceId,
   ]);
 
+  useEffect(() => {
+    if (!centerId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSlots = async () => {
+      try {
+        setSlotsLoading(true);
+        setSlotsError(null);
+
+        const slots = await appointmentsService.getAvailableSlots(
+          appointmentDate,
+          centerId,
+        );
+
+        if (cancelled) {
+          return;
+        }
+
+        setAvailableSlots(slots);
+        setSelectedSlot(current =>
+          current && slots.includes(current) ? current : null,
+        );
+      } catch (slotError) {
+        if (cancelled) {
+          return;
+        }
+
+        const message =
+          slotError instanceof Error
+            ? slotError.message
+            : 'Failed to load slots.';
+
+        console.error('[SLOTS] Failed to load booking slots:', {
+          appointmentDate,
+          centerId,
+          message,
+        });
+        setSlotsError(message);
+        setAvailableSlots([]);
+        setSelectedSlot(null);
+      } finally {
+        if (!cancelled) {
+          setSlotsLoading(false);
+        }
+      }
+    };
+
+    loadSlots();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [appointmentDate, centerId]);
+
   const handleBook = async () => {
+    if (!centerId || !user?.id) {
+      return;
+    }
+
+    if (!selectedServiceId) {
+      toastService.error('Please select a service.');
+      return;
+    }
+
+    if (!selectedSlot) {
+      toastService.error('Please select an available time slot.');
+      return;
+    }
+
     if (
-      !centerId ||
-      !selectedServiceId ||
-      !user?.id
+      isPastAppointmentDate(appointmentDate) ||
+      isPastAppointmentSlot(appointmentDate, selectedSlot)
     ) {
+      toastService.error('Please select a future time slot.');
       return;
     }
 
     try {
-      console.log('[DEBUG] BookAppointmentScreen: Creating appointment with date:', date.toISOString());
+      const scheduledAt = getScheduledAtFromSlot(
+        appointmentDate,
+        selectedSlot,
+      );
+
+      console.log('[DEBUG] BookAppointmentScreen: Creating appointment with slot:', {
+        appointmentDate,
+        appointmentTime: selectedSlot,
+        scheduledAt,
+      });
       const appointment = await createAppointment({
         user_id: user.id,
         center_id: centerId,
         service_id: selectedServiceId,
-        scheduled_at: date.toISOString(),
+        scheduled_at: scheduledAt,
+        appointment_date: appointmentDate,
+        appointment_time: selectedSlot,
       });
 
       queryClient.setQueryData<AppointmentFull[]>(
@@ -170,6 +274,16 @@ const BookAppointmentScreen = () => {
         queryKey: ['appointments', user.id],
         refetchType: 'all',
       });
+      await queryClient.invalidateQueries({
+        queryKey: ['staff-dashboard'],
+      });
+
+      const slots = await appointmentsService.getAvailableSlots(
+        appointmentDate,
+        centerId,
+      );
+      setAvailableSlots(slots);
+      setSelectedSlot(null);
 
       toastService.success('Appointment booked successfully');
       navigation.navigate('QueueStatus', {
@@ -308,53 +422,85 @@ const BookAppointmentScreen = () => {
               </Pressable>
 
               <Text style={styles.label}>
-                Selected Time
+                Available Slots
               </Text>
 
-              <Pressable
-                style={styles.dateButton}
-                onPress={() =>
-                  setShowTimePicker(true)
-                }>
-                <Text style={styles.dateText}>
-                  {date.toLocaleTimeString()}
+              {slotsLoading ? (
+                <Text style={styles.slotHint}>
+                  Loading slots...
                 </Text>
-              </Pressable>
+              ) : slotsError ? (
+                <Text style={styles.slotError}>
+                  {slotsError}
+                </Text>
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.slotRow}
+                >
+                  {APPOINTMENT_SLOT_LABELS.map(slot => {
+                    const pastSlot = isPastAppointmentSlot(
+                      appointmentDate,
+                      slot,
+                    );
+                    const booked =
+                      !availableSlots.includes(slot) || pastSlot;
+                    const selected = selectedSlot === slot;
+
+                    return (
+                      <Pressable
+                        key={slot}
+                        disabled={booked}
+                        onPress={() => setSelectedSlot(slot)}
+                        style={[
+                          styles.slotChip,
+                          selected && styles.selectedSlotChip,
+                          booked && styles.bookedSlotChip,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.slotText,
+                            selected && styles.selectedSlotText,
+                            booked && styles.bookedSlotText,
+                          ]}
+                        >
+                          {slot}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              )}
 
               {showDatePicker && (
                 <DateTimePicker
                   value={date}
                   mode="date"
+                  minimumDate={new Date()}
                   onValueChange={(
                     _event,
                     selectedDate,
                   ) => {
                     setShowDatePicker(false);
-                    setDate(selectedDate);
+                    if (selectedDate) {
+                      setDate(selectedDate);
+                      setSelectedSlot(null);
+                    }
                   }}
                   onDismiss={() =>
                     setShowDatePicker(false)
                   }
                 />
               )}
-
-              {showTimePicker && (
-                <DateTimePicker
-                  value={date}
-                  mode="time"
-                  onValueChange={(
-                    _event,
-                    selectedDate,
-                  ) => {
-                    setShowTimePicker(false);
-                    setDate(selectedDate);
-                  }}
-                  onDismiss={() =>
-                    setShowTimePicker(false)
-                  }
-                />
-              )}
             </View>
+
+            {!slotsLoading && !slotsError && availableSlots.length === 0 && (
+              <Text style={styles.slotHint}>
+                No available slots for this center on the selected date.
+              </Text>
+            )}
 
             <AppButton
               title={
@@ -365,7 +511,9 @@ const BookAppointmentScreen = () => {
               loading={appointmentLoading}
               disabled={
                 !selectedServiceId ||
+                !selectedSlot ||
                 appointmentLoading ||
+                slotsLoading ||
                 centerServices.length === 0
               }
               onPress={handleBook}
@@ -472,5 +620,56 @@ const styles = StyleSheet.create({
   dateText: {
     color: colors.text,
     fontSize: typography.body,
+  },
+
+  slotRow: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+    paddingTop: spacing.xs,
+  },
+
+  slotChip: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+
+  selectedSlotChip: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+
+  bookedSlotChip: {
+    backgroundColor: colors.border,
+    opacity: 0.55,
+  },
+
+  slotText: {
+    color: colors.text,
+    fontSize: typography.small,
+    fontWeight: '700',
+  },
+
+  selectedSlotText: {
+    color: '#FFF',
+  },
+
+  bookedSlotText: {
+    color: colors.textSecondary,
+  },
+
+  slotHint: {
+    color: colors.textSecondary,
+    fontSize: typography.small,
+    marginBottom: spacing.md,
+  },
+
+  slotError: {
+    color: colors.error,
+    fontSize: typography.small,
+    marginBottom: spacing.md,
   },
 });

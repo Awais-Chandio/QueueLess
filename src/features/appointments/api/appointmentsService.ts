@@ -4,6 +4,13 @@ import {
   Appointment,
   AppointmentFull,
 } from '../../../types/appointment';
+import {
+  APPOINTMENT_SLOT_LABELS,
+  getScheduledAtFromSlot,
+  isPastAppointmentDate,
+  isPastAppointmentSlot,
+  normalizeAppointmentTimeSlot,
+} from '../utils/appointmentTime';
 
 const appointmentFullSelect =
   'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, current_position, people_ahead, queue_status, current_serving_token';
@@ -22,6 +29,8 @@ type CreateAppointmentPayload = {
   center_id: string;
   service_id: string;
   scheduled_at: string;
+  appointment_date?: string;
+  appointment_time?: string;
 };
 
 const shouldFallbackFromAppointmentsFull = (
@@ -169,11 +178,104 @@ const fetchAppointmentFromTable = async (
   return appointment ?? null;
 };
 
+const getBookedSlotsByDate = async (
+  appointmentDate: string,
+  centerId?: string,
+) => {
+  const start = getScheduledAtFromSlot(appointmentDate, '12:00 AM');
+  const end = new Date(`${appointmentDate}T00:00:00`);
+  end.setDate(end.getDate() + 1);
+
+  let fallbackQuery = supabase
+    .from('appointments')
+    .select('scheduled_at, status')
+    .gte('scheduled_at', start)
+    .lt('scheduled_at', end.toISOString())
+    .neq('status', 'cancelled');
+
+  if (centerId) {
+    fallbackQuery = fallbackQuery.eq('center_id', centerId);
+  }
+
+  const fallback = await fallbackQuery;
+
+  if (fallback.error) {
+    throw new Error(fallback.error.message);
+  }
+
+  return new Set(
+    (fallback.data ?? []).map(item => {
+      const slot = new Date(item.scheduled_at).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      return normalizeAppointmentTimeSlot(slot) ?? slot;
+    }),
+  );
+};
+
 export const appointmentsService = {
+  async getAvailableSlots(
+    appointmentDate: string,
+    centerId?: string,
+  ): Promise<string[]> {
+    console.log('[SLOTS] Fetching available slots:', {
+      appointmentDate,
+      centerId: centerId ?? null,
+    });
+
+    const bookedSlots = await getBookedSlotsByDate(appointmentDate, centerId);
+    const availableSlots = APPOINTMENT_SLOT_LABELS.filter(
+      slot =>
+        !bookedSlots.has(slot) &&
+        !isPastAppointmentDate(appointmentDate) &&
+        !isPastAppointmentSlot(appointmentDate, slot),
+    );
+
+    console.log('[SLOTS] Available slots calculated:', {
+      appointmentDate,
+      bookedSlots: [...bookedSlots],
+      availableSlots,
+    });
+
+    return availableSlots;
+  },
+
   async createAppointment(
     payload: CreateAppointmentPayload,
   ): Promise<Appointment> {
     const authenticatedUserId = await getAuthenticatedUserId(payload.user_id);
+    const appointmentDate = payload.appointment_date;
+    const appointmentTime = payload.appointment_time;
+
+    if (appointmentDate && appointmentTime) {
+      if (
+        isPastAppointmentDate(appointmentDate) ||
+        isPastAppointmentSlot(appointmentDate, appointmentTime)
+      ) {
+        console.warn('[SLOTS] Past slot booking prevented:', {
+          centerId: payload.center_id,
+          appointmentDate,
+          appointmentTime,
+        });
+        throw new Error('Please select a future time slot.');
+      }
+
+      const availableSlots = await this.getAvailableSlots(
+        appointmentDate,
+        payload.center_id,
+      );
+
+      if (!availableSlots.includes(appointmentTime)) {
+        console.warn('[SLOTS] Duplicate slot prevented before insert:', {
+          centerId: payload.center_id,
+          appointmentDate,
+          appointmentTime,
+        });
+        throw new Error('This slot is already booked.');
+      }
+    }
 
     const insertPayload = {
       user_id: authenticatedUserId,
@@ -185,13 +287,41 @@ export const appointmentsService = {
     console.log('[DEBUG USER]', authenticatedUserId);
     console.log('[DEBUG PAYLOAD]', insertPayload);
     
-    const { data, error } = await supabase
+    const response = await supabase
       .from('appointments')
       .insert(insertPayload)
       .select('id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at')
       .single();
 
+    let data = response.data as Appointment | null;
+    let error = response.error;
+
+    if (error?.code === '42703') {
+      const fallbackPayload = {
+        user_id: authenticatedUserId,
+        center_id: payload.center_id,
+        service_id: payload.service_id,
+        scheduled_at: new Date(payload.scheduled_at).toISOString(),
+      };
+
+      const fallback = await supabase
+        .from('appointments')
+        .insert(fallbackPayload)
+        .select('id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at')
+        .single();
+
+      data = fallback.data as Appointment | null;
+      error = fallback.error;
+    }
+
     if (error) {
+      if (
+        error.code === '23505' ||
+        error.message.toLowerCase().includes('duplicate')
+      ) {
+        throw new Error('This slot is already booked.');
+      }
+
       console.error('[DEBUG] Failed to create appointment:', error.message);
       throw new Error(error.message);
     }
@@ -417,7 +547,7 @@ export const appointmentsService = {
   async cancelAppointment(
     appointmentId: string,
     reason?: string,
-  ): Promise<{ success: true }> {
+  ): Promise<AppointmentFull> {
     try {
       console.log('[DEBUG] Cancelling appointment:', appointmentId);
 
@@ -438,7 +568,9 @@ export const appointmentsService = {
       }
 
       console.log('[DEBUG] Appointment cancelled successfully');
-      return { success: true };
+      const appointment = await appointmentsService.fetchAppointmentById(appointmentId);
+      if (!appointment) throw new Error('Appointment not found after cancellation');
+      return appointment;
     } catch (err: any) {
       console.error('[APPOINTMENTS] Cancel error:', err.message);
       throw err;
