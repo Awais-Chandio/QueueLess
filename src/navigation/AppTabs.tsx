@@ -73,7 +73,8 @@ const getRealtimeNotification = (value: unknown): Notification | null => {
         typeof row.title !== "string" ||
         typeof row.message !== "string" ||
         typeof row.is_read !== "boolean" ||
-        typeof row.created_at !== "string"
+        typeof row.created_at !== "string" ||
+        typeof row.type !== "string"
     ) {
         return null;
     }
@@ -86,6 +87,8 @@ const getRealtimeNotification = (value: unknown): Notification | null => {
         is_read: row.is_read,
         created_at: row.created_at,
         appointment_id: row.appointment_id ?? null,
+        type: row.type,
+        data: row.data,
     };
 };
 

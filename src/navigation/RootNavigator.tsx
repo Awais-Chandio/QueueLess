@@ -18,7 +18,7 @@ const RootNavigator = () => {
   }
 
   if (!role) {
-    return <SplashScreen />;
+    return <SplashScreen message="Resolving user role..." />;
   }
 
   const route = getUserRoute(role);

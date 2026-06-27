@@ -90,6 +90,8 @@ export const fetchDashboardStats = async (userId: string) => {
           scheduledAt: activeAppointment.scheduled_at,
           status: activeAppointment.status,
           tokenNumber: activeAppointment.token_number,
+          appointmentDate: activeAppointment.appointment_date,
+          appointmentTime: activeAppointment.appointment_time,
         }
       : null,
   };

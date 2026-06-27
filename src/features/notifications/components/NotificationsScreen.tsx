@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Bell, CheckCheck, CalendarClock, CheckCircle, BellRing, XCircle } from 'lucide-react-native';
+import { Bell, CheckCheck, CalendarClock, CheckCircle, BellRing, XCircle, Stethoscope, Info } from 'lucide-react-native';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
@@ -21,6 +21,30 @@ import { toastService } from '../../../services/toastService';
 import type { Notification } from '../../../types/notification';
 import { scaleFont } from '../../../utils/responsive';
 import { notificationsService } from '../api/notificationsService';
+
+// Category metadata per notification type
+type NotifMeta = { icon: any; color: string; category: string };
+const getNotifMeta = (
+  type: string,
+  colors: any,
+): NotifMeta => {
+  switch (type) {
+    case 'appointment_booked':
+      return { icon: CalendarClock, color: colors.primary, category: 'Appointment' };
+    case 'appointment_confirmed':
+      return { icon: CheckCircle, color: colors.success, category: 'Appointment' };
+    case 'token_called':
+      return { icon: BellRing, color: '#8B5CF6', category: 'Queue' };
+    case 'appointment_completed':
+      return { icon: CheckCheck, color: colors.success, category: 'Appointment' };
+    case 'appointment_cancelled':
+      return { icon: XCircle, color: colors.error, category: 'Appointment' };
+    case 'system':
+      return { icon: Stethoscope, color: colors.info, category: 'System' };
+    default:
+      return { icon: Bell, color: colors.primary, category: 'General' };
+  }
+};
 
 const NotificationsScreen = () => {
   const { colors, spacing, typography } = useTheme();
@@ -104,117 +128,114 @@ const NotificationsScreen = () => {
     }
   }, [setNotifications, storeNotifications, userId]);
 
-  const getNotificationIcon = (type: string, isRead: boolean) => {
-    const iconProps = { size: scaleFont(20) };
-    
-    switch (type) {
-      case 'appointment_booked':
-        return <CalendarClock {...iconProps} color={isRead ? colors.textSecondary : colors.primary} />;
-      case 'appointment_confirmed':
-        return <CheckCircle {...iconProps} color={isRead ? colors.textSecondary : colors.success} />;
-      case 'token_called':
-        return <BellRing {...iconProps} color={isRead ? colors.textSecondary : colors.info} />;
-      case 'appointment_completed':
-        return <CheckCheck {...iconProps} color={isRead ? colors.textSecondary : colors.success} />;
-      case 'appointment_cancelled':
-        return <XCircle {...iconProps} color={isRead ? colors.textSecondary : colors.error} />;
-      default:
-        return <Bell {...iconProps} color={isRead ? colors.textSecondary : colors.primary} />;
-    }
-  };
+  const renderNotification = (item: Notification) => {
+    const { icon: NotifIcon, color, category } = getNotifMeta(item.type, colors);
+    const activeColor = item.is_read ? colors.textSecondary : color;
 
-  const renderNotification = (item: Notification) => (
-    <Pressable
-      key={item.id}
-      onPress={() => {
-        if (!item.is_read) {
-          handleMarkAsRead(item.id);
-        }
-      }}
-    >
-      <Card
-        style={[
-          styles.notificationCard,
-          {
-            marginBottom: spacing.md,
-            backgroundColor: item.is_read ? colors.surface : colors.primary + '10',
-          },
-        ]}
+    return (
+      <Pressable
+        key={item.id}
+        onPress={() => {
+          if (!item.is_read) {
+            handleMarkAsRead(item.id);
+          }
+        }}
+        style={({ pressed }) => pressed ? { opacity: 0.85 } : {}}
       >
-        <View style={[styles.notificationRow, { gap: spacing.md }]}>
-          {getNotificationIcon(item.type, item.is_read)}
-          <View style={styles.notificationBody}>
-            <Text
+        <Card
+          style={[
+            styles.notificationCard,
+            {
+              marginBottom: spacing.md,
+              backgroundColor: item.is_read ? colors.surface : colors.primary + '06',
+              borderLeftWidth: 3,
+              borderLeftColor: activeColor + (item.is_read ? '40' : 'CC'),
+              overflow: 'hidden',
+            },
+          ]}
+        >
+          <View style={[styles.notificationRow, { gap: spacing.md }]}>
+            {/* Icon in circle pill */}
+            <View
               style={[
-                styles.notificationTitle,
+                styles.iconPill,
                 {
-                  color: colors.text,
-                  fontSize: typography.sizes.md,
-                },
-                item.is_read
-                  ? styles.readNotificationTitle
-                  : styles.unreadNotificationTitle,
-              ]}
-            >
-              {item.title}
-            </Text>
-            <Text
-              style={[
-                styles.notificationMessage,
-                {
-                  color: colors.textSecondary,
-                  fontSize: typography.sizes.sm,
-                  marginTop: spacing.xs,
+                  backgroundColor: activeColor + '18',
+                  width: scaleFont(40),
+                  height: scaleFont(40),
+                  borderRadius: scaleFont(20),
                 },
               ]}
             >
-              {item.message}
-            </Text>
-            <Text
-              style={[
-                styles.notificationTime,
-                {
-                  color: colors.textSecondary,
-                  fontSize: typography.sizes.xs,
-                  marginTop: spacing.sm,
-                },
-              ]}
-            >
-              {new Date(item.created_at).toLocaleString()}
-            </Text>
-            {!!item.appointment_id && (
+              <NotifIcon size={scaleFont(19)} color={activeColor} />
+            </View>
+
+            <View style={styles.notificationBody}>
+              {/* Category chip */}
+              <View style={[styles.categoryChip, { backgroundColor: activeColor + '14', borderColor: activeColor + '30', marginBottom: scaleFont(4) }]}>
+                <Text style={{ color: activeColor, fontSize: scaleFont(10), fontWeight: '600' }}>
+                  {category}
+                </Text>
+              </View>
+
               <Text
                 style={[
-                  styles.appointmentLink,
+                  styles.notificationTitle,
+                  {
+                    color: colors.text,
+                    fontSize: typography.sizes.md,
+                  },
+                  item.is_read
+                    ? styles.readNotificationTitle
+                    : styles.unreadNotificationTitle,
+                ]}
+              >
+                {item.title}
+              </Text>
+              <Text
+                style={[
+                  styles.notificationMessage,
                   {
                     color: colors.textSecondary,
-                    fontSize: typography.sizes.xs,
+                    fontSize: typography.sizes.sm,
                     marginTop: spacing.xs,
                   },
                 ]}
               >
-                Appointment linked
+                {item.message}
               </Text>
+              <Text
+                style={[
+                  styles.notificationTime,
+                  {
+                    color: colors.textTertiary,
+                    fontSize: typography.sizes.xs,
+                    marginTop: spacing.sm,
+                  },
+                ]}
+              >
+                {new Date(item.created_at).toLocaleString()}
+              </Text>
+            </View>
+
+            {/* Unread indicator bar */}
+            {!item.is_read && (
+              <View
+                style={{
+                  width: scaleFont(6),
+                  height: scaleFont(6),
+                  borderRadius: scaleFont(3),
+                  backgroundColor: color,
+                  alignSelf: 'flex-start',
+                  marginTop: scaleFont(4),
+                }}
+              />
             )}
           </View>
-          {!item.is_read && (
-            <View
-              style={[
-                styles.unreadDot,
-                {
-                  backgroundColor: colors.primary,
-                  borderRadius: scaleFont(4),
-                  height: scaleFont(8),
-                  marginTop: spacing.sm,
-                  width: scaleFont(8),
-                },
-              ]}
-            />
-          )}
-        </View>
-      </Card>
-    </Pressable>
-  );
+        </Card>
+      </Pressable>
+    );
+  };
 
   if (error) {
     return (
@@ -244,20 +265,24 @@ const NotificationsScreen = () => {
   return (
     <ScreenWrapper>
       <View style={[styles.header, { marginBottom: spacing.lg }]}>
-        <View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(8) }}>
           <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
             Notifications
           </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
-            {unreadCount} unread
-          </Text>
+          {unreadCount > 0 && (
+            <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
+              <Text style={{ color: '#FFF', fontSize: scaleFont(11), fontWeight: '700' }}>
+                {unreadCount}
+              </Text>
+            </View>
+          )}
         </View>
         {unreadCount > 0 && (
           <Pressable
             onPress={handleMarkAllAsRead}
-            style={styles.markAllButton}
+            style={({ pressed }) => [styles.markAllButton, pressed && { opacity: 0.7 }]}
           >
-            <CheckCheck size={scaleFont(16)} color={colors.primary} />
+            <CheckCheck size={scaleFont(15)} color={colors.primary} />
             <Text
               style={[
                 styles.markAllText,
@@ -315,7 +340,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  appointmentLink: {},
+  unreadBadge: {
+    borderRadius: scaleFont(10),
+    paddingHorizontal: scaleFont(7),
+    paddingVertical: scaleFont(2),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   listContent: {
     flexGrow: 1,
   },
@@ -335,6 +366,7 @@ const styles = StyleSheet.create({
   },
   notificationRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
   },
   notificationTime: {},
   notificationTitle: {},
@@ -344,8 +376,19 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: 'bold',
   },
-  unreadDot: {},
   unreadNotificationTitle: {
     fontWeight: '700',
+  },
+  iconPill: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  categoryChip: {
+    alignSelf: 'flex-start',
+    borderRadius: scaleFont(4),
+    borderWidth: 1,
+    paddingHorizontal: scaleFont(6),
+    paddingVertical: scaleFont(2),
   },
 });

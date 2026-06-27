@@ -54,8 +54,13 @@ export const useProfileStore = create<ProfileState>((set) => ({
                 set({ error: error.message, isLoading: false });
                 return;
             }
-            set({ profile: data, isLoading: false });
-            await useProfileStore.getState().fetchProfile(userId);
+            // Use the data returned by the update directly — no second fetch needed.
+            if (data) {
+                set({ profile: data, isLoading: false });
+            } else {
+                // Fallback: re-fetch only if the update returned no data.
+                await useProfileStore.getState().fetchProfile(userId);
+            }
         } catch (e) {
             const message = e instanceof Error ? e.message : 'Network error while updating profile';
             set({ error: message, isLoading: false });
@@ -71,8 +76,14 @@ export const useProfileStore = create<ProfileState>((set) => ({
                 return;
             }
 
-            set({ profile: data, isUploadingAvatar: false });
-            await useProfileStore.getState().fetchProfile(userId);
+            // Use the data returned by the upload directly — no second fetch needed.
+            if (data) {
+                set({ profile: data, isUploadingAvatar: false });
+            } else {
+                // Fallback: re-fetch only if the upload returned no data.
+                await useProfileStore.getState().fetchProfile(userId);
+                set({ isUploadingAvatar: false });
+            }
         } catch (e) {
             const message = e instanceof Error ? e.message : 'Network error while uploading avatar';
             set({ error: message, isUploadingAvatar: false });

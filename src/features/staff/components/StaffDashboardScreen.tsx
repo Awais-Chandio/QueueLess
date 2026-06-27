@@ -1,36 +1,32 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  FlatList,
   Modal,
   Pressable,
-  RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
   Alert,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertCircle,
   BellRing,
-  CalendarDays,
   CheckCircle2,
-  Clock,
-  Hourglass,
-  Search,
   Users,
+  Clock,
   XCircle,
+  ClipboardList,
+  Activity,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
-import { Badge, BadgeVariant } from '../../../components/ui/Badge';
+import { StatusChip } from '../../../components/ui/StatusChip';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Skeleton } from '../../../components/ui/Skeleton';
+import { ProgressBar } from '../../../components/ui/ProgressBar';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
 import { useStaffQueueStore } from '../../../store/staffQueueStore';
@@ -41,40 +37,16 @@ import type {
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { staffQueueService } from '../api/staffQueueService';
-import type { StaffDashboardScope } from '../api/staffQueueService';
 import {
-  getAppointmentDateLabel,
   getAppointmentTimeLabel,
 } from '../../appointments/utils/appointmentTime';
 import {
   subscribeToAppointments,
   unsubscribeAppointments,
 } from '../../queue/api/queueService';
-
-type StatusFilter =
-  | 'all'
-  | 'pending'
-  | 'confirmed'
-  | 'checked_in'
-  | 'called'
-  | 'in_progress'
-  | 'completed'
-  | 'cancelled';
+import { getAppointmentStatusState } from '../../../services/bookingService';
 
 type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service';
-
-const statusFilters: StatusFilter[] = [
-  'all',
-  'pending',
-  'confirmed',
-  'checked_in',
-  'called',
-  'in_progress',
-  'completed',
-  'cancelled',
-];
-
-const queueScopes: StaffDashboardScope[] = ['today', 'upcoming', 'history'];
 
 const cancelReasons: CancelReason[] = [
   'Patient Requested',
@@ -89,25 +61,6 @@ const statusLabel = (status: string) =>
     .split('_')
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
-
-const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
-  switch (status) {
-    case 'confirmed':
-      return 'info';
-    case 'checked_in':
-      return 'success';
-    case 'called':
-    case 'in_progress':
-      return 'warning';
-    case 'completed':
-      return 'success';
-    case 'cancelled':
-      return 'error';
-    case 'pending':
-    default:
-      return 'default';
-  }
-};
 
 const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
   switch (status) {
@@ -133,18 +86,14 @@ const StaffDashboardScreen = () => {
     state => state.setAppointments,
   );
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
-  const [selectedScope, setSelectedScope] =
-    useState<StaffDashboardScope>('today');
   const [cancelTarget, setCancelTarget] = useState<AppointmentFull | null>(
     null,
   );
   const isFocused = useIsFocused();
 
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
-    queryKey: ['staff-dashboard', selectedScope],
-    queryFn: () => staffQueueService.fetchDashboard(selectedScope),
+    queryKey: ['staff-dashboard', 'today'],
+    queryFn: () => staffQueueService.fetchDashboard('today'),
     refetchOnMount: 'always',
     staleTime: 0,
   });
@@ -154,13 +103,20 @@ const StaffDashboardScreen = () => {
     [data?.appointments],
   );
   const stats = data?.stats;
-  const hasActiveService = appointments.some(
-    appointment =>
-      appointment.status === 'called' || appointment.status === 'in_progress',
+
+  const hasActiveService = useMemo(
+    () => appointments.some(
+      appointment =>
+        appointment.status === 'called' || appointment.status === 'in_progress',
+    ),
+    [appointments]
   );
-  const nextCallableAppointmentId =
-    appointments.find(appointment => appointment.status === 'checked_in')?.id ??
-    appointments.find(appointment => appointment.status === 'confirmed')?.id;
+
+  const nextCallableAppointmentId = useMemo(
+    () => appointments.find(appointment => appointment.status === 'checked_in')?.id ??
+      appointments.find(appointment => appointment.status === 'confirmed')?.id,
+    [appointments]
+  );
 
   useEffect(() => {
     if (appointments.length || data) {
@@ -172,7 +128,7 @@ const StaffDashboardScreen = () => {
     if (!isFocused) return;
 
     const channel = subscribeToAppointments({
-      channelName: `staff-dashboard-${selectedScope}-${Date.now()}`,
+      channelName: `staff-dashboard-today-${Date.now()}`,
       onChange: () => {
         queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
       },
@@ -181,7 +137,7 @@ const StaffDashboardScreen = () => {
     return () => {
       unsubscribeAppointments(channel);
     };
-  }, [queryClient, isFocused, selectedScope]);
+  }, [queryClient, isFocused]);
 
   const refreshDashboard = useCallback(async () => {
     await refetch();
@@ -221,66 +177,21 @@ const StaffDashboardScreen = () => {
     },
   });
 
-  const filteredAppointments = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
+  const pendingAppointments = useMemo(
+    () => appointments.filter(item => {
+      const { resolvedStatus } = getAppointmentStatusState(item);
+      return resolvedStatus === 'pending';
+    }),
+    [appointments]
+  );
 
-    return appointments.filter(appointment => {
-      const matchesStatus =
-        selectedStatus === 'all' || appointment.status === selectedStatus;
-      const token = appointment.token_number?.toString() ?? '';
-      const patientName = appointment.patient_name?.toLowerCase() ?? '';
-      const matchesSearch =
-        !normalizedSearch ||
-        patientName.includes(normalizedSearch) ||
-        token.includes(normalizedSearch);
-
-      return matchesStatus && matchesSearch;
-    });
-  }, [appointments, searchQuery, selectedStatus]);
-
-  const statCards = [
-    {
-      label:
-        selectedScope === 'today'
-          ? 'Total Today'
-          : selectedScope === 'upcoming'
-          ? 'Upcoming'
-          : 'History',
-      value: stats?.totalToday ?? 0,
-      color: colors.primary,
-      Icon: CalendarDays,
-    },
-    {
-      label: 'Pending',
-      value: stats?.pending ?? 0,
-      color: colors.warning,
-      Icon: Hourglass,
-    },
-    {
-      label: 'Confirmed',
-      value: stats?.confirmed ?? 0,
-      color: colors.info,
-      Icon: Clock,
-    },
-    {
-      label: 'Completed',
-      value: stats?.completed ?? 0,
-      color: colors.success,
-      Icon: CheckCircle2,
-    },
-    {
-      label: 'Cancelled',
-      value: stats?.cancelled ?? 0,
-      color: colors.error,
-      Icon: XCircle,
-    },
-    {
-      label: 'Active Queue',
-      value: stats?.activeQueue ?? 0,
-      color: colors.primary,
-      Icon: Users,
-    },
-  ];
+  const queueAppointments = useMemo(
+    () => appointments.filter(item => {
+      const { resolvedStatus } = getAppointmentStatusState(item);
+      return ['confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus);
+    }),
+    [appointments]
+  );
 
   const renderActionButton = (
     action: QueueAction,
@@ -337,100 +248,82 @@ const StaffDashboardScreen = () => {
     );
   };
 
-  const renderAppointment = ({ item }: { item: AppointmentFull }) => {
-    const actions = getAvailableActions(item.status);
+  const renderAppointmentItem = (item: AppointmentFull, index: number, isPendingSection: boolean) => {
+    const { resolvedStatus } = getAppointmentStatusState(item);
+    const actions = getAvailableActions(resolvedStatus);
 
     return (
-      <Card style={{ marginBottom: spacing.md }} variant="outlined">
-        <View style={styles.appointmentHeader}>
-          <View style={styles.appointmentTitleWrap}>
-            <Text
-              style={[
-                styles.tokenText,
-                { color: colors.primary, fontSize: typography.sizes.xl },
-              ]}
-            >
-              {typeof item.token_number === 'number'
-                ? `#${item.token_number}`
-                : 'No Token'}
-            </Text>
-            <Text
-              style={[
-                styles.patientName,
-                { color: colors.text, fontSize: typography.sizes.md },
-              ]}
-            >
-              {item.patient_name ?? 'Patient'}
-            </Text>
+      <View
+        key={item.id}
+        style={[
+          styles.itemContainer,
+          index > 0 && {
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            paddingTop: spacing.md,
+            marginTop: spacing.md,
+          },
+        ]}
+      >
+        <View style={styles.itemHeader}>
+          <View style={styles.itemTitleWrap}>
+            <View style={styles.itemMainRow}>
+              {/* Token badge pill */}
+              <View style={[styles.tokenPill, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30`, borderWidth: 1 }]}>
+                <Text
+                  style={[
+                    styles.tokenText,
+                    { color: colors.primary, fontSize: typography.sizes.md },
+                  ]}
+                >
+                  {typeof item.token_number === 'number'
+                    ? `#${item.token_number}`
+                    : 'No Token'}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.patientName,
+                  { color: colors.text, fontSize: typography.sizes.md },
+                ]}
+              >
+                {item.patient_name ?? 'Patient'}
+              </Text>
+            </View>
             <Text
               style={[
                 styles.metaText,
-                { color: colors.textSecondary, fontSize: typography.sizes.sm },
+                { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: scaleFont(2) },
               ]}
             >
-              {item.service_name ?? 'Service'} • Appointment Time:{' '}
-              {getAppointmentTimeLabel(item)}
-            </Text>
-            <Text
-              style={[
-                styles.metaText,
-                { color: colors.textSecondary, fontSize: typography.sizes.sm },
-              ]}
-            >
-              Date: {getAppointmentDateLabel(item)}
+              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)}
             </Text>
           </View>
-          <Badge
-            label={statusLabel(item.status)}
-            variant={getStatusVariant(item.status)}
-          />
+          {!isPendingSection && (
+            <StatusChip
+              status={resolvedStatus}
+              label={statusLabel(resolvedStatus)}
+              size="sm"
+            />
+          )}
         </View>
 
-        <View style={[styles.queueMetaRow, { marginTop: spacing.md }]}>
-          <Text
-            style={[
-              styles.metaText,
-              { color: colors.textSecondary, fontSize: typography.sizes.sm },
-            ]}
-          >
-            Position: {item.current_position ?? '--'}
-          </Text>
-          <Text
-            style={[
-              styles.metaText,
-              { color: colors.textSecondary, fontSize: typography.sizes.sm },
-            ]}
-          >
-            Ahead: {item.people_ahead ?? '--'}
-          </Text>
-          <Text
-            style={[
-              styles.metaText,
-              { color: colors.textSecondary, fontSize: typography.sizes.sm },
-            ]}
-          >
-            Wait: {item.estimated_wait_mins ?? 0}m
-          </Text>
-        </View>
-
-        {item.status === 'checked_in' && (
+        {resolvedStatus === 'checked_in' && (
           <View
             style={[
-              styles.arrivedStatus,
+              styles.statusAlert,
               {
-                backgroundColor: `${colors.success}18`,
-                borderColor: `${colors.success}55`,
-                marginTop: spacing.md,
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
+                backgroundColor: `${colors.success}10`,
+                borderColor: `${colors.success}30`,
+                marginTop: spacing.sm,
               },
             ]}
           >
-            <CheckCircle2 color={colors.success} size={scaleFont(18)} />
+            <CheckCircle2 color={colors.success} size={scaleFont(13)} />
             <Text
               style={{
                 color: colors.success,
-                fontSize: typography.sizes.sm,
+                fontSize: typography.sizes.xs,
                 fontWeight: '700',
               }}
             >
@@ -439,24 +332,22 @@ const StaffDashboardScreen = () => {
           </View>
         )}
 
-        {item.status === 'called' && (
+        {resolvedStatus === 'called' && (
           <View
             style={[
-              styles.arrivedStatus,
+              styles.statusAlert,
               {
-                backgroundColor: `${colors.info}18`,
-                borderColor: `${colors.info}55`,
-                marginTop: spacing.md,
-                paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
+                backgroundColor: `${colors.info}10`,
+                borderColor: `${colors.info}30`,
+                marginTop: spacing.sm,
               },
             ]}
           >
-            <BellRing color={colors.info} size={scaleFont(18)} />
+            <BellRing color={colors.info} size={scaleFont(13)} />
             <Text
               style={{
                 color: colors.info,
-                fontSize: typography.sizes.sm,
+                fontSize: typography.sizes.xs,
                 fontWeight: '700',
               }}
             >
@@ -465,7 +356,7 @@ const StaffDashboardScreen = () => {
           </View>
         )}
 
-        {actions.length ? (
+        {actions.length > 0 && (
           <View
             style={[
               styles.actionsRow,
@@ -474,34 +365,27 @@ const StaffDashboardScreen = () => {
           >
             {actions.map(action => renderActionButton(action, item))}
           </View>
-        ) : (
-          <Text
-            style={[
-              styles.readOnlyText,
-              { color: colors.textSecondary, marginTop: spacing.md },
-            ]}
-          >
-            Read only
-          </Text>
         )}
-      </Card>
+      </View>
     );
   };
 
   if (isLoading) {
     return (
-      <ScreenWrapper>
-        <Text
-          style={[
-            styles.title,
-            { color: colors.text, fontSize: typography.sizes.xxl },
-          ]}
-        >
-          Staff Dashboard
-        </Text>
+      <ScreenWrapper scrollable>
+        <View style={styles.header}>
+          <Text
+            style={[
+              styles.title,
+              { color: colors.text, fontSize: typography.sizes.xxl },
+            ]}
+          >
+            Staff Dashboard
+          </Text>
+        </View>
         <View style={{ gap: spacing.md }}>
-          <Skeleton height={90} />
-          <Skeleton height={90} />
+          <Skeleton height={120} />
+          <Skeleton height={150} />
           <Skeleton height={150} />
         </View>
       </ScreenWrapper>
@@ -510,7 +394,7 @@ const StaffDashboardScreen = () => {
 
   if (isError) {
     return (
-      <ScreenWrapper>
+      <ScreenWrapper scrollable>
         <ErrorState
           title="Dashboard Unavailable"
           message={error instanceof Error ? error.message : 'Please try again.'}
@@ -521,227 +405,169 @@ const StaffDashboardScreen = () => {
     );
   }
 
+  const totalToday = stats?.totalToday ?? 0;
+  const activeQueue = stats?.activeQueue ?? 0;
+  const queueProgress = totalToday > 0 ? activeQueue / totalToday : 0;
+
+  const statItems = [
+    { label: 'Total Today', value: totalToday, color: colors.primary, Icon: ClipboardList },
+    { label: 'Pending', value: stats?.pending ?? 0, color: colors.warning, Icon: Clock },
+    { label: 'Active Queue', value: activeQueue, color: colors.info, Icon: Users, showProgress: true },
+    { label: 'Completed', value: stats?.completed ?? 0, color: colors.success, Icon: CheckCircle2 },
+    { label: 'Cancelled', value: stats?.cancelled ?? 0, color: colors.error, Icon: XCircle },
+  ];
+
   return (
-    <ScreenWrapper withPadding={false}>
-      <FlatList
-        data={filteredAppointments}
-        keyExtractor={item => item.id}
-        renderItem={renderAppointment}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            tintColor={colors.primary}
-            onRefresh={refreshDashboard}
-          />
-        }
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingHorizontal: wp(4), paddingVertical: hp(2) },
-        ]}
-        ListHeaderComponent={
-          <View>
-            <View style={styles.header}>
-              <View>
-                <Text
-                  style={[
-                    styles.title,
-                    { color: colors.text, fontSize: typography.sizes.xxl },
-                  ]}
-                >
-                  Staff Dashboard
-                </Text>
-                <Text
-                  style={[
-                    styles.subtitle,
-                    {
-                      color: colors.textSecondary,
-                      fontSize: typography.sizes.md,
-                    },
-                  ]}
-                >
-                  Queue control panel
-                </Text>
+    <ScreenWrapper
+      scrollable
+      onRefresh={refreshDashboard}
+      refreshing={isRefetching}
+    >
+      <View style={styles.header}>
+        <View>
+          <Text
+            style={[
+              styles.title,
+              { color: colors.text, fontSize: typography.sizes.xxl },
+            ]}
+          >
+            Staff Dashboard
+          </Text>
+          <Text
+            style={[
+              styles.subtitle,
+              {
+                color: colors.textSecondary,
+                fontSize: typography.sizes.sm,
+              },
+            ]}
+          >
+            Today's Queue Control
+          </Text>
+        </View>
+        <AppButton
+          title="Logout"
+          variant="outline"
+          onPress={logout}
+          style={styles.logoutButton}
+        />
+      </View>
+
+      {/* Card 1: Today's Stats */}
+      <CardFadeIn delay={0}>
+        <View style={{ marginBottom: spacing.lg }}>
+          <Card variant="elevated" style={styles.cardContent}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                <Activity size={scaleFont(16)} color={colors.primary} />
               </View>
-              <AppButton
-                title="Logout"
-                variant="outline"
-                onPress={logout}
-                style={styles.logoutButton}
-              />
+              <Text
+                style={[
+                  styles.cardTitle,
+                  { color: colors.text, fontSize: typography.sizes.lg, marginLeft: spacing.sm },
+                ]}
+              >
+                Today's Stats
+              </Text>
             </View>
 
-            <View style={[styles.statsGrid, { gap: wp(3) }]}>
-              {statCards.map(({ label, value, color, Icon }) => (
-                <Card key={label} style={styles.statCard}>
-                  <View style={styles.statHeader}>
-                    <Icon color={color} size={scaleFont(20)} />
-                    <Text
-                      style={[
-                        styles.statValue,
-                        { color, fontSize: typography.sizes.xl },
-                      ]}
-                    >
-                      {value}
-                    </Text>
-                  </View>
-                  <Text
+            <View style={styles.statsGrid}>
+              {statItems.map(item => {
+                const Icon = item.Icon;
+                return (
+                  <View
+                    key={item.label}
                     style={[
-                      styles.statLabel,
+                      styles.statGridItem,
                       {
-                        color: colors.textSecondary,
-                        fontSize: typography.sizes.xs,
+                        backgroundColor: item.color + '08',
+                        borderColor: item.color + '25',
+                        borderRadius: scaleFont(10),
+                        borderWidth: 1,
+                        borderTopWidth: 3,
+                        borderTopColor: item.color,
+                        overflow: 'hidden',
                       },
                     ]}
                   >
-                    {label}
-                  </Text>
-                </Card>
-              ))}
+                    <View style={styles.statGridHeader}>
+                      <View style={[styles.statGridIconPill, { backgroundColor: item.color + '20' }]}>
+                        <Icon size={scaleFont(13)} color={item.color} />
+                      </View>
+                    </View>
+                    <Text style={[styles.statGridValue, { color: item.color, fontSize: typography.sizes.xl }]}>
+                      {item.value}
+                    </Text>
+                    <Text style={[styles.statGridLabel, { color: colors.textSecondary, fontSize: typography.caption }]}>
+                      {item.label}
+                    </Text>
+                    {(item as any).showProgress && totalToday > 0 && (
+                      <View style={{ marginTop: scaleFont(4) }}>
+                        <ProgressBar
+                          progress={queueProgress}
+                          color={item.color}
+                          height={scaleFont(3)}
+                          trackColor={item.color + '20'}
+                        />
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
+          </Card>
+        </View>
+      </CardFadeIn>
 
+      {/* Card 2: Pending Appointments */}
+      <CardFadeIn delay={60}>
+        <View style={{ marginBottom: spacing.lg }}>
+          <Card variant="elevated" style={styles.cardContent}>
             <Text
               style={[
-                styles.sectionTitle,
-                {
-                  color: colors.text,
-                  fontSize: typography.sizes.lg,
-                  marginTop: spacing.xl,
-                },
+                styles.cardTitle,
+                { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
               ]}
             >
-              {selectedScope === 'today'
-                ? "Today's Queue"
-                : selectedScope === 'upcoming'
-                ? 'Upcoming Appointments'
-                : 'Appointment History'}
+              Pending Appointments
             </Text>
-
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[
-                styles.filterRow,
-                { gap: wp(2), marginTop: hp(1.4) },
-              ]}
-            >
-              {queueScopes.map(scope => {
-                const selected = selectedScope === scope;
-                const label =
-                  scope === 'today'
-                    ? 'Today'
-                    : scope === 'upcoming'
-                    ? 'Upcoming'
-                    : 'History';
-
-                return (
-                  <Pressable
-                    key={scope}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected
-                          ? colors.primary
-                          : colors.surface,
-                        borderRadius: radius.full,
-                        paddingHorizontal: spacing.md,
-                        paddingVertical: spacing.xs,
-                      },
-                    ]}
-                    onPress={() => setSelectedScope(scope)}
-                  >
-                    <Text
-                      style={{
-                        color: selected ? '#FFF' : colors.textSecondary,
-                        fontSize: typography.sizes.sm,
-                        fontWeight: '600',
-                      }}
-                    >
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
-            <View
-              style={[
-                styles.searchBox,
-                {
-                  borderColor: colors.border,
-                  borderRadius: radius.md,
-                  marginTop: spacing.md,
-                },
-              ]}
-            >
-              <Search color={colors.textSecondary} size={scaleFont(18)} />
-              <TextInput
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                placeholder="Search patient or token"
-                placeholderTextColor={colors.textSecondary}
-                style={[
-                  styles.searchInput,
-                  { color: colors.text, fontSize: typography.sizes.md },
-                ]}
+            {pendingAppointments.length === 0 ? (
+              <EmptyState
+                Icon={ClipboardList}
+                title="All Clear"
+                subtitle="No pending appointments today."
               />
-            </View>
+            ) : (
+              pendingAppointments.map((appt, idx) => renderAppointmentItem(appt, idx, true))
+            )}
+          </Card>
+        </View>
+      </CardFadeIn>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={[
-                styles.filterRow,
-                { gap: wp(2), marginVertical: hp(1.6) },
+      {/* Card 3: Queue List */}
+      <CardFadeIn delay={120}>
+        <View style={{ marginBottom: spacing.lg }}>
+          <Card variant="elevated" style={styles.cardContent}>
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
               ]}
             >
-              {statusFilters.map(filter => {
-                const selected = selectedStatus === filter;
-                return (
-                  <Pressable
-                    key={filter}
-                    style={[
-                      styles.filterChip,
-                      {
-                        borderColor: selected ? colors.primary : colors.border,
-                        backgroundColor: selected
-                          ? colors.primary
-                          : colors.surface,
-                        borderRadius: radius.full,
-                        paddingHorizontal: spacing.md,
-                        paddingVertical: spacing.xs,
-                      },
-                    ]}
-                    onPress={() => setSelectedStatus(filter)}
-                  >
-                    <Text
-                      style={{
-                        color: selected ? '#FFF' : colors.textSecondary,
-                        fontSize: typography.sizes.sm,
-                        fontWeight: '600',
-                      }}
-                    >
-                      {filter === 'all' ? 'All' : statusLabel(filter)}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        }
-        ListEmptyComponent={
-          <EmptyState
-            Icon={AlertCircle}
-            title="No Appointments"
-            subtitle={
-              selectedScope === 'today'
-                ? 'No appointments match today or the selected filters.'
-                : 'No appointments match this scope or the selected filters.'
-            }
-          />
-        }
-      />
+              Queue List
+            </Text>
+            {queueAppointments.length === 0 ? (
+              <EmptyState
+                Icon={Users}
+                title="Queue Empty"
+                subtitle="No active queue appointments today."
+              />
+            ) : (
+              queueAppointments.map((appt, idx) => renderAppointmentItem(appt, idx, false))
+            )}
+          </Card>
+        </View>
+      </CardFadeIn>
 
       <Modal
         animationType="fade"
@@ -779,12 +605,13 @@ const StaffDashboardScreen = () => {
             {cancelReasons.map(reason => (
               <Pressable
                 key={reason}
-                style={[
+                style={({ pressed }) => [
                   styles.reasonButton,
                   {
                     borderColor: colors.border,
                     borderRadius: radius.md,
                     padding: spacing.md,
+                    backgroundColor: pressed ? colors.background : colors.surface,
                   },
                 ]}
                 onPress={() => {
@@ -811,6 +638,7 @@ const StaffDashboardScreen = () => {
               variant="outline"
               onPress={() => setCancelTarget(null)}
               disabled={runActionMutation.isPending}
+              style={{ marginTop: spacing.md }}
             />
           </View>
         </View>
@@ -822,13 +650,104 @@ const StaffDashboardScreen = () => {
 export default StaffDashboardScreen;
 
 const styles = StyleSheet.create({
-  arrivedStatus: {
+  header: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: hp(2.4),
+  },
+  title: {
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontWeight: '500',
+  },
+  logoutButton: {
+    minWidth: wp(24),
+  },
+  cardContent: {
+    padding: wp(4),
+  },
+  cardTitle: {
+    fontWeight: '700',
+  },
+  cardTitleIconPill: {
+    width: scaleFont(30),
+    height: scaleFont(30),
+    borderRadius: scaleFont(15),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: wp(2),
+  },
+  statGridItem: {
+    flexBasis: '30%',
+    flexGrow: 1,
+    paddingHorizontal: wp(2.5),
+    paddingVertical: hp(1),
+  },
+  statGridHeader: {
+    alignItems: 'flex-start',
+    marginBottom: scaleFont(4),
+  },
+  statGridIconPill: {
+    width: scaleFont(26),
+    height: scaleFont(26),
+    borderRadius: scaleFont(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statGridValue: {
+    fontWeight: 'bold',
+  },
+  statGridLabel: {
+    fontWeight: '500',
+    marginTop: scaleFont(2),
+  },
+  itemContainer: {
+    flexDirection: 'column',
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  itemTitleWrap: {
+    flex: 1,
+    paddingRight: wp(2),
+  },
+  itemMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleFont(8),
+  },
+  tokenPill: {
+    borderRadius: scaleFont(6),
+    paddingHorizontal: scaleFont(8),
+    paddingVertical: scaleFont(3),
+  },
+  tokenText: {
+    fontWeight: 'bold',
+  },
+  patientName: {
+    fontWeight: '700',
+  },
+  metaText: {
+    fontWeight: '500',
+  },
+  statusAlert: {
     alignItems: 'center',
     alignSelf: 'flex-start',
     borderRadius: scaleFont(999),
     borderWidth: 1,
     flexDirection: 'row',
-    gap: scaleFont(7),
+    gap: scaleFont(5),
+    paddingHorizontal: wp(2.5),
+    paddingVertical: hp(0.4),
   },
   actionsRow: {
     flexDirection: 'row',
@@ -836,40 +755,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flexGrow: 1,
-    minWidth: '46%',
-  },
-  appointmentHeader: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  appointmentTitleWrap: {
-    flex: 1,
-    paddingRight: wp(2),
-  },
-  filterChip: {
-    borderWidth: 1,
-  },
-  filterRow: {
-    paddingRight: wp(4),
-  },
-  header: {
-    alignItems: 'flex-start',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: wp(3),
-    justifyContent: 'space-between',
-    marginBottom: hp(2.4),
-  },
-  listContent: {
-    flexGrow: 1,
-  },
-  logoutButton: {
-    alignSelf: 'flex-start',
-    minWidth: wp(28),
-  },
-  metaText: {
-    lineHeight: scaleFont(20),
+    minWidth: '45%',
   },
   modalBackdrop: {
     alignItems: 'center',
@@ -890,63 +776,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: hp(0.5),
   },
-  patientName: {
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  queueMetaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: wp(3),
-  },
-  readOnlyText: {
-    fontWeight: '600',
-  },
   reasonButton: {
     borderWidth: 1,
-    marginTop: hp(1),
-  },
-  searchBox: {
-    alignItems: 'center',
-    borderWidth: 1,
-    flexDirection: 'row',
-    paddingHorizontal: wp(3),
-  },
-  searchInput: {
-    flex: 1,
-    minHeight: hp(5.4),
-    paddingHorizontal: wp(2.5),
-  },
-  sectionTitle: {
-    fontWeight: '700',
-  },
-  statCard: {
-    flexBasis: '48%',
-    flexGrow: 1,
-  },
-  statHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  statLabel: {
-    marginTop: hp(0.8),
-  },
-  statValue: {
-    fontWeight: 'bold',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  subtitle: {
-    marginTop: 4,
-  },
-  title: {
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  tokenText: {
-    fontWeight: 'bold',
+    marginBottom: hp(1),
   },
 });

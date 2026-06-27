@@ -13,6 +13,14 @@ const toAuthError = (error: unknown, fallbackMessage: string) => {
   return new Error(fallbackMessage);
 };
 
+// ROLE ARCHITECTURE SAFETY:
+// - Roles are read from the `profiles` table (DB truth), never from JWT claims.
+// - Changing a user's role does NOT transfer their appointments.
+//   Appointments belong to the user_id that booked them, permanently.
+// - Staff and admin accounts must be SEPARATE accounts.
+//   Do NOT convert a client account into a staff account by changing the role field.
+//   The client's historical appointments would remain attached to that user_id,
+//   giving the staff member access to their own client appointment history.
 const fetchVerifiedProfileRole = async (
   userId: string,
   fallbackProfile: {
@@ -23,18 +31,28 @@ const fetchVerifiedProfileRole = async (
   const { data: profile, error: profileError } =
     await profileService.getProfileById(userId);
 
-  if (!profileError) {
-    await useProfileStore.getState().fetchProfile(userId);
-    return profile?.role ?? useProfileStore.getState().profile?.role ?? 'client';
+  if (!profileError && profile) {
+    // Populate the store directly from this fetch — no second read needed.
+    useProfileStore.setState({ profile, isLoading: false, error: null });
+    return profile.role ?? 'client';
   }
 
-  await profileService.createProfile({
-    id: userId,
-    full_name: fallbackProfile.full_name,
-    email: fallbackProfile.email,
-  });
-  await useProfileStore.getState().fetchProfile(userId);
+  if (!profileError && !profile) {
+    // Profile exists in auth but not in profiles table — create it.
+    const { data: created } = await profileService.createProfile({
+      id: userId,
+      full_name: fallbackProfile.full_name,
+      email: fallbackProfile.email,
+      role: 'client',
+    });
+    if (created) {
+      useProfileStore.setState({ profile: created, isLoading: false, error: null });
+      return created.role ?? 'client';
+    }
+  }
 
+  // Profile fetch or creation failed — fall back gracefully.
+  await useProfileStore.getState().fetchProfile(userId);
   return useProfileStore.getState().profile?.role ?? 'client';
 };
 

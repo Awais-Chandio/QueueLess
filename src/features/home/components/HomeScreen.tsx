@@ -1,37 +1,73 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, View, StyleSheet, Text } from 'react-native';
+import { Animated, View, StyleSheet, Text, Pressable } from 'react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
-import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { Skeleton } from '../../../components/ui/Skeleton';
+import { StatusChip } from '../../../components/ui/StatusChip';
+import { CircularProgress } from '../../../components/ui/CircularProgress';
+import { ProgressBar } from '../../../components/ui/ProgressBar';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { AppStackParamList } from '../../../navigation/types';
 import {
-  CheckCircle,
+  Bell,
+  Calendar,
   Clock,
-  BellRing,
+  User,
   CircleDot,
-  MapPinCheck,
   Users,
-  XCircle,
+  Hash,
 } from 'lucide-react-native';
 import { useAuthStore } from '../../../store/authStore';
 import { useProfileStore } from '../../../store/profileStore';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import ProfileAvatar from '../../../components/ui/ProfileAvatar';
-import { formatWaitDuration } from '../../appointments/utils/appointmentTime';
+import {
+  getAppointmentDateLabel,
+  getAppointmentTimeLabel,
+} from '../../appointments/utils/appointmentTime';
 import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue';
+import type { AppointmentStatus } from '../../../types/appointment';
+import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
+
+type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const HomeScreen = () => {
   const { colors, spacing, typography } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
+
   const { data: stats, isLoading, refetch, isRefetching } = useDashboardStats();
   const user = useAuthStore(state => state.user);
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
   const isProfileLoading = useProfileStore(state => state.isLoading);
+
   const activeAppointment = stats?.activeAppointment;
+  const resolvedActiveApptStatus = useMemo(() => {
+    if (!activeAppointment) return null;
+    const apptFull = {
+      ...activeAppointment,
+      scheduled_at: activeAppointment.scheduledAt,
+      estimated_wait_mins: 30,
+      status: activeAppointment.status,
+    } as any;
+    const { resolvedStatus } = getAppointmentStatusState(apptFull);
+    return resolvedStatus;
+  }, [activeAppointment]);
+
+  const hasActiveQueueAppt = useMemo(() => {
+    return (
+      activeAppointment &&
+      resolvedActiveApptStatus &&
+      ['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedActiveApptStatus)
+    );
+  }, [activeAppointment, resolvedActiveApptStatus]);
+
   const activeToken =
-    typeof activeAppointment?.tokenNumber === 'number'
+    typeof activeAppointment?.tokenNumber === 'number' && hasActiveQueueAppt
       ? activeAppointment.tokenNumber
       : null;
 
@@ -50,6 +86,16 @@ const HomeScreen = () => {
   );
 
   const queuePulse = useRef(new Animated.Value(1)).current;
+  const screenFade = useRef(new Animated.Value(0)).current;
+
+  // Screen fade-in on mount
+  useEffect(() => {
+    Animated.timing(screenFade, {
+      toValue: 1,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, [screenFade]);
 
   useEffect(() => {
     Animated.sequence([
@@ -66,9 +112,8 @@ const HomeScreen = () => {
     ]).start();
   }, [
     queuePulse,
-    queueData?.currentToken,
     queueData?.peopleAhead,
-    activeAppointment?.status,
+    resolvedActiveApptStatus,
   ]);
 
   const refreshHome = useCallback(async () => {
@@ -78,385 +123,380 @@ const HomeScreen = () => {
     ]);
   }, [fetchProfile, refetch, user?.id]);
 
-  const queueStatusText = useMemo(() => {
-    if (!activeAppointment) {
-      return 'No active queue';
-    }
+  const nextApptDate = useMemo(() => {
+    if (!activeAppointment) return '';
+    return getAppointmentDateLabel({
+      appointment_date: activeAppointment.appointmentDate,
+      scheduled_at: activeAppointment.scheduledAt,
+    });
+  }, [activeAppointment]);
 
-    if (activeAppointment.status === 'called') {
-      return 'Called';
-    }
+  const nextApptTime = useMemo(() => {
+    if (!activeAppointment) return '';
+    return getAppointmentTimeLabel({
+      appointment_time: activeAppointment.appointmentTime,
+      scheduled_at: activeAppointment.scheduledAt,
+    });
+  }, [activeAppointment]);
 
-    if (
-      queueData &&
-      activeToken != null &&
-      queueData.currentToken >= activeToken
-    ) {
-      return 'Your turn';
-    }
+  // Queue progress: how far currentToken is toward your token
+  const currentToken = queueData?.currentToken ?? 0;
+  const yourToken = activeToken ?? 0;
+  const queueProgress = useMemo(() => {
+    if (!hasActiveQueueAppt || yourToken === 0) return 0;
+    if (currentToken >= yourToken) return 1;
+    return Math.max(0, currentToken / yourToken);
+  }, [hasActiveQueueAppt, currentToken, yourToken]);
 
-    if (activeAppointment.status === 'confirmed') {
-      return 'Waiting';
-    }
+  const peopleAhead = queueData?.peopleAhead ?? 0;
 
-    if (activeAppointment.status === 'pending') {
-      return 'Pending confirmation';
-    }
-
-    return stats?.queueStatus ?? 'Waiting';
-  }, [activeAppointment, activeToken, queueData, stats?.queueStatus]);
-
-  const progressValue = useMemo(() => {
-    if (!queueData || !activeToken || activeToken <= 0) {
-      return 0;
-    }
-
-    return Math.min(1, Math.max(0, queueData.currentToken / activeToken));
-  }, [activeToken, queueData]);
-
-  const StatCard = ({
-    title,
-    value,
-    icon: Icon,
-    color,
-  }: {
-    title: string;
-    value: string | number;
-    icon: any;
-    color: string;
-  }) => (
-    <Card style={[styles.statCard, { marginBottom: spacing.md }]}>
-      <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
-        <Icon color={color} size={scaleFont(24)} />
-      </View>
-      <Text
-        style={[
-          styles.statValue,
-          { color: colors.text, fontSize: typography.sizes.xl },
-        ]}
-      >
-        {isLoading ? <Skeleton width={wp(11)} height={hp(3.4)} /> : value}
-      </Text>
-      <Text
-        style={[
-          styles.statTitle,
-          { color: colors.textSecondary, fontSize: typography.sizes.sm },
-        ]}
-      >
-        {title}
-      </Text>
-    </Card>
-  );
+  const statusProps = getStatusDisplayProperties(resolvedActiveApptStatus || (activeAppointment?.status as AppointmentStatus));
 
   return (
-    <ScreenWrapper
-      scrollable
-      onRefresh={refreshHome}
-      refreshing={isRefetching || isProfileLoading}
-    >
-      <View style={[styles.header, { marginBottom: spacing.xl }]}>
-        <View style={styles.headerText}>
-          <Text
-            style={[
-              styles.welcomeText,
-              { color: colors.textSecondary, fontSize: typography.sizes.md },
-            ]}
-          >
-            Welcome back,
-          </Text>
-          <Text
-            style={[
-              styles.nameText,
-              {
-                color: colors.text,
-                fontSize: typography.sizes.xxl,
-                fontWeight: typography.weights.bold,
-              },
-            ]}
-          >
-            {profile?.full_name || 'User'}
-          </Text>
-        </View>
-        <ProfileAvatar uri={profile?.avatar_url} size={56} />
-      </View>
-
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: colors.text,
-            fontSize: typography.sizes.lg,
-            marginBottom: spacing.md,
-          },
-        ]}
+    <Animated.View style={[styles.screen, { opacity: screenFade }]}>
+      <ScreenWrapper
+        scrollable
+        onRefresh={refreshHome}
+        refreshing={isRefetching || isProfileLoading}
       >
-        Overview
-      </Text>
-
-      <View style={styles.statsRow}>
-        <StatCard
-          title="Active"
-          value={stats?.active || 0}
-          icon={Users}
-          color={colors.primary}
-        />
-        <StatCard
-          title="Avg Wait"
-          value={stats?.avgWait ? formatWaitDuration(stats.avgWait) : '0 min'}
-          icon={Clock}
-          color={colors.warning}
-        />
-      </View>
-      <View style={styles.statsRow}>
-        <StatCard
-          title="Completed"
-          value={stats?.completed || 0}
-          icon={CheckCircle}
-          color={colors.success}
-        />
-        <StatCard
-          title="Cancelled"
-          value={stats?.cancelled || 0}
-          icon={XCircle}
-          color={colors.error}
-        />
-      </View>
-
-      <View style={{ marginTop: spacing.xl }}>
-        <Animated.View style={{ transform: [{ scale: queuePulse }] }}>
-          <Card variant="outlined" style={{ padding: spacing.lg }}>
-            <View style={styles.queueHeader}>
-              <View>
-                <Text
-                  style={{
+        {/* A. Welcome Header */}
+        <CardFadeIn delay={0}>
+          <View style={[styles.header, { marginBottom: spacing.lg }]}>
+            <View style={styles.headerText}>
+              <Text
+                style={[
+                  styles.welcomeText,
+                  { color: colors.textSecondary, fontSize: typography.sizes.md },
+                ]}
+              >
+                Welcome back,
+              </Text>
+              <Text
+                style={[
+                  styles.nameText,
+                  {
                     color: colors.text,
-                    fontSize: typography.sizes.lg,
-                    fontWeight: '700',
-                  }}
+                    fontSize: typography.sizes.xxl,
+                    fontWeight: typography.weights.bold,
+                  },
+                ]}
+              >
+                {profile?.full_name || 'User'}
+              </Text>
+            </View>
+            <View style={styles.headerRight}>
+              <Pressable
+                onPress={() => navigation.navigate('MainTabs', { screen: 'Notifications' })}
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  { marginRight: spacing.md, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
+                  pressed && styles.pressedEffect,
+                ]}
+              >
+                <Bell color={colors.text} size={scaleFont(20)} />
+              </Pressable>
+              <View style={[styles.avatarRing, { borderColor: colors.primary + '50' }]}>
+                <ProfileAvatar uri={profile?.avatar_url} size={48} />
+              </View>
+            </View>
+          </View>
+        </CardFadeIn>
+
+        {/* B. Queue Status Card */}
+        <CardFadeIn delay={60}>
+          <Animated.View style={{ transform: [{ scale: queuePulse }], marginBottom: spacing.lg }}>
+            <Card variant="elevated" style={styles.cardContent}>
+              <View style={styles.cardHeader}>
+                <Text
+                  style={[
+                    styles.cardTitle,
+                    { color: colors.text, fontSize: typography.sizes.lg },
+                  ]}
                 >
                   Queue Status
                 </Text>
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontSize: typography.sizes.sm,
-                    marginTop: hp(0.4),
-                  }}
-                >
-                  Live token updates
-                </Text>
-              </View>
-              <View
-                style={[
-                  styles.liveBadge,
-                  { backgroundColor: `${colors.success}18` },
-                ]}
-              >
-                <CircleDot color={colors.success} size={scaleFont(14)} />
-                <Text
-                  style={{
-                    color: colors.success,
-                    fontSize: typography.sizes.xs,
-                    fontWeight: '700',
-                  }}
-                >
-                  Live
-                </Text>
-              </View>
-            </View>
-
-            {isLoading || queueLoading ? (
-              <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-                <Skeleton height={24} width="80%" />
-                <Skeleton height={24} width="50%" />
-                <Skeleton height={10} width="100%" />
-              </View>
-            ) : activeAppointment && activeToken != null ? (
-              <View style={{ marginTop: spacing.md }}>
-                <View style={styles.queueMetricsGrid}>
+                {activeAppointment && activeToken != null && hasActiveQueueAppt && (
                   <View
                     style={[
-                      styles.queueMetric,
-                      { backgroundColor: colors.primaryLight },
+                      styles.liveBadge,
+                      { backgroundColor: `${colors.success}18`, borderColor: `${colors.success}30`, borderWidth: 1 },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.metricLabel,
-                        {
-                          color: colors.textSecondary,
-                          fontSize: typography.sizes.xs,
-                        },
-                      ]}
-                    >
-                      Current Token
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricValue,
-                        {
-                          color: colors.primaryDark,
-                          fontSize: typography.sizes.xl,
-                        },
-                      ]}
-                    >
-                      #{queueData?.currentToken ?? 0}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.queueMetric,
-                      { backgroundColor: `${colors.info}18` },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.metricLabel,
-                        {
-                          color: colors.textSecondary,
-                          fontSize: typography.sizes.xs,
-                        },
-                      ]}
-                    >
-                      Your Token
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricValue,
-                        { color: colors.info, fontSize: typography.sizes.xl },
-                      ]}
-                    >
-                      #{activeToken}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.queueMetric,
-                      { backgroundColor: `${colors.warning}18` },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.metricLabel,
-                        {
-                          color: colors.textSecondary,
-                          fontSize: typography.sizes.xs,
-                        },
-                      ]}
-                    >
-                      People Ahead
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricValue,
-                        {
-                          color: colors.warning,
-                          fontSize: typography.sizes.xl,
-                        },
-                      ]}
-                    >
-                      {queueData?.peopleAhead ?? 0}
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      styles.queueMetric,
-                      { backgroundColor: `${colors.success}18` },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.metricLabel,
-                        {
-                          color: colors.textSecondary,
-                          fontSize: typography.sizes.xs,
-                        },
-                      ]}
-                    >
-                      Estimated Wait
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricValue,
-                        {
-                          color: colors.success,
-                          fontSize: typography.sizes.xl,
-                        },
-                      ]}
-                    >
-                      {formatWaitDuration(queueData?.estimatedWaitMins ?? 0)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View
-                  style={[styles.queueStatusRow, { marginTop: spacing.md }]}
-                >
-                  {queueStatusText === 'Called' ||
-                  queueStatusText === 'Your turn' ? (
-                    <BellRing color={colors.info} size={scaleFont(20)} />
-                  ) : stats?.queueStatus === 'Arrived at Clinic' ? (
-                    <MapPinCheck color={colors.success} size={scaleFont(20)} />
-                  ) : (
-                    <Clock color={colors.primary} size={scaleFont(20)} />
-                  )}
-                  <View style={styles.queueStatusText}>
-                    <Text style={{ color: colors.textSecondary }}>
-                      Queue Status
-                    </Text>
+                    <CircleDot color={colors.success} size={scaleFont(11)} />
                     <Text
                       style={{
-                        color:
-                          queueStatusText === 'Called' ||
-                          queueStatusText === 'Your turn'
-                            ? colors.info
-                            : colors.text,
-                        fontSize: typography.sizes.md,
+                        color: colors.success,
+                        fontSize: typography.sizes.xs,
                         fontWeight: '700',
                       }}
                     >
-                      {queueStatusText}
+                      Live
                     </Text>
                   </View>
-                </View>
-
-                <View style={{ marginTop: spacing.md }}>
-                  <ProgressBar
-                    progress={progressValue}
-                    color={colors.primary}
-                    trackColor={colors.border}
-                  />
-                </View>
-
-                {queueError && (
-                  <Text
-                    style={{
-                      color: colors.error,
-                      fontSize: typography.sizes.sm,
-                      marginTop: spacing.sm,
-                    }}
-                  >
-                    {queueError}
-                  </Text>
                 )}
               </View>
-            ) : (
+
+              {isLoading || queueLoading ? (
+                <View style={styles.skeletonRow}>
+                  <Skeleton height={40} width="30%" />
+                  <Skeleton height={40} width="30%" />
+                  <Skeleton height={40} width="30%" />
+                </View>
+              ) : activeAppointment && activeToken != null && hasActiveQueueAppt ? (
+                <View>
+                  {/* Circular progress + token progress bar */}
+                  <View style={styles.queueVisualRow}>
+                    <CircularProgress
+                      progress={queueProgress}
+                      size={scaleFont(100)}
+                      strokeWidth={8}
+                      color={colors.primary}
+                      trackColor={colors.border}
+                      centerLabel={`#${yourToken}`}
+                      centerCaption="Your Token"
+                      centerLabelColor={colors.primary}
+                      centerCaptionColor={colors.textSecondary}
+                    />
+                    <View style={styles.queueMetrics}>
+                      {/* Metric: Current Token */}
+                      <View style={styles.metricRow}>
+                        <View style={[styles.metricIcon, { backgroundColor: `${colors.textSecondary}15` }]}>
+                          <Hash size={scaleFont(12)} color={colors.textSecondary} />
+                        </View>
+                        <View>
+                          <Text style={[styles.metricCaption, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                            Now Serving
+                          </Text>
+                          <Text style={[styles.metricValue, { color: colors.text, fontSize: typography.sizes.lg }]}>
+                            #{currentToken}
+                          </Text>
+                        </View>
+                      </View>
+                      {/* Metric: People Ahead */}
+                      <View style={[styles.metricRow, { marginTop: scaleFont(8) }]}>
+                        <View style={[styles.metricIcon, { backgroundColor: `${colors.warning}15` }]}>
+                          <Users size={scaleFont(12)} color={colors.warning} />
+                        </View>
+                        <View>
+                          <Text style={[styles.metricCaption, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                            People Ahead
+                          </Text>
+                          <Text style={[styles.metricValue, { color: colors.warning, fontSize: typography.sizes.lg }]}>
+                            {peopleAhead}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Token progress bar */}
+                  <View style={[styles.progressSection, { marginTop: scaleFont(10) }]}>
+                    <View style={styles.progressLabels}>
+                      <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}># {currentToken}</Text>
+                      <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>Your #{yourToken}</Text>
+                    </View>
+                    <ProgressBar progress={queueProgress} color={colors.primary} height={scaleFont(6)} />
+                  </View>
+                </View>
+              ) : (
+                <Text
+                  style={[
+                    styles.emptyText,
+                    { color: colors.textSecondary, fontSize: typography.sizes.sm },
+                  ]}
+                >
+                  No active appointments in queue.
+                </Text>
+              )}
+
+              {queueError && (
+                <Text
+                  style={{
+                    color: colors.error,
+                    fontSize: typography.sizes.sm,
+                    marginTop: spacing.sm,
+                    textAlign: 'center',
+                  }}
+                >
+                  {queueError}
+                </Text>
+              )}
+            </Card>
+          </Animated.View>
+        </CardFadeIn>
+
+        {/* C. Next Appointment Card */}
+        <CardFadeIn delay={120}>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Card variant="elevated" style={styles.cardContent}>
               <Text
-                style={{ color: colors.textSecondary, marginTop: spacing.md }}
+                style={[
+                  styles.cardTitle,
+                  { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
+                ]}
               >
-                No active appointments right now.
+                Next Appointment
               </Text>
-            )}
-          </Card>
-        </Animated.View>
-      </View>
-    </ScreenWrapper>
+
+              {isLoading ? (
+                <View style={styles.skeletonRow}>
+                  <Skeleton height={40} width="30%" />
+                  <Skeleton height={40} width="30%" />
+                  <Skeleton height={40} width="30%" />
+                </View>
+              ) : activeAppointment ? (
+                <View style={styles.metricsRow}>
+                  <View style={styles.metricItem}>
+                    <View style={[styles.apptIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                      <Calendar size={scaleFont(14)} color={colors.primary} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.metricLabel,
+                        { color: colors.textSecondary, fontSize: typography.caption, marginTop: hp(0.4) },
+                      ]}
+                    >
+                      Date
+                    </Text>
+                    <Text
+                      style={[
+                        styles.metricTextValue,
+                        { color: colors.text, fontSize: typography.sizes.sm },
+                      ]}
+                    >
+                      {nextApptDate}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metricItem}>
+                    <View style={[styles.apptIconPill, { backgroundColor: `${colors.info}12` }]}>
+                      <Clock size={scaleFont(14)} color={colors.info} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.metricLabel,
+                        { color: colors.textSecondary, fontSize: typography.caption, marginTop: hp(0.4) },
+                      ]}
+                    >
+                      Time
+                    </Text>
+                    <Text
+                      style={[
+                        styles.metricTextValue,
+                        { color: colors.text, fontSize: typography.sizes.sm },
+                      ]}
+                    >
+                      {nextApptTime}
+                    </Text>
+                  </View>
+
+                  <View style={styles.metricItem}>
+                    <View style={[styles.apptIconPill, { backgroundColor: `${colors.success}12` }]}>
+                      <CircleDot size={scaleFont(14)} color={colors.success} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.metricLabel,
+                        { color: colors.textSecondary, fontSize: typography.caption, marginTop: hp(0.4) },
+                      ]}
+                    >
+                      Status
+                    </Text>
+                    <View style={{ marginTop: hp(0.4) }}>
+                      <StatusChip
+                        status={resolvedActiveApptStatus || activeAppointment.status as any}
+                        label={statusProps.label}
+                        size="sm"
+                      />
+                    </View>
+                  </View>
+                </View>
+              ) : (
+                <Text
+                  style={[
+                    styles.emptyText,
+                    { color: colors.textSecondary, fontSize: typography.sizes.sm },
+                  ]}
+                >
+                  No upcoming appointments.
+                </Text>
+              )}
+            </Card>
+          </View>
+        </CardFadeIn>
+
+        {/* D. Quick Actions */}
+        <CardFadeIn delay={180}>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Card variant="elevated" style={styles.cardContent}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
+                ]}
+              >
+                Quick Actions
+              </Text>
+              <View style={styles.actionsRow}>
+                <Pressable
+                  onPress={() => navigation.navigate('MainTabs', { screen: 'MyAppointments' })}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    pressed && styles.pressedEffect,
+                  ]}
+                >
+                  <View style={[styles.actionIconContainer, { backgroundColor: `${colors.primary}12` }]}>
+                    <Calendar size={scaleFont(22)} color={colors.primary} />
+                  </View>
+                  <Text style={[styles.actionLabel, { color: colors.text, fontSize: typography.caption }]}>
+                    Appointments
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => navigation.navigate('MainTabs', { screen: 'Notifications' })}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    pressed && styles.pressedEffect,
+                  ]}
+                >
+                  <View style={[styles.actionIconContainer, { backgroundColor: `${colors.warning}12` }]}>
+                    <Bell size={scaleFont(22)} color={colors.warning} />
+                  </View>
+                  <Text style={[styles.actionLabel, { color: colors.text, fontSize: typography.caption }]}>
+                    Notifications
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
+                  style={({ pressed }) => [
+                    styles.actionItem,
+                    pressed && styles.pressedEffect,
+                  ]}
+                >
+                  <View style={[styles.actionIconContainer, { backgroundColor: `${colors.success}12` }]}>
+                    <User size={scaleFont(22)} color={colors.success} />
+                  </View>
+                  <Text style={[styles.actionLabel, { color: colors.text, fontSize: typography.caption }]}>
+                    Profile
+                  </Text>
+                </Pressable>
+              </View>
+            </Card>
+          </View>
+        </CardFadeIn>
+      </ScreenWrapper>
+    </Animated.View>
   );
 };
 
 export default HomeScreen;
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -466,22 +506,43 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingRight: wp(3),
   },
-  welcomeText: {
-    marginBottom: hp(0.5),
-  },
-  nameText: {
-    marginBottom: hp(1.2),
-  },
-  sectionTitle: {
-    fontWeight: '600',
-  },
-  queueStatusRow: {
+  headerRight: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: scaleFont(10),
   },
-  queueStatusText: {
-    flex: 1,
+  welcomeText: {
+    marginBottom: hp(0.2),
+    fontWeight: '500',
+  },
+  nameText: {
+    lineHeight: scaleFont(32),
+  },
+  iconBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: scaleFont(40),
+    aspectRatio: 1,
+    borderRadius: scaleFont(20),
+  },
+  avatarRing: {
+    borderWidth: 2,
+    borderRadius: scaleFont(28),
+    padding: 2,
+  },
+  pressedEffect: {
+    opacity: 0.7,
+  },
+  cardContent: {
+    padding: wp(4),
+  },
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: hp(1.5),
+  },
+  cardTitle: {
+    fontWeight: '700',
   },
   liveBadge: {
     alignItems: 'center',
@@ -491,54 +552,93 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(2.4),
     paddingVertical: hp(0.6),
   },
-  metricLabel: {
-    fontWeight: '600',
+  skeletonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: hp(1),
+  },
+  queueVisualRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: wp(4),
+  },
+  queueMetrics: {
+    flex: 1,
+  },
+  metricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleFont(8),
+  },
+  metricIcon: {
+    width: scaleFont(28),
+    height: scaleFont(28),
+    borderRadius: scaleFont(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  metricCaption: {
+    fontWeight: '500',
   },
   metricValue: {
     fontWeight: '800',
-    marginTop: hp(0.6),
   },
-  queueHeader: {
-    alignItems: 'center',
+  progressSection: {},
+  progressLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    marginBottom: scaleFont(4),
   },
-  queueMetricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: wp(2.4),
-  },
-  queueMetric: {
-    borderRadius: 12,
-    flexBasis: '47%',
-    flexGrow: 1,
-    minHeight: hp(9),
-    paddingHorizontal: wp(3),
-    paddingVertical: hp(1.2),
-  },
-  statsRow: {
+  metricsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: wp(2.4),
+    alignItems: 'flex-start',
+    marginTop: hp(0.5),
   },
-  statCard: {
+  metricItem: {
     flex: 1,
+    alignItems: 'center',
   },
-  iconContainer: {
-    width: wp(12),
-    maxWidth: scaleFont(52),
-    minWidth: scaleFont(42),
-    aspectRatio: 1,
-    borderRadius: scaleFont(24),
+  apptIconPill: {
+    width: scaleFont(32),
+    height: scaleFont(32),
+    borderRadius: scaleFont(16),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: hp(1.4),
   },
-  statValue: {
+  metricLabel: {
+    fontWeight: '600',
+  },
+  metricTextValue: {
     fontWeight: '700',
-    marginBottom: hp(0.5),
+    marginTop: hp(0.6),
+    textAlign: 'center',
   },
-  statTitle: {
+  emptyText: {
+    textAlign: 'center',
+    marginVertical: hp(2),
     fontWeight: '500',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: hp(0.5),
+  },
+  actionItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: hp(1),
+  },
+  actionIconContainer: {
+    width: scaleFont(52),
+    aspectRatio: 1,
+    borderRadius: scaleFont(26),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: hp(0.8),
+  },
+  actionLabel: {
+    fontWeight: '600',
   },
 });

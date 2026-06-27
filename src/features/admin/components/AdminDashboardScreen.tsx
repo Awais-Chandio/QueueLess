@@ -7,8 +7,10 @@ import {
   Text,
   useWindowDimensions,
   View,
-  Pressable,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, PieChart } from 'react-native-chart-kit';
 import {
@@ -16,42 +18,39 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock3,
-  Stethoscope,
   XCircle,
+  Stethoscope,
+  CheckCheck,
+  BellRing,
+  Zap,
+  LogOut,
+  UserPlus,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
 import { Card } from '../../../components/ui/Card';
 import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Skeleton } from '../../../components/ui/Skeleton';
+import { ProgressBar } from '../../../components/ui/ProgressBar';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { analyticsService } from '../api/analyticsService';
-import { toastService } from '../../../services/toastService';
 
-const managementSections = [
-  {
-    title: 'Centers',
-    description: 'Manage service center availability and metadata.',
-    key: 'centers',
-  },
-  {
-    title: 'Services',
-    description: 'Manage offered services, pricing, and durations.',
-    key: 'services',
-  },
-  {
-    title: 'Users',
-    description: 'Review users and role assignments from profiles.',
-    key: 'users',
-  },
-];
+const ACTION_META: Record<string, { icon: any; color: string; label: string }> = {
+  confirm: { icon: CheckCircle2, color: '#22C55E', label: 'Confirmed' },
+  cancel: { icon: XCircle, color: '#EF4444', label: 'Cancelled' },
+  call_next: { icon: BellRing, color: '#8B5CF6', label: 'Called' },
+  complete_service: { icon: CheckCheck, color: '#22C55E', label: 'Completed' },
+};
 
 const AdminDashboardScreen = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const { logout } = useAuth();
   const { width } = useWindowDimensions();
+  const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
+
   const {
     data: analytics,
     error,
@@ -69,49 +68,80 @@ const AdminDashboardScreen = () => {
   const horizontalPadding = wp(4);
   const chartWidth = Math.max(
     240,
-    Math.floor(width - horizontalPadding * 2 - spacing.md * 2),
+    Math.floor(width - horizontalPadding * 2 - spacing.md * 2 - wp(8)),
   );
-  const chartHeight = Math.max(190, hp(24));
+  const chartHeight = Math.max(180, hp(22));
+
+  const totalForProgress = analytics?.totalAppointments || 1;
 
   const statCards = useMemo(
     () => [
       {
-        label: 'Total Appointments',
+        label: 'Total',
         value: analytics?.totalAppointments ?? 0,
         color: colors.primary,
         icon: ClipboardList,
-        backgroundColor: colors.primaryLight,
+        progress: 1,
+        accentColor: colors.primary,
       },
       {
         label: 'Pending',
         value: analytics?.pendingCount ?? 0,
         color: colors.warning,
         icon: Clock3,
-        backgroundColor: '#FEF3C7',
+        progress: (analytics?.pendingCount ?? 0) / totalForProgress,
+        accentColor: colors.warning,
       },
       {
         label: 'Confirmed',
         value: analytics?.confirmedCount ?? 0,
         color: colors.info,
         icon: CalendarCheck2,
-        backgroundColor: colors.primaryLight,
+        progress: (analytics?.confirmedCount ?? 0) / totalForProgress,
+        accentColor: colors.info,
       },
       {
         label: 'Completed',
         value: analytics?.completedCount ?? 0,
         color: colors.success,
         icon: CheckCircle2,
-        backgroundColor: '#DCFCE7',
+        progress: (analytics?.completedCount ?? 0) / totalForProgress,
+        accentColor: colors.success,
       },
       {
         label: 'Cancelled',
         value: analytics?.cancelledCount ?? 0,
         color: colors.error,
         icon: XCircle,
-        backgroundColor: '#FEE2E2',
+        progress: (analytics?.cancelledCount ?? 0) / totalForProgress,
+        accentColor: colors.error,
+      },
+      {
+        label: 'Expired',
+        value: analytics?.expiredCount ?? 0,
+        color: '#DC2626',
+        icon: XCircle,
+        progress: (analytics?.expiredCount ?? 0) / totalForProgress,
+        accentColor: '#DC2626',
+      },
+      {
+        label: 'No Show',
+        value: analytics?.noShowCount ?? 0,
+        color: '#B91C1C',
+        icon: XCircle,
+        progress: (analytics?.noShowCount ?? 0) / totalForProgress,
+        accentColor: '#B91C1C',
+      },
+      {
+        label: 'Today',
+        value: analytics?.todayAppointments ?? 0,
+        color: colors.primaryDark,
+        icon: Stethoscope,
+        progress: (analytics?.todayAppointments ?? 0) / totalForProgress,
+        accentColor: colors.primaryDark,
       },
     ],
-    [analytics, colors],
+    [analytics, colors, totalForProgress],
   );
 
   const weeklyChartData = useMemo(
@@ -148,12 +178,12 @@ const AdminDashboardScreen = () => {
       color: (opacity = 1) => `rgba(46, 125, 255, ${opacity})`,
       labelColor: () => colors.textSecondary,
       barPercentage: 0.58,
-      barRadius: 7,
+      barRadius: 6,
       propsForBackgroundLines: {
         stroke: colors.border,
       },
       propsForLabels: {
-        fontSize: scaleFont(10),
+        fontSize: scaleFont(9),
       },
     }),
     [colors],
@@ -165,20 +195,21 @@ const AdminDashboardScreen = () => {
 
   if (isLoading) {
     return (
-      <ScreenWrapper>
-        <Text
-          style={[
-            styles.title,
-            { color: colors.text, fontSize: typography.sizes.xxl },
-          ]}
-        >
-          Admin Dashboard
-        </Text>
+      <ScreenWrapper scrollable>
+        <View style={styles.header}>
+          <Text
+            style={[
+              styles.title,
+              { color: colors.text, fontSize: typography.sizes.xxl },
+            ]}
+          >
+            Admin Dashboard
+          </Text>
+        </View>
         <View style={{ gap: spacing.md }}>
-          <Skeleton height={110} />
-          <Skeleton height={110} />
-          <Skeleton height={110} />
-          <Skeleton height={220} />
+          <Skeleton height={140} />
+          <Skeleton height={180} />
+          <Skeleton height={120} />
         </View>
       </ScreenWrapper>
     );
@@ -186,7 +217,7 @@ const AdminDashboardScreen = () => {
 
   if (isError) {
     return (
-      <ScreenWrapper>
+      <ScreenWrapper scrollable>
         <ErrorState
           title="Admin Data Unavailable"
           message={error instanceof Error ? error.message : 'Please try again.'}
@@ -198,229 +229,375 @@ const AdminDashboardScreen = () => {
   }
 
   return (
-    <ScreenWrapper withPadding={false}>
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingHorizontal: wp(4), paddingVertical: hp(2) },
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefetching}
-            tintColor={colors.primary}
-            onRefresh={refreshSummary}
-          />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <View>
-            <Text
-              style={[
-                styles.title,
-                { color: colors.text, fontSize: typography.sizes.xxl },
-              ]}
-            >
-              Admin Dashboard
-            </Text>
-            <Text
-              style={[
-                styles.subtitle,
-                { color: colors.textSecondary, fontSize: typography.sizes.md },
-              ]}
-            >
-              Appointment analytics and management
-            </Text>
-          </View>
-          <AppButton
-            title="Logout"
-            variant="outline"
-            onPress={() => {
-              Alert.alert('Logout', 'Are you sure you want to logout?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Logout', style: 'destructive', onPress: logout },
-              ]);
-            }}
-            style={styles.logoutButton}
-          />
+    <ScreenWrapper
+      scrollable
+      onRefresh={refreshSummary}
+      refreshing={isRefetching}
+    >
+      <View style={styles.header}>
+        <View>
+          <Text
+            style={[
+              styles.title,
+              { color: colors.text, fontSize: typography.sizes.xxl },
+            ]}
+          >
+            Admin Dashboard
+          </Text>
+          <Text
+            style={[
+              styles.subtitle,
+              { color: colors.textSecondary, fontSize: typography.sizes.sm },
+            ]}
+          >
+            Analytics and System Health
+          </Text>
         </View>
+        <AppButton
+          title="Logout"
+          variant="outline"
+          onPress={() => {
+            Alert.alert('Logout', 'Are you sure you want to logout?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Logout', style: 'destructive', onPress: logout },
+            ]);
+          }}
+          style={styles.logoutButton}
+        />
+      </View>
 
-        <View style={[styles.statsGrid, { gap: wp(3) }]}>
-          {statCards.map(item => {
-            const Icon = item.icon;
-            return (
-              <Card key={item.label} style={styles.statCard}>
-                <View style={styles.statHeader}>
+      {/* Card 1: Statistics Grid */}
+      <CardFadeIn delay={0}>
+        <View style={{ marginBottom: spacing.lg }}>
+          <Card variant="elevated" style={styles.cardContent}>
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
+              ]}
+            >
+              Statistics
+            </Text>
+
+            <View style={styles.statsGrid}>
+              {statCards.map(item => {
+                const Icon = item.icon;
+                return (
                   <View
+                    key={item.label}
                     style={[
-                      styles.iconBadge,
-                      { backgroundColor: item.backgroundColor },
+                      styles.statMetricItem,
+                      {
+                        borderColor: colors.border,
+                        borderRadius: radius.md,
+                        backgroundColor: colors.background,
+                        borderTopWidth: 3,
+                        borderTopColor: item.accentColor,
+                        overflow: 'hidden',
+                      },
                     ]}
                   >
-                    <Icon color={item.color} size={scaleFont(20)} />
+                    <View style={styles.statHeader}>
+                      <View style={[styles.statIconPill, { backgroundColor: item.color + '15' }]}>
+                        <Icon color={item.color} size={scaleFont(14)} />
+                      </View>
+                      <Text
+                        style={[
+                          styles.statValue,
+                          { color: item.color, fontSize: typography.sizes.lg },
+                        ]}
+                      >
+                        {item.value}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.statLabel,
+                        { color: colors.textSecondary, fontSize: typography.caption },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.label}
+                    </Text>
+                    <View style={{ marginTop: scaleFont(6) }}>
+                      <ProgressBar
+                        progress={Math.min(1, item.progress)}
+                        color={item.accentColor}
+                        height={scaleFont(3)}
+                        trackColor={item.accentColor + '20'}
+                      />
+                    </View>
                   </View>
+                );
+              })}
+            </View>
+
+            <Text
+              style={[
+                styles.chartTitle,
+                { color: colors.text, fontSize: typography.sizes.md, marginTop: spacing.lg },
+              ]}
+            >
+              Weekly Appointments
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <BarChart
+                data={weeklyChartData}
+                width={chartWidth}
+                height={chartHeight}
+                yAxisLabel=""
+                yAxisSuffix=""
+                chartConfig={chartConfig}
+                fromZero
+                segments={4}
+                showValuesOnTopOfBars
+                style={styles.chart}
+              />
+            </ScrollView>
+
+            <Text
+              style={[
+                styles.chartTitle,
+                { color: colors.text, fontSize: typography.sizes.md, marginTop: spacing.lg },
+              ]}
+            >
+              Status Distribution
+            </Text>
+            {statusDistributionData.length > 0 ? (
+              <PieChart
+                data={statusDistributionData}
+                width={chartWidth}
+                height={chartHeight}
+                accessor="count"
+                backgroundColor="transparent"
+                paddingLeft="8"
+                chartConfig={chartConfig}
+                absolute
+                hasLegend
+                style={styles.chart}
+              />
+            ) : (
+              <View style={[styles.emptyChart, { height: chartHeight }]}>
+                <Text
+                  style={{
+                    color: colors.textSecondary,
+                    fontSize: typography.sizes.sm,
+                  }}
+                >
+                  No appointment status data yet.
+                </Text>
+              </View>
+            )}
+          </Card>
+        </View>
+      </CardFadeIn>
+
+      {/* Card 2: Recent Activity */}
+      <CardFadeIn delay={60}>
+        <View style={{ marginBottom: spacing.lg }}>
+          <Card variant="elevated" style={styles.cardContent}>
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
+              ]}
+            >
+              Recent Activity
+            </Text>
+            {analytics?.recentActivity && analytics.recentActivity.length > 0 ? (
+              analytics.recentActivity.map((activity, idx) => {
+                let actionText = '';
+                const timeStr = new Date(activity.createdAt).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                });
+                const staffName = activity.staffName || 'Staff Member';
+                const tokenStr = activity.tokenNumber
+                  ? `Token #${activity.tokenNumber}`
+                  : 'Appointment';
+
+                if (activity.action === 'confirm') {
+                  actionText = `${staffName} confirmed ${tokenStr}`;
+                } else if (activity.action === 'cancel') {
+                  actionText = `${staffName} cancelled ${tokenStr}`;
+                } else if (activity.action === 'call_next') {
+                  actionText = `${staffName} called ${tokenStr}`;
+                } else if (activity.action === 'complete_service') {
+                  actionText = `${staffName} completed service for ${tokenStr}`;
+                } else {
+                  actionText = `${staffName} updated ${tokenStr} (${activity.action})`;
+                }
+
+                const meta = ACTION_META[activity.action] ?? { icon: Zap, color: colors.primary, label: activity.action };
+                const ActionIcon = meta.icon;
+
+                return (
+                  <View
+                    key={activity.id}
+                    style={[
+                      styles.activityItem,
+                      idx > 0 && {
+                        borderTopWidth: 1,
+                        borderTopColor: colors.border,
+                        paddingTop: spacing.sm,
+                        marginTop: spacing.sm,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.activityIconPill, { backgroundColor: meta.color + '15' }]}>
+                      <ActionIcon size={scaleFont(14)} color={meta.color} />
+                    </View>
+                    <Text
+                      style={[
+                        styles.activityText,
+                        { color: colors.text, fontSize: typography.sizes.sm },
+                      ]}
+                    >
+                      {actionText}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.activityTime,
+                        { color: colors.textSecondary, fontSize: typography.caption },
+                      ]}
+                    >
+                      {timeStr}
+                    </Text>
+                  </View>
+                );
+              })
+            ) : (
+              <Text
+                style={[
+                  styles.emptyText,
+                  { color: colors.textSecondary, fontSize: typography.sizes.sm },
+                ]}
+              >
+                No recent activity logs.
+              </Text>
+            )}
+          </Card>
+        </View>
+      </CardFadeIn>
+
+      {/* Card 3: System Overview */}
+      <CardFadeIn delay={120}>
+        <View style={{ marginBottom: spacing.lg }}>
+          <Card variant="elevated" style={styles.cardContent}>
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
+              ]}
+            >
+              System Overview
+            </Text>
+
+            <View style={styles.systemMetricsGrid}>
+              {[
+                { label: 'Service Centers', value: analytics?.systemOverview?.totalCenters ?? 0, color: colors.primary },
+                { label: 'Services', value: analytics?.systemOverview?.totalServices ?? 0, color: colors.info },
+                { label: 'Registered Users', value: analytics?.systemOverview?.totalUsers ?? 0, color: colors.success },
+              ].map((item, idx) => (
+                <View key={item.label} style={styles.systemMetricItem}>
                   <Text
                     style={[
-                      styles.statValue,
-                      { color: item.color, fontSize: typography.sizes.xxl },
+                      styles.systemMetricValue,
+                      { color: item.color, fontSize: typography.sizes.xl },
                     ]}
                   >
                     {item.value}
                   </Text>
+                  <Text
+                    style={[
+                      styles.systemMetricLabel,
+                      { color: colors.textSecondary, fontSize: typography.caption },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
                 </View>
+              ))}
+            </View>
+
+            <View
+              style={[
+                styles.systemStatusRow,
+                {
+                  borderColor: colors.border,
+                  paddingTop: spacing.md,
+                  marginTop: spacing.md,
+                },
+              ]}
+            >
+              {/* Status pill */}
+              <View
+                style={[
+                  styles.statusPill,
+                  {
+                    backgroundColor: analytics?.systemOverview?.dbConnected
+                      ? colors.success + '18'
+                      : colors.error + '18',
+                    borderColor: analytics?.systemOverview?.dbConnected
+                      ? colors.success + '40'
+                      : colors.error + '40',
+                  },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.statusDot,
+                    {
+                      backgroundColor: analytics?.systemOverview?.dbConnected
+                        ? colors.success
+                        : colors.error,
+                    },
+                  ]}
+                />
                 <Text
                   style={[
-                    styles.statLabel,
+                    styles.statusText,
                     {
-                      color: colors.textSecondary,
+                      color: analytics?.systemOverview?.dbConnected
+                        ? colors.success
+                        : colors.error,
                       fontSize: typography.sizes.sm,
                     },
                   ]}
                 >
-                  {item.label}
+                  System: {analytics?.systemOverview?.dbConnected ? 'Operational' : 'Degraded'}
                 </Text>
-              </Card>
-            );
-          })}
+              </View>
+            </View>
+          </Card>
         </View>
-
-        <View
-          style={[
-            styles.todayPanel,
-            { backgroundColor: colors.primaryLight, marginTop: spacing.md },
-          ]}
-        >
-          <View style={styles.todayIcon}>
-            <Stethoscope color={colors.primaryDark} size={scaleFont(20)} />
-          </View>
-          <View style={styles.todayText}>
-            <Text
-              style={[
-                styles.todayLabel,
-                { color: colors.primaryDark, fontSize: typography.sizes.sm },
-              ]}
-            >
-              Today Appointments
-            </Text>
-            <Text
-              style={[
-                styles.todayValue,
-                { color: colors.primaryDark, fontSize: typography.sizes.xl },
-              ]}
-            >
-              {analytics?.todayAppointments ?? 0}
-            </Text>
-          </View>
-        </View>
-
-        <Card style={{ marginTop: spacing.lg }}>
-          <Text
-            style={[
-              styles.chartTitle,
-              { color: colors.text, fontSize: typography.sizes.md },
-            ]}
-          >
-            Weekly Appointments
-          </Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <BarChart
-              data={weeklyChartData}
-              width={chartWidth}
-              height={chartHeight}
-              yAxisLabel=""
-              yAxisSuffix=""
-              chartConfig={chartConfig}
-              fromZero
-              segments={4}
-              showValuesOnTopOfBars
-              withInnerLines
-              style={styles.chart}
-            />
-          </ScrollView>
-        </Card>
-
-        <Card style={{ marginTop: spacing.lg }}>
-          <Text
-            style={[
-              styles.chartTitle,
-              { color: colors.text, fontSize: typography.sizes.md },
-            ]}
-          >
-            Appointment Status Distribution
-          </Text>
-          {statusDistributionData.length > 0 ? (
-            <PieChart
-              data={statusDistributionData}
-              width={chartWidth}
-              height={chartHeight}
-              accessor="count"
-              backgroundColor="transparent"
-              paddingLeft="8"
-              chartConfig={chartConfig}
-              absolute
-              hasLegend
-              style={styles.chart}
-            />
-          ) : (
-            <View style={[styles.emptyChart, { height: chartHeight }]}>
-              <Text
-                style={[
-                  styles.emptyChartText,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: typography.sizes.sm,
-                  },
-                ]}
-              >
-                No appointment status data yet.
+      </CardFadeIn>
+      
+      <CardFadeIn delay={400}>
+        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
+          <Card style={{ padding: spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <UserPlus color={colors.primary} size={scaleFont(24)} />
+              <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.lg, marginLeft: spacing.sm }]}>
+                Team Management
               </Text>
             </View>
-          )}
-        </Card>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <AppButton
+                title="➕ Staff Account"
+                onPress={() => navigation.navigate('CreateAccount', { role: 'staff' })}
+                style={{ flex: 1, backgroundColor: '#0284C7' }}
+              />
+              <AppButton
+                title="➕ Admin Account"
+                onPress={() => navigation.navigate('CreateAccount', { role: 'admin' })}
+                style={{ flex: 1, backgroundColor: '#7C3AED' }}
+              />
+            </View>
+          </Card>
+        </View>
+      </CardFadeIn>
 
-        <Text
-          style={[
-            styles.sectionTitle,
-            {
-              color: colors.text,
-              fontSize: typography.sizes.lg,
-              marginTop: spacing.xl,
-            },
-          ]}
-        >
-          Management
-        </Text>
-        {managementSections.map(section => (
-          <Pressable
-            key={section.key}
-            onPress={() =>
-              toastService.info(`${section.title} management coming soon!`)
-            }
-          >
-            <Card variant="outlined" style={{ marginTop: spacing.md }}>
-              <Text
-                style={[
-                  styles.manageTitle,
-                  { color: colors.text, fontSize: typography.sizes.md },
-                ]}
-              >
-                {section.title}
-              </Text>
-              <Text
-                style={[
-                  styles.manageDescription,
-                  {
-                    color: colors.textSecondary,
-                    fontSize: typography.sizes.sm,
-                  },
-                ]}
-              >
-                {section.description}
-              </Text>
-            </Card>
-          </Pressable>
-        ))}
-      </ScrollView>
     </ScreenWrapper>
   );
 };
@@ -428,99 +605,133 @@ const AdminDashboardScreen = () => {
 export default AdminDashboardScreen;
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-  },
   header: {
-    alignItems: 'flex-start',
+    alignItems: 'center',
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: wp(3),
     justifyContent: 'space-between',
     marginBottom: hp(2.4),
   },
-  chart: {
-    marginLeft: -wp(3),
-    marginTop: hp(1.5),
+  title: {
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  subtitle: {
+    fontWeight: '500',
+  },
+  logoutButton: {
+    minWidth: wp(24),
+  },
+  cardContent: {
+    padding: wp(4),
+  },
+  cardTitle: {
+    fontWeight: '700',
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: wp(2),
+  },
+  statMetricItem: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    paddingHorizontal: wp(3),
+    paddingVertical: hp(1.2),
+    borderWidth: 1,
+    marginBottom: hp(1),
+  },
+  statHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statIconPill: {
+    width: scaleFont(28),
+    height: scaleFont(28),
+    borderRadius: scaleFont(14),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statValue: {
+    fontWeight: 'bold',
+  },
+  statLabel: {
+    fontWeight: '500',
+    marginTop: hp(0.5),
   },
   chartTitle: {
     fontWeight: '700',
+  },
+  chart: {
+    marginLeft: -wp(2),
+    marginTop: hp(1.5),
   },
   emptyChart: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyChartText: {
-    fontWeight: '600',
+  emptyText: {
+    textAlign: 'center',
+    marginVertical: hp(2),
+    fontWeight: '500',
   },
-  iconBadge: {
+  activityItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 999,
-    height: scaleFont(40),
+    gap: scaleFont(10),
+  },
+  activityIconPill: {
+    width: scaleFont(30),
+    height: scaleFont(30),
+    borderRadius: scaleFont(15),
+    alignItems: 'center',
     justifyContent: 'center',
-    width: scaleFont(40),
+    flexShrink: 0,
   },
-  logoutButton: {
-    alignSelf: 'flex-start',
-    minWidth: wp(28),
+  activityText: {
+    fontWeight: '600',
+    flex: 1,
   },
-  manageDescription: {
-    lineHeight: scaleFont(20),
-    marginTop: hp(0.5),
+  activityTime: {
+    fontWeight: '500',
+    flexShrink: 0,
   },
-  manageTitle: {
-    fontWeight: '700',
-  },
-  sectionTitle: {
-    fontWeight: '700',
-  },
-  statCard: {
-    flexBasis: '46%',
-    flexGrow: 1,
-    minHeight: hp(12),
-  },
-  statHeader: {
-    alignItems: 'center',
+  systemMetricsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  statLabel: {
-    marginTop: hp(0.7),
-  },
-  statValue: {
-    fontWeight: 'bold',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  subtitle: {
-    marginTop: hp(0.5),
-  },
-  title: {
-    fontWeight: 'bold',
-    marginBottom: hp(0.5),
-  },
-  todayIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  todayLabel: {
-    fontWeight: '700',
-  },
-  todayPanel: {
-    alignItems: 'center',
-    borderRadius: 16,
-    flexDirection: 'row',
-    gap: wp(3),
-    paddingHorizontal: wp(4),
-    paddingVertical: hp(1.6),
-  },
-  todayText: {
+  systemMetricItem: {
     flex: 1,
+    alignItems: 'center',
   },
-  todayValue: {
+  systemMetricLabel: {
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: scaleFont(2),
+  },
+  systemMetricValue: {
     fontWeight: 'bold',
-    marginTop: hp(0.2),
+  },
+  systemStatusRow: {
+    borderTopWidth: 1,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: scaleFont(12),
+    paddingVertical: scaleFont(6),
+    alignSelf: 'flex-start',
+    gap: scaleFont(6),
+  },
+  statusDot: {
+    width: scaleFont(8),
+    height: scaleFont(8),
+    borderRadius: scaleFont(4),
+  },
+  statusText: {
+    fontWeight: '700',
   },
 });

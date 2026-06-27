@@ -6,12 +6,51 @@ export const APPOINTMENT_SLOT_LABELS = [
   '10:00 AM',
   '10:30 AM',
   '11:00 AM',
+  '11:30 AM',
+  '12:00 PM',
+  '12:30 PM',
+  '01:00 PM',
+  '01:30 PM',
+  '02:00 PM',
+  '02:30 PM',
+  '03:00 PM',
+  '03:30 PM',
+  '04:00 PM',
+  '04:30 PM',
+  '05:00 PM',
 ] as const;
 
 export type AppointmentSlotLabel = typeof APPOINTMENT_SLOT_LABELS[number];
 
-const slotPattern = /^(\d{2}):(\d{2})\s(AM|PM)$/;
-const twentyFourHourPattern = /^(\d{2}):(\d{2})(?::\d{2})?$/;
+const slotPattern = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/;
+const twentyFourHourPattern = /^(\d{1,2}):(\d{2})(?::\d{2})?$/;
+
+export const timeToMinutes = (timeStr: string | null | undefined): number => {
+  if (!timeStr) return 0;
+  const cleaned = timeStr.trim().toUpperCase();
+  
+  const ampmMatch = slotPattern.exec(cleaned);
+  if (ampmMatch) {
+    let hour = parseInt(ampmMatch[1], 10);
+    const minute = parseInt(ampmMatch[2], 10);
+    const period = ampmMatch[3];
+    if (period === 'PM' && hour !== 12) {
+      hour += 12;
+    } else if (period === 'AM' && hour === 12) {
+      hour = 0;
+    }
+    return hour * 60 + minute;
+  }
+
+  const regex24h = twentyFourHourPattern.exec(cleaned);
+  if (regex24h) {
+    const hour = parseInt(regex24h[1], 10);
+    const minute = parseInt(regex24h[2], 10);
+    return hour * 60 + minute;
+  }
+
+  return 0;
+};
 
 export const normalizeAppointmentTimeSlot = (
   appointmentTime: string | null | undefined,

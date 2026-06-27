@@ -10,6 +10,7 @@ import {
   isPastAppointmentDate,
   isPastAppointmentSlot,
   normalizeAppointmentTimeSlot,
+  timeToMinutes,
 } from '../utils/appointmentTime';
 
 const appointmentFullSelect =
@@ -216,6 +217,14 @@ const getBookedSlotsByDate = async (
 };
 
 export const appointmentsService = {
+  async triggerCleanup(): Promise<void> {
+    try {
+      await supabase.rpc('cleanup_stale_appointments');
+    } catch (cleanupError) {
+      console.warn('[CLEANUP] Failed to trigger stale appointments cleanup:', cleanupError);
+    }
+  },
+
   async getAvailableSlots(
     appointmentDate: string,
     centerId?: string,
@@ -225,12 +234,40 @@ export const appointmentsService = {
       centerId: centerId ?? null,
     });
 
+    await appointmentsService.triggerCleanup();
+
+    let openMin = 0;
+    let closeMin = 1440; // End of day
+
+    if (centerId) {
+      try {
+        const { data: center } = await supabase
+          .from('service_centers')
+          .select('open_time, close_time')
+          .eq('id', centerId)
+          .maybeSingle();
+        
+        if (center) {
+          if (center.open_time) openMin = timeToMinutes(center.open_time);
+          if (center.close_time) closeMin = timeToMinutes(center.close_time);
+        }
+      } catch (centerErr) {
+        console.warn('[SLOTS] Failed to load center operating hours:', centerErr);
+      }
+    }
+
     const bookedSlots = await getBookedSlotsByDate(appointmentDate, centerId);
     const availableSlots = APPOINTMENT_SLOT_LABELS.filter(
-      slot =>
-        !bookedSlots.has(slot) &&
-        !isPastAppointmentDate(appointmentDate) &&
-        !isPastAppointmentSlot(appointmentDate, slot),
+      slot => {
+        const slotMin = timeToMinutes(slot);
+        const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
+        return (
+          isWithinHours &&
+          !bookedSlots.has(slot) &&
+          !isPastAppointmentDate(appointmentDate) &&
+          !isPastAppointmentSlot(appointmentDate, slot)
+        );
+      }
     );
 
     console.log('[SLOTS] Available slots calculated:', {
@@ -335,6 +372,8 @@ export const appointmentsService = {
   ): Promise<AppointmentFull[]> {
     const authenticatedUserId = await getAuthenticatedUserId(userId);
     console.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
+
+    await appointmentsService.triggerCleanup();
     
     const response = await supabase
       .from('appointments_full')
@@ -379,6 +418,8 @@ export const appointmentsService = {
     appointmentId: string,
   ): Promise<AppointmentFull | null> {
     console.log('[DEBUG] Fetching appointment by id:', appointmentId);
+
+    await appointmentsService.triggerCleanup();
 
     const response = await supabase
       .from('appointments_full')
@@ -549,22 +590,34 @@ export const appointmentsService = {
     reason?: string,
   ): Promise<AppointmentFull> {
     try {
-      console.log('[DEBUG] Cancelling appointment:', appointmentId);
+      console.log('[DEBUG] Cancelling appointment via RPC cancel_appointment:', appointmentId);
 
       const authenticatedUserId = await getAuthenticatedUserId();
-      const { error } = await supabase
-        .from('appointments')
-        .update({
-          status: 'cancelled',
-          cancel_reason: reason || 'User cancelled',
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq('id', appointmentId)
-        .eq('user_id', authenticatedUserId);
+      
+      // Try to cancel via security definer RPC function to bypass update limitations
+      const { data, error: rpcError } = await supabase
+        .rpc('cancel_appointment', {
+          p_appointment_id: appointmentId,
+          p_reason: reason || 'User requested cancellation',
+        });
 
-      if (error) {
-        console.error('[DEBUG] Failed to cancel appointment:', error.message);
-        throw error;
+      if (rpcError) {
+        console.warn('[DEBUG] RPC cancel_appointment failed, falling back to direct update:', rpcError.message);
+        
+        const { error } = await supabase
+          .from('appointments')
+          .update({
+            status: 'cancelled',
+            cancel_reason: reason || 'User cancelled',
+            cancelled_at: new Date().toISOString(),
+          })
+          .eq('id', appointmentId)
+          .eq('user_id', authenticatedUserId);
+
+        if (error) {
+          console.error('[DEBUG] Direct cancel fallback failed:', error.message);
+          throw error;
+        }
       }
 
       console.log('[DEBUG] Appointment cancelled successfully');

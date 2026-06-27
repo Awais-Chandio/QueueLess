@@ -37,7 +37,7 @@ export const notificationsService = {
 
     const { data, error } = await supabase
       .from('notifications')
-      .select('id, user_id, title, message, is_read, created_at, appointment_id')
+      .select('id, user_id, title, message, is_read, created_at, appointment_id, type')
       .eq('user_id', authenticatedUserId)
       .order('created_at', { ascending: false });
 
@@ -52,7 +52,16 @@ export const notificationsService = {
     }
 
     console.log('[NOTIFICATIONS] fetched count:', data?.length ?? 0);
-    return (data ?? []) as Notification[];
+    return (data ?? []).map(n => ({
+      id: n.id,
+      user_id: n.user_id,
+      title: n.title,
+      message: n.message,
+      type: n.type ?? 'general',
+      is_read: n.is_read,
+      created_at: n.created_at,
+      appointment_id: n.appointment_id ?? null,
+    })) as Notification[];
   },
 
   async markAsRead(notificationId: string) {

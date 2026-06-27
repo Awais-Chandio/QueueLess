@@ -5,7 +5,9 @@ export type AppointmentStatus =
   | 'called'
   | 'in_progress'
   | 'completed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'expired'
+  | 'no_show';
 
 export type CancelReason =
   | 'Patient Requested'

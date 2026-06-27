@@ -12,7 +12,11 @@ import { scaleFont } from '../../../utils/responsive';
 
 const queueLessIcon = require('../../../assets/branding/queueless-icon.png');
 
-const SplashScreen = () => {
+interface SplashScreenProps {
+  message?: string;
+}
+
+const SplashScreen = ({ message = 'Getting your queue ready' }: SplashScreenProps) => {
   const { colors, spacing, typography } = useTheme();
   const entrance = useRef(new Animated.Value(0)).current;
   const float = useRef(new Animated.Value(0)).current;
@@ -168,7 +172,7 @@ const SplashScreen = () => {
             },
           ]}
         >
-          Getting your queue ready
+          {message}
         </Text>
       </View>
     </View>

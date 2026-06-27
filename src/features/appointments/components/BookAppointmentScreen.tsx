@@ -15,12 +15,13 @@ import {
 } from '@react-navigation/native';
 
 import type { RouteProp } from '@react-navigation/native';
-
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
 import { useQueryClient } from '@tanstack/react-query';
-
 import DateTimePicker from '@react-native-community/datetimepicker';
+
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { bookingSchema, BookingFormData } from '../../../validations/bookingSchema';
 
 import AppButton from '../../../components/ui/AppButton';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -49,6 +50,7 @@ import {
   getScheduledAtFromSlot,
   isPastAppointmentDate,
   isPastAppointmentSlot,
+  timeToMinutes,
 } from '../utils/appointmentTime';
 
 import type { AppointmentFull } from '../../../types/appointment';
@@ -66,95 +68,71 @@ type BookAppointmentNavigationProp =
   >;
 
 const BookAppointmentScreen = () => {
-  const route =
-    useRoute<BookAppointmentRouteProp>();
-
-  const navigation =
-    useNavigation<BookAppointmentNavigationProp>();
+  const route = useRoute<BookAppointmentRouteProp>();
+  const navigation = useNavigation<BookAppointmentNavigationProp>();
 
   const centerId = route.params?.centerId;
+  const initialServiceId = route.params?.serviceId;
 
-  const initialServiceId =
-    route.params?.serviceId;
+  const user = useAuthStore(state => state.user);
+  const createAppointment = useAppointmentsStore(state => state.createAppointment);
+  const appointmentLoading = useAppointmentsStore(state => state.loading);
 
-  const user = useAuthStore(
-    state => state.user,
-  );
-
-  const createAppointment = useAppointmentsStore(
-    state => state.createAppointment,
-  );
-
-  const appointmentLoading = useAppointmentsStore(
-    state => state.loading,
-  );
-
-  const centerServices = useCentersStore(
-    state => state.centerServices,
-  );
-
-  const fetchCenterServices =
-    useCentersStore(
-      state => state.fetchCenterServices,
-    );
-
-  const loading = useCentersStore(
-    state => state.loading,
-  );
-
-  const error = useCentersStore(
-    state => state.error,
-  );
+  const centerServices = useCentersStore(state => state.centerServices);
+  const selectedCenter = useCentersStore(state => state.selectedCenter);
+  
+  const fetchCenterServices = useCentersStore(state => state.fetchCenterServices);
+  const fetchCenterById = useCentersStore(state => state.fetchCenterById);
+  const loading = useCentersStore(state => state.loading);
+  const error = useCentersStore(state => state.error);
 
   const queryClient = useQueryClient();
 
-  const [
-    selectedServiceId,
-    setSelectedServiceId,
-  ] = useState<string | null>(
-    initialServiceId ?? null,
-  );
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [slotsError, setSlotsError] = useState<string | null>(null);
 
-  const [date, setDate] = useState(
-    new Date(),
-  );
+  // Initialize React Hook Form with Zod validation
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<BookingFormData>({
+    resolver: zodResolver(bookingSchema),
+    defaultValues: {
+      serviceId: initialServiceId ?? '',
+      date: new Date(),
+      slot: '',
+    },
+  });
 
-  const [showDatePicker, setShowDatePicker] =
-    useState(false);
+  const selectedServiceId = watch('serviceId');
+  const date = watch('date');
+  const selectedSlot = watch('slot');
 
-  const [selectedSlot, setSelectedSlot] =
-    useState<AppointmentSlotLabel | null>(null);
+  const appointmentDate = formatAppointmentDateInput(date);
 
-  const [availableSlots, setAvailableSlots] =
-    useState<string[]>([]);
-
-  const [slotsLoading, setSlotsLoading] =
-    useState(false);
-
-  const [slotsError, setSlotsError] =
-    useState<string | null>(null);
-
-  const appointmentDate =
-    formatAppointmentDateInput(date);
-
+  // Load center details and services on mount
   useEffect(() => {
-    setSelectedServiceId(
-      initialServiceId ?? null,
-    );
-
     if (centerId) {
       fetchCenterServices(centerId);
+      fetchCenterById(centerId);
     }
-  }, [
-    centerId,
-    fetchCenterServices,
-    initialServiceId,
-  ]);
+  }, [centerId, fetchCenterServices, fetchCenterById]);
 
+  // Set default initial service if navigation params passed it
   useEffect(() => {
-    if (!centerId) {
-      return;
+    if (initialServiceId) {
+      setValue('serviceId', initialServiceId, { shouldValidate: true });
     }
+  }, [initialServiceId, setValue]);
+
+  // Fetch available slots from backend whenever date or service changes
+  useEffect(() => {
+    if (!centerId) return;
 
     let cancelled = false;
 
@@ -168,23 +146,19 @@ const BookAppointmentScreen = () => {
           centerId,
         );
 
-        if (cancelled) {
-          return;
-        }
+        if (cancelled) return;
 
         setAvailableSlots(slots);
-        setSelectedSlot(current =>
-          current && slots.includes(current) ? current : null,
-        );
-      } catch (slotError) {
-        if (cancelled) {
-          return;
+        
+        // Reset selected slot if it is no longer available in the newly loaded slots
+        if (selectedSlot && !slots.includes(selectedSlot)) {
+          setValue('slot', '');
         }
+      } catch (slotError) {
+        if (cancelled) return;
 
         const message =
-          slotError instanceof Error
-            ? slotError.message
-            : 'Failed to load slots.';
+          slotError instanceof Error ? slotError.message : 'Failed to load slots.';
 
         console.error('[SLOTS] Failed to load booking slots:', {
           appointmentDate,
@@ -193,7 +167,7 @@ const BookAppointmentScreen = () => {
         });
         setSlotsError(message);
         setAvailableSlots([]);
-        setSelectedSlot(null);
+        setValue('slot', '');
       } finally {
         if (!cancelled) {
           setSlotsLoading(false);
@@ -206,49 +180,33 @@ const BookAppointmentScreen = () => {
     return () => {
       cancelled = true;
     };
-  }, [appointmentDate, centerId]);
+  }, [appointmentDate, centerId, setValue, selectedSlot]);
 
-  const handleBook = async () => {
+  // Submit appointment booking
+  const onSubmit = async (formData: BookingFormData) => {
     if (!centerId || !user?.id) {
-      return;
-    }
-
-    if (!selectedServiceId) {
-      toastService.error('Please select a service.');
-      return;
-    }
-
-    if (!selectedSlot) {
-      toastService.error('Please select an available time slot.');
-      return;
-    }
-
-    if (
-      isPastAppointmentDate(appointmentDate) ||
-      isPastAppointmentSlot(appointmentDate, selectedSlot)
-    ) {
-      toastService.error('Please select a future time slot.');
       return;
     }
 
     try {
       const scheduledAt = getScheduledAtFromSlot(
         appointmentDate,
-        selectedSlot,
+        formData.slot,
       );
 
       console.log('[DEBUG] BookAppointmentScreen: Creating appointment with slot:', {
         appointmentDate,
-        appointmentTime: selectedSlot,
+        appointmentTime: formData.slot,
         scheduledAt,
       });
+
       const appointment = await createAppointment({
         user_id: user.id,
         center_id: centerId,
-        service_id: selectedServiceId,
+        service_id: formData.serviceId,
         scheduled_at: scheduledAt,
         appointment_date: appointmentDate,
-        appointment_time: selectedSlot,
+        appointment_time: formData.slot,
       });
 
       queryClient.setQueryData<AppointmentFull[]>(
@@ -278,12 +236,13 @@ const BookAppointmentScreen = () => {
         queryKey: ['staff-dashboard'],
       });
 
+      // Refresh slots
       const slots = await appointmentsService.getAvailableSlots(
         appointmentDate,
         centerId,
       );
       setAvailableSlots(slots);
-      setSelectedSlot(null);
+      setValue('slot', '');
 
       toastService.success('Appointment booked successfully');
       navigation.navigate('QueueStatus', {
@@ -299,13 +258,8 @@ const BookAppointmentScreen = () => {
     }
   };
 
-  const renderService = ({
-    item,
-  }: {
-    item: CenterService;
-  }) => {
-    const selected =
-      selectedServiceId === item.id;
+  const renderService = ({ item }: { item: CenterService }) => {
+    const selected = selectedServiceId === item.id;
 
     return (
       <Pressable
@@ -313,13 +267,12 @@ const BookAppointmentScreen = () => {
           styles.serviceCard,
           selected && styles.selectedCard,
         ]}
-        onPress={() =>
-          setSelectedServiceId(item.id)
-        }
+        onPress={() => {
+          setValue('serviceId', item.id, { shouldValidate: true });
+          setValue('slot', '');
+        }}
         accessibilityRole="button"
-        accessibilityState={{
-          selected,
-        }}>
+        accessibilityState={{ selected }}>
         <View style={styles.serviceHeader}>
           <Text style={styles.serviceName}>
             {item.name}
@@ -371,13 +324,15 @@ const BookAppointmentScreen = () => {
           title="Failed To Load Services"
           message={error}
           buttonTitle="Retry"
-          onRetry={() =>
-            fetchCenterServices(centerId)
-          }
+          onRetry={() => fetchCenterServices(centerId)}
         />
       </ScreenWrapper>
     );
   }
+
+  // Calculate center's opening & closing hours in 24h minutes
+  const openMin = selectedCenter?.open_time ? timeToMinutes(selectedCenter.open_time) : 0;
+  const closeMin = selectedCenter?.close_time ? timeToMinutes(selectedCenter.close_time) : 1440;
 
   return (
     <ScreenWrapper>
@@ -396,6 +351,12 @@ const BookAppointmentScreen = () => {
             <Text style={styles.subtitle}>
               Select a service to continue.
             </Text>
+            
+            {errors.serviceId && (
+              <Text style={[styles.slotError, { marginTop: spacing.xs }]}>
+                {errors.serviceId.message}
+              </Text>
+            )}
           </View>
         }
         ListEmptyComponent={
@@ -413,17 +374,25 @@ const BookAppointmentScreen = () => {
 
               <Pressable
                 style={styles.dateButton}
-                onPress={() =>
-                  setShowDatePicker(true)
-                }>
+                onPress={() => setShowDatePicker(true)}>
                 <Text style={styles.dateText}>
                   {date.toDateString()}
                 </Text>
               </Pressable>
 
+              {errors.date && (
+                <Text style={styles.slotError}>{errors.date.message}</Text>
+              )}
+
               <Text style={styles.label}>
                 Available Slots
               </Text>
+              
+              {selectedCenter && (
+                <Text style={[styles.slotHint, { fontStyle: 'italic', marginBottom: spacing.xs }]}>
+                  Operating Hours: {selectedCenter.open_time || 'N/A'} - {selectedCenter.close_time || 'N/A'}
+                </Text>
+              )}
 
               {slotsLoading ? (
                 <Text style={styles.slotHint}>
@@ -434,44 +403,56 @@ const BookAppointmentScreen = () => {
                   {slotsError}
                 </Text>
               ) : (
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.slotRow}
-                >
-                  {APPOINTMENT_SLOT_LABELS.map(slot => {
-                    const pastSlot = isPastAppointmentSlot(
-                      appointmentDate,
-                      slot,
-                    );
-                    const booked =
-                      !availableSlots.includes(slot) || pastSlot;
-                    const selected = selectedSlot === slot;
+                <View>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.slotRow}
+                  >
+                    {APPOINTMENT_SLOT_LABELS.map(slot => {
+                      const slotMin = timeToMinutes(slot);
+                      const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
+                      
+                      const pastSlot = isPastAppointmentSlot(
+                        appointmentDate,
+                        slot,
+                      );
+                      const booked = !availableSlots.includes(slot);
+                      
+                      const disabled = pastSlot || booked || !isWithinHours;
+                      const selected = selectedSlot === slot;
 
-                    return (
-                      <Pressable
-                        key={slot}
-                        disabled={booked}
-                        onPress={() => setSelectedSlot(slot)}
-                        style={[
-                          styles.slotChip,
-                          selected && styles.selectedSlotChip,
-                          booked && styles.bookedSlotChip,
-                        ]}
-                      >
-                        <Text
+                      return (
+                        <Pressable
+                          key={slot}
+                          disabled={disabled}
+                          onPress={() => setValue('slot', slot, { shouldValidate: true })}
                           style={[
-                            styles.slotText,
-                            selected && styles.selectedSlotText,
-                            booked && styles.bookedSlotText,
+                            styles.slotChip,
+                            selected && styles.selectedSlotChip,
+                            disabled && styles.bookedSlotChip,
                           ]}
                         >
-                          {slot}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
+                          <Text
+                            style={[
+                              styles.slotText,
+                              selected && styles.selectedSlotText,
+                              disabled && styles.bookedSlotText,
+                            ]}
+                          >
+                            {slot}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                  
+                  {errors.slot && (
+                    <Text style={[styles.slotError, { marginTop: spacing.xs }]}>
+                      {errors.slot.message}
+                    </Text>
+                  )}
+                </View>
               )}
 
               {showDatePicker && (
@@ -485,13 +466,11 @@ const BookAppointmentScreen = () => {
                   ) => {
                     setShowDatePicker(false);
                     if (selectedDate) {
-                      setDate(selectedDate);
-                      setSelectedSlot(null);
+                      setValue('date', selectedDate, { shouldValidate: true });
+                      setValue('slot', '');
                     }
                   }}
-                  onDismiss={() =>
-                    setShowDatePicker(false)
-                  }
+                  onDismiss={() => setShowDatePicker(false)}
                 />
               )}
             </View>
@@ -510,13 +489,11 @@ const BookAppointmentScreen = () => {
               }
               loading={appointmentLoading}
               disabled={
-                !selectedServiceId ||
-                !selectedSlot ||
                 appointmentLoading ||
                 slotsLoading ||
                 centerServices.length === 0
               }
-              onPress={handleBook}
+              onPress={handleSubmit(onSubmit)}
             />
           </View>
         }

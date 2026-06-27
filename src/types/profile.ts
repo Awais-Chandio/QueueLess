@@ -1,5 +1,4 @@
 export type Profile = {
-
   id: string;
   full_name: string;
   email: string;
@@ -14,6 +13,7 @@ export type CreateProfilePayload = {
   id: string;
   full_name: string;
   email: string;
+  role?: 'client' | 'staff' | 'admin';
   phone?: string;
   avatar_url?: string;
 };
@@ -29,4 +29,11 @@ export type UploadAvatarPayload = {
   fileName?: string | null;
   type?: string | null;
   base64?: string | null;
+};
+
+export type CreateManagedAccountPayload = {
+  name: string;
+  email: string;
+  password?: string;
+  role: 'staff' | 'admin';
 };

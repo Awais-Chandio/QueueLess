@@ -6,21 +6,24 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Card } from '../../../components/ui/Card';
-import { Badge } from '../../../components/ui/Badge';
+import { StatusChip } from '../../../components/ui/StatusChip';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import AppButton from '../../../components/ui/AppButton';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useTheme } from '../../../hooks/useTheme';
 import { appointmentsService } from '../api/appointmentsService';
 import { useAppointmentsStore } from '../../../store/appointmentsStore';
 import { useToastStore } from '../../../store/toastStore';
 import type { AppStackParamList } from '../../../navigation/types';
+import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
 import {
   AlignLeft,
   Calendar,
   CheckCircle2,
-  CircleDot,
   Clock,
+  Hash,
+  MapPin,
 } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import {
@@ -81,25 +84,12 @@ const AppointmentDetailsScreen = () => {
     );
   }
 
-  const formatStatus = (status: string) =>
-    status
-      .split('_')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-  const canCancel = ['pending', 'confirmed'].includes(appointment.status);
-  const canCheckIn = appointment.status === 'confirmed';
+  const { isExpired, isNoShow, resolvedStatus } = getAppointmentStatusState(appointment);
+  const canCancel = (appointment.status === 'pending' || appointment.status === 'confirmed') && !isExpired && !isNoShow;
+  const canCheckIn = appointment.status === 'confirmed' && !isExpired && !isNoShow;
   const isCheckedIn = appointment.status === 'checked_in';
   const isCheckingIn = checkingInId === appointmentId;
-  const statusVariant =
-    appointment.status === 'completed'
-      ? 'success'
-      : appointment.status === 'cancelled'
-        ? 'error'
-        : appointment.status === 'checked_in'
-          ? 'success'
-          : appointment.status === 'confirmed'
-            ? 'info'
-            : 'warning';
+  const { label: statusLabel } = getStatusDisplayProperties(resolvedStatus);
 
   const confirmCancel = () => {
     Alert.alert('Cancel Appointment', 'Are you sure you want to cancel this appointment?', [
@@ -123,16 +113,9 @@ const AppointmentDetailsScreen = () => {
       ]);
 
       showToast('Successfully checked in.', 'success');
-      console.log('[APPOINTMENT_DETAILS] Patient check-in UI completed:', {
-        appointmentId,
-      });
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Unable to check in.';
-      console.error('[APPOINTMENT_DETAILS] Patient check-in UI failed:', {
-        appointmentId,
-        message,
-      });
       showToast(message, 'error');
     }
   };
@@ -143,62 +126,74 @@ const AppointmentDetailsScreen = () => {
         Appointment Details
       </Text>
 
-      <Card style={{ marginBottom: spacing.md }}>
-        <View style={styles.headerRow}>
-          <View style={styles.headerText}>
-            <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '700', marginBottom: spacing.xs }}>
-              {appointment.service_name || 'Service'}
-            </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.md, marginBottom: spacing.md }}>
-              {appointment.center_name || 'Center'}
-            </Text>
+      <CardFadeIn delay={0}>
+        <Card style={{ marginBottom: spacing.md }}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerText}>
+              <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '700', marginBottom: spacing.xs }}>
+                {appointment.service_name || 'Service'}
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(4) }}>
+                <MapPin size={scaleFont(13)} color={colors.textSecondary} />
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
+                  {appointment.center_name || 'Center'}
+                </Text>
+              </View>
+            </View>
+            <StatusChip status={resolvedStatus} label={statusLabel} />
           </View>
-          <Badge 
-            label={formatStatus(appointment.status)} 
-            variant={statusVariant}
-          />
-        </View>
 
-        <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.md }} />
+          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.md }} />
 
-        <View style={{ gap: spacing.md }}>
-          <View style={styles.detailRow}>
-            <Calendar color={colors.primary} size={scaleFont(20)} />
-            <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
-              {getAppointmentDateLabel(appointment)}
-            </Text>
+          <View style={{ gap: spacing.md }}>
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                <Calendar color={colors.primary} size={scaleFont(16)} />
+              </View>
+              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
+                {getAppointmentDateLabel(appointment)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.info}12` }]}>
+                <Clock color={colors.info} size={scaleFont(16)} />
+              </View>
+              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
+                {getAppointmentTimeLabel(appointment)}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                <Hash color={colors.primary} size={scaleFont(16)} />
+              </View>
+              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
+                Token #{appointment.token_number || 'N/A'}
+              </Text>
+            </View>
           </View>
-          <View style={styles.detailRow}>
-            <Clock color={colors.primary} size={scaleFont(20)} />
-            <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
-              {getAppointmentTimeLabel(appointment)}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <CircleDot color={colors.primary} size={scaleFont(20)} />
-            <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
-              Token #{appointment.token_number || 'N/A'}
-            </Text>
-          </View>
-        </View>
-      </Card>
+        </Card>
+      </CardFadeIn>
 
       {appointment.notes && (
-        <Card style={{ marginBottom: spacing.md }}>
-          <View style={styles.detailRow}>
-            <AlignLeft color={colors.primary} size={scaleFont(20)} />
-            <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>Notes</Text>
-          </View>
-          <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm }}>
-            {appointment.notes}
-          </Text>
-        </Card>
+        <CardFadeIn delay={60}>
+          <Card style={{ marginBottom: spacing.md }}>
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.warning}12` }]}>
+                <AlignLeft color={colors.warning} size={scaleFont(16)} />
+              </View>
+              <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>Notes</Text>
+            </View>
+            <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm }}>
+              {appointment.notes}
+            </Text>
+          </Card>
+        </CardFadeIn>
       )}
 
-      <AppButton 
-        title="View Queue Status" 
-        variant="primary" 
-        onPress={() => navigation.navigate('QueueStatus', { appointmentId })} 
+      <AppButton
+        title="View Queue Status"
+        variant="primary"
+        onPress={() => navigation.navigate('QueueStatus', { appointmentId })}
       />
 
       {(canCheckIn || isCheckedIn) && (
@@ -231,11 +226,11 @@ const AppointmentDetailsScreen = () => {
       )}
 
       {canCancel && (
-        <AppButton 
-          title="Cancel Appointment" 
-          variant="danger" 
+        <AppButton
+          title="Cancel Appointment"
+          variant="danger"
           loading={cancelMutation.isPending}
-          onPress={confirmCancel} 
+          onPress={confirmCancel}
           style={{ marginTop: spacing.md }}
         />
       )}
@@ -264,6 +259,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: scaleFont(12),
+  },
+  detailIconPill: {
+    width: scaleFont(34),
+    height: scaleFont(34),
+    borderRadius: scaleFont(17),
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   arrivedRow: {
     alignItems: 'center',

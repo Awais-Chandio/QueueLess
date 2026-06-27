@@ -12,9 +12,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppButton from '../../../components/ui/AppButton';
 import { Card } from '../../../components/ui/Card';
-import { Badge, BadgeVariant } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
+import { StatusChip } from '../../../components/ui/StatusChip';
 import { SkeletonLoader } from '../../../components/animations/SkeletonLoader';
 import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useTheme } from '../../../hooks/useTheme';
@@ -22,7 +22,8 @@ import { useAppointments } from '../hooks/useAppointments';
 import { useAuthStore } from '../../../store/authStore';
 import type { AppStackParamList } from '../../../navigation/types';
 import type { AppointmentStatus } from '../../../types/appointment';
-import { Calendar, Clock, MapPin, SearchX } from 'lucide-react-native';
+import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
+import { Calendar, Clock, MapPin, SearchX, Hash } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import {
   getAppointmentDateLabel,
@@ -41,7 +42,22 @@ const statusFilters: StatusFilter[] = [
   'in_progress',
   'completed',
   'cancelled',
+  'expired',
+  'no_show',
 ];
+
+const STATUS_DOT_COLORS: Record<string, string> = {
+  all: '#2E7DFF',
+  pending: '#F59E0B',
+  confirmed: '#2E7DFF',
+  checked_in: '#3B82F6',
+  called: '#8B5CF6',
+  in_progress: '#8B5CF6',
+  completed: '#22C55E',
+  cancelled: '#EF4444',
+  expired: '#EF4444',
+  no_show: '#EF4444',
+};
 
 const MyAppointmentsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -75,28 +91,10 @@ const MyAppointmentsScreen = () => {
     }
   }, [refetch]);
 
-  const filteredAppointments = selectedStatus === 'all' 
-    ? appointments 
-    : appointments.filter(item => item.status === selectedStatus);
-
-  const formatStatus = (status: AppointmentStatus) =>
-    status
-      .split('_')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
-
-  const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
-    switch (status) {
-      case 'confirmed': return 'success';
-      case 'checked_in': return 'success';
-      case 'called':
-      case 'in_progress': return 'warning';
-      case 'cancelled': return 'error';
-      case 'completed': return 'default';
-      case 'pending':
-      default: return 'warning';
-    }
-  };
+  const filteredAppointments = appointments.filter(item => {
+    const { resolvedStatus } = getAppointmentStatusState(item);
+    return selectedStatus === 'all' || resolvedStatus === selectedStatus;
+  });
 
   const renderSkeleton = () => (
     <View style={{ paddingBottom: spacing.xl }}>
@@ -111,30 +109,45 @@ const MyAppointmentsScreen = () => {
           My Appointments
         </Text>
 
+        {/* Status filter chips with dot indicators */}
         <View style={[styles.filterRow, { marginBottom: spacing.md, gap: spacing.sm }]}>
           {statusFilters.map(status => {
             const isSelected = selectedStatus === status;
+            const { label: statusLabel } = getStatusDisplayProperties(status as any);
+            const dotColor = STATUS_DOT_COLORS[status] ?? colors.textSecondary;
             return (
               <Pressable
                 key={status}
                 onPress={() => setSelectedStatus(status)}
-                style={[
+                style={({ pressed }) => [
                   styles.filterButton,
                   {
-                    borderColor: isSelected ? colors.primary : colors.border,
-                    backgroundColor: isSelected ? colors.primary : colors.surface,
+                    borderColor: isSelected ? dotColor : colors.border,
+                    backgroundColor: isSelected ? dotColor + '18' : colors.surface,
                     borderRadius: radius.full,
                     paddingHorizontal: spacing.md,
                     paddingVertical: spacing.xs,
-                  }
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: scaleFont(5),
+                  },
+                  pressed && { opacity: 0.75 },
                 ]}
               >
+                <View
+                  style={{
+                    width: scaleFont(6),
+                    height: scaleFont(6),
+                    borderRadius: scaleFont(3),
+                    backgroundColor: isSelected ? dotColor : colors.textSecondary + '60',
+                  }}
+                />
                 <Text style={{
-                  color: isSelected ? '#FFF' : colors.textSecondary,
+                  color: isSelected ? dotColor : colors.textSecondary,
                   fontSize: typography.sizes.sm,
-                  fontWeight: '600'
+                  fontWeight: isSelected ? '700' : '500',
                 }}>
-                  {status === 'all' ? 'All' : formatStatus(status)}
+                  {status === 'all' ? 'All' : statusLabel}
                 </Text>
               </Pressable>
             );
@@ -177,79 +190,99 @@ const MyAppointmentsScreen = () => {
                 subtitle="No appointments found for this status."
               />
             }
-            renderItem={({ item, index }) => (
-              <CardFadeIn delay={Math.min(index * 80, 400)}>
-                <Card style={{ marginBottom: spacing.md }}>
-                  <Pressable
-                    onPress={() =>
-                      navigation.navigate('AppointmentDetails', {
-                        appointmentId: item.id,
-                      })
-                    }
-                  >
-                    <View style={styles.cardHeader}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
-                          {item.service_name ?? 'Service'}
-                        </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
-                          <MapPin size={scaleFont(14)} color={colors.textSecondary} />
-                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, flex: 1 }}>
-                            {item.center_name ?? 'Center'}
-                          </Text>
-                        </View>
-                      </View>
-                      <Badge label={formatStatus(item.status as AppointmentStatus)} variant={getStatusVariant(item.status as AppointmentStatus)} />
-                    </View>
+            renderItem={({ item, index }) => {
+              const { resolvedStatus, isExpired, isNoShow } = getAppointmentStatusState(item);
+              const { label: statusLabel } = getStatusDisplayProperties(resolvedStatus);
 
-                    <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
-
-                    <View style={styles.detailsRow}>
-                      <View style={styles.detailItem}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
-                          <Calendar size={scaleFont(14)} color={colors.textSecondary} />
-                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Date</Text>
-                        </View>
-                        <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                          {getAppointmentDateLabel(item)}
-                        </Text>
-                      </View>
-
-                      <View style={styles.detailItem}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
-                          <Clock size={scaleFont(14)} color={colors.textSecondary} />
-                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Time</Text>
-                        </View>
-                        <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                          {getAppointmentTimeLabel(item)}
-                        </Text>
-                      </View>
-
-                      {typeof item.token_number === 'number' && (
-                        <View style={styles.detailItem}>
-                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.xs / 2 }}>Token</Text>
-                          <Text style={{ color: colors.primary, fontSize: typography.sizes.md, fontWeight: 'bold' }}>
-                            #{item.token_number}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </Pressable>
-
-                  {['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(item.status) && (
-                    <AppButton
-                      title="View Live Queue"
-                      variant="outline"
+              return (
+                <CardFadeIn delay={Math.min(index * 60, 300)}>
+                  <Card style={{ marginBottom: spacing.md }}>
+                    <Pressable
                       onPress={() =>
-                        navigation.navigate('QueueStatus', {
+                        navigation.navigate('AppointmentDetails', {
                           appointmentId: item.id,
                         })
                       }
-                    />
-                  )}
-                </Card>
-              </CardFadeIn>
-            )}
+                      style={({ pressed }) => pressed ? { opacity: 0.85 } : {}}
+                    >
+                      <View style={styles.cardHeader}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
+                            {item.service_name ?? 'Service'}
+                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
+                            <MapPin size={scaleFont(13)} color={colors.textSecondary} />
+                            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, flex: 1 }}>
+                              {item.center_name ?? 'Center'}
+                            </Text>
+                          </View>
+                        </View>
+                        <StatusChip
+                          status={resolvedStatus}
+                          label={statusLabel}
+                          size="sm"
+                        />
+                      </View>
+
+                      <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
+
+                      <View style={styles.detailsRow}>
+                        <View style={styles.detailItem}>
+                          <View style={[styles.detailIconRow, { marginBottom: spacing.xs / 2 }]}>
+                            <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                              <Calendar size={scaleFont(12)} color={colors.primary} />
+                            </View>
+                            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Date</Text>
+                          </View>
+                          <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '600' }}>
+                            {getAppointmentDateLabel(item)}
+                          </Text>
+                        </View>
+
+                        <View style={styles.detailItem}>
+                          <View style={[styles.detailIconRow, { marginBottom: spacing.xs / 2 }]}>
+                            <View style={[styles.detailIconPill, { backgroundColor: `${colors.info}12` }]}>
+                              <Clock size={scaleFont(12)} color={colors.info} />
+                            </View>
+                            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Time</Text>
+                          </View>
+                          <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '600' }}>
+                            {getAppointmentTimeLabel(item)}
+                          </Text>
+                        </View>
+
+                        {typeof item.token_number === 'number' && (
+                          <View style={styles.detailItem}>
+                            <View style={[styles.detailIconRow, { marginBottom: spacing.xs / 2 }]}>
+                              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                                <Hash size={scaleFont(12)} color={colors.primary} />
+                              </View>
+                              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Token</Text>
+                            </View>
+                            <Text style={{ color: colors.primary, fontSize: typography.sizes.sm, fontWeight: 'bold' }}>
+                              #{item.token_number}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </Pressable>
+
+                    {['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus) && !isExpired && !isNoShow && (
+                      <AppButton
+                        title="View Live Queue"
+                        variant="outline"
+                        onPress={() =>
+                          navigation.navigate('QueueStatus', {
+                            appointmentId: item.id,
+                          })
+                        }
+                        style={{ marginTop: spacing.md }}
+                      />
+                    )}
+                  </Card>
+                </CardFadeIn>
+              );
+            }}
           />
         )}
       </View>
@@ -291,5 +324,17 @@ const styles = StyleSheet.create({
   detailItem: {
     flex: 1,
     minWidth: '28%',
-  }
+  },
+  detailIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleFont(4),
+  },
+  detailIconPill: {
+    width: scaleFont(20),
+    height: scaleFont(20),
+    borderRadius: scaleFont(10),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
