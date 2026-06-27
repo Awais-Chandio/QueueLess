@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Animated, View, StyleSheet, Text, Pressable } from 'react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import { LinearGradient } from 'react-native-linear-gradient';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { StatusChip } from '../../../components/ui/StatusChip';
@@ -20,6 +21,8 @@ import {
   CircleDot,
   Users,
   Hash,
+  Activity,
+  ChevronRight,
 } from 'lucide-react-native';
 import { useAuthStore } from '../../../store/authStore';
 import { useProfileStore } from '../../../store/profileStore';
@@ -44,6 +47,18 @@ const HomeScreen = () => {
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
   const isProfileLoading = useProfileStore(state => state.isLoading);
+
+  useEffect(() => {
+    if (user?.id && (!profile || profile.id !== user.id)) {
+      fetchProfile(user.id);
+    }
+  }, [user?.id, profile?.id, fetchProfile]);
+
+  const displayName = useMemo(() => {
+    if (profile?.full_name) return profile.full_name;
+    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
+    return 'User';
+  }, [profile, user]);
 
   const activeAppointment = stats?.activeAppointment;
   const resolvedActiveApptStatus = useMemo(() => {
@@ -87,6 +102,7 @@ const HomeScreen = () => {
 
   const queuePulse = useRef(new Animated.Value(1)).current;
   const screenFade = useRef(new Animated.Value(0)).current;
+  const livePulse = useRef(new Animated.Value(1)).current;
 
   // Screen fade-in on mount
   useEffect(() => {
@@ -96,6 +112,32 @@ const HomeScreen = () => {
       useNativeDriver: true,
     }).start();
   }, [screenFade]);
+
+  useEffect(() => {
+    let animation: Animated.CompositeAnimation | null = null;
+    if (activeAppointment && activeToken != null && hasActiveQueueAppt) {
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.timing(livePulse, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(livePulse, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      animation.start();
+    } else {
+      livePulse.setValue(1);
+    }
+    return () => {
+      if (animation) animation.stop();
+    };
+  }, [activeAppointment, activeToken, hasActiveQueueAppt, livePulse]);
 
   useEffect(() => {
     Animated.sequence([
@@ -169,7 +211,7 @@ const HomeScreen = () => {
                   { color: colors.textSecondary, fontSize: typography.sizes.md },
                 ]}
               >
-                Welcome back,
+                Welcome,
               </Text>
               <Text
                 style={[
@@ -181,7 +223,7 @@ const HomeScreen = () => {
                   },
                 ]}
               >
-                {profile?.full_name || 'User'}
+                {displayName}
               </Text>
             </View>
             <View style={styles.headerRight}>
@@ -195,9 +237,16 @@ const HomeScreen = () => {
               >
                 <Bell color={colors.text} size={scaleFont(20)} />
               </Pressable>
-              <View style={[styles.avatarRing, { borderColor: colors.primary + '50' }]}>
+              <Pressable
+                onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
+                style={({ pressed }) => [
+                  styles.avatarRing,
+                  { borderColor: colors.primary + '50' },
+                  pressed && { opacity: 0.75 },
+                ]}
+              >
                 <ProfileAvatar uri={profile?.avatar_url} size={48} />
-              </View>
+              </Pressable>
             </View>
           </View>
         </CardFadeIn>
@@ -222,7 +271,9 @@ const HomeScreen = () => {
                       { backgroundColor: `${colors.success}18`, borderColor: `${colors.success}30`, borderWidth: 1 },
                     ]}
                   >
-                    <CircleDot color={colors.success} size={scaleFont(11)} />
+                    <Animated.View style={{ opacity: livePulse, marginRight: scaleFont(4), justifyContent: 'center', alignItems: 'center' }}>
+                      <CircleDot color={colors.success} size={scaleFont(11)} />
+                    </Animated.View>
                     <Text
                       style={{
                         color: colors.success,
@@ -486,6 +537,38 @@ const HomeScreen = () => {
             </Card>
           </View>
         </CardFadeIn>
+
+        {/* E. Recent Activity */}
+        <CardFadeIn delay={240}>
+          <View style={{ marginBottom: spacing.xl }}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.lg }]}>Recent Activity</Text>
+              <Pressable style={styles.viewAllBtn}>
+                <Text style={{ color: colors.primary, fontSize: typography.sizes.sm, fontWeight: '600' }}>View All</Text>
+                <ChevronRight size={16} color={colors.primary} />
+              </Pressable>
+            </View>
+            <Card variant="elevated" style={styles.activityCard}>
+              {stats?.todayAppointments?.length ? (
+                 stats.todayAppointments.slice(0, 2).map((appt: any, index: number) => (
+                   <View key={appt.id} style={[styles.activityItem, index !== 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
+                     <View style={[styles.activityIconContainer, { backgroundColor: `${colors.primary}12` }]}>
+                       <Activity size={20} color={colors.primary} />
+                     </View>
+                      <View style={styles.activityContent}>
+                        <Text style={{ color: colors.text, fontWeight: '600', fontSize: typography.sizes.sm }}>{appt.serviceName || 'Clinic Appointment'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{appt.centerName || 'QueueLess Center'} • Today • {appt.status.replace('_', ' ')}</Text>
+                      </View>
+                   </View>
+                 ))
+              ) : (
+                <View style={styles.emptyActivity}>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>No recent activity to show.</Text>
+                </View>
+              )}
+            </Card>
+          </View>
+        </CardFadeIn>
       </ScreenWrapper>
     </Animated.View>
   );
@@ -640,5 +723,42 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontWeight: '600',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: hp(1.5),
+  },
+  sectionTitle: {
+    fontWeight: '700',
+  },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityCard: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: wp(4),
+  },
+  activityIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: wp(3),
+  },
+  activityContent: {
+    flex: 1,
+  },
+  emptyActivity: {
+    padding: wp(6),
+    alignItems: 'center',
   },
 });

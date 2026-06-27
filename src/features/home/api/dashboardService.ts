@@ -8,7 +8,7 @@ export const fetchDashboardStats = async (userId: string) => {
   const { data: appointments, error } = await supabase
     .from('appointments')
     .select(
-      'id, center_id, status, scheduled_at, appointment_date, appointment_time, token_number, estimated_wait_mins',
+      'id, center_id, service_id, status, scheduled_at, appointment_date, appointment_time, token_number, estimated_wait_mins, service_centers(name), services(name)',
     )
     .eq('user_id', userId)
     .order('scheduled_at', { ascending: true });
@@ -76,6 +76,28 @@ export const fetchDashboardStats = async (userId: string) => {
     queueStatus,
   });
 
+  const todayAppointments = appointments
+    .filter(app => {
+      try {
+        return getAppointmentDateTime(app).toDateString() === now.toDateString();
+      } catch (e) {
+        return false;
+      }
+    })
+    .map(app => {
+      const centerName = (app as any).service_centers?.name || 'Clinic';
+      const serviceName = (app as any).services?.name || 'Appointment';
+      return {
+        id: app.id,
+        status: app.status,
+        appointmentDate: app.appointment_date,
+        appointmentTime: app.appointment_time,
+        scheduledAt: app.scheduled_at,
+        centerName,
+        serviceName,
+      };
+    });
+
   return {
     total,
     active,
@@ -94,5 +116,6 @@ export const fetchDashboardStats = async (userId: string) => {
           appointmentTime: activeAppointment.appointment_time,
         }
       : null,
+    todayAppointments,
   };
 };

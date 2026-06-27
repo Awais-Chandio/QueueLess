@@ -11,7 +11,7 @@ import { useAuthStore } from './authStore';
 const sortAppointments = (appointments: AppointmentFull[]) =>
   [...appointments].sort(
     (a, b) =>
-      new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime(),
+      new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime(),
   );
 
 const toAppointmentFull = (appointment: Appointment): AppointmentFull => ({

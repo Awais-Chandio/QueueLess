@@ -6,6 +6,7 @@ import {
   Text,
   View,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,8 +18,11 @@ import {
   XCircle,
   ClipboardList,
   Activity,
+  Search,
+  SlidersHorizontal,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
+import AppInput from '../../../components/ui/AppInput';
 import { StatusChip } from '../../../components/ui/StatusChip';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
@@ -28,6 +32,7 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useAuth } from '../../../hooks/useAuth';
+import { useProfileStore } from '../../../store/profileStore';
 import { useTheme } from '../../../hooks/useTheme';
 import { useStaffQueueStore } from '../../../store/staffQueueStore';
 import type {
@@ -80,7 +85,22 @@ const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
 
 const StaffDashboardScreen = () => {
   const { colors, spacing, typography, radius } = useTheme();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const profile = useProfileStore(state => state.profile);
+  const fetchProfile = useProfileStore(state => state.fetchProfile);
+
+  useEffect(() => {
+    if (user?.id && (!profile || profile.id !== user.id)) {
+      fetchProfile(user.id);
+    }
+  }, [user?.id, profile?.id, fetchProfile]);
+
+  const staffName = useMemo(() => {
+    if (profile?.full_name) return profile.full_name;
+    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
+    return 'Staff';
+  }, [profile, user]);
+
   const queryClient = useQueryClient();
   const setStaffAppointments = useStaffQueueStore(
     state => state.setAppointments,
@@ -89,6 +109,8 @@ const StaffDashboardScreen = () => {
   const [cancelTarget, setCancelTarget] = useState<AppointmentFull | null>(
     null,
   );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'queue' | 'checked_in' | 'serving' | 'completed' | 'cancelled'>('queue');
   const isFocused = useIsFocused();
 
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
@@ -192,6 +214,39 @@ const StaffDashboardScreen = () => {
     }),
     [appointments]
   );
+
+  const filteredQueueAppointments = useMemo(() => {
+    return appointments.filter(item => {
+      const { resolvedStatus } = getAppointmentStatusState(item);
+      
+      // 1. Filter by status
+      let matchesStatus = false;
+      if (statusFilter === 'queue') {
+        matchesStatus = ['confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus);
+      } else if (statusFilter === 'checked_in') {
+        matchesStatus = resolvedStatus === 'checked_in';
+      } else if (statusFilter === 'serving') {
+        matchesStatus = ['called', 'in_progress'].includes(resolvedStatus);
+      } else if (statusFilter === 'completed') {
+        matchesStatus = resolvedStatus === 'completed';
+      } else if (statusFilter === 'cancelled') {
+        matchesStatus = ['cancelled', 'expired', 'no_show'].includes(resolvedStatus);
+      }
+
+      if (!matchesStatus) return false;
+
+      // 2. Filter by search query
+      if (searchQuery.trim() !== '') {
+        const query = searchQuery.toLowerCase();
+        const patientName = item.patient_name?.toLowerCase() || '';
+        const serviceName = item.service_name?.toLowerCase() || '';
+        const tokenStr = item.token_number?.toString() || '';
+        return patientName.includes(query) || serviceName.includes(query) || tokenStr.includes(query);
+      }
+
+      return true;
+    });
+  }, [appointments, statusFilter, searchQuery]);
 
   const renderActionButton = (
     action: QueueAction,
@@ -431,7 +486,7 @@ const StaffDashboardScreen = () => {
               { color: colors.text, fontSize: typography.sizes.xxl },
             ]}
           >
-            Staff Dashboard
+            Welcome, {staffName}
           </Text>
           <Text
             style={[
@@ -548,22 +603,94 @@ const StaffDashboardScreen = () => {
       <CardFadeIn delay={120}>
         <View style={{ marginBottom: spacing.lg }}>
           <Card variant="elevated" style={styles.cardContent}>
-            <Text
-              style={[
-                styles.cardTitle,
-                { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
-              ]}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+              <Text
+                style={[
+                  styles.cardTitle,
+                  { color: colors.text, fontSize: typography.sizes.lg },
+                ]}
+              >
+                Queue List
+              </Text>
+              <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.textSecondary}12`, width: scaleFont(32), height: scaleFont(32) }]}>
+                <Clock size={scaleFont(16)} color={colors.textSecondary} />
+              </View>
+            </View>
+
+            {/* Search Input */}
+            <View style={{ marginBottom: spacing.md }}>
+              <AppInput
+                placeholder="Search patient, service, or token..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                leftIcon={Search}
+              />
+            </View>
+
+            {/* Status Filter Chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ maxHeight: scaleFont(44), marginBottom: spacing.md }}
+              contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
             >
-              Queue List
-            </Text>
-            {queueAppointments.length === 0 ? (
+              {[
+                { key: 'queue' as const, label: 'Active Queue', color: colors.primary },
+                { key: 'checked_in' as const, label: 'Checked In', color: colors.success },
+                { key: 'serving' as const, label: 'Serving', color: colors.warning },
+                { key: 'completed' as const, label: 'Completed', color: colors.info },
+                { key: 'cancelled' as const, label: 'Cancelled', color: colors.error },
+              ].map(filter => {
+                const isSelected = statusFilter === filter.key;
+                const filterColor = filter.color;
+                return (
+                  <Pressable
+                    key={filter.key}
+                    onPress={() => setStatusFilter(filter.key)}
+                    style={({ pressed }) => [
+                      {
+                        borderColor: isSelected ? filterColor : colors.border,
+                        backgroundColor: isSelected ? filterColor + '15' : colors.surface,
+                        borderRadius: radius.full,
+                        borderWidth: 1,
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.xs,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: scaleFont(5),
+                        height: scaleFont(30),
+                      },
+                      pressed && { opacity: 0.75 },
+                    ]}
+                  >
+                    <View
+                      style={{
+                        width: scaleFont(6),
+                        height: scaleFont(6),
+                        borderRadius: scaleFont(3),
+                        backgroundColor: isSelected ? filterColor : colors.textSecondary + '60',
+                      }}
+                    />
+                    <Text style={{
+                      color: isSelected ? filterColor : colors.textSecondary,
+                      fontSize: typography.sizes.sm,
+                      fontWeight: isSelected ? '700' : '500',
+                    }}>
+                      {filter.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            {filteredQueueAppointments.length === 0 ? (
               <EmptyState
-                Icon={Users}
-                title="Queue Empty"
-                subtitle="No active queue appointments today."
+                Icon={Search}
+                title={appointments.length === 0 ? "Queue Empty" : "No Results"}
+                subtitle={appointments.length === 0 ? "No active queue appointments today." : "No matching appointments found."}
               />
             ) : (
-              queueAppointments.map((appt, idx) => renderAppointmentItem(appt, idx, false))
+              filteredQueueAppointments.map((appt, idx) => renderAppointmentItem(appt, idx, false))
             )}
           </Card>
         </View>

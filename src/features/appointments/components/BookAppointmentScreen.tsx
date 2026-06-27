@@ -18,6 +18,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { ChevronLeft } from 'lucide-react-native';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -228,26 +229,29 @@ const BookAppointmentScreen = () => {
         },
       );
 
-      await queryClient.invalidateQueries({
-        queryKey: ['appointments', user.id],
-        refetchType: 'all',
-      });
-      await queryClient.invalidateQueries({
-        queryKey: ['staff-dashboard'],
-      });
-
-      // Refresh slots
-      const slots = await appointmentsService.getAvailableSlots(
-        appointmentDate,
-        centerId,
-      );
-      setAvailableSlots(slots);
-      setValue('slot', '');
-
+      // Navigate immediately to QueueStatus to ensure an instant, fluid transition
       toastService.success('Appointment booked successfully');
       navigation.navigate('QueueStatus', {
         appointmentId: appointment.id,
       });
+
+      // Perform invalidations and available slot refreshes in the background (no awaiting!)
+      queryClient.invalidateQueries({
+        queryKey: ['appointments', user.id],
+        refetchType: 'all',
+      }).catch(err => console.warn('[Appt Invalidation] Error:', err));
+
+      queryClient.invalidateQueries({
+        queryKey: ['staff-dashboard'],
+      }).catch(err => console.warn('[Staff Invalidation] Error:', err));
+
+      appointmentsService.getAvailableSlots(
+        appointmentDate,
+        centerId,
+      ).then(slots => {
+        setAvailableSlots(slots);
+        setValue('slot', '');
+      }).catch(err => console.warn('[Slots Reload] Error:', err));
     } catch (createError) {
       console.error('[DEBUG] BookAppointmentScreen: Failed to create appointment:', createError);
       toastService.error(
@@ -344,6 +348,17 @@ const BookAppointmentScreen = () => {
         contentContainerStyle={styles.content}
         ListHeaderComponent={
           <View style={styles.header}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && { opacity: 0.7 }
+              ]}
+            >
+              <ChevronLeft size={24} color={colors.primary} />
+              <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md }]}>Back</Text>
+            </Pressable>
+            
             <Text style={styles.title}>
               Book Appointment
             </Text>
@@ -648,5 +663,18 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontSize: typography.small,
     marginBottom: spacing.md,
+  },
+
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    alignSelf: 'flex-start',
+    paddingVertical: spacing.xs,
+  },
+
+  backButtonText: {
+    fontWeight: '600',
+    marginLeft: spacing.xs,
   },
 });

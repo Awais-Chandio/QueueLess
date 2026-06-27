@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, StyleSheet, TextInput, Text, Pressable } from "react-native";
 import type { TextInputProps } from "react-native";
 import { colors, radius, spacing, typography } from "../../theme/index";
-import { Eye, EyeOff } from "lucide-react-native";
+import { Eye, EyeOff, LucideIcon } from "lucide-react-native";
 import { hp, scaleFont, wp } from "../../utils/responsive";
 
 type AppInputProps = {
@@ -18,6 +18,7 @@ type AppInputProps = {
     textContentType?: TextInputProps["textContentType"];
     autoComplete?: TextInputProps["autoComplete"];
     editable?: TextInputProps["editable"];
+    leftIcon?: LucideIcon;
 }
 
 const AppInput = (props: AppInputProps) => {
@@ -25,11 +26,17 @@ const AppInput = (props: AppInputProps) => {
 
     const isPasswordField = props.secureTextEntry !== undefined && props.secureTextEntry === true;
     const shouldHideText = isPasswordField && !isPasswordVisible;
+    const LeftIconComponent = props.leftIcon;
 
     return (
         <View style={Styles.container}>
             {props.label && <Text style={Styles.label}>{props.label}</Text>}
             <View style={Styles.inputContainer}>
+                {LeftIconComponent && (
+                    <View style={Styles.leftIconContainer}>
+                        <LeftIconComponent size={scaleFont(18)} color={colors.textSecondary} />
+                    </View>
+                )}
                 <TextInput
                     placeholder={props.placeholder}
                     value={props.value}
@@ -41,7 +48,11 @@ const AppInput = (props: AppInputProps) => {
                     textContentType={props.textContentType}
                     autoComplete={props.autoComplete}
                     editable={props.editable}
-                    style={[Styles.input, isPasswordField && { paddingRight: wp(12) }]}
+                    style={[
+                        Styles.input, 
+                        isPasswordField && { paddingRight: wp(12) },
+                        LeftIconComponent && { paddingLeft: scaleFont(44) }
+                    ]}
                     placeholderTextColor={colors.textSecondary}
                 />
                 {isPasswordField && (
@@ -95,6 +106,14 @@ const Styles = StyleSheet.create({
     eyeIconContainer: {
         position: 'absolute',
         right: spacing.md,
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    leftIconContainer: {
+        position: 'absolute',
+        left: spacing.md,
+        zIndex: 1,
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',

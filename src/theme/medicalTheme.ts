@@ -1,10 +1,10 @@
 import { Platform, ViewStyle } from 'react-native';
 
 export const medicalTheme = {
-  primary: '#2E7DFF',
-  primaryLight: '#E3F2FD',
-  primaryDark: '#1565C0',
-  success: '#22C55E',
+  primary: '#2563EB',
+  primaryLight: '#60A5FA',
+  primaryDark: '#1D4ED8',
+  success: '#14B8A6',
   warning: '#F59E0B',
   error: '#EF4444',
   info: '#3B82F6',
@@ -16,25 +16,25 @@ export const medicalTheme = {
   border: '#E2E8F0',
   disabled: '#CBD5E1',
   shadowLight: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   } as ViewStyle,
   shadowMedium: {
-    shadowColor: '#0F172A',
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
   } as ViewStyle,
   shadowLarge: {
-    shadowColor: '#0F172A',
+    shadowColor: '#2563EB',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 6,
+    shadowRadius: 24,
+    elevation: 8,
   } as ViewStyle,
 };
 

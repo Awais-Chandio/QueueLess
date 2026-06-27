@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useEffect } from 'react';
 import {
   Alert,
   RefreshControl,
@@ -34,6 +34,7 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useAuth } from '../../../hooks/useAuth';
+import { useProfileStore } from '../../../store/profileStore';
 import { useTheme } from '../../../hooks/useTheme';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { analyticsService } from '../api/analyticsService';
@@ -47,7 +48,21 @@ const ACTION_META: Record<string, { icon: any; color: string; label: string }> =
 
 const AdminDashboardScreen = () => {
   const { colors, spacing, typography, radius } = useTheme();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+  const profile = useProfileStore(state => state.profile);
+  const fetchProfile = useProfileStore(state => state.fetchProfile);
+
+  useEffect(() => {
+    if (user?.id && (!profile || profile.id !== user.id)) {
+      fetchProfile(user.id);
+    }
+  }, [user?.id, profile?.id, fetchProfile]);
+
+  const adminName = useMemo(() => {
+    if (profile?.full_name) return profile.full_name;
+    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
+    return 'Admin';
+  }, [profile, user]);
   const { width } = useWindowDimensions();
   const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
 
@@ -242,7 +257,7 @@ const AdminDashboardScreen = () => {
               { color: colors.text, fontSize: typography.sizes.xxl },
             ]}
           >
-            Admin Dashboard
+            Welcome, {adminName}
           </Text>
           <Text
             style={[

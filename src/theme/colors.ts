@@ -20,9 +20,9 @@ export type ColorTheme = {
 };
 
 export const lightColors: ColorTheme = {
-  primary: '#2E7DFF',
-  primaryLight: '#E3F2FD',
-  primaryDark: '#1565C0',
+  primary: '#2563EB',
+  primaryLight: '#60A5FA',
+  primaryDark: '#1D4ED8',
   background: '#F8FAFC',
   surface: '#FFFFFF',
   card: '#FFFFFF',
@@ -32,7 +32,7 @@ export const lightColors: ColorTheme = {
   border: '#E2E8F0',
   disabled: '#CBD5E1',
   error: '#EF4444',
-  success: '#22C55E',
+  success: '#14B8A6',
   warning: '#F59E0B',
   info: '#3B82F6',
   skeleton: '#E2E8F0',

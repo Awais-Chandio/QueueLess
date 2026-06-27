@@ -36,17 +36,20 @@ const ProfileScreen = () => {
   const { colors, spacing, typography } = useTheme();
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (force = false) => {
     setRefreshing(true);
     if (user?.id) {
-      await fetchProfile(user.id);
+      const currentProfile = useProfileStore.getState().profile;
+      if (force || !currentProfile || currentProfile.id !== user.id) {
+        await fetchProfile(user.id);
+      }
       await refetchStats();
     }
     setRefreshing(false);
   }, [user?.id, fetchProfile, refetchStats]);
 
   useEffect(() => {
-    loadData();
+    loadData(false);
   }, [loadData]);
 
   const handleAvatarUpload = async () => {
@@ -134,7 +137,7 @@ const ProfileScreen = () => {
   ];
 
   return (
-    <ScreenWrapper scrollable onRefresh={loadData} refreshing={refreshing}>
+    <ScreenWrapper scrollable onRefresh={() => loadData(true)} refreshing={refreshing}>
       <View style={styles.header}>
         <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: 'bold' }}>Profile</Text>
         <Pressable
@@ -252,11 +255,26 @@ const ProfileScreen = () => {
         </Card>
       </CardFadeIn>
 
-      <AppButton
-        title="Edit Profile"
-        variant="outline"
-        onPress={() => navigation.navigate("EditProfile")}
-      />
+      <CardFadeIn delay={180}>
+        <Pressable
+          onPress={() => navigation.navigate("EditProfile")}
+          style={({ pressed }) => pressed ? { opacity: 0.85 } : {}}
+        >
+          <Card style={{ marginBottom: spacing.lg, flexDirection: 'row', alignItems: 'center', padding: spacing.md }}>
+            <View style={[styles.infoIconPill, { backgroundColor: `${colors.primary}12`, width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(22) }]}>
+              <Settings color={colors.primary} size={scaleFont(20)} />
+            </View>
+            <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
+                Profile Settings
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: 2 }}>
+                Update your personal information
+              </Text>
+            </View>
+          </Card>
+        </Pressable>
+      </CardFadeIn>
       {error ? (
         <Text style={{ color: colors.error, fontSize: typography.sizes.sm, marginTop: spacing.sm, textAlign: 'center' }}>
           {error}

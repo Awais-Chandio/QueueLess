@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
-import { useRoute, useIsFocused } from '@react-navigation/native';
+import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
+import { useRoute, useIsFocused, useNavigation } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import AppButton from '../../../components/ui/AppButton';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -28,6 +28,7 @@ import {
   Users,
   Hash,
   CheckCircle2,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import { toastService } from '../../../services/toastService';
@@ -43,6 +44,7 @@ type QueueStatusRouteProp = RouteProp<AppStackParamList, 'QueueStatus'>;
 
 const QueueStatusScreen = () => {
   const route = useRoute<QueueStatusRouteProp>();
+  const navigation = useNavigation();
   const { appointmentId } = route.params;
   const { colors, spacing, typography } = useTheme();
   const isFocused = useIsFocused();
@@ -226,6 +228,17 @@ const QueueStatusScreen = () => {
       <View style={styles.container}>
         {/* Header row */}
         <CardFadeIn delay={0}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && { opacity: 0.7 }
+            ]}
+          >
+            <ChevronLeft size={24} color={colors.primary} />
+            <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>Back</Text>
+          </Pressable>
+
           <View style={{ marginBottom: spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
               Queue Status
@@ -549,5 +562,15 @@ const styles = StyleSheet.create({
   },
   detailText: {
     flex: 1,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: scaleFont(12),
+    alignSelf: 'flex-start',
+    paddingVertical: scaleFont(4),
+  },
+  backButtonText: {
+    fontWeight: '600',
   },
 });

@@ -380,7 +380,7 @@ export const appointmentsService = {
       .select(appointmentFullSelect)
       .eq('user_id', authenticatedUserId)
       .order('scheduled_at', {
-        ascending: true,
+        ascending: false,
       });
 
     let data = response.data as AppointmentFull[] | null;
@@ -392,7 +392,7 @@ export const appointmentsService = {
         .select(appointmentFullLegacySelect)
         .eq('user_id', authenticatedUserId)
         .order('scheduled_at', {
-          ascending: true,
+          ascending: false,
         });
 
       data = fallback.data as AppointmentFull[] | null;

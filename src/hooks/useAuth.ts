@@ -72,6 +72,15 @@ export const useAuth = () => {
   const restoreSession = useCallback(async () => {
     if (__DEV__) console.log('[AUTH] restoreSession started');
     setLoading(true);
+    const startTime = Date.now();
+
+    const delayIfNeeded = async () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = 2000 - elapsed;
+      if (remaining > 0) {
+        await new Promise<void>(resolve => setTimeout(() => resolve(), remaining));
+      }
+    };
 
     try {
       const { data, error } = await authService.getSession();
@@ -82,6 +91,8 @@ export const useAuth = () => {
       if (error || !data.session) {
         clearAuth();
         useProfileStore.getState().clearProfile();
+        await delayIfNeeded();
+        setLoading(false);
         return;
       }
 
@@ -107,6 +118,9 @@ export const useAuth = () => {
     } catch {
       clearAuth();
       useProfileStore.getState().clearProfile();
+    } finally {
+      await delayIfNeeded();
+      setLoading(false);
     }
   }, [clearAuth, setRole, setSession, setLoading]);
 

@@ -5,8 +5,8 @@
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
         <item name="android:windowBackground">@drawable/launch_screen</item>
-        <item name="android:statusBarColor">#05061C</item>
-        <item name="android:navigationBarColor">#05061C</item>
+        <item name="android:statusBarColor">#2563EB</item>
+        <item name="android:navigationBarColor">#14B8A6</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 
