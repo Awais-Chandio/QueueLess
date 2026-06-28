@@ -15,6 +15,17 @@ export const authService = {
             password
         });
     },
+
+    async signInWithGoogle() {
+        return await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: 'queueless://auth/callback',
+                skipBrowserRedirect: true,
+            },
+        });
+    },
+
     async signUp(payload: SignupPayload) {
         const { name, email, password } = payload;
         return await supabase.auth.signUp({
@@ -30,7 +41,6 @@ export const authService = {
 
     async signOut() {
         return await supabase.auth.signOut();
-
     },
 
     async sendPasswordResetEmail(email: string) {

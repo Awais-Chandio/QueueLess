@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, Text, Pressable, Animated, Dimensions, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, StyleSheet, Text, Pressable, Animated, Dimensions, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Mail, Lock, User } from "lucide-react-native";
@@ -28,7 +28,7 @@ const SignupScreen = () => {
     const [confirmPassword, setConfirmPassword] = useState("");
     const [errorMessage, setErrorMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
-    const { signup, isLoading } = useAuth();
+    const { signup, loginWithGoogle, isLoading } = useAuth();
 
     // Mount animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -105,13 +105,27 @@ const SignupScreen = () => {
         }
     }
 
+    async function handleGoogleLogin() {
+        if (isLoading) return;
+        try {
+            setErrorMessage('');
+            setSuccessMessage('');
+            await loginWithGoogle();
+            toastService.success('Logged in successfully');
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Google Sign-In failed';
+            setErrorMessage(message);
+            toastService.error(message);
+        }
+    }
+
     return (
         <ScreenWrapper scrollable={false}>
-            <KeyboardAvoidingView 
+            <KeyboardAvoidingView
                 style={styles.keyboardContainer}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
-                <ScrollView 
+                <ScrollView
                     contentContainerStyle={styles.scrollContainer}
                     showsVerticalScrollIndicator={false}
                 >
@@ -136,10 +150,10 @@ const SignupScreen = () => {
                     </LinearGradient>
 
                     {/* Lower Input Container */}
-                    <Animated.View 
+                    <Animated.View
                         style={[
-                            styles.formContainer, 
-                            { 
+                            styles.formContainer,
+                            {
                                 backgroundColor: colors.background,
                                 borderTopLeftRadius: scaleFont(24),
                                 borderTopRightRadius: scaleFont(24),
@@ -211,9 +225,37 @@ const SignupScreen = () => {
 
                             {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
                             {successMessage ? <Text style={styles.successMessage}>{successMessage}</Text> : null}
+
+                            <View style={styles.dividerRow}>
+                                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                                <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or</Text>
+                                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                            </View>
+
+                            <Pressable
+                                disabled={isLoading}
+                                onPress={handleGoogleLogin}
+                                style={({ pressed }) => [
+                                    styles.googleButton,
+                                    {
+                                        borderColor: colors.border,
+                                        borderRadius: radius.md,
+                                        backgroundColor: colors.surface,
+                                    },
+                                    pressed && styles.pressedEffect
+                                ]}
+                            >
+                                <Image
+                                    source={{ uri: 'https://img.icons8.com/color/48/000000/google-logo.png' }}
+                                    style={styles.googleIcon}
+                                />
+                                <Text style={[styles.googleButtonText, { color: colors.text }]}>
+                                    Continue with Google
+                                </Text>
+                            </Pressable>
                         </View>
 
-                        <Pressable 
+                        <Pressable
                             onPress={() => navigation.navigate("Login")}
                             style={({ pressed }) => [
                                 styles.loginLinkContainer,
@@ -317,5 +359,37 @@ const styles = StyleSheet.create({
     },
     pressedEffect: {
         opacity: 0.75,
+    },
+    dividerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: hp(1.5),
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+    },
+    dividerText: {
+        marginHorizontal: wp(3),
+        fontSize: scaleFont(12),
+        fontWeight: '600',
+        textTransform: 'uppercase',
+    },
+    googleButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: hp(1.5),
+        borderWidth: 1,
+        marginTop: hp(1),
+    },
+    googleIcon: {
+        width: scaleFont(18),
+        height: scaleFont(18),
+        marginRight: wp(2.5),
+    },
+    googleButtonText: {
+        fontSize: scaleFont(14),
+        fontWeight: '700',
     },
 });

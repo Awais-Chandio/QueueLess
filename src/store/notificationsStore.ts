@@ -41,21 +41,25 @@ export const useNotificationsStore = create<NotificationsState>(set => ({
   fetchNotifications: async userId => {
     set({ loading: true, error: null });
     try {
-      const notifications = await notificationsService.fetchNotifications(userId);
-      console.log('[NOTIFICATIONS_STORE] fetched count:', notifications.length);
+      const response = await notificationsService.fetchNotifications(userId);
+      const notificationsList = Array.isArray(response) ? response : [];
+      if (__DEV__) {
+        console.log('[NOTIFICATIONS_STORE] fetched count:', notificationsList.length);
+      }
       set({
-        notifications,
-        unreadCount: getUnreadCount(notifications),
+        notifications: notificationsList,
+        unreadCount: getUnreadCount(notificationsList),
         loading: false,
       });
     } catch (error) {
-      console.error('[NOTIFICATIONS_STORE] fetch error:', error);
+      const err = error as any;
+      console.error('[NOTIFICATIONS_STORE] fetch error:', {
+        code: err?.code ?? 'N/A',
+        message: err?.message || 'Failed to load notifications',
+      });
       set({
         loading: false,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Failed to load notifications',
+        error: err?.message || 'Failed to load notifications',
       });
     }
   },

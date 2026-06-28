@@ -10,7 +10,7 @@ import ToastMessage from "./src/components/ui/ToastMessage";
 import { authService } from "./src/features/auth/api/authService";
 import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
-import { supabaseConfig } from "./src/lib/supabase";
+import { supabase, supabaseConfig } from "./src/lib/supabase";
 import { hp, scaleFont, wp } from "./src/utils/responsive";
 
 const linking = {
@@ -47,63 +47,103 @@ const App = ()=>{
       return;
     }
 
-    const handlePasswordRecoveryLink = async (url: string | null) => {
-      if (!url || !url.startsWith("queueless://reset-password")) {
-        return false;
+    const handleIncomingDeepLink = async (url: string | null) => {
+      if (!url) return false;
+
+      if (__DEV__) {
+        console.log('[DEEP_LINK] Handling incoming link:', url);
       }
 
-      const params = getDeepLinkParams(url);
-      const errorDescription = params.get("error_description");
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-      const code = params.get("code");
+      if (url.startsWith("queueless://reset-password")) {
+        const params = getDeepLinkParams(url);
+        const errorDescription = params.get("error_description");
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+        const code = params.get("code");
 
-      if (errorDescription) {
-        toastService.error(decodeURIComponent(errorDescription));
-        return true;
-      }
-
-      try {
-        useAuthStore.getState().setPasswordRecovery(true);
-
-        if (accessToken && refreshToken) {
-          const { data, error } = await authService.setRecoverySession(
-            accessToken,
-            refreshToken,
-          );
-
-          if (error) {
-            throw error;
-          }
-
-          useAuthStore.getState().setSession(data.session);
+        if (errorDescription) {
+          toastService.error(decodeURIComponent(errorDescription));
           return true;
         }
 
-        if (code) {
-          const { data, error } = await authService.exchangeCodeForSession(code);
+        try {
+          useAuthStore.getState().setPasswordRecovery(true);
 
-          if (error) {
-            throw error;
+          if (accessToken && refreshToken) {
+            const { data, error } = await authService.setRecoverySession(
+              accessToken,
+              refreshToken,
+            );
+
+            if (error) {
+              throw error;
+            }
+
+            useAuthStore.getState().setSession(data.session);
+            return true;
           }
 
-          useAuthStore.getState().setSession(data.session);
-        }
+          if (code) {
+            const { data, error } = await authService.exchangeCodeForSession(code);
 
-        return true;
-      } catch (error) {
-        useAuthStore.getState().setPasswordRecovery(false);
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Password reset link is invalid or expired";
-        toastService.error(message);
-        return true;
+            if (error) {
+              throw error;
+            }
+
+            useAuthStore.getState().setSession(data.session);
+          }
+
+          return true;
+        } catch (error) {
+          useAuthStore.getState().setPasswordRecovery(false);
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Password reset link is invalid or expired";
+          toastService.error(message);
+          return true;
+        }
       }
+
+      if (url.startsWith("queueless://auth/callback")) {
+        try {
+          useAuthStore.getState().setLoading(true);
+          const urlToParse = url.includes('#') ? url.replace('#', '?') : url;
+          const parsedUrl = new URL(urlToParse);
+          
+          const code = parsedUrl.searchParams.get('code');
+          const accessToken = parsedUrl.searchParams.get('access_token');
+          const refreshToken = parsedUrl.searchParams.get('refresh_token');
+
+          if (code) {
+            const { error } = await authService.exchangeCodeForSession(code);
+            if (error) throw error;
+          } else if (accessToken && refreshToken) {
+            const { error } = await authService.setRecoverySession(accessToken, refreshToken);
+            if (error) throw error;
+          }
+
+          await restoreSession();
+          return true;
+        } catch (error) {
+          const sessionResult = await authService.getSession();
+          if (sessionResult.data.session) {
+            await restoreSession();
+            return true;
+          }
+          const message = error instanceof Error ? error.message : "Google login redirection failed";
+          toastService.error(message);
+          return true;
+        } finally {
+          useAuthStore.getState().setLoading(false);
+        }
+      }
+
+      return false;
     };
 
     Linking.getInitialURL().then(async url => {
-      const handled = await handlePasswordRecoveryLink(url);
+      const handled = await handleIncomingDeepLink(url);
 
       if (!handled) {
         restoreSession();
@@ -111,11 +151,29 @@ const App = ()=>{
     });
 
     const subscription = Linking.addEventListener("url", event => {
-      handlePasswordRecoveryLink(event.url);
+      handleIncomingDeepLink(event.url);
     });
+
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (__DEV__) {
+          console.log(`[AUTH_EVENT] Event: ${event}, Session Exists: ${!!session}`);
+        }
+        if (event === 'SIGNED_IN' && session) {
+          const currentStoreSession = useAuthStore.getState().session;
+          const currentRole = useAuthStore.getState().role;
+          if (!currentStoreSession || !currentRole) {
+            await restoreSession();
+          }
+        } else if (event === 'SIGNED_OUT') {
+          useAuthStore.getState().clearAuth();
+        }
+      }
+    );
 
     return () => {
       subscription.remove();
+      authSubscription.unsubscribe();
     };
   }, [restoreSession]);
 

@@ -42,6 +42,8 @@ const getNotifMeta = (
       return { icon: XCircle, color: colors.error, category: 'Appointment' };
     case 'system':
       return { icon: Stethoscope, color: colors.info, category: 'System' };
+    case 'info':
+      return { icon: Info, color: colors.info || '#0EA5E9', category: 'Info' };
     default:
       return { icon: Bell, color: colors.primary, category: 'General' };
   }
@@ -130,8 +132,10 @@ const NotificationsScreen = () => {
   }, [setNotifications, storeNotifications, userId]);
 
   const renderNotification = (item: Notification) => {
-    const { icon: NotifIcon, color, category } = getNotifMeta(item.type, colors);
-    const activeColor = item.is_read ? colors.textSecondary : color;
+    const notificationType = item?.type ?? 'info';
+    const notificationData = item?.data ?? {};
+    const { icon: NotifIcon, color, category } = getNotifMeta(notificationType, colors);
+    const activeColor = item?.is_read ? colors.textSecondary : color;
 
     return (
       <CardFadeIn delay={100} key={item.id}>

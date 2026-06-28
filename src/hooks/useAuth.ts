@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import { authService } from '../features/auth/api/authService';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
@@ -201,6 +202,93 @@ export const useAuth = () => {
     }
   }, [clearAuth, setRole, setSession, setLoading]);
 
+  const loginWithGoogle = useCallback(async () => {
+    if (__DEV__) console.log('[AUTH] loginWithGoogle started');
+    setLoading(true);
+
+    try {
+      const { data, error } = await authService.signInWithGoogle();
+      if (error) {
+        throw error;
+      }
+
+      if (!data.url) {
+        throw new Error('No login URL returned from Supabase.');
+      }
+
+      if (await InAppBrowser.isAvailable()) {
+        const result = await InAppBrowser.openAuth(
+          data.url,
+          'queueless://auth/callback',
+          {
+            // iOS Properties
+            dismissButtonStyle: 'cancel',
+            preferredBarTintColor: '#0F172A',
+            preferredControlTintColor: '#FFFFFF',
+            readerMode: false,
+            animated: true,
+            modalPresentationStyle: 'fullScreen',
+            modalTransitionStyle: 'coverVertical',
+            modalEnabled: true,
+            enableBarCollapsing: true,
+            // Android Properties
+            showTitle: true,
+            toolbarColor: '#0F172A',
+            secondaryToolbarColor: '#0F172A',
+            navigationBarColor: '#0F172A',
+            navigationBarDividerColor: '#0F172A',
+            enableUrlBarHiding: true,
+            enableDefaultShare: false,
+            forceCloseOnRedirection: true,
+            showInRecents: true,
+          }
+        );
+
+        if (result.type === 'success' && result.url) {
+          const urlToParse = result.url.includes('#') ? result.url.replace('#', '?') : result.url;
+          const parsedUrl = new URL(urlToParse);
+          const code = parsedUrl.searchParams.get('code');
+          const accessToken = parsedUrl.searchParams.get('access_token');
+          const refreshToken = parsedUrl.searchParams.get('refresh_token');
+
+          if (code) {
+            const { error: exchangeError } = await authService.exchangeCodeForSession(code);
+            if (exchangeError) {
+              throw exchangeError;
+            }
+          } else if (accessToken && refreshToken) {
+            const { error: setSessionError } = await authService.setRecoverySession(accessToken, refreshToken);
+            if (setSessionError) {
+              throw setSessionError;
+            }
+          }
+
+          await restoreSession();
+        } else {
+          // If browser flow completed or was dismissed, check if we got a session anyway
+          const sessionResult = await authService.getSession();
+          if (sessionResult.data.session) {
+            await restoreSession();
+          } else {
+            setLoading(false);
+          }
+        }
+      } else {
+        throw new Error('In-app browser is not supported on this device.');
+      }
+    } catch (error) {
+      // Check if session was successfully established (e.g. via deep link listener) before throwing
+      const sessionResult = await authService.getSession();
+      if (sessionResult.data.session) {
+        if (__DEV__) console.log('[AUTH] Google Sign-In caught error but session exists, restoring session.');
+        await restoreSession();
+      } else {
+        setLoading(false);
+        throw toAuthError(error, 'Google Sign-In failed. Please try again.');
+      }
+    }
+  }, [restoreSession, setLoading]);
+
   const logout = useCallback(async () => {
     if (__DEV__) console.log('[AUTH] logout started');
     setLoading(true);
@@ -229,6 +317,7 @@ export const useAuth = () => {
     isLoading,
     restoreSession,
     login,
+    loginWithGoogle,
     signup,
     logout,
   };

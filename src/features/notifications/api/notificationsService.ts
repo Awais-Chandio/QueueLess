@@ -35,11 +35,39 @@ export const notificationsService = {
       });
     }
 
-    const { data, error } = await supabase
+    let data: any[] | null = null;
+    let error: any = null;
+
+    const attemptWithAllColumns = await supabase
       .from('notifications')
-      .select('id, user_id, title, message, is_read, created_at, appointment_id, type')
+      .select('id, user_id, title, message, type, data, is_read, created_at, appointment_id')
       .eq('user_id', authenticatedUserId)
       .order('created_at', { ascending: false });
+
+    if (attemptWithAllColumns.error) {
+      const errorMsg = attemptWithAllColumns.error.message || '';
+      if (
+        errorMsg.includes('type') || 
+        errorMsg.includes('data') || 
+        attemptWithAllColumns.error.code === 'PGRST111'
+      ) {
+        if (__DEV__) {
+          console.warn('[NOTIFICATIONS] Schema mismatch detected, falling back to query without type/data columns');
+        }
+        const attemptFallback = await supabase
+          .from('notifications')
+          .select('id, user_id, title, message, is_read, created_at, appointment_id')
+          .eq('user_id', authenticatedUserId)
+          .order('created_at', { ascending: false });
+        
+        data = attemptFallback.data;
+        error = attemptFallback.error;
+      } else {
+        error = attemptWithAllColumns.error;
+      }
+    } else {
+      data = attemptWithAllColumns.data;
+    }
 
     if (error) {
       console.error('[NOTIFICATIONS] fetch error:', {
@@ -53,14 +81,15 @@ export const notificationsService = {
 
     console.log('[NOTIFICATIONS] fetched count:', data?.length ?? 0);
     return (data ?? []).map(n => ({
-      id: n.id,
-      user_id: n.user_id,
-      title: n.title,
-      message: n.message,
-      type: n.type ?? 'general',
-      is_read: n.is_read,
-      created_at: n.created_at,
-      appointment_id: n.appointment_id ?? null,
+      id: n?.id,
+      user_id: n?.user_id,
+      title: n?.title,
+      message: n?.message,
+      type: n?.type ?? 'general',
+      is_read: n?.is_read,
+      created_at: n?.created_at,
+      appointment_id: n?.appointment_id ?? null,
+      data: n?.data ?? {},
     })) as Notification[];
   },
 
