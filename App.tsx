@@ -106,6 +106,13 @@ const App = ()=>{
       }
 
       if (url.startsWith("queueless://auth/callback")) {
+        if (useAuthStore.getState().session) {
+          if (__DEV__) {
+            console.log('[DEEP_LINK] Session already exists, ignoring duplicate callback');
+          }
+          return true;
+        }
+
         try {
           useAuthStore.getState().setLoading(true);
           const urlToParse = url.includes('#') ? url.replace('#', '?') : url;
@@ -135,7 +142,10 @@ const App = ()=>{
           toastService.error(message);
           return true;
         } finally {
-          useAuthStore.getState().setLoading(false);
+          const hasSession = !!useAuthStore.getState().session;
+          if (!hasSession) {
+            useAuthStore.getState().setLoading(false);
+          }
         }
       }
 
@@ -162,8 +172,11 @@ const App = ()=>{
         if (event === 'SIGNED_IN' && session) {
           const currentStoreSession = useAuthStore.getState().session;
           const currentRole = useAuthStore.getState().role;
-          if (!currentStoreSession || !currentRole) {
-            await restoreSession();
+          const isCurrentlyLoading = useAuthStore.getState().isLoading;
+          if ((!currentStoreSession || !currentRole) && !isCurrentlyLoading) {
+            setTimeout(async () => {
+              await restoreSession();
+            }, 0);
           }
         } else if (event === 'SIGNED_OUT') {
           useAuthStore.getState().clearAuth();

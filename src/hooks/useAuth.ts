@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
+import { User } from '@supabase/supabase-js';
 import { authService } from '../features/auth/api/authService';
 import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
@@ -23,29 +24,53 @@ const toAuthError = (error: unknown, fallbackMessage: string) => {
 //   The client's historical appointments would remain attached to that user_id,
 //   giving the staff member access to their own client appointment history.
 const fetchVerifiedProfileRole = async (
-  userId: string,
-  fallbackProfile: {
-    full_name: string;
-    email: string;
-  },
+  user: User,
 ) => {
   const { data: profile, error: profileError } =
-    await profileService.getProfileById(userId);
+    await profileService.getProfileById(user.id);
 
-  if (!profileError && profile) {
+  const isGoogle = user.app_metadata?.provider === 'google' || user.app_metadata?.providers?.includes('google');
+  const fullName = user.user_metadata?.full_name || user.user_metadata?.name || '';
+  const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
+
+  if (isGoogle) {
+    console.log('GOOGLE_NAME:', fullName);
+    console.log('GOOGLE_AVATAR:', avatar);
+  }
+
+  if (profile) {
+    // If profile already exists and full_name is empty/missing, update it
+    if (isGoogle && (!profile.full_name || profile.full_name.trim() === '')) {
+      const { data: updated } = await profileService.updateProfile(user.id, {
+        full_name: fullName,
+        avatar_url: avatar,
+        auth_provider: 'google',
+      } as any);
+      if (updated) {
+        useProfileStore.setState({ profile: updated, isLoading: false, error: null });
+        return updated.role ?? 'client';
+      }
+    }
     // Populate the store directly from this fetch — no second read needed.
     useProfileStore.setState({ profile, isLoading: false, error: null });
     return profile.role ?? 'client';
-  }
-
-  if (!profileError && !profile) {
+  } else {
     // Profile exists in auth but not in profiles table — create it.
-    const { data: created } = await profileService.createProfile({
-      id: userId,
-      full_name: fallbackProfile.full_name,
-      email: fallbackProfile.email,
+    const createPayload: any = {
+      id: user.id,
+      full_name: isGoogle ? fullName : (user.user_metadata?.full_name || ''),
+      email: user.email || '',
       role: 'client',
-    });
+    };
+
+    if (isGoogle) {
+      createPayload.avatar_url = avatar;
+      createPayload.auth_provider = 'google';
+    } else {
+      createPayload.auth_provider = 'email';
+    }
+
+    const { data: created } = await profileService.createProfile(createPayload);
     if (created) {
       useProfileStore.setState({ profile: created, isLoading: false, error: null });
       return created.role ?? 'client';
@@ -53,7 +78,7 @@ const fetchVerifiedProfileRole = async (
   }
 
   // Profile fetch or creation failed — fall back gracefully.
-  await useProfileStore.getState().fetchProfile(userId);
+  await useProfileStore.getState().fetchProfile(user.id);
   return useProfileStore.getState().profile?.role ?? 'client';
 };
 
@@ -92,29 +117,23 @@ export const useAuth = () => {
       if (error || !data.session) {
         clearAuth();
         useProfileStore.getState().clearProfile();
-        await delayIfNeeded();
-        setLoading(false);
-        return;
-      }
+      } else {
+        const currentSession = data.session;
+        setSession(currentSession);
 
-      const currentSession = data.session;
-      setSession(currentSession);
-
-      // Verify authorization role from profiles table, not JWT claims.
-      try {
-        const verifiedRole = await fetchVerifiedProfileRole(
-          currentSession.user.id,
-          {
-            full_name: currentSession.user.user_metadata?.full_name || '',
-            email: currentSession.user.email || '',
-          },
-        );
-        setRole(verifiedRole);
-        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
-        if (__DEV__) console.log('[AUTH] restoreSession complete');
-      } catch (e) {
-        if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
-        setRole('client');
+        // Verify authorization role from profiles table, not JWT claims.
+        try {
+          const verifiedRole = await fetchVerifiedProfileRole(currentSession.user);
+          setRole(verifiedRole);
+          console.log('PROFILE_LOADED');
+          console.log('ROLE_SET');
+          if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
+          if (__DEV__) console.log('[AUTH] restoreSession complete');
+        } catch (e) {
+          if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
+          setRole('client');
+          console.log('ROLE_SET');
+        }
       }
     } catch {
       clearAuth();
@@ -122,6 +141,8 @@ export const useAuth = () => {
     } finally {
       await delayIfNeeded();
       setLoading(false);
+      console.log('SET_LOADING_FALSE');
+      console.log('RESTORE_COMPLETE');
     }
   }, [clearAuth, setRole, setSession, setLoading]);
 
@@ -147,10 +168,7 @@ export const useAuth = () => {
 
       // Verify authorization role from profiles table, not JWT claims.
       try {
-        const verifiedRole = await fetchVerifiedProfileRole(data.user.id, {
-          full_name: data.user.user_metadata?.full_name || '',
-          email: data.user.email || '',
-        });
+        const verifiedRole = await fetchVerifiedProfileRole(data.user);
         setRole(verifiedRole);
         if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
         if (__DEV__) console.log('[AUTH] login complete');
@@ -182,10 +200,7 @@ export const useAuth = () => {
         if (__DEV__) console.log('[AUTH] signup success — setting auth');
         setSession(data.session);
         try {
-          const verifiedRole = await fetchVerifiedProfileRole(data.user.id, {
-            full_name: data.user.user_metadata?.full_name || '',
-            email: data.user.email || '',
-          });
+          const verifiedRole = await fetchVerifiedProfileRole(data.user);
           setRole(verifiedRole);
           if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
         } catch (e) {
@@ -269,8 +284,6 @@ export const useAuth = () => {
           const sessionResult = await authService.getSession();
           if (sessionResult.data.session) {
             await restoreSession();
-          } else {
-            setLoading(false);
           }
         }
       } else {
@@ -283,9 +296,10 @@ export const useAuth = () => {
         if (__DEV__) console.log('[AUTH] Google Sign-In caught error but session exists, restoring session.');
         await restoreSession();
       } else {
-        setLoading(false);
         throw toAuthError(error, 'Google Sign-In failed. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
   }, [restoreSession, setLoading]);
 
