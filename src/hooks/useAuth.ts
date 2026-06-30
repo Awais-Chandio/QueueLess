@@ -63,9 +63,12 @@ const fetchVerifiedProfileRole = async (
       role: 'client',
     };
 
+    const isPhone = !!user.phone;
     if (isGoogle) {
       createPayload.avatar_url = avatar;
       createPayload.auth_provider = 'google';
+    } else if (isPhone) {
+      createPayload.auth_provider = 'phone';
     } else {
       createPayload.auth_provider = 'email';
     }
@@ -323,6 +326,49 @@ export const useAuth = () => {
     }
   }, [clearAuth, setLoading]);
 
+  const sendPhoneOtp = useCallback(async (phone: string) => {
+    if (__DEV__) console.log('[AUTH] sendPhoneOtp started', phone);
+    setLoading(true);
+    try {
+      const { error } = await authService.signInWithOtp(phone);
+      if (error) throw error;
+    } catch (error) {
+      throw toAuthError(error, 'Failed to send OTP. Please check the phone number.');
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading]);
+
+  const verifyPhoneOtp = useCallback(async (phone: string, token: string) => {
+    if (__DEV__) console.log('[AUTH] verifyPhoneOtp started', phone);
+    setLoading(true);
+    try {
+      const { data, error } = await authService.verifyOtp(phone, token);
+      if (error) throw error;
+
+      if (!data.session || !data.user) {
+        throw new Error('Verification failed. Invalid OTP code.');
+      }
+
+      setSession(data.session);
+
+      // Verify authorization role from profiles table, not JWT claims.
+      try {
+        const verifiedRole = await fetchVerifiedProfileRole(data.user);
+        setRole(verifiedRole);
+        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN (Phone)');
+      } catch (e) {
+        if (__DEV__) console.warn('[OTP VERIFY] Profile fetch/restore warning:', e);
+        setRole('client');
+      }
+    } catch (error) {
+      clearAuth();
+      throw toAuthError(error, 'Verification failed. Please check the OTP and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [clearAuth, setRole, setSession, setLoading]);
+
   return {
     session,
     user,
@@ -332,6 +378,8 @@ export const useAuth = () => {
     restoreSession,
     login,
     loginWithGoogle,
+    sendPhoneOtp,
+    verifyPhoneOtp,
     signup,
     logout,
   };
