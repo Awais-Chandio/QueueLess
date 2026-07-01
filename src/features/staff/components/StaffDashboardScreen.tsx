@@ -20,6 +20,7 @@ import {
   Activity,
   Search,
   SlidersHorizontal,
+  LogOut,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
@@ -42,14 +43,15 @@ import type {
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { staffQueueService } from '../api/staffQueueService';
-import {
-  getAppointmentTimeLabel,
-} from '../../appointments/utils/appointmentTime';
+import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
 import {
   subscribeToAppointments,
   unsubscribeAppointments,
 } from '../../queue/api/queueService';
 import { getAppointmentStatusState } from '../../../services/bookingService';
+
+import { getDisplayName } from '../../../utils/getDisplayName';
+import { toastService } from '../../../services/toastService';
 
 type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service';
 
@@ -96,10 +98,8 @@ const StaffDashboardScreen = () => {
   }, [user?.id, profile?.id, fetchProfile]);
 
   const staffName = useMemo(() => {
-    if (profile?.full_name) return profile.full_name;
-    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
-    return 'Staff';
-  }, [profile, user]);
+    return getDisplayName(profile);
+  }, [profile]);
 
   const queryClient = useQueryClient();
   const setStaffAppointments = useStaffQueueStore(
@@ -110,7 +110,9 @@ const StaffDashboardScreen = () => {
     null,
   );
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'queue' | 'checked_in' | 'serving' | 'completed' | 'cancelled'>('queue');
+  const [statusFilter, setStatusFilter] = useState<
+    'queue' | 'checked_in' | 'serving' | 'completed' | 'cancelled'
+  >('queue');
   const isFocused = useIsFocused();
 
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
@@ -127,17 +129,21 @@ const StaffDashboardScreen = () => {
   const stats = data?.stats;
 
   const hasActiveService = useMemo(
-    () => appointments.some(
-      appointment =>
-        appointment.status === 'called' || appointment.status === 'in_progress',
-    ),
-    [appointments]
+    () =>
+      appointments.some(
+        appointment =>
+          appointment.status === 'called' ||
+          appointment.status === 'in_progress',
+      ),
+    [appointments],
   );
 
   const nextCallableAppointmentId = useMemo(
-    () => appointments.find(appointment => appointment.status === 'checked_in')?.id ??
+    () =>
+      appointments.find(appointment => appointment.status === 'checked_in')
+        ?.id ??
       appointments.find(appointment => appointment.status === 'confirmed')?.id,
-    [appointments]
+    [appointments],
   );
 
   useEffect(() => {
@@ -192,37 +198,63 @@ const StaffDashboardScreen = () => {
 
       return staffQueueService.completeAppointment(appointment);
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       setCancelTarget(null);
+
+      let successMsg = 'Action completed successfully.';
+      if (variables.action === 'confirm') {
+        successMsg = 'Appointment confirmed successfully.';
+      } else if (variables.action === 'cancel') {
+        successMsg = 'Appointment cancelled successfully.';
+      } else if (variables.action === 'start_service') {
+        successMsg = 'Appointment service started.';
+      } else if (variables.action === 'complete_service') {
+        successMsg = 'Appointment completed successfully.';
+      }
+      toastService.success(successMsg);
+
       queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Action failed. Please try again.';
+      toastService.error(message);
     },
   });
 
   const pendingAppointments = useMemo(
-    () => appointments.filter(item => {
-      const { resolvedStatus } = getAppointmentStatusState(item);
-      return resolvedStatus === 'pending';
-    }),
-    [appointments]
+    () =>
+      appointments.filter(item => {
+        const { resolvedStatus } = getAppointmentStatusState(item);
+        return resolvedStatus === 'pending';
+      }),
+    [appointments],
   );
 
   const queueAppointments = useMemo(
-    () => appointments.filter(item => {
-      const { resolvedStatus } = getAppointmentStatusState(item);
-      return ['confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus);
-    }),
-    [appointments]
+    () =>
+      appointments.filter(item => {
+        const { resolvedStatus } = getAppointmentStatusState(item);
+        return ['confirmed', 'checked_in', 'called', 'in_progress'].includes(
+          resolvedStatus,
+        );
+      }),
+    [appointments],
   );
 
   const filteredQueueAppointments = useMemo(() => {
     return appointments.filter(item => {
       const { resolvedStatus } = getAppointmentStatusState(item);
-      
+
       // 1. Filter by status
       let matchesStatus = false;
       if (statusFilter === 'queue') {
-        matchesStatus = ['confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus);
+        matchesStatus = [
+          'confirmed',
+          'checked_in',
+          'called',
+          'in_progress',
+        ].includes(resolvedStatus);
       } else if (statusFilter === 'checked_in') {
         matchesStatus = resolvedStatus === 'checked_in';
       } else if (statusFilter === 'serving') {
@@ -230,7 +262,9 @@ const StaffDashboardScreen = () => {
       } else if (statusFilter === 'completed') {
         matchesStatus = resolvedStatus === 'completed';
       } else if (statusFilter === 'cancelled') {
-        matchesStatus = ['cancelled', 'expired', 'no_show'].includes(resolvedStatus);
+        matchesStatus = ['cancelled', 'expired', 'no_show', 'skipped'].includes(
+          resolvedStatus,
+        );
       }
 
       if (!matchesStatus) return false;
@@ -241,7 +275,11 @@ const StaffDashboardScreen = () => {
         const patientName = item.patient_name?.toLowerCase() || '';
         const serviceName = item.service_name?.toLowerCase() || '';
         const tokenStr = item.token_number?.toString() || '';
-        return patientName.includes(query) || serviceName.includes(query) || tokenStr.includes(query);
+        return (
+          patientName.includes(query) ||
+          serviceName.includes(query) ||
+          tokenStr.includes(query)
+        );
       }
 
       return true;
@@ -303,7 +341,11 @@ const StaffDashboardScreen = () => {
     );
   };
 
-  const renderAppointmentItem = (item: AppointmentFull, index: number, isPendingSection: boolean) => {
+  const renderAppointmentItem = (
+    item: AppointmentFull,
+    index: number,
+    isPendingSection: boolean,
+  ) => {
     const { resolvedStatus } = getAppointmentStatusState(item);
     const actions = getAvailableActions(resolvedStatus);
 
@@ -324,7 +366,16 @@ const StaffDashboardScreen = () => {
           <View style={styles.itemTitleWrap}>
             <View style={styles.itemMainRow}>
               {/* Token badge pill */}
-              <View style={[styles.tokenPill, { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}30`, borderWidth: 1 }]}>
+              <View
+                style={[
+                  styles.tokenPill,
+                  {
+                    backgroundColor: `${colors.primary}15`,
+                    borderColor: `${colors.primary}30`,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
                 <Text
                   style={[
                     styles.tokenText,
@@ -348,7 +399,11 @@ const StaffDashboardScreen = () => {
             <Text
               style={[
                 styles.metaText,
-                { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: scaleFont(2) },
+                {
+                  color: colors.textSecondary,
+                  fontSize: typography.sizes.sm,
+                  marginTop: scaleFont(2),
+                },
               ]}
             >
               {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)}
@@ -465,11 +520,37 @@ const StaffDashboardScreen = () => {
   const queueProgress = totalToday > 0 ? activeQueue / totalToday : 0;
 
   const statItems = [
-    { label: 'Total Today', value: totalToday, color: colors.primary, Icon: ClipboardList },
-    { label: 'Pending', value: stats?.pending ?? 0, color: colors.warning, Icon: Clock },
-    { label: 'Active Queue', value: activeQueue, color: colors.info, Icon: Users, showProgress: true },
-    { label: 'Completed', value: stats?.completed ?? 0, color: colors.success, Icon: CheckCircle2 },
-    { label: 'Cancelled', value: stats?.cancelled ?? 0, color: colors.error, Icon: XCircle },
+    {
+      label: 'Total Today',
+      value: totalToday,
+      color: colors.primary,
+      Icon: ClipboardList,
+    },
+    {
+      label: 'Pending',
+      value: stats?.pending ?? 0,
+      color: colors.warning,
+      Icon: Clock,
+    },
+    {
+      label: 'Active Queue',
+      value: activeQueue,
+      color: colors.info,
+      Icon: Users,
+      showProgress: true,
+    },
+    {
+      label: 'Completed',
+      value: stats?.completed ?? 0,
+      color: colors.success,
+      Icon: CheckCircle2,
+    },
+    {
+      label: 'Cancelled',
+      value: stats?.cancelled ?? 0,
+      color: colors.error,
+      Icon: XCircle,
+    },
   ];
 
   return (
@@ -500,26 +581,52 @@ const StaffDashboardScreen = () => {
             Today's Queue Control
           </Text>
         </View>
-        <AppButton
-          title="Logout"
-          variant="outline"
-          onPress={logout}
-          style={styles.logoutButton}
-        />
+        <Pressable
+          onPress={() => {
+            Alert.alert('Logout', 'Are you sure you want to logout?', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Logout', style: 'destructive', onPress: logout },
+            ]);
+          }}
+          style={({ pressed }) => [
+            styles.logoutIconButton,
+            {
+              backgroundColor: pressed ? colors.border + '30' : 'transparent',
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <LogOut color={colors.text} size={20} />
+        </Pressable>
       </View>
 
       {/* Card 1: Today's Stats */}
       <CardFadeIn delay={0}>
         <View style={{ marginBottom: spacing.lg }}>
           <Card variant="elevated" style={styles.cardContent}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-              <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.primary}12` }]}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: spacing.md,
+              }}
+            >
+              <View
+                style={[
+                  styles.cardTitleIconPill,
+                  { backgroundColor: `${colors.primary}12` },
+                ]}
+              >
                 <Activity size={scaleFont(16)} color={colors.primary} />
               </View>
               <Text
                 style={[
                   styles.cardTitle,
-                  { color: colors.text, fontSize: typography.sizes.lg, marginLeft: spacing.sm },
+                  {
+                    color: colors.text,
+                    fontSize: typography.sizes.lg,
+                    marginLeft: spacing.sm,
+                  },
                 ]}
               >
                 Today's Stats
@@ -546,14 +653,32 @@ const StaffDashboardScreen = () => {
                     ]}
                   >
                     <View style={styles.statGridHeader}>
-                      <View style={[styles.statGridIconPill, { backgroundColor: item.color + '20' }]}>
+                      <View
+                        style={[
+                          styles.statGridIconPill,
+                          { backgroundColor: item.color + '20' },
+                        ]}
+                      >
                         <Icon size={scaleFont(13)} color={item.color} />
                       </View>
                     </View>
-                    <Text style={[styles.statGridValue, { color: item.color, fontSize: typography.sizes.xl }]}>
+                    <Text
+                      style={[
+                        styles.statGridValue,
+                        { color: item.color, fontSize: typography.sizes.xl },
+                      ]}
+                    >
                       {item.value}
                     </Text>
-                    <Text style={[styles.statGridLabel, { color: colors.textSecondary, fontSize: typography.caption }]}>
+                    <Text
+                      style={[
+                        styles.statGridLabel,
+                        {
+                          color: colors.textSecondary,
+                          fontSize: typography.caption,
+                        },
+                      ]}
+                    >
                       {item.label}
                     </Text>
                     {(item as any).showProgress && totalToday > 0 && (
@@ -581,7 +706,11 @@ const StaffDashboardScreen = () => {
             <Text
               style={[
                 styles.cardTitle,
-                { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
+                {
+                  color: colors.text,
+                  fontSize: typography.sizes.lg,
+                  marginBottom: spacing.md,
+                },
               ]}
             >
               Pending Appointments
@@ -593,7 +722,9 @@ const StaffDashboardScreen = () => {
                 subtitle="No pending appointments today."
               />
             ) : (
-              pendingAppointments.map((appt, idx) => renderAppointmentItem(appt, idx, true))
+              pendingAppointments.map((appt, idx) =>
+                renderAppointmentItem(appt, idx, true),
+              )
             )}
           </Card>
         </View>
@@ -603,7 +734,14 @@ const StaffDashboardScreen = () => {
       <CardFadeIn delay={120}>
         <View style={{ marginBottom: spacing.lg }}>
           <Card variant="elevated" style={styles.cardContent}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: spacing.md,
+              }}
+            >
               <Text
                 style={[
                   styles.cardTitle,
@@ -612,7 +750,16 @@ const StaffDashboardScreen = () => {
               >
                 Queue List
               </Text>
-              <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.textSecondary}12`, width: scaleFont(32), height: scaleFont(32) }]}>
+              <View
+                style={[
+                  styles.cardTitleIconPill,
+                  {
+                    backgroundColor: `${colors.textSecondary}12`,
+                    width: scaleFont(32),
+                    height: scaleFont(32),
+                  },
+                ]}
+              >
                 <Clock size={scaleFont(16)} color={colors.textSecondary} />
               </View>
             </View>
@@ -632,14 +779,37 @@ const StaffDashboardScreen = () => {
               horizontal
               showsHorizontalScrollIndicator={false}
               style={{ maxHeight: scaleFont(44), marginBottom: spacing.md }}
-              contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
+              contentContainerStyle={{
+                gap: spacing.sm,
+                paddingRight: spacing.lg,
+              }}
             >
               {[
-                { key: 'queue' as const, label: 'Active Queue', color: colors.primary },
-                { key: 'checked_in' as const, label: 'Checked In', color: colors.success },
-                { key: 'serving' as const, label: 'Serving', color: colors.warning },
-                { key: 'completed' as const, label: 'Completed', color: colors.info },
-                { key: 'cancelled' as const, label: 'Cancelled', color: colors.error },
+                {
+                  key: 'queue' as const,
+                  label: 'Active Queue',
+                  color: colors.primary,
+                },
+                {
+                  key: 'checked_in' as const,
+                  label: 'Checked In',
+                  color: colors.success,
+                },
+                {
+                  key: 'serving' as const,
+                  label: 'Serving',
+                  color: colors.warning,
+                },
+                {
+                  key: 'completed' as const,
+                  label: 'Completed',
+                  color: colors.info,
+                },
+                {
+                  key: 'cancelled' as const,
+                  label: 'Cancelled',
+                  color: colors.error,
+                },
               ].map(filter => {
                 const isSelected = statusFilter === filter.key;
                 const filterColor = filter.color;
@@ -650,7 +820,9 @@ const StaffDashboardScreen = () => {
                     style={({ pressed }) => [
                       {
                         borderColor: isSelected ? filterColor : colors.border,
-                        backgroundColor: isSelected ? filterColor + '15' : colors.surface,
+                        backgroundColor: isSelected
+                          ? filterColor + '15'
+                          : colors.surface,
                         borderRadius: radius.full,
                         borderWidth: 1,
                         paddingHorizontal: spacing.md,
@@ -668,14 +840,18 @@ const StaffDashboardScreen = () => {
                         width: scaleFont(6),
                         height: scaleFont(6),
                         borderRadius: scaleFont(3),
-                        backgroundColor: isSelected ? filterColor : colors.textSecondary + '60',
+                        backgroundColor: isSelected
+                          ? filterColor
+                          : colors.textSecondary + '60',
                       }}
                     />
-                    <Text style={{
-                      color: isSelected ? filterColor : colors.textSecondary,
-                      fontSize: typography.sizes.sm,
-                      fontWeight: isSelected ? '700' : '500',
-                    }}>
+                    <Text
+                      style={{
+                        color: isSelected ? filterColor : colors.textSecondary,
+                        fontSize: typography.sizes.sm,
+                        fontWeight: isSelected ? '700' : '500',
+                      }}
+                    >
                       {filter.label}
                     </Text>
                   </Pressable>
@@ -686,11 +862,17 @@ const StaffDashboardScreen = () => {
             {filteredQueueAppointments.length === 0 ? (
               <EmptyState
                 Icon={Search}
-                title={appointments.length === 0 ? "Queue Empty" : "No Results"}
-                subtitle={appointments.length === 0 ? "No active queue appointments today." : "No matching appointments found."}
+                title={appointments.length === 0 ? 'Queue Empty' : 'No Results'}
+                subtitle={
+                  appointments.length === 0
+                    ? 'No active queue appointments today.'
+                    : 'No matching appointments found.'
+                }
               />
             ) : (
-              filteredQueueAppointments.map((appt, idx) => renderAppointmentItem(appt, idx, false))
+              filteredQueueAppointments.map((appt, idx) =>
+                renderAppointmentItem(appt, idx, false),
+              )
             )}
           </Card>
         </View>
@@ -738,7 +920,9 @@ const StaffDashboardScreen = () => {
                     borderColor: colors.border,
                     borderRadius: radius.md,
                     padding: spacing.md,
-                    backgroundColor: pressed ? colors.background : colors.surface,
+                    backgroundColor: pressed
+                      ? colors.background
+                      : colors.surface,
                   },
                 ]}
                 onPress={() => {
@@ -790,8 +974,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontWeight: '500',
   },
-  logoutButton: {
-    minWidth: wp(24),
+  logoutIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardContent: {
     padding: wp(4),

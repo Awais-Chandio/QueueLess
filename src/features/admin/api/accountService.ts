@@ -16,6 +16,7 @@ export const accountService = {
         options: {
           data: {
             full_name: payload.name,
+            role: payload.role,
           },
         },
       });

@@ -30,6 +30,7 @@ export const useRealtimeQueue = (
 ) => {
   const scopeCenterId = scope?.centerId;
   const scopeScheduledAt = scope?.scheduledAt;
+  const scopeAppointmentId = scope?.appointmentId;
   const [queueData, setQueueData] = useState<QueueSnapshot | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,7 @@ export const useRealtimeQueue = (
       setLoading(true);
 
       const data = await getQueueSnapshot(myToken, {
+        appointmentId: scopeAppointmentId,
         centerId: scopeCenterId,
         scheduledAt: scopeScheduledAt,
       });
@@ -58,7 +60,7 @@ export const useRealtimeQueue = (
     } finally {
       setLoading(false);
     }
-  }, [myToken, scopeCenterId, scopeScheduledAt]);
+  }, [myToken, scopeAppointmentId, scopeCenterId, scopeScheduledAt]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -73,7 +75,12 @@ export const useRealtimeQueue = (
       },
     });
 
+    const refreshTimer = setInterval(() => {
+      loadInitialData();
+    }, 20000);
+
     return () => {
+      clearInterval(refreshTimer);
       unsubscribeAppointments(queueChannel);
     };
   }, [loadInitialData, onAppointmentChange, isActive, myToken]);

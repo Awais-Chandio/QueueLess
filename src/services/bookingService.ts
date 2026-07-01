@@ -5,7 +5,7 @@ export const getAppointmentStatusState = (
   now = new Date(),
 ) => {
   const scheduledTime = new Date(appointment.scheduled_at).getTime();
-  
+
   // Default to 30 mins duration if no estimate available
   const durationMins = appointment.estimated_wait_mins || 30;
   const expiredTime = scheduledTime + durationMins * 60 * 1000;
@@ -24,7 +24,9 @@ export const getAppointmentStatusState = (
 
   const isNoShow =
     status === 'no_show' ||
-    (status === 'confirmed' && now.getTime() > noShowTime && !appointment.checked_in_at);
+    (status === 'confirmed' &&
+      now.getTime() > noShowTime &&
+      !appointment.checked_in_at);
 
   // If it's technically expired or no-show, it shouldn't be counted as active
   const isActiveBooking =
@@ -39,6 +41,7 @@ export const getAppointmentStatusState = (
   const isPastBooking =
     status === 'completed' ||
     status === 'cancelled' ||
+    status === 'skipped' ||
     status === 'expired' ||
     status === 'no_show' ||
     isExpired ||
@@ -49,7 +52,11 @@ export const getAppointmentStatusState = (
   const statusStr = status as string;
   if (isNoShow && statusStr !== 'cancelled' && statusStr !== 'completed') {
     resolvedStatus = 'no_show';
-  } else if (isExpired && statusStr !== 'cancelled' && statusStr !== 'completed') {
+  } else if (
+    isExpired &&
+    statusStr !== 'cancelled' &&
+    statusStr !== 'completed'
+  ) {
     resolvedStatus = 'expired';
   }
 
@@ -72,6 +79,8 @@ export const getStatusDisplayProperties = (status: AppointmentStatus) => {
       return { label: 'Expired', variant: 'error' as const };
     case 'no_show':
       return { label: 'No Show', variant: 'error' as const };
+    case 'skipped':
+      return { label: 'Skipped', variant: 'error' as const };
     case 'checked_in':
       return { label: 'Checked In', variant: 'success' as const };
     case 'called':

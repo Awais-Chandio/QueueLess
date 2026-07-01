@@ -1,9 +1,6 @@
 import { supabase } from '../../../lib/supabase';
 import { useAuthStore } from '../../../store/authStore';
-import {
-  Appointment,
-  AppointmentFull,
-} from '../../../types/appointment';
+import { Appointment, AppointmentFull } from '../../../types/appointment';
 import {
   APPOINTMENT_SLOT_LABELS,
   getScheduledAtFromSlot,
@@ -14,13 +11,13 @@ import {
 } from '../utils/appointmentTime';
 
 const appointmentFullSelect =
-  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, current_position, people_ahead, queue_status, current_serving_token';
+  'id, user_id, patient_name, center_id, service_id, doctor_id, center_name, service_name, scheduled_at, appointment_date, appointment_time, status, token_number, created_at, estimated_wait_mins, estimated_wait_time, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, skipped_at, duration_minutes, current_position, queue_position, people_ahead, queue_status, current_serving_token, current_token, doctor_average_time, average_consultation_time, is_on_break, break_start, break_end';
 
 const appointmentFullLegacySelect =
   'id, user_id, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, created_at';
 
 const appointmentSelect =
-  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, created_at';
+  'id, user_id, center_id, service_id, doctor_id, scheduled_at, appointment_date, appointment_time, status, token_number, estimated_wait_mins, notes, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, skipped_at, duration_minutes, created_at';
 
 const appointmentLegacySelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, created_at';
@@ -34,13 +31,10 @@ type CreateAppointmentPayload = {
   appointment_time?: string;
 };
 
-const shouldFallbackFromAppointmentsFull = (
-  code?: string,
-) => code === '42703' || code === '42501' || code === 'PGRST205';
+const shouldFallbackFromAppointmentsFull = (code?: string) =>
+  code === '42703' || code === '42501' || code === 'PGRST205';
 
-const getAuthenticatedUserId = async (
-  expectedUserId?: string,
-) => {
+const getAuthenticatedUserId = async (expectedUserId?: string) => {
   let {
     data: { session },
   } = await supabase.auth.getSession();
@@ -65,7 +59,9 @@ const getAuthenticatedUserId = async (
   }
 
   if (expectedUserId && expectedUserId !== session.user.id) {
-    throw new Error('Your login session changed. Please reopen booking and try again.');
+    throw new Error(
+      'Your login session changed. Please reopen booking and try again.',
+    );
   }
 
   return session.user.id;
@@ -79,16 +75,10 @@ const enrichAppointments = async (
 
   const [centersResult, servicesResult] = await Promise.all([
     centerIds.length
-      ? supabase
-        .from('service_centers')
-        .select('id, name')
-        .in('id', centerIds)
+      ? supabase.from('service_centers').select('id, name').in('id', centerIds)
       : Promise.resolve({ data: [], error: null }),
     serviceIds.length
-      ? supabase
-        .from('services')
-        .select('id, name')
-        .in('id', serviceIds)
+      ? supabase.from('services').select('id, name').in('id', serviceIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
@@ -221,7 +211,10 @@ export const appointmentsService = {
     try {
       await supabase.rpc('cleanup_stale_appointments');
     } catch (cleanupError) {
-      console.warn('[CLEANUP] Failed to trigger stale appointments cleanup:', cleanupError);
+      console.warn(
+        '[CLEANUP] Failed to trigger stale appointments cleanup:',
+        cleanupError,
+      );
     }
   },
 
@@ -246,29 +239,30 @@ export const appointmentsService = {
           .select('open_time, close_time')
           .eq('id', centerId)
           .maybeSingle();
-        
+
         if (center) {
           if (center.open_time) openMin = timeToMinutes(center.open_time);
           if (center.close_time) closeMin = timeToMinutes(center.close_time);
         }
       } catch (centerErr) {
-        console.warn('[SLOTS] Failed to load center operating hours:', centerErr);
+        console.warn(
+          '[SLOTS] Failed to load center operating hours:',
+          centerErr,
+        );
       }
     }
 
     const bookedSlots = await getBookedSlotsByDate(appointmentDate, centerId);
-    const availableSlots = APPOINTMENT_SLOT_LABELS.filter(
-      slot => {
-        const slotMin = timeToMinutes(slot);
-        const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
-        return (
-          isWithinHours &&
-          !bookedSlots.has(slot) &&
-          !isPastAppointmentDate(appointmentDate) &&
-          !isPastAppointmentSlot(appointmentDate, slot)
-        );
-      }
-    );
+    const availableSlots = APPOINTMENT_SLOT_LABELS.filter(slot => {
+      const slotMin = timeToMinutes(slot);
+      const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
+      return (
+        isWithinHours &&
+        !bookedSlots.has(slot) &&
+        !isPastAppointmentDate(appointmentDate) &&
+        !isPastAppointmentSlot(appointmentDate, slot)
+      );
+    });
 
     console.log('[SLOTS] Available slots calculated:', {
       appointmentDate,
@@ -323,11 +317,13 @@ export const appointmentsService = {
 
     console.log('[DEBUG USER]', authenticatedUserId);
     console.log('[DEBUG PAYLOAD]', insertPayload);
-    
+
     const response = await supabase
       .from('appointments')
       .insert(insertPayload)
-      .select('id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at')
+      .select(
+        'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at',
+      )
       .single();
 
     let data = response.data as Appointment | null;
@@ -344,7 +340,9 @@ export const appointmentsService = {
       const fallback = await supabase
         .from('appointments')
         .insert(fallbackPayload)
-        .select('id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at')
+        .select(
+          'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at',
+        )
         .single();
 
       data = fallback.data as Appointment | null;
@@ -367,14 +365,12 @@ export const appointmentsService = {
     return data as Appointment;
   },
 
-  async fetchUserAppointments(
-    userId: string,
-  ): Promise<AppointmentFull[]> {
+  async fetchUserAppointments(userId: string): Promise<AppointmentFull[]> {
     const authenticatedUserId = await getAuthenticatedUserId(userId);
     console.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
 
     await appointmentsService.triggerCleanup();
-    
+
     const response = await supabase
       .from('appointments_full')
       .select(appointmentFullSelect)
@@ -400,7 +396,9 @@ export const appointmentsService = {
     }
 
     if (shouldFallbackFromAppointmentsFull(error?.code)) {
-      const appointments = await fetchAppointmentsFromTable(authenticatedUserId);
+      const appointments = await fetchAppointmentsFromTable(
+        authenticatedUserId,
+      );
       console.log('[DEBUG] Fetched appointments count:', appointments.length);
       return appointments;
     }
@@ -446,16 +444,17 @@ export const appointmentsService = {
     }
 
     if (error) {
-      console.error('[DEBUG] Failed to fetch appointment by id:', error.message);
+      console.error(
+        '[DEBUG] Failed to fetch appointment by id:',
+        error.message,
+      );
       throw new Error(error.message);
     }
 
     return data as AppointmentFull;
   },
 
-  async checkInAppointment(
-    appointmentId: string,
-  ): Promise<AppointmentFull> {
+  async checkInAppointment(appointmentId: string): Promise<AppointmentFull> {
     const authenticatedUserId = await getAuthenticatedUserId();
     const checkedInAt = new Date().toISOString();
 
@@ -514,15 +513,11 @@ export const appointmentsService = {
       checkedInAt: data.checked_in_at,
     });
 
-    const [appointment] = await enrichAppointments([
-      data as AppointmentFull,
-    ]);
+    const [appointment] = await enrichAppointments([data as AppointmentFull]);
     return appointment;
   },
 
-  async callAppointment(
-    appointmentId: string,
-  ): Promise<AppointmentFull> {
+  async callAppointment(appointmentId: string): Promise<AppointmentFull> {
     await getAuthenticatedUserId();
     const calledAt = new Date().toISOString();
 
@@ -579,9 +574,7 @@ export const appointmentsService = {
       tokenNumber: data.token_number,
     });
 
-    const [appointment] = await enrichAppointments([
-      data as AppointmentFull,
-    ]);
+    const [appointment] = await enrichAppointments([data as AppointmentFull]);
     return appointment;
   },
 
@@ -590,20 +583,28 @@ export const appointmentsService = {
     reason?: string,
   ): Promise<AppointmentFull> {
     try {
-      console.log('[DEBUG] Cancelling appointment via RPC cancel_appointment:', appointmentId);
+      console.log(
+        '[DEBUG] Cancelling appointment via RPC cancel_appointment:',
+        appointmentId,
+      );
 
       const authenticatedUserId = await getAuthenticatedUserId();
-      
+
       // Try to cancel via security definer RPC function to bypass update limitations
-      const { data, error: rpcError } = await supabase
-        .rpc('cancel_appointment', {
+      const { data, error: rpcError } = await supabase.rpc(
+        'cancel_appointment',
+        {
           p_appointment_id: appointmentId,
           p_reason: reason || 'User requested cancellation',
-        });
+        },
+      );
 
       if (rpcError) {
-        console.warn('[DEBUG] RPC cancel_appointment failed, falling back to direct update:', rpcError.message);
-        
+        console.warn(
+          '[DEBUG] RPC cancel_appointment failed, falling back to direct update:',
+          rpcError.message,
+        );
+
         const { error } = await supabase
           .from('appointments')
           .update({
@@ -615,14 +616,20 @@ export const appointmentsService = {
           .eq('user_id', authenticatedUserId);
 
         if (error) {
-          console.error('[DEBUG] Direct cancel fallback failed:', error.message);
+          console.error(
+            '[DEBUG] Direct cancel fallback failed:',
+            error.message,
+          );
           throw error;
         }
       }
 
       console.log('[DEBUG] Appointment cancelled successfully');
-      const appointment = await appointmentsService.fetchAppointmentById(appointmentId);
-      if (!appointment) throw new Error('Appointment not found after cancellation');
+      const appointment = await appointmentsService.fetchAppointmentById(
+        appointmentId,
+      );
+      if (!appointment)
+        throw new Error('Appointment not found after cancellation');
       return appointment;
     } catch (err: any) {
       console.error('[APPOINTMENTS] Cancel error:', err.message);

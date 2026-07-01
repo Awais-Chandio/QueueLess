@@ -31,13 +31,13 @@ const activeStatuses: AppointmentStatus[] = [
 ];
 
 const appointmentSelect =
-  'id, user_id, patient_name, center_id, service_id, center_name, service_name, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, current_position, people_ahead, queue_status, current_serving_token, created_at';
+  'id, user_id, patient_name, center_id, service_id, doctor_id, center_name, service_name, scheduled_at, appointment_date, appointment_time, status, token_number, estimated_wait_mins, estimated_wait_time, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, skipped_at, duration_minutes, current_position, queue_position, people_ahead, queue_status, current_serving_token, current_token, doctor_average_time, average_consultation_time, is_on_break, break_start, break_end, created_at';
 
 const appointmentFallbackSelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, cancel_reason, cancelled_by, cancelled_at, completed_at, created_at';
 
 const baseAppointmentSelect =
-  'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, checked_in_at, called_at, completed_at, created_at';
+  'id, user_id, center_id, service_id, doctor_id, scheduled_at, appointment_date, appointment_time, status, token_number, estimated_wait_mins, checked_in_at, called_at, started_at, completed_at, skipped_at, duration_minutes, created_at';
 
 const baseAppointmentLegacySelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, checked_in_at, called_at, completed_at, created_at';
@@ -65,9 +65,7 @@ const applyScopeRange = <T extends { gte: Function; lt: Function }>(
   const { start, end } = getTodayRange();
 
   if (scope === 'today') {
-    return query
-      .gte('scheduled_at', start)
-      .lt('scheduled_at', end);
+    return query.gte('scheduled_at', start).lt('scheduled_at', end);
   }
 
   if (scope === 'upcoming') {
@@ -96,9 +94,7 @@ const queueStatusPriority: Partial<Record<AppointmentStatus, number>> = {
   pending: 2,
 };
 
-export const sortStaffQueueAppointments = (
-  appointments: AppointmentFull[],
-) =>
+export const sortStaffQueueAppointments = (appointments: AppointmentFull[]) =>
   [...appointments].sort((a, b) => {
     const appointmentTimeA = new Date(a.scheduled_at).getTime();
     const appointmentTimeB = new Date(b.scheduled_at).getTime();
@@ -115,9 +111,13 @@ export const sortStaffQueueAppointments = (
     }
 
     const tokenA =
-      typeof a.token_number === 'number' ? a.token_number : Number.MAX_SAFE_INTEGER;
+      typeof a.token_number === 'number'
+        ? a.token_number
+        : Number.MAX_SAFE_INTEGER;
     const tokenB =
-      typeof b.token_number === 'number' ? b.token_number : Number.MAX_SAFE_INTEGER;
+      typeof b.token_number === 'number'
+        ? b.token_number
+        : Number.MAX_SAFE_INTEGER;
 
     if (tokenA !== tokenB) {
       return tokenA - tokenB;
@@ -178,7 +178,8 @@ const enrichAppointments = async (appointments: AppointmentFull[]) => {
     patient_name:
       appointment.patient_name ??
       (appointment.user_id ? patientNames.get(appointment.user_id) : undefined),
-    center_name: appointment.center_name ?? centerNames.get(appointment.center_id),
+    center_name:
+      appointment.center_name ?? centerNames.get(appointment.center_id),
     service_name:
       appointment.service_name ?? serviceNames.get(appointment.service_id),
   }));
@@ -196,9 +197,7 @@ const fetchScopedAppointments = async (
   });
 
   const response = await applyScopeRange(
-    supabase
-      .from('appointments_full')
-      .select(appointmentSelect),
+    supabase.from('appointments_full').select(appointmentSelect),
     scope,
   ).order('scheduled_at', { ascending: scope !== 'history' });
 
@@ -206,16 +205,17 @@ const fetchScopedAppointments = async (
   let error = response.error;
 
   if (error?.code === '42703') {
-    console.warn('[STAFF_QUEUE] appointments_full column mismatch, retrying legacy select:', {
-      code: error.code,
-      message: error.message,
-      scope,
-    });
+    console.warn(
+      '[STAFF_QUEUE] appointments_full column mismatch, retrying legacy select:',
+      {
+        code: error.code,
+        message: error.message,
+        scope,
+      },
+    );
 
     const fallback = await applyScopeRange(
-      supabase
-        .from('appointments_full')
-        .select(appointmentFallbackSelect),
+      supabase.from('appointments_full').select(appointmentFallbackSelect),
       scope,
     ).order('scheduled_at', { ascending: scope !== 'history' });
 
@@ -231,17 +231,13 @@ const fetchScopedAppointments = async (
     });
 
     let fallback = await applyScopeRange(
-      supabase
-        .from('appointments')
-        .select(baseAppointmentSelect),
+      supabase.from('appointments').select(baseAppointmentSelect),
       scope,
     ).order('scheduled_at', { ascending: scope !== 'history' });
 
     if (fallback.error?.code === '42703') {
       fallback = await applyScopeRange(
-        supabase
-          .from('appointments')
-          .select(baseAppointmentLegacySelect),
+        supabase.from('appointments').select(baseAppointmentLegacySelect),
         scope,
       ).order('scheduled_at', { ascending: scope !== 'history' });
     }
@@ -285,7 +281,8 @@ const buildStats = (appointments: AppointmentFull[]): StaffDashboardStats => ({
   confirmed: appointments.filter(item => item.status === 'confirmed').length,
   completed: appointments.filter(item => item.status === 'completed').length,
   cancelled: appointments.filter(item => item.status === 'cancelled').length,
-  activeQueue: appointments.filter(item => activeStatuses.includes(item.status)).length,
+  activeQueue: appointments.filter(item => activeStatuses.includes(item.status))
+    .length,
 });
 
 const insertAuditLog = async (payload: CreateAuditLogPayload) => {
@@ -305,21 +302,32 @@ const updateAppointment = async (
 ) => {
   const staffUserId = await getCurrentUserId();
 
-  let query = supabase
-    .from('appointments')
-    .update({
-      ...updates,
-      status: nextStatus,
-    })
-    .eq('id', appointment.id);
+  const runUpdate = async (select: string) => {
+    let query = supabase
+      .from('appointments')
+      .update({
+        ...updates,
+        status: nextStatus,
+      })
+      .eq('id', appointment.id);
 
-  if (allowedCurrentStatuses?.length) {
-    query = query.in('status', allowedCurrentStatuses);
+    if (allowedCurrentStatuses?.length) {
+      query = query.in('status', allowedCurrentStatuses);
+    }
+
+    return query.select(select).maybeSingle();
+  };
+
+  const response = await runUpdate(baseAppointmentSelect);
+
+  let data = response.data;
+  let error = response.error;
+
+  if (error?.code === '42703') {
+    const fallback = await runUpdate(baseAppointmentLegacySelect);
+    data = fallback.data;
+    error = fallback.error;
   }
-
-  const { data, error } = await query
-    .select(baseAppointmentSelect)
-    .maybeSingle();
 
   if (error) {
     throw new Error(error.message);
@@ -333,7 +341,11 @@ const updateAppointment = async (
       allowedCurrentStatuses,
       nextStatus,
     });
-    throw new Error(`Cannot ${action.replace('_', ' ')} this appointment from ${appointment.status}.`);
+    throw new Error(
+      `Cannot ${action.replace('_', ' ')} this appointment from ${
+        appointment.status
+      }.`,
+    );
   }
 
   await insertAuditLog({
@@ -344,7 +356,7 @@ const updateAppointment = async (
     new_status: nextStatus,
   });
 
-  return data as AppointmentFull;
+  return data as unknown as AppointmentFull;
 };
 
 export const staffQueueService = {
@@ -380,10 +392,7 @@ export const staffQueueService = {
     return updatedAppointment;
   },
 
-  async cancelAppointment(
-    appointment: AppointmentFull,
-    reason: CancelReason,
-  ) {
+  async cancelAppointment(appointment: AppointmentFull, reason: CancelReason) {
     const staffUserId = await getCurrentUserId();
     const updatedAppointment = await updateAppointment(
       appointment,
@@ -413,6 +422,7 @@ export const staffQueueService = {
       'called',
       {
         called_at: calledAt,
+        started_at: calledAt,
       },
       'call_next',
       ['confirmed', 'checked_in'],

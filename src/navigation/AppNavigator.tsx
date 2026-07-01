@@ -13,22 +13,79 @@ import {
   TermsScreen,
 } from "../features/profile/components/InfoScreens";
 import type { AppStackParamList } from "./types";
+import { useTheme } from "../hooks/useTheme";
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
 const AppNavigator = () => {
+  const { colors, typography } = useTheme();
+
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs" component={AppTabs} />
-      <Stack.Screen name="CenterDetails" component={CenterDetailsScreen} />
-      <Stack.Screen name="BookAppointment" component={BookAppointmentScreen} />
-      <Stack.Screen name="AppointmentDetails" component={AppointmentDetailsScreen} />
-      <Stack.Screen name="QueueStatus" component={QueueStatusScreen} />
-      <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-      <Stack.Screen name="Settings" component={SettingsScreen} />
-      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-      <Stack.Screen name="About" component={AboutScreen} />
-      <Stack.Screen name="Terms" component={TermsScreen} />
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: true,
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
+        headerTintColor: colors.primary,
+        headerShadowVisible: false,
+        headerTitleStyle: {
+          fontSize: typography.sizes.md,
+          fontWeight: "bold",
+          color: colors.text,
+        },
+      }}
+    >
+      <Stack.Screen
+        name="MainTabs"
+        component={AppTabs}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CenterDetails"
+        component={CenterDetailsScreen}
+        options={{ title: "Center Details" }}
+      />
+      <Stack.Screen
+        name="BookAppointment"
+        component={BookAppointmentScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AppointmentDetails"
+        component={AppointmentDetailsScreen}
+        options={{ title: "Appointment Details" }}
+      />
+      <Stack.Screen
+        name="QueueStatus"
+        component={QueueStatusScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{ title: "Edit Profile" }}
+      />
+      <Stack.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{ title: "Settings" }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={PrivacyPolicyScreen}
+        options={{ title: "Privacy Policy" }}
+      />
+      <Stack.Screen
+        name="About"
+        component={AboutScreen}
+        options={{ title: "About" }}
+      />
+      <Stack.Screen
+        name="Terms"
+        component={TermsScreen}
+        options={{ title: "Terms & Conditions" }}
+      />
     </Stack.Navigator>
   );
 };

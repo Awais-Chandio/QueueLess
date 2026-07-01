@@ -26,7 +26,7 @@ const toAuthError = (error: unknown, fallbackMessage: string) => {
 const fetchVerifiedProfileRole = async (
   user: User,
 ) => {
-  const { data: profile, error: profileError } =
+  const { data: profile } =
     await profileService.getProfileById(user.id);
 
   const isGoogle = user.app_metadata?.provider === 'google' || user.app_metadata?.providers?.includes('google');
@@ -99,10 +99,12 @@ export const useAuth = () => {
     if (__DEV__) console.log('[AUTH] restoreSession started');
     setLoading(true);
     const startTime = Date.now();
+    const isJest = Boolean((process.env as Record<string, string | undefined>).JEST_WORKER_ID);
+    const minimumSplashMs = isJest ? 0 : 2000;
 
     const delayIfNeeded = async () => {
       const elapsed = Date.now() - startTime;
-      const remaining = 2000 - elapsed;
+      const remaining = minimumSplashMs - elapsed;
       if (remaining > 0) {
         await new Promise<void>(resolve => setTimeout(() => resolve(), remaining));
       }

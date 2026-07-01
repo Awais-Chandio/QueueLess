@@ -60,6 +60,7 @@ const statusColors: Record<AppointmentStatus, string> = {
   cancelled: '#EF4444',
   expired: '#6B7280',
   no_show: '#EC4899',
+  skipped: '#F97316',
 };
 
 const toDateKey = (date: Date) => {
@@ -148,7 +149,9 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
   try {
     const { data: logs, error: logsError } = await supabase
       .from('audit_logs')
-      .select('id, staff_user_id, appointment_id, action, old_status, new_status, created_at')
+      .select(
+        'id, staff_user_id, appointment_id, action, old_status, new_status, created_at',
+      )
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -162,8 +165,16 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
     }
     if (!logs || logs.length === 0) return [];
 
-    const staffIds = [...new Set(logs.map(log => log.staff_user_id).filter((id): id is string => !!id))];
-    const appointmentIds = [...new Set(logs.map(log => log.appointment_id).filter((id): id is string => !!id))];
+    const staffIds = [
+      ...new Set(
+        logs.map(log => log.staff_user_id).filter((id): id is string => !!id),
+      ),
+    ];
+    const appointmentIds = [
+      ...new Set(
+        logs.map(log => log.appointment_id).filter((id): id is string => !!id),
+      ),
+    ];
 
     let profiles: any[] = [];
     if (staffIds.length > 0) {
@@ -172,11 +183,14 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
         .select('id, full_name')
         .in('id', staffIds);
       if (profilesError) {
-        console.warn('[ANALYTICS] Failed to fetch staff profiles for activity:', {
-          code: profilesError.code,
-          message: profilesError.message,
-          details: profilesError.details,
-        });
+        console.warn(
+          '[ANALYTICS] Failed to fetch staff profiles for activity:',
+          {
+            code: profilesError.code,
+            message: profilesError.message,
+            details: profilesError.details,
+          },
+        );
       }
       profiles = data || [];
     }
@@ -198,19 +212,29 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
     }
 
     const staffNameMap = new Map(profiles.map(p => [p.id, p.full_name]));
-    const tokenNumberMap = new Map(appointments.map(a => [a.id, a.token_number]));
+    const tokenNumberMap = new Map(
+      appointments.map(a => [a.id, a.token_number]),
+    );
 
     return logs.map(log => ({
       id: log.id,
       action: log.action,
       createdAt: log.created_at,
-      staffName: log.staff_user_id ? staffNameMap.get(log.staff_user_id) : undefined,
-      tokenNumber: log.appointment_id ? tokenNumberMap.get(log.appointment_id) : undefined,
+      staffName: log.staff_user_id
+        ? staffNameMap.get(log.staff_user_id)
+        : undefined,
+      tokenNumber: log.appointment_id
+        ? tokenNumberMap.get(log.appointment_id)
+        : undefined,
       oldStatus: log.old_status ?? undefined,
       newStatus: log.new_status ?? undefined,
     }));
   } catch (error) {
-    const err = error as { code?: string; message?: string; details?: string } | null;
+    const err = error as {
+      code?: string;
+      message?: string;
+      details?: string;
+    } | null;
     console.error('[ANALYTICS] Error fetching recent activity:', {
       code: err?.code ?? 'UNKNOWN',
       message: err?.message ?? String(error),
@@ -223,7 +247,9 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
 const getSystemOverview = async (): Promise<SystemOverviewData> => {
   try {
     const [centersResult, servicesResult, usersResult] = await Promise.all([
-      supabase.from('service_centers').select('id', { count: 'exact', head: true }),
+      supabase
+        .from('service_centers')
+        .select('id', { count: 'exact', head: true }),
       supabase.from('services').select('id', { count: 'exact', head: true }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
     ]);
@@ -232,11 +258,14 @@ const getSystemOverview = async (): Promise<SystemOverviewData> => {
     [centersResult, servicesResult, usersResult].forEach((result, idx) => {
       if (result.error) {
         const table = ['service_centers', 'services', 'profiles'][idx];
-        console.warn(`[ANALYTICS] System overview count failed for table '${table}':`, {
-          code: result.error.code,
-          message: result.error.message,
-          details: result.error.details,
-        });
+        console.warn(
+          `[ANALYTICS] System overview count failed for table '${table}':`,
+          {
+            code: result.error.code,
+            message: result.error.message,
+            details: result.error.details,
+          },
+        );
       }
     });
 
@@ -247,7 +276,11 @@ const getSystemOverview = async (): Promise<SystemOverviewData> => {
       dbConnected: true,
     };
   } catch (error) {
-    const err = error as { code?: string; message?: string; details?: string } | null;
+    const err = error as {
+      code?: string;
+      message?: string;
+      details?: string;
+    } | null;
     console.error('[ANALYTICS] Error fetching system overview:', {
       code: err?.code ?? 'UNKNOWN',
       message: err?.message ?? String(error),
@@ -267,12 +300,19 @@ export const analyticsService = {
     try {
       await supabase.rpc('cleanup_stale_appointments');
     } catch (cleanupError) {
-      const err = cleanupError as { code?: string; message?: string; details?: string } | null;
-      console.warn('[ANALYTICS CLEANUP] Failed to trigger stale appointments cleanup:', {
-        code: err?.code ?? 'UNKNOWN',
-        message: err?.message ?? String(cleanupError),
-        details: err?.details ?? null,
-      });
+      const err = cleanupError as {
+        code?: string;
+        message?: string;
+        details?: string;
+      } | null;
+      console.warn(
+        '[ANALYTICS CLEANUP] Failed to trigger stale appointments cleanup:',
+        {
+          code: err?.code ?? 'UNKNOWN',
+          message: err?.message ?? String(cleanupError),
+          details: err?.details ?? null,
+        },
+      );
     }
 
     const todayKey = toDateKey(new Date());

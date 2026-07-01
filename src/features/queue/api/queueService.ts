@@ -2,8 +2,99 @@ import { supabase } from '../../../lib/supabase';
 import type { QueueSnapshot } from '../../../types/queue';
 
 export type QueueScope = {
+  appointmentId?: string | null;
   centerId?: string | null;
   scheduledAt?: string | null;
+};
+
+type BackendQueueSnapshot = {
+  current_token?: number | string | null;
+  next_token?: number | string | null;
+  your_token?: number | string | null;
+  token_number?: number | string | null;
+  queue_position?: number | string | null;
+  current_position?: number | string | null;
+  people_ahead?: number | string | null;
+  estimated_wait_time?: number | string | null;
+  estimated_wait_mins?: number | string | null;
+  doctor_average_time?: number | string | null;
+  average_consultation_time?: number | string | null;
+  is_on_break?: boolean | null;
+  break_start?: string | null;
+  break_end?: string | null;
+  status?: string | null;
+};
+
+const toNumberOrNull = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const normalizeBackendSnapshot = (
+  snapshot: BackendQueueSnapshot,
+): QueueSnapshot => {
+  const currentToken = toNumberOrNull(snapshot.current_token) ?? 0;
+  const peopleAhead = toNumberOrNull(snapshot.people_ahead) ?? 0;
+  const estimatedWaitMins =
+    toNumberOrNull(snapshot.estimated_wait_time) ??
+    toNumberOrNull(snapshot.estimated_wait_mins) ??
+    0;
+  const currentPosition =
+    toNumberOrNull(snapshot.queue_position) ??
+    toNumberOrNull(snapshot.current_position) ??
+    peopleAhead + 1;
+
+  return {
+    currentToken,
+    nextToken: toNumberOrNull(snapshot.next_token),
+    yourToken:
+      toNumberOrNull(snapshot.your_token) ??
+      toNumberOrNull(snapshot.token_number),
+    peopleAhead,
+    estimatedWaitMins,
+    currentPosition,
+    averageConsultationTime:
+      toNumberOrNull(snapshot.doctor_average_time) ??
+      toNumberOrNull(snapshot.average_consultation_time),
+    isOnBreak: Boolean(snapshot.is_on_break),
+    breakStart: snapshot.break_start ?? null,
+    breakEnd: snapshot.break_end ?? null,
+    queueStatus: snapshot.status ?? null,
+  };
+};
+
+const getBackendQueueSnapshot = async (
+  appointmentId?: string | null,
+): Promise<QueueSnapshot | null> => {
+  if (!appointmentId) {
+    return null;
+  }
+
+  const { data, error } = await supabase.rpc('get_appointment_queue_snapshot', {
+    p_appointment_id: appointmentId,
+  });
+
+  if (error) {
+    console.warn('[QUEUE] Backend queue snapshot unavailable, falling back:', {
+      code: error.code,
+      message: error.message,
+    });
+    return null;
+  }
+
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+
+  return normalizeBackendSnapshot(data as BackendQueueSnapshot);
 };
 
 const getDayRange = (scheduledAt?: string | null) => {
@@ -34,7 +125,7 @@ const getCurrentTokenFromAppointments = async (
   let query = supabase
     .from('appointments')
     .select('token_number')
-    .eq('status', 'called')
+    .in('status', ['called', 'in_progress'])
     .not('token_number', 'is', null)
     .order('token_number', { ascending: false })
     .limit(1);
@@ -101,6 +192,20 @@ export const getQueueSnapshot = async (
   myToken: number,
   scope?: QueueScope,
 ): Promise<QueueSnapshot> => {
+  const backendSnapshot = await getBackendQueueSnapshot(scope?.appointmentId);
+
+  if (backendSnapshot) {
+    console.log('[QUEUE] Backend queue snapshot loaded:', {
+      appointmentId: scope?.appointmentId ?? null,
+      currentToken: backendSnapshot.currentToken,
+      peopleAhead: backendSnapshot.peopleAhead,
+      estimatedWaitMins: backendSnapshot.estimatedWaitMins,
+      isOnBreak: backendSnapshot.isOnBreak ?? false,
+    });
+
+    return backendSnapshot;
+  }
+
   const currentToken = await getCurrentToken(scope);
   const peopleAhead = await getPeopleAhead(myToken, currentToken);
 

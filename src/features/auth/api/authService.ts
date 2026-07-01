@@ -33,7 +33,8 @@ export const authService = {
             password,
             options: {
                 data: {
-                    full_name: name
+                    full_name: name,
+                    role: 'client'
                 }
             }
         });

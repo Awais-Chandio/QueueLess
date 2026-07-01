@@ -36,6 +36,8 @@ import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue';
 import type { AppointmentStatus } from '../../../types/appointment';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
 
+import { getDisplayName } from '../../../utils/getDisplayName';
+
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const HomeScreen = () => {
@@ -55,10 +57,8 @@ const HomeScreen = () => {
   }, [user?.id, profile?.id, fetchProfile]);
 
   const displayName = useMemo(() => {
-    if (profile?.full_name) return profile.full_name;
-    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
-    return 'User';
-  }, [profile, user]);
+    return getDisplayName(profile);
+  }, [profile]);
 
   const activeAppointment = stats?.activeAppointment;
   const resolvedActiveApptStatus = useMemo(() => {

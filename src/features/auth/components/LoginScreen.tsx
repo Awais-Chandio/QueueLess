@@ -99,7 +99,7 @@ const LoginScreen = () => {
     }
 
     return (
-        <ScreenWrapper scrollable={false}>
+        <ScreenWrapper scrollable={false} withPadding={false}>
             <KeyboardAvoidingView
                 style={styles.keyboardContainer}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
         marginTop: -20,
         paddingHorizontal: wp(5),
         paddingTop: hp(1.5),
-        paddingBottom: hp(1.5),
+        paddingBottom: hp(6),
     },
     formCard: {
         padding: wp(4.5),

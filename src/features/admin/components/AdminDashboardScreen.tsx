@@ -7,6 +7,7 @@ import {
   Text,
   useWindowDimensions,
   View,
+  Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -39,6 +40,8 @@ import { useTheme } from '../../../hooks/useTheme';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { analyticsService } from '../api/analyticsService';
 
+import { getDisplayName } from '../../../utils/getDisplayName';
+
 const ACTION_META: Record<string, { icon: any; color: string; label: string }> = {
   confirm: { icon: CheckCircle2, color: '#22C55E', label: 'Confirmed' },
   cancel: { icon: XCircle, color: '#EF4444', label: 'Cancelled' },
@@ -59,10 +62,8 @@ const AdminDashboardScreen = () => {
   }, [user?.id, profile?.id, fetchProfile]);
 
   const adminName = useMemo(() => {
-    if (profile?.full_name) return profile.full_name;
-    if (user?.user_metadata?.full_name) return user.user_metadata.full_name;
-    return 'Admin';
-  }, [profile, user]);
+    return getDisplayName(profile);
+  }, [profile]);
   const { width } = useWindowDimensions();
   const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
 
@@ -268,17 +269,23 @@ const AdminDashboardScreen = () => {
             Analytics and System Health
           </Text>
         </View>
-        <AppButton
-          title="Logout"
-          variant="outline"
+        <Pressable
           onPress={() => {
             Alert.alert('Logout', 'Are you sure you want to logout?', [
               { text: 'Cancel', style: 'cancel' },
               { text: 'Logout', style: 'destructive', onPress: logout },
             ]);
           }}
-          style={styles.logoutButton}
-        />
+          style={({ pressed }) => [
+            styles.logoutIconButton,
+            {
+              backgroundColor: pressed ? colors.border + '30' : 'transparent',
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <LogOut color={colors.text} size={20} />
+        </Pressable>
       </View>
 
       {/* Card 1: Statistics Grid */}
@@ -633,8 +640,13 @@ const styles = StyleSheet.create({
   subtitle: {
     fontWeight: '500',
   },
-  logoutButton: {
-    minWidth: wp(24),
+  logoutIconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardContent: {
     padding: wp(4),
