@@ -7,6 +7,7 @@ import RootNavigator from "./src/navigation/RootNavigator";
 import { queryClient } from "./src/lib/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context"; 
 import { useAuth } from "./src/hooks/useAuth";
+import { useNotifications } from "./src/hooks/useNotifications";
 import ToastMessage from "./src/components/ui/ToastMessage";
 import { authService } from "./src/features/auth/api/authService";
 import { useAuthStore } from "./src/store/authStore";
@@ -67,6 +68,7 @@ const getDeepLinkParams = (url: string) => {
 
 const App = ()=>{
   const { restoreSession } = useAuth();
+  useNotifications();
   const [realtimeConnected, setRealtimeConnected] = useState(true);
 
   useEffect(() => {
