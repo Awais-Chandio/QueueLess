@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { View, StyleSheet, Text, Pressable, Animated, Dimensions, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Mail, Lock, KeyRound } from "lucide-react-native";
+import { Mail, Lock, KeyRound, Phone } from "lucide-react-native";
 import { LinearGradient } from "react-native-linear-gradient";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
@@ -227,6 +227,29 @@ const LoginScreen = () => {
                                     Continue with Google
                                 </Text>
                             </Pressable>
+
+                            <Pressable
+                                disabled={isLoading}
+                                onPress={() => navigation.navigate("PhoneLogin")}
+                                style={({ pressed }) => [
+                                    styles.phoneButton,
+                                    {
+                                        borderColor: colors.border,
+                                        borderRadius: radius.md,
+                                        backgroundColor: colors.surface,
+                                    },
+                                    pressed && styles.pressedEffect
+                                ]}
+                            >
+                                <Phone
+                                    size={scaleFont(18)}
+                                    color={colors.primary}
+                                    style={styles.phoneIcon}
+                                />
+                                <Text style={[styles.phoneButtonText, { color: colors.text }]}>
+                                    Continue with Phone
+                                </Text>
+                            </Pressable>
                         </View>
 
                         <Pressable
@@ -377,6 +400,21 @@ const styles = StyleSheet.create({
         marginRight: wp(2.5),
     },
     googleButtonText: {
+        fontSize: scaleFont(14),
+        fontWeight: '700',
+    },
+    phoneButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: hp(1.5),
+        borderWidth: 1,
+        marginTop: hp(1.2),
+    },
+    phoneIcon: {
+        marginRight: wp(2.5),
+    },
+    phoneButtonText: {
         fontSize: scaleFont(14),
         fontWeight: '700',
     },
