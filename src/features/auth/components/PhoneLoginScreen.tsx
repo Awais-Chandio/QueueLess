@@ -1,12 +1,25 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, StyleSheet, Text, Pressable, Animated, Dimensions, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
+import { 
+    View, 
+    StyleSheet, 
+    Text, 
+    Pressable, 
+    Animated, 
+    Dimensions, 
+    KeyboardAvoidingView, 
+    Platform, 
+    ScrollView, 
+    Image,
+    Modal,
+    FlatList,
+    TextInput as RNTextInput 
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Phone, ArrowLeft } from "lucide-react-native";
+import { Phone, ArrowLeft, ChevronDown } from "lucide-react-native";
 import { LinearGradient } from "react-native-linear-gradient";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
-import AppInput from "../../../components/ui/AppInput";
 import AppButton from "../../../components/ui/AppButton";
 import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
@@ -18,6 +31,14 @@ type PhoneLoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamLi
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const COUNTRIES = [
+    { code: '+92', flag: '🇵🇰', name: 'Pakistan' },
+    { code: '+1', flag: '🇺🇸', name: 'United States' },
+    { code: '+44', flag: '🇬🇧', name: 'United Kingdom' },
+    { code: '+971', flag: '🇦🇪', name: 'United Arab Emirates' },
+    { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+];
+
 const PhoneLoginScreen = () => {
     const { colors, spacing, typography, radius } = useTheme();
     const navigation = useNavigation<PhoneLoginScreenNavigationProp>();
@@ -26,6 +47,9 @@ const PhoneLoginScreen = () => {
     const [phone, setPhone] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
+    const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+    const [showCountryModal, setShowCountryModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Mount animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -53,6 +77,11 @@ const PhoneLoginScreen = () => {
         ]).start();
     }, []);
 
+    const filteredCountries = COUNTRIES.filter(country => 
+        country.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        country.code.includes(searchQuery)
+    );
+
     const handleSendOTP = async () => {
         if (isSending) return;
 
@@ -64,28 +93,18 @@ const PhoneLoginScreen = () => {
             return;
         }
 
-        // Format to +92XXXXXXXXXX format (or generic international digits)
-        // Remove spaces, hyphens, and parentheses
+        // Remove spaces, hyphens, parentheses, and leading zeros
         formattedPhone = formattedPhone.replace(/[\s\-()]/g, '');
-
-        if (formattedPhone.startsWith('03')) {
-            formattedPhone = '+92' + formattedPhone.substring(1);
-        } else if (formattedPhone.startsWith('3') && formattedPhone.length === 10) {
-            formattedPhone = '+92' + formattedPhone;
-        } else if (formattedPhone.startsWith('923') && formattedPhone.length === 12) {
-            formattedPhone = '+' + formattedPhone;
-        } else if (!formattedPhone.startsWith('+')) {
-            if (formattedPhone.startsWith('92')) {
-                formattedPhone = '+' + formattedPhone;
-            } else {
-                formattedPhone = '+92' + formattedPhone;
-            }
+        if (formattedPhone.startsWith('0')) {
+            formattedPhone = formattedPhone.substring(1);
         }
+
+        const finalPhone = selectedCountry.code + formattedPhone;
 
         // E.164 verification: + followed by 10 to 15 digits
         const phoneRegex = /^\+[1-9]\d{10,14}$/;
-        if (!phoneRegex.test(formattedPhone)) {
-            const msg = "Please enter a valid phone number (e.g. 03001234567)";
+        if (!phoneRegex.test(finalPhone)) {
+            const msg = "Please enter a valid phone number";
             setErrorMessage(msg);
             toastService.error(msg);
             return;
@@ -94,9 +113,9 @@ const PhoneLoginScreen = () => {
         try {
             setErrorMessage('');
             setIsSending(true);
-            await sendPhoneOtp(formattedPhone);
+            await sendPhoneOtp(finalPhone);
             toastService.success('OTP sent successfully');
-            navigation.navigate("OTPVerification", { phone: formattedPhone });
+            navigation.navigate("OTPVerification", { phone: finalPhone });
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to send OTP';
             setErrorMessage(message);
@@ -171,20 +190,34 @@ const PhoneLoginScreen = () => {
                                 We will send you a one-time verification code via SMS.
                             </Text>
 
-                            <AppInput
-                                placeholder="e.g. 03001234567 or +923001234567"
-                                label="Phone Number"
-                                value={phone}
-                                onChangeText={(text) => {
-                                    setPhone(text);
-                                    if (errorMessage) setErrorMessage('');
-                                }}
-                                keyboardType="phone-pad"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                editable={!isSending}
-                                leftIcon={Phone}
-                            />
+                            {/* Beautiful Integrated Phone Input */}
+                            <View style={styles.inputWrapper}>
+                                <Text style={[styles.inputLabel, { color: colors.text, fontSize: typography.sizes.sm }]}>Phone Number</Text>
+                                <View style={[styles.phoneInputContainer, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.borderRadius }]}>
+                                    <Pressable 
+                                        style={styles.countryPickerButton}
+                                        onPress={() => setShowCountryModal(true)}
+                                    >
+                                        <Text style={styles.flagText}>{selectedCountry.flag}</Text>
+                                        <Text style={[styles.codeText, { color: colors.text }]}>{selectedCountry.code}</Text>
+                                        <ChevronDown size={14} color={colors.textSecondary} style={{ marginLeft: 4 }} />
+                                    </Pressable>
+                                    <View style={[styles.verticalSeparator, { backgroundColor: colors.border }]} />
+                                    <RNTextInput
+                                        placeholder="300 1234567"
+                                        placeholderTextColor={colors.textSecondary}
+                                        keyboardType="phone-pad"
+                                        value={phone}
+                                        onChangeText={(text) => {
+                                            const cleaned = text.replace(/[^0-9]/g, '');
+                                            setPhone(cleaned);
+                                            if (errorMessage) setErrorMessage('');
+                                        }}
+                                        style={[styles.phoneInputField, { color: colors.text }]}
+                                        editable={!isSending}
+                                    />
+                                </View>
+                            </View>
 
                             {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
@@ -198,6 +231,52 @@ const PhoneLoginScreen = () => {
                     </Animated.View>
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Custom Country Picker Modal */}
+            <Modal
+                visible={showCountryModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowCountryModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Country</Text>
+                            <Pressable onPress={() => { setShowCountryModal(false); setSearchQuery(''); }}>
+                                <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Close</Text>
+                            </Pressable>
+                        </View>
+                        
+                        <RNTextInput
+                            placeholder="Search country..."
+                            placeholderTextColor={colors.textSecondary}
+                            style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                        
+                        <FlatList
+                            data={filteredCountries}
+                            keyExtractor={(item) => item.code}
+                            renderItem={({ item }) => (
+                                <Pressable
+                                    style={[styles.countryItem, { borderBottomColor: colors.border }]}
+                                    onPress={() => {
+                                        setSelectedCountry(item);
+                                        setShowCountryModal(false);
+                                        setSearchQuery('');
+                                    }}
+                                >
+                                    <Text style={styles.countryFlag}>{item.flag}</Text>
+                                    <Text style={[styles.countryName, { color: colors.text }]}>{item.name}</Text>
+                                    <Text style={[styles.countryCode, { color: colors.textSecondary }]}>{item.code}</Text>
+                                </Pressable>
+                            )}
+                        />
+                    </View>
+                </View>
+            </Modal>
         </ScreenWrapper>
     );
 };
@@ -286,6 +365,44 @@ const styles = StyleSheet.create({
         marginBottom: hp(2),
         lineHeight: 18,
     },
+    inputWrapper: {
+        width: '100%',
+        marginBottom: 15,
+    },
+    inputLabel: {
+        marginBottom: 8,
+        fontWeight: '600',
+    },
+    phoneInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        height: 52,
+    },
+    countryPickerButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        height: '100%',
+    },
+    flagText: {
+        fontSize: 20,
+        marginRight: 6,
+    },
+    codeText: {
+        fontSize: 15,
+        fontWeight: '600',
+    },
+    verticalSeparator: {
+        width: 1,
+        height: '60%',
+    },
+    phoneInputField: {
+        flex: 1,
+        height: '100%',
+        paddingHorizontal: 12,
+        fontSize: 16,
+    },
     sendButton: {
         marginTop: hp(1),
     },
@@ -294,5 +411,51 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: hp(1.5),
         fontSize: scaleFont(13),
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        padding: 20,
+        maxHeight: '60%',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 15,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    searchInput: {
+        height: 48,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        marginBottom: 15,
+    },
+    countryItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 15,
+        borderBottomWidth: 1,
+    },
+    countryFlag: {
+        fontSize: 24,
+        marginRight: 15,
+    },
+    countryName: {
+        flex: 1,
+        fontSize: 16,
+    },
+    countryCode: {
+        fontSize: 16,
+        fontWeight: '600',
     },
 });

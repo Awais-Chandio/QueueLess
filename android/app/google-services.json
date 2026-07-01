@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "2725125618",
+    "project_id": "queueless-c57ab",
+    "storage_bucket": "queueless-c57ab.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:2725125618:android:f70db428f85b02e7c15f6b",
+        "android_client_info": {
+          "package_name": "com.queueless"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDm-xziQ61q0Myf0X00oS4Wif_gQx_b0ag"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

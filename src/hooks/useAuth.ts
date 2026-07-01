@@ -6,6 +6,9 @@ import { useAuthStore } from '../store/authStore';
 import { useProfileStore } from '../store/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
 import { profileService } from '../features/profile/api/profileService';
+import { firebasePhoneAuth } from '../services/firebasePhoneAuth';
+
+
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -319,6 +322,13 @@ export const useAuth = () => {
         throw error;
       }
 
+      // Also sign out of Firebase Auth to ensure clean state
+      try {
+        await firebasePhoneAuth.logoutFirebase();
+      } catch (fbSignOutError) {
+        if (__DEV__) console.warn('[AUTH] Firebase sign out error:', fbSignOutError);
+      }
+
       clearAuth();
       useProfileStore.getState().clearProfile();
       if (__DEV__) console.log('[AUTH] logout complete, profile cleared');
@@ -329,27 +339,37 @@ export const useAuth = () => {
   }, [clearAuth, setLoading]);
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
-    if (__DEV__) console.log('[AUTH] sendPhoneOtp started', phone);
+    if (__DEV__) console.log('[AUTH] sendPhoneOtp (Firebase) started', phone);
     setLoading(true);
     try {
-      const { error } = await authService.signInWithOtp(phone);
-      if (error) throw error;
+      await firebasePhoneAuth.sendOTP(phone);
+      if (__DEV__) console.log('[AUTH] Firebase OTP confirmation result stored');
     } catch (error) {
-      throw toAuthError(error, 'Failed to send OTP. Please check the phone number.');
+      throw toAuthError(error, 'Failed to send OTP via Firebase. Please check the phone number.');
     } finally {
       setLoading(false);
     }
   }, [setLoading]);
 
   const verifyPhoneOtp = useCallback(async (phone: string, token: string) => {
-    if (__DEV__) console.log('[AUTH] verifyPhoneOtp started', phone);
+    if (__DEV__) console.log('[AUTH] verifyPhoneOtp (Firebase) started', phone);
     setLoading(true);
     try {
-      const { data, error } = await authService.verifyOtp(phone, token);
+      const userCredential = await firebasePhoneAuth.verifyOTP(token);
+      if (!userCredential || !userCredential.user) {
+        throw new Error('Verification failed. Invalid OTP code.');
+      }
+
+      const fbUser = userCredential.user;
+      if (__DEV__) {
+        console.log('[AUTH] Firebase user authenticated:', fbUser.uid);
+      }
+
+      const { data, error } = await authService.bridgeFirebaseUserToSupabase(fbUser.uid, fbUser.phoneNumber, fbUser.displayName);
       if (error) throw error;
 
-      if (!data.session || !data.user) {
-        throw new Error('Verification failed. Invalid OTP code.');
+      if (!data || !data.session || !data.user) {
+        throw new Error('Verification failed. Unable to establish Supabase session.');
       }
 
       setSession(data.session);
@@ -358,7 +378,7 @@ export const useAuth = () => {
       try {
         const verifiedRole = await fetchVerifiedProfileRole(data.user);
         setRole(verifiedRole);
-        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN (Phone)');
+        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN (Phone/Firebase Bridge)');
       } catch (e) {
         if (__DEV__) console.warn('[OTP VERIFY] Profile fetch/restore warning:', e);
         setRole('client');
@@ -370,6 +390,33 @@ export const useAuth = () => {
       setLoading(false);
     }
   }, [clearAuth, setRole, setSession, setLoading]);
+
+  const loginWithPhone = useCallback(async (phone: string) => {
+    if (__DEV__) console.log('[AUTH] loginWithPhone started', phone);
+    setLoading(true);
+    try {
+      const success = await firebasePhoneAuth.sendOTP(phone);
+      return success;
+    } catch (error) {
+      throw toAuthError(error, 'Failed to send OTP via Firebase.');
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading]);
+
+  const verifyPhoneOTP = useCallback(async (code: string) => {
+    if (__DEV__) console.log('[AUTH] verifyPhoneOTP started', code);
+    setLoading(true);
+    try {
+      const userCredential = await firebasePhoneAuth.verifyOTP(code);
+      if (__DEV__) console.log('[AUTH] verifyPhoneOTP success, returning Firebase user');
+      return userCredential.user;
+    } catch (error) {
+      throw toAuthError(error, 'Failed to verify OTP via Firebase.');
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading]);
 
   return {
     session,
@@ -384,5 +431,7 @@ export const useAuth = () => {
     verifyPhoneOtp,
     signup,
     logout,
+    loginWithPhone,
+    verifyPhoneOTP,
   };
 };
