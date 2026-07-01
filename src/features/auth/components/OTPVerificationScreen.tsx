@@ -1,12 +1,30 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, StyleSheet, Text, Pressable, Animated, Dimensions, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
+import { 
+    View, 
+    StyleSheet, 
+    Text, 
+    Pressable, 
+    Animated as RNAnimated, 
+    Dimensions, 
+    KeyboardAvoidingView, 
+    Platform, 
+    ScrollView, 
+    Image,
+    TextInput as RNTextInput 
+} from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { RouteProp } from "@react-navigation/native";
-import { Lock, ArrowLeft, RefreshCw } from "lucide-react-native";
+import { Lock, ArrowLeft, RefreshCw, Check } from "lucide-react-native";
 import { LinearGradient } from "react-native-linear-gradient";
+import Animated, { 
+    useSharedValue, 
+    useAnimatedStyle, 
+    withSequence, 
+    withTiming, 
+    withSpring 
+} from "react-native-reanimated";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
-import AppInput from "../../../components/ui/AppInput";
 import AppButton from "../../../components/ui/AppButton";
 import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
@@ -23,7 +41,7 @@ const OTPVerificationScreen = () => {
     const { colors, spacing, typography, radius } = useTheme();
     const navigation = useNavigation();
     const route = useRoute<OTPVerificationRouteProp>();
-    const { verifyPhoneOtp, sendPhoneOtp } = useAuth();
+    const { verifyPhoneOTP, loginWithPhone } = useAuth();
 
     const { phone } = route.params;
 
@@ -32,31 +50,44 @@ const OTPVerificationScreen = () => {
     const [isResending, setIsResending] = useState(false);
     const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
     const [errorMessage, setErrorMessage] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
+
+    // References for input focus
+    const inputRef = useRef<RNTextInput>(null);
+
+    // Reanimated Shared Values
+    const shakeOffset = useSharedValue(0);
+    const successScale = useSharedValue(0);
 
     // Mount animations
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(30)).current;
-    const logoScale = useRef(new Animated.Value(0.85)).current;
+    const fadeAnim = useRef(new RNAnimated.Value(0)).current;
+    const slideAnim = useRef(new RNAnimated.Value(30)).current;
+    const logoScale = useRef(new RNAnimated.Value(0.85)).current;
 
     useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
+        RNAnimated.parallel([
+            RNAnimated.timing(fadeAnim, {
                 toValue: 1,
                 duration: 500,
                 useNativeDriver: true,
             }),
-            Animated.timing(slideAnim, {
+            RNAnimated.timing(slideAnim, {
                 toValue: 0,
                 duration: 500,
                 useNativeDriver: true,
             }),
-            Animated.spring(logoScale, {
+            RNAnimated.spring(logoScale, {
                 toValue: 1,
                 friction: 6,
                 tension: 40,
                 useNativeDriver: true,
             })
         ]).start();
+
+        // Auto-focus input on mount
+        setTimeout(() => {
+            inputRef.current?.focus();
+        }, 600);
     }, []);
 
     // Cooldown timer logic
@@ -68,14 +99,45 @@ const OTPVerificationScreen = () => {
         return () => clearInterval(timer);
     }, [cooldown]);
 
+    // Shake animation trigger
+    const triggerShake = () => {
+        shakeOffset.value = withSequence(
+            withTiming(-10, { duration: 50 }),
+            withTiming(10, { duration: 50 }),
+            withTiming(-10, { duration: 50 }),
+            withTiming(10, { duration: 50 }),
+            withTiming(0, { duration: 50 })
+        );
+    };
+
+    const shakeAnimatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ translateX: shakeOffset.value }]
+        };
+    });
+
+    const successAnimatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ scale: successScale.value }]
+        };
+    });
+
+    // Auto-submit logic when 6 digits are typed
+    useEffect(() => {
+        if (otpCode.length === 6) {
+            handleVerifyOTP();
+        }
+    }, [otpCode]);
+
     const handleVerifyOTP = async () => {
-        if (isVerifying) return;
+        if (isVerifying || isSuccess) return;
 
         const cleanOtp = otpCode.trim();
         if (!cleanOtp) {
             const msg = "Verification code is required";
             setErrorMessage(msg);
             toastService.error(msg);
+            triggerShake();
             return;
         }
 
@@ -83,16 +145,30 @@ const OTPVerificationScreen = () => {
             const msg = "Please enter a valid 6-digit numeric OTP";
             setErrorMessage(msg);
             toastService.error(msg);
+            triggerShake();
             return;
         }
 
         try {
             setErrorMessage('');
             setIsVerifying(true);
-            await verifyPhoneOtp(phone, cleanOtp);
+            const firebaseUser = await verifyPhoneOTP(cleanOtp);
+            if (__DEV__) {
+                console.log('[OTPVerificationScreen] Verification success. Firebase User:', firebaseUser);
+            }
+            
+            // Trigger success animation
+            setIsSuccess(true);
+            successScale.value = withSpring(1, { damping: 10, stiffness: 80 });
             toastService.success('Logged in successfully');
-            // RootNavigator will handle redirection automatically upon session and role changes.
         } catch (error) {
+            // Shake on invalid OTP
+            triggerShake();
+            setOtpCode('');
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 250);
+            
             const message = error instanceof Error ? error.message : 'Invalid verification code';
             setErrorMessage(message);
             toastService.error(message);
@@ -107,9 +183,13 @@ const OTPVerificationScreen = () => {
         try {
             setErrorMessage('');
             setIsResending(true);
-            await sendPhoneOtp(phone);
+            setOtpCode('');
+            await loginWithPhone(phone);
             setCooldown(RESEND_COOLDOWN);
             toastService.success('OTP code re-sent successfully');
+            setTimeout(() => {
+                inputRef.current?.focus();
+            }, 250);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to resend OTP';
             setErrorMessage(message);
@@ -117,6 +197,39 @@ const OTPVerificationScreen = () => {
         } finally {
             setIsResending(false);
         }
+    };
+
+    // Render individual OTP cells
+    const renderOtpCells = () => {
+        const cells = [];
+        for (let i = 0; i < 6; i++) {
+            const char = otpCode[i] || '';
+            const isFocused = otpCode.length === i;
+            
+            cells.push(
+                <Pressable
+                    key={i}
+                    style={[
+                        styles.otpCell,
+                        { 
+                            borderColor: isFocused ? colors.primary : colors.border,
+                            backgroundColor: colors.surface,
+                            borderRadius: radius.borderRadius
+                        }
+                    ]}
+                    onPress={() => inputRef.current?.focus()}
+                >
+                    {isSuccess ? (
+                        <Animated.View style={successAnimatedStyle}>
+                            <Check size={20} color={colors.success || '#10B981'} />
+                        </Animated.View>
+                    ) : (
+                        <Text style={[styles.otpCellText, { color: colors.text }]}>{char}</Text>
+                    )}
+                </Pressable>
+            );
+        }
+        return cells;
     };
 
     return (
@@ -176,7 +289,7 @@ const OTPVerificationScreen = () => {
                             resizeMode="contain"
                         />
 
-                        <View style={[styles.formCard, { backgroundColor: colors.surface, borderRadius: radius.md }]}>
+                        <Animated.View style={[styles.formCard, shakeAnimatedStyle, { backgroundColor: colors.surface, borderRadius: radius.md }]}>
                             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
                                 Verify Your Phone
                             </Text>
@@ -184,30 +297,40 @@ const OTPVerificationScreen = () => {
                                 We have sent a 6-digit verification code to <Text style={{ fontWeight: 'bold', color: colors.text }}>{phone}</Text>. Please enter it below.
                             </Text>
 
-                            <AppInput
-                                placeholder="Enter 6-digit code"
-                                label="Verification Code"
+                            {/* Hidden TextInput for OTP processing */}
+                            <RNTextInput
+                                ref={inputRef}
                                 value={otpCode}
                                 onChangeText={(text) => {
-                                    // Limit to 6 digits, only numbers
                                     const cleaned = text.replace(/[^0-9]/g, '').substring(0, 6);
                                     setOtpCode(cleaned);
                                     if (errorMessage) setErrorMessage('');
                                 }}
                                 keyboardType="number-pad"
-                                autoCapitalize="none"
-                                autoCorrect={false}
-                                editable={!isVerifying}
-                                leftIcon={Lock}
+                                maxLength={6}
+                                caretHidden={true}
+                                style={styles.hiddenInput}
+                                autoComplete="one-time-code"
+                                textContentType="oneTimeCode"
+                                editable={!isVerifying && !isSuccess}
                             />
+
+                            {/* Beautiful 6-digit row */}
+                            <View style={styles.otpRowContainer}>
+                                {renderOtpCells()}
+                            </View>
 
                             {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
 
                             <AppButton
-                                title={isVerifying ? "Verifying OTP..." : "Verify OTP"}
+                                title={isSuccess ? "Verified" : (isVerifying ? "Verifying OTP..." : "Verify OTP")}
                                 onPress={handleVerifyOTP}
                                 loading={isVerifying}
-                                style={styles.verifyButton}
+                                style={{
+                                    ...styles.verifyButton,
+                                    ...(isSuccess ? { backgroundColor: colors.success || '#10B981' } : {})
+                                }}
+                                disabled={isSuccess}
                             />
 
                             <View style={styles.resendContainer}>
@@ -217,7 +340,7 @@ const OTPVerificationScreen = () => {
                                     </Text>
                                 ) : (
                                     <Pressable 
-                                        disabled={isResending} 
+                                        disabled={isResending || isSuccess} 
                                         onPress={handleResendOTP}
                                         style={({ pressed }) => [
                                             styles.resendPressable,
@@ -231,7 +354,7 @@ const OTPVerificationScreen = () => {
                                     </Pressable>
                                 )}
                             </View>
-                        </View>
+                        </Animated.View>
                     </Animated.View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -322,6 +445,33 @@ const styles = StyleSheet.create({
     subtitle: {
         marginBottom: hp(2),
         lineHeight: 18,
+    },
+    hiddenInput: {
+        position: 'absolute',
+        width: 1,
+        height: 1,
+        opacity: 0,
+        zIndex: -1,
+    },
+    otpRowContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+        width: '100%',
+        paddingHorizontal: 5,
+    },
+    otpCell: {
+        width: wp(11),
+        height: wp(13),
+        borderWidth: 1.5,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    otpCellText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        textAlign: 'center',
     },
     verifyButton: {
         marginTop: hp(1),
