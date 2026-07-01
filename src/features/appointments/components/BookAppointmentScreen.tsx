@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 import {
+  Alert,
   FlatList,
   Pressable,
   ScrollView,
@@ -93,6 +94,53 @@ const BookAppointmentScreen = () => {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+
+  const [lockTimeLeft, setLockTimeLeft] = useState<number | null>(null);
+  const timerRef = useRef<any>(null);
+
+  const formatTimeLeft = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  const handleSelectSlot = async (slot: string) => {
+    if (!centerId) return;
+    try {
+      setValue('slot', slot, { shouldValidate: true });
+      await appointmentsService.lockSlot(centerId, appointmentDate, slot);
+      
+      // Reset and start countdown timer (10 mins = 600 secs)
+      if (timerRef.current) clearInterval(timerRef.current);
+      setLockTimeLeft(600);
+
+      timerRef.current = setInterval(() => {
+        setLockTimeLeft(prev => {
+          if (prev === null || prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            setValue('slot', '');
+            appointmentsService.unlockSlot().catch(console.warn);
+            Alert.alert('Lock Expired', 'Your time-slot lock has expired. Please select a slot again to book.');
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } catch (err: any) {
+      toastService.error(err.message || 'Failed to lock slot');
+      setValue('slot', '');
+    }
+  };
+
+  // Cleanup timer and slot lock on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      appointmentsService.unlockSlot().catch(console.warn);
+    };
+  }, []);
 
   // Initialize React Hook Form with Zod validation
   const {
@@ -441,7 +489,7 @@ const BookAppointmentScreen = () => {
                         <Pressable
                           key={slot}
                           disabled={disabled}
-                          onPress={() => setValue('slot', slot, { shouldValidate: true })}
+                          onPress={() => handleSelectSlot(slot)}
                           style={[
                             styles.slotChip,
                             selected && styles.selectedSlotChip,
@@ -462,6 +510,14 @@ const BookAppointmentScreen = () => {
                     })}
                   </ScrollView>
                   
+                  {lockTimeLeft !== null && selectedSlot !== '' && (
+                    <View style={[styles.timerContainer, { marginTop: spacing.sm }]}>
+                      <Text style={[styles.timerText, { color: colors.warning }]}>
+                        Slot locked for {formatTimeLeft(lockTimeLeft)} mins. Complete booking before the timer ends!
+                      </Text>
+                    </View>
+                  )}
+
                   {errors.slot && (
                     <Text style={[styles.slotError, { marginTop: spacing.xs }]}>
                       {errors.slot.message}
@@ -676,5 +732,20 @@ const styles = StyleSheet.create({
   backButtonText: {
     fontWeight: '600',
     marginLeft: spacing.xs,
+  },
+
+  timerContainer: {
+    backgroundColor: '#F59E0B1A',
+    borderColor: '#F59E0B30',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+
+  timerText: {
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

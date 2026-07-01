@@ -89,6 +89,7 @@ const getLastSevenDateKeys = () => {
 const getAppointmentCount = async (filters?: {
   status?: AppointmentStatus;
   appointmentDate?: string;
+  startDate?: string;
 }) => {
   let query = supabase
     .from('appointments')
@@ -100,6 +101,10 @@ const getAppointmentCount = async (filters?: {
 
   if (filters?.appointmentDate) {
     query = query.eq('appointment_date', filters.appointmentDate);
+  }
+
+  if (filters?.startDate) {
+    query = query.gte('scheduled_at', filters.startDate);
   }
 
   const { count, error } = await query;
@@ -296,7 +301,7 @@ const getSystemOverview = async (): Promise<SystemOverviewData> => {
 };
 
 export const analyticsService = {
-  async getDashboardStats(): Promise<AdminDashboardAnalytics> {
+  async getDashboardStats(dateRange: 'today' | 'week' | 'month' | 'all' = 'all'): Promise<AdminDashboardAnalytics> {
     try {
       await supabase.rpc('cleanup_stale_appointments');
     } catch (cleanupError) {
@@ -317,6 +322,21 @@ export const analyticsService = {
 
     const todayKey = toDateKey(new Date());
 
+    let startDate: string | undefined;
+    if (dateRange === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startDate = today.toISOString();
+    } else if (dateRange === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      startDate = weekAgo.toISOString();
+    } else if (dateRange === 'month') {
+      const monthAgo = new Date();
+      monthAgo.setDate(monthAgo.getDate() - 30);
+      startDate = monthAgo.toISOString();
+    }
+
     const [
       totalAppointments,
       pendingCount,
@@ -330,13 +350,13 @@ export const analyticsService = {
       recentActivity,
       systemOverview,
     ] = await Promise.all([
-      getAppointmentCount(),
-      getAppointmentCount({ status: 'pending' }),
-      getAppointmentCount({ status: 'confirmed' }),
-      getAppointmentCount({ status: 'completed' }),
-      getAppointmentCount({ status: 'cancelled' }),
-      getAppointmentCount({ status: 'expired' }),
-      getAppointmentCount({ status: 'no_show' }),
+      getAppointmentCount({ startDate }),
+      getAppointmentCount({ status: 'pending', startDate }),
+      getAppointmentCount({ status: 'confirmed', startDate }),
+      getAppointmentCount({ status: 'completed', startDate }),
+      getAppointmentCount({ status: 'cancelled', startDate }),
+      getAppointmentCount({ status: 'expired', startDate }),
+      getAppointmentCount({ status: 'no_show', startDate }),
       getAppointmentCount({ appointmentDate: todayKey }),
       getWeeklyStats(),
       getRecentActivity(),

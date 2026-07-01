@@ -252,6 +252,32 @@ export const appointmentsService = {
       }
     }
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const currentUserId = sessionData?.session?.user?.id;
+
+    // Fetch other users' unexpired slot locks
+    let activeLocks: Set<string> = new Set();
+    if (centerId) {
+      try {
+        const { data: locks } = await supabase
+          .from('slot_locks')
+          .select('appointment_time, user_id')
+          .eq('center_id', centerId)
+          .eq('appointment_date', appointmentDate)
+          .gt('expires_at', new Date().toISOString());
+
+        if (locks) {
+          locks.forEach(lock => {
+            if (lock.user_id !== currentUserId) {
+              activeLocks.add(lock.appointment_time);
+            }
+          });
+        }
+      } catch (lockError) {
+        console.warn('[SLOTS] Failed to fetch active slot locks:', lockError);
+      }
+    }
+
     const bookedSlots = await getBookedSlotsByDate(appointmentDate, centerId);
     const availableSlots = APPOINTMENT_SLOT_LABELS.filter(slot => {
       const slotMin = timeToMinutes(slot);
@@ -259,6 +285,7 @@ export const appointmentsService = {
       return (
         isWithinHours &&
         !bookedSlots.has(slot) &&
+        !activeLocks.has(slot) &&
         !isPastAppointmentDate(appointmentDate) &&
         !isPastAppointmentSlot(appointmentDate, slot)
       );
@@ -267,10 +294,44 @@ export const appointmentsService = {
     console.log('[SLOTS] Available slots calculated:', {
       appointmentDate,
       bookedSlots: [...bookedSlots],
+      activeLocks: [...activeLocks],
       availableSlots,
     });
 
     return availableSlots;
+  },
+
+  async lockSlot(
+    centerId: string,
+    appointmentDate: string,
+    appointmentTime: string,
+  ): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+    if (!userId) throw new Error('Please login to lock a slot.');
+
+    // 1. Delete any existing locks for this user to prevent multiple slots locking
+    await supabase.from('slot_locks').delete().eq('user_id', userId);
+
+    // 2. Insert new lock
+    const { error } = await supabase.from('slot_locks').insert({
+      user_id: userId,
+      center_id: centerId,
+      appointment_date: appointmentDate,
+      appointment_time: appointmentTime,
+    });
+
+    if (error) {
+      throw new Error('Failed to lock slot: ' + error.message);
+    }
+  },
+
+  async unlockSlot(): Promise<void> {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const userId = sessionData?.session?.user?.id;
+    if (userId) {
+      await supabase.from('slot_locks').delete().eq('user_id', userId);
+    }
   },
 
   async createAppointment(
@@ -360,6 +421,9 @@ export const appointmentsService = {
       console.error('[DEBUG] Failed to create appointment:', error.message);
       throw new Error(error.message);
     }
+
+    // Clean up our slot lock on successful booking
+    await this.unlockSlot();
 
     console.log('[DEBUG] Appointment created successfully:', data);
     return data as Appointment;

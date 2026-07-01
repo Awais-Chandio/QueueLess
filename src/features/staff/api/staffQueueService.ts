@@ -196,8 +196,22 @@ const fetchScopedAppointments = async (
     todayEnd: end,
   });
 
+  const userId = await getCurrentUserId();
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role, center_id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  const centerId = profile?.role === 'staff' ? profile?.center_id : null;
+
+  let query = supabase.from('appointments_full').select(appointmentSelect);
+  if (centerId) {
+    query = query.eq('center_id', centerId);
+  }
+
   const response = await applyScopeRange(
-    supabase.from('appointments_full').select(appointmentSelect),
+    query,
     scope,
   ).order('scheduled_at', { ascending: scope !== 'history' });
 
@@ -214,8 +228,13 @@ const fetchScopedAppointments = async (
       },
     );
 
+    let fallbackQuery = supabase.from('appointments_full').select(appointmentFallbackSelect);
+    if (centerId) {
+      fallbackQuery = fallbackQuery.eq('center_id', centerId);
+    }
+
     const fallback = await applyScopeRange(
-      supabase.from('appointments_full').select(appointmentFallbackSelect),
+      fallbackQuery,
       scope,
     ).order('scheduled_at', { ascending: scope !== 'history' });
 
@@ -230,14 +249,24 @@ const fetchScopedAppointments = async (
       scope,
     });
 
+    let tableQuery = supabase.from('appointments').select(baseAppointmentSelect);
+    if (centerId) {
+      tableQuery = tableQuery.eq('center_id', centerId);
+    }
+
     let fallback = await applyScopeRange(
-      supabase.from('appointments').select(baseAppointmentSelect),
+      tableQuery,
       scope,
     ).order('scheduled_at', { ascending: scope !== 'history' });
 
     if (fallback.error?.code === '42703') {
+      let legacyQuery = supabase.from('appointments').select(baseAppointmentLegacySelect);
+      if (centerId) {
+        legacyQuery = legacyQuery.eq('center_id', centerId);
+      }
+
       fallback = await applyScopeRange(
-        supabase.from('appointments').select(baseAppointmentLegacySelect),
+        legacyQuery,
         scope,
       ).order('scheduled_at', { ascending: scope !== 'history' });
     }
@@ -442,5 +471,59 @@ export const staffQueueService = {
     );
 
     return updatedAppointment;
+  },
+
+  async fetchDoctorSettings(doctorId: string) {
+    const { data, error } = await supabase
+      .from('doctor_queue_settings')
+      .select('*')
+      .eq('doctor_id', doctorId)
+      .maybeSingle();
+      
+    if (error) {
+      console.warn('[STAFF_QUEUE] Failed to fetch doctor settings:', error.message);
+    }
+    return data;
+  },
+
+  async setDoctorBreak(
+    doctorId: string,
+    isOnBreak: boolean,
+    breakStart: string | null,
+    breakEnd: string | null,
+  ) {
+    const { data, error } = await supabase
+      .from('doctor_queue_settings')
+      .upsert({
+        doctor_id: doctorId,
+        is_on_break: isOnBreak,
+        break_start: breakStart,
+        break_end: breakEnd,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data;
+  },
+
+  async updateAverageConsultationTime(doctorId: string, avgMins: number) {
+    const { data, error } = await supabase
+      .from('doctor_queue_settings')
+      .upsert({
+        doctor_id: doctorId,
+        average_consultation_time: avgMins,
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw new Error(error.message);
+    }
+    return data;
   },
 };

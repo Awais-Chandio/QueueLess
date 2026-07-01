@@ -17,6 +17,7 @@ export const accountService = {
           data: {
             full_name: payload.name,
             role: payload.role,
+            center_id: payload.role === 'staff' ? payload.centerId : undefined,
           },
         },
       });
@@ -30,7 +31,7 @@ export const accountService = {
         throw new Error('Failed to retrieve new user ID.');
       }
 
-      // 2. Insert or update the profile with the specified role
+      // 2. Insert or update the profile with the specified role and center
       // Usually, a trigger might create the profile on sign up, so we upsert it.
       const { error: profileError } = await supabase
         .from('profiles')
@@ -39,6 +40,7 @@ export const accountService = {
           full_name: payload.name,
           email: payload.email,
           role: payload.role,
+          center_id: payload.role === 'staff' ? (payload.centerId || null) : null,
         });
 
       if (profileError) {

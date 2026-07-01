@@ -21,6 +21,7 @@ import {
   Search,
   SlidersHorizontal,
   LogOut,
+  Coffee,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
@@ -52,6 +53,7 @@ import { getAppointmentStatusState } from '../../../services/bookingService';
 
 import { getDisplayName } from '../../../utils/getDisplayName';
 import { toastService } from '../../../services/toastService';
+import { supabase } from '../../../lib/supabase';
 
 type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service';
 
@@ -97,6 +99,30 @@ const StaffDashboardScreen = () => {
     }
   }, [user?.id, profile?.id, fetchProfile]);
 
+  const [centerName, setCenterName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile?.role === 'staff' && profile?.center_id) {
+      const fetchCenterName = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('service_centers')
+            .select('name')
+            .eq('id', profile.center_id)
+            .maybeSingle();
+          if (data?.name) {
+            setCenterName(data.name);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch assigned center name:', err);
+        }
+      };
+      fetchCenterName();
+    } else {
+      setCenterName(null);
+    }
+  }, [profile]);
+
   const staffName = useMemo(() => {
     return getDisplayName(profile);
   }, [profile]);
@@ -115,6 +141,58 @@ const StaffDashboardScreen = () => {
   >('queue');
   const isFocused = useIsFocused();
 
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  const [doctorSettings, setDoctorSettings] = useState<any>(null);
+
+  const loadDoctorSettings = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const settings = await staffQueueService.fetchDoctorSettings(user.id);
+      setDoctorSettings(settings);
+    } catch (err) {
+      console.warn('Failed to load doctor settings:', err);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadDoctorSettings();
+  }, [loadDoctorSettings]);
+
+  const handleToggleBreak = async () => {
+    if (!user?.id) return;
+    try {
+      const nextBreakState = !doctorSettings?.is_on_break;
+      const start = nextBreakState ? new Date().toISOString() : null;
+      const end = nextBreakState ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null;
+
+      const updated = await staffQueueService.setDoctorBreak(
+        user.id,
+        nextBreakState,
+        start,
+        end,
+      );
+      setDoctorSettings(updated);
+      toastService.success(nextBreakState ? 'Doctor is now on break.' : 'Doctor is back from break.');
+      queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+    } catch (err: any) {
+      toastService.error(err.message || 'Failed to update break settings.');
+    }
+  };
+
+  const handleUpdateAvgTime = async (mins: number) => {
+    if (!user?.id) return;
+    try {
+      const updated = await staffQueueService.updateAverageConsultationTime(user.id, mins);
+      setDoctorSettings(updated);
+      toastService.success(`Average consultation time updated to ${mins} mins.`);
+      queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+    } catch (err: any) {
+      toastService.error(err.message || 'Failed to update average time.');
+    }
+  };
+
+
+
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['staff-dashboard', 'today'],
     queryFn: () => staffQueueService.fetchDashboard('today'),
@@ -127,6 +205,30 @@ const StaffDashboardScreen = () => {
     [data?.appointments],
   );
   const stats = data?.stats;
+
+  const uniqueDoctorIds = useMemo(() => {
+    const ids = new Set<string>();
+    appointments.forEach(item => {
+      if (item.doctor_id) ids.add(item.doctor_id);
+    });
+    return Array.from(ids);
+  }, [appointments]);
+
+  const getNextPatientToCall = () => {
+    const list = selectedDoctorId
+      ? appointments.filter(item => item.doctor_id === selectedDoctorId)
+      : appointments;
+
+    const checkedIn = list.find(item => item.status === 'checked_in');
+    if (checkedIn) return checkedIn;
+
+    const confirmed = list.find(item => item.status === 'confirmed');
+    if (confirmed) return confirmed;
+
+    return null;
+  };
+
+  const nextPatient = getNextPatientToCall();
 
   const hasActiveService = useMemo(
     () =>
@@ -244,6 +346,11 @@ const StaffDashboardScreen = () => {
 
   const filteredQueueAppointments = useMemo(() => {
     return appointments.filter(item => {
+      // 0. Filter by doctor
+      if (selectedDoctorId && item.doctor_id !== selectedDoctorId) {
+        return false;
+      }
+
       const { resolvedStatus } = getAppointmentStatusState(item);
 
       // 1. Filter by status
@@ -578,7 +685,7 @@ const StaffDashboardScreen = () => {
               },
             ]}
           >
-            Today's Queue Control
+            {centerName ? `Center: ${centerName}` : "Today's Queue Control"}
           </Text>
         </View>
         <Pressable
@@ -699,6 +806,68 @@ const StaffDashboardScreen = () => {
         </View>
       </CardFadeIn>
 
+      {/* Doctor Break Settings Card */}
+      {profile?.role === 'staff' && (
+        <CardFadeIn delay={100}>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Card variant="elevated" style={styles.cardContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.warning}12` }]}>
+                    <Coffee size={scaleFont(16)} color={colors.warning} />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.lg, marginLeft: spacing.sm }]}>
+                    Doctor Break & Settings
+                  </Text>
+                </View>
+                <StatusChip
+                  status={doctorSettings?.is_on_break ? 'cancelled' : 'confirmed'}
+                  label={doctorSettings?.is_on_break ? 'On Break' : 'Active'}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
+                <AppButton
+                  title={doctorSettings?.is_on_break ? 'Resume Work' : 'Go On Break'}
+                  variant={doctorSettings?.is_on_break ? 'primary' : 'outline'}
+                  onPress={handleToggleBreak}
+                  style={{ flex: 1, minWidth: 140 }}
+                />
+                
+                <View style={{ flex: 1, minWidth: 160 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 4, fontWeight: '600' }}>
+                    Avg Consult Time (mins):
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    {[10, 15, 20, 30].map(mins => (
+                      <Pressable
+                        key={mins}
+                        onPress={() => handleUpdateAvgTime(mins)}
+                        style={({ pressed }) => [
+                          {
+                            paddingHorizontal: 8,
+                            paddingVertical: 4,
+                            borderRadius: 4,
+                            borderWidth: 1,
+                            borderColor: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.border,
+                            backgroundColor: doctorSettings?.avg_consultation_mins === mins ? `${colors.primary}15` : 'transparent',
+                            opacity: pressed ? 0.7 : 1,
+                          }
+                        ]}
+                      >
+                        <Text style={{ color: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
+                          {mins}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </View>
+        </CardFadeIn>
+      )}
+
       {/* Card 2: Pending Appointments */}
       <CardFadeIn delay={60}>
         <View style={{ marginBottom: spacing.lg }}>
@@ -734,6 +903,76 @@ const StaffDashboardScreen = () => {
       <CardFadeIn delay={120}>
         <View style={{ marginBottom: spacing.lg }}>
           <Card variant="elevated" style={styles.cardContent}>
+            {/* Doctor Filter Tabs */}
+            {uniqueDoctorIds.length > 1 && (
+              <View style={{ marginBottom: spacing.md }}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 6, fontWeight: '600' }}>
+                  Filter by Doctor/Counter:
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: spacing.xs }}
+                >
+                  <Pressable
+                    onPress={() => setSelectedDoctorId(null)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                      borderWidth: 1,
+                      borderColor: selectedDoctorId === null ? colors.primary : colors.border,
+                      backgroundColor: selectedDoctorId === null ? `${colors.primary}15` : 'transparent',
+                    }}
+                  >
+                    <Text style={{ color: selectedDoctorId === null ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
+                      All Doctors
+                    </Text>
+                  </Pressable>
+                  {uniqueDoctorIds.map((docId, idx) => (
+                    <Pressable
+                      key={docId}
+                      onPress={() => setSelectedDoctorId(docId)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        borderWidth: 1,
+                        borderColor: selectedDoctorId === docId ? colors.primary : colors.border,
+                        backgroundColor: selectedDoctorId === docId ? `${colors.primary}15` : 'transparent',
+                      }}
+                    >
+                      <Text style={{ color: selectedDoctorId === docId ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
+                        Doctor #{idx + 1}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Auto Call Next Button */}
+            {nextPatient && (
+              <AppButton
+                title={`Call Next: Token #${nextPatient.token_number} (${getDisplayName(nextPatient)})`}
+                variant="primary"
+                onPress={() => {
+                  Alert.alert(
+                    'Call Next Patient',
+                    `Are you sure you want to call Token #${nextPatient.token_number} (${getDisplayName(nextPatient)}) to the counter?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Call Patient',
+                        onPress: () => runActionMutation.mutate({ action: 'start_service', appointment: nextPatient }),
+                      },
+                    ]
+                  );
+                }}
+                style={{ marginBottom: spacing.md }}
+              />
+            )}
+
             <View
               style={{
                 flexDirection: 'row',
