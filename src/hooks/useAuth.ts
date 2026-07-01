@@ -7,6 +7,9 @@ import { useProfileStore } from '../store/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
 import { profileService } from '../features/profile/api/profileService';
 import { firebasePhoneAuth } from '../services/firebasePhoneAuth';
+import { fcmService } from '../services/fcmService';
+import { useNotificationsStore } from '../store/notificationsStore';
+import { supabase } from '../lib/supabase';
 
 
 
@@ -316,8 +319,27 @@ export const useAuth = () => {
     setLoading(true);
 
     try {
-      const { error } = await authService.signOut();
+      // Clear token in Supabase profiles (while user is still authenticated)
+      if (user) {
+        try {
+          await supabase
+            .from('profiles')
+            .update({ fcm_token: null } as any)
+            .eq('id', user.id);
+        } catch (dbError) {
+          if (__DEV__) console.warn('[useAuth] Failed to clear FCM token from profiles on logout:', dbError);
+        }
+      }
 
+      // Delete local FCM token
+      try {
+        await fcmService.deleteToken();
+        useNotificationsStore.getState().setFcmToken(null);
+      } catch (fcmError) {
+        if (__DEV__) console.warn('[useAuth] Failed to delete FCM token on logout:', fcmError);
+      }
+
+      const { error } = await authService.signOut();
       if (error) {
         throw error;
       }
@@ -336,7 +358,7 @@ export const useAuth = () => {
       setLoading(false);
       throw toAuthError(error, 'Logout failed. Please try again.');
     }
-  }, [clearAuth, setLoading]);
+  }, [user, clearAuth, setLoading]);
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
     if (__DEV__) console.log('[AUTH] sendPhoneOtp (Firebase) started', phone);

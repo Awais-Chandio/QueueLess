@@ -12,6 +12,12 @@ type NotificationsState = {
   upsertNotification: (notification: Notification) => void;
   removeNotification: (notificationId: string) => void;
   reset: () => void;
+
+  // FCM state variables
+  fcmToken: string | null;
+  permissionGranted: boolean;
+  setFcmToken: (token: string | null) => void;
+  setPermissionGranted: (granted: boolean) => void;
 };
 
 const getUnreadCount = (notifications: Notification[]) =>
@@ -37,6 +43,10 @@ export const useNotificationsStore = create<NotificationsState>(set => ({
   unreadCount: 0,
   loading: false,
   error: null,
+
+  // FCM state variables default values
+  fcmToken: null,
+  permissionGranted: false,
 
   fetchNotifications: async userId => {
     set({ loading: true, error: null });
@@ -105,5 +115,11 @@ export const useNotificationsStore = create<NotificationsState>(set => ({
       unreadCount: 0,
       loading: false,
       error: null,
+      fcmToken: null,
+      permissionGranted: false,
     }),
+
+  // FCM action setters
+  setFcmToken: token => set({ fcmToken: token }),
+  setPermissionGranted: granted => set({ permissionGranted: granted }),
 }));
