@@ -1,7 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { queryClient } from "./src/lib/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context"; 
@@ -12,6 +13,32 @@ import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
 import { supabase, supabaseConfig } from "./src/lib/supabase";
 import { hp, scaleFont, wp } from "./src/utils/responsive";
+
+const persister = {
+  persistClient: async (client: any) => {
+    try {
+      await AsyncStorage.setItem('REACT_QUERY_OFFLINE_CACHE', JSON.stringify(client));
+    } catch (e) {
+      console.warn('Failed to persist react-query cache:', e);
+    }
+  },
+  restoreClient: async () => {
+    try {
+      const cache = await AsyncStorage.getItem('REACT_QUERY_OFFLINE_CACHE');
+      return cache ? JSON.parse(cache) : undefined;
+    } catch (e) {
+      console.warn('Failed to restore react-query cache:', e);
+      return undefined;
+    }
+  },
+  removeClient: async () => {
+    try {
+      await AsyncStorage.removeItem('REACT_QUERY_OFFLINE_CACHE');
+    } catch (e) {
+      console.warn('Failed to remove react-query cache:', e);
+    }
+  },
+};
 
 const linking = {
   prefixes: ["queueless://"],
@@ -40,6 +67,29 @@ const getDeepLinkParams = (url: string) => {
 
 const App = ()=>{
   const { restoreSession } = useAuth();
+  const [realtimeConnected, setRealtimeConnected] = useState(true);
+
+  useEffect(() => {
+    if (!supabaseConfig.isValid) return;
+
+    // Listen to real-time subscription status
+    const channel = supabase.channel('realtime_status_listener');
+    
+    channel.subscribe((status) => {
+      if (__DEV__) {
+        console.log('[REALTIME_STATUS]', status);
+      }
+      if (status === 'SUBSCRIBED') {
+        setRealtimeConnected(true);
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        setRealtimeConnected(false);
+      }
+    });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabaseConfig.isValid) {
@@ -207,16 +257,25 @@ const App = ()=>{
   }
 
   return(
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister }}
+    >
       <SafeAreaProvider>
         <View style={styles.container}>
           <NavigationContainer linking={linking}>
             <RootNavigator/>
           </NavigationContainer>
+          
+          <View style={[
+            styles.connectionDot,
+            { backgroundColor: realtimeConnected ? '#22C55E' : '#EF4444' }
+          ]} />
+
           <ToastMessage />
         </View>
       </SafeAreaProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   )
 }
 
@@ -251,5 +310,19 @@ const styles = StyleSheet.create({
     fontSize: scaleFont(14),
     lineHeight: scaleFont(20),
     textAlign: "center",
+  },
+  connectionDot: {
+    position: 'absolute',
+    top: 54,
+    right: 16,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    zIndex: 9999,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
   },
 });

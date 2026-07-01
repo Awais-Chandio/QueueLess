@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect } from 'react';
+import React, { useCallback, useMemo, useEffect, useState } from 'react';
 import {
   Alert,
   RefreshControl,
@@ -26,8 +26,10 @@ import {
   Zap,
   LogOut,
   UserPlus,
+  Search,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
+import AppInput from '../../../components/ui/AppInput';
 import { Card } from '../../../components/ui/Card';
 import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -67,6 +69,10 @@ const AdminDashboardScreen = () => {
   const { width } = useWindowDimensions();
   const navigation = useNavigation<NativeStackNavigationProp<AdminStackParamList>>();
 
+  const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'all'>('all');
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [logActionFilter, setLogActionFilter] = useState<string>('all');
+
   const {
     data: analytics,
     error,
@@ -75,11 +81,34 @@ const AdminDashboardScreen = () => {
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ['admin-analytics-dashboard'],
-    queryFn: analyticsService.getDashboardStats,
+    queryKey: ['admin-analytics-dashboard', dateRange],
+    queryFn: () => analyticsService.getDashboardStats(dateRange),
     refetchOnMount: 'always',
     staleTime: 0,
   });
+
+  const filteredActivities = useMemo(() => {
+    const list = analytics?.recentActivity ?? [];
+    return list.filter(activity => {
+      // 1. Action Filter
+      if (logActionFilter !== 'all' && activity.action !== logActionFilter) {
+        return false;
+      }
+      // 2. Search Query Filter
+      if (logSearchQuery.trim() !== '') {
+        const query = logSearchQuery.toLowerCase();
+        const staff = activity.staffName?.toLowerCase() || '';
+        const token = activity.tokenNumber?.toString() || '';
+        const act = activity.action.toLowerCase();
+        return (
+          staff.includes(query) ||
+          token.includes(query) ||
+          act.includes(query)
+        );
+      }
+      return true;
+    });
+  }, [analytics?.recentActivity, logSearchQuery, logActionFilter]);
 
   const horizontalPadding = wp(4);
   const chartWidth = Math.max(
@@ -288,6 +317,46 @@ const AdminDashboardScreen = () => {
         </Pressable>
       </View>
 
+      {/* Date Range Selector */}
+      <CardFadeIn delay={10}>
+        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
+          <Card variant="elevated" style={[styles.cardContent, { padding: spacing.sm }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                Analytics Timeframe:
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {[
+                  { key: 'all' as const, label: 'All Time' },
+                  { key: 'today' as const, label: 'Today' },
+                  { key: 'week' as const, label: '7 Days' },
+                  { key: 'month' as const, label: '30 Days' },
+                ].map(item => (
+                  <Pressable
+                    key={item.key}
+                    onPress={() => setDateRange(item.key)}
+                    style={[
+                      {
+                        paddingHorizontal: 10,
+                        paddingVertical: 5,
+                        borderRadius: 6,
+                        borderWidth: 1,
+                        borderColor: dateRange === item.key ? colors.primary : colors.border,
+                        backgroundColor: dateRange === item.key ? `${colors.primary}15` : 'transparent',
+                      }
+                    ]}
+                  >
+                    <Text style={{ color: dateRange === item.key ? colors.primary : colors.text, fontSize: 11, fontWeight: '700' }}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </Card>
+        </View>
+      </CardFadeIn>
+
       {/* Card 1: Statistics Grid */}
       <CardFadeIn delay={0}>
         <View style={{ marginBottom: spacing.lg }}>
@@ -426,8 +495,52 @@ const AdminDashboardScreen = () => {
             >
               Recent Activity
             </Text>
-            {analytics?.recentActivity && analytics.recentActivity.length > 0 ? (
-              analytics.recentActivity.map((activity, idx) => {
+
+            {/* Search Input for Audit Logs */}
+            <View style={{ marginBottom: spacing.md }}>
+              <AppInput
+                placeholder="Search logs by staff, patient, token..."
+                value={logSearchQuery}
+                onChangeText={setLogSearchQuery}
+                leftIcon={Search}
+              />
+            </View>
+
+            {/* Action filter tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ maxHeight: scaleFont(44), marginBottom: spacing.md }}
+              contentContainerStyle={{ gap: spacing.xs, paddingBottom: 5 }}
+            >
+              {[
+                { key: 'all', label: 'All Actions' },
+                { key: 'confirm', label: 'Confirmed' },
+                { key: 'cancel', label: 'Cancelled' },
+                { key: 'call_next', label: 'Called' },
+                { key: 'complete_service', label: 'Completed' },
+              ].map(actionItem => (
+                <Pressable
+                  key={actionItem.key}
+                  onPress={() => setLogActionFilter(actionItem.key)}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: 20,
+                    borderWidth: 1,
+                    borderColor: logActionFilter === actionItem.key ? colors.primary : colors.border,
+                    backgroundColor: logActionFilter === actionItem.key ? `${colors.primary}15` : 'transparent',
+                  }}
+                >
+                  <Text style={{ color: logActionFilter === actionItem.key ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
+                    {actionItem.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            {filteredActivities && filteredActivities.length > 0 ? (
+              filteredActivities.map((activity, idx) => {
                 let actionText = '';
                 const timeStr = new Date(activity.createdAt).toLocaleTimeString([], {
                   hour: '2-digit',
@@ -604,18 +717,17 @@ const AdminDashboardScreen = () => {
                 Team Management
               </Text>
             </View>
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <AppButton
-                title="➕ Staff Account"
-                onPress={() => navigation.navigate('CreateAccount', { role: 'staff' })}
-                style={{ flex: 1, backgroundColor: '#0284C7' }}
-              />
-              <AppButton
-                title="➕ Admin Account"
-                onPress={() => navigation.navigate('CreateAccount', { role: 'admin' })}
-                style={{ flex: 1, backgroundColor: '#7C3AED' }}
-              />
-            </View>
+            <AppButton
+              title="➕ Create Staff Account"
+              onPress={() => navigation.navigate('CreateAccount', { role: 'staff' })}
+              style={{ backgroundColor: '#0284C7' }}
+            />
+            <AppButton
+              title="🏥 Manage Clinics & Services"
+              variant="outline"
+              onPress={() => (navigation as any).navigate('ManageCenters')}
+              style={{ marginTop: spacing.md }}
+            />
           </Card>
         </View>
       </CardFadeIn>

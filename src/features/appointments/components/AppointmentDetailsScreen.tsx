@@ -24,6 +24,7 @@ import {
   Clock,
   Hash,
   MapPin,
+  XCircle,
 } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import {
@@ -173,6 +174,22 @@ const AppointmentDetailsScreen = () => {
           </View>
         </Card>
       </CardFadeIn>
+
+      {appointment.status === 'cancelled' && (
+        <CardFadeIn delay={60}>
+          <Card style={{ marginBottom: spacing.md, borderColor: colors.error, borderWidth: 1 }}>
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.error}12` }]}>
+                <XCircle color={colors.error} size={scaleFont(16)} />
+              </View>
+              <Text style={{ color: colors.error, fontSize: typography.sizes.md, fontWeight: '600' }}>Cancellation Reason</Text>
+            </View>
+            <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm }}>
+              {appointment.cancel_reason || 'No cancellation reason provided.'}
+            </Text>
+          </Card>
+        </CardFadeIn>
+      )}
 
       {appointment.notes && (
         <CardFadeIn delay={60}>

@@ -3,6 +3,7 @@ export type Profile = {
   full_name: string;
   email: string;
   role?: 'client' | 'staff' | 'admin' | null;
+  center_id?: string | null;
   phone: string | null;
   avatar_url: string | null;
   created_at: string;
@@ -14,6 +15,7 @@ export type CreateProfilePayload = {
   full_name: string;
   email: string;
   role?: 'client' | 'staff' | 'admin';
+  center_id?: string | null;
   phone?: string;
   avatar_url?: string;
 };
@@ -36,4 +38,5 @@ export type CreateManagedAccountPayload = {
   email: string;
   password?: string;
   role: 'staff' | 'admin';
+  centerId?: string;
 };

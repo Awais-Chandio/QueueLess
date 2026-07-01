@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,6 +12,7 @@ import { Card } from '../../../components/ui/Card';
 import { accountService } from '../api/accountService';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 import { toastService } from '../../../services/toastService';
+import { supabase } from '../../../lib/supabase';
 
 type CreateAccountScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'CreateAccount'>;
 type CreateAccountScreenRouteProp = RouteProp<AdminStackParamList, 'CreateAccount'>;
@@ -29,7 +30,31 @@ const CreateAccountScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [centers, setCenters] = useState<{ id: string; name: string }[]>([]);
+  const [selectedCenterId, setSelectedCenterId] = useState<string | null>(null);
+
   const title = role === 'admin' ? 'Create Admin Account' : 'Create Staff Account';
+
+  useEffect(() => {
+    if (role === 'staff') {
+      const fetchCenters = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('service_centers')
+            .select('id, name')
+            .order('name');
+          if (error) throw error;
+          setCenters(data || []);
+          if (data && data.length > 0) {
+            setSelectedCenterId(data[0].id);
+          }
+        } catch (err) {
+          console.warn('Failed to load centers:', err);
+        }
+      };
+      fetchCenters();
+    }
+  }, [role]);
 
   const handleCreateAccount = async () => {
     if (isLoading) return;
@@ -37,6 +62,11 @@ const CreateAccountScreen = () => {
 
     if (!name.trim() || !email.trim() || !password || !confirmPassword) {
       setError('All fields are required');
+      return;
+    }
+
+    if (role === 'staff' && !selectedCenterId) {
+      setError('Please select a service center to assign this staff');
       return;
     }
 
@@ -62,6 +92,7 @@ const CreateAccountScreen = () => {
         email: email.trim().toLowerCase(),
         password,
         role,
+        centerId: role === 'staff' ? (selectedCenterId ?? undefined) : undefined,
       });
 
       toastService.success(`${role === 'admin' ? 'Admin' : 'Staff'} account created successfully.`);
@@ -141,6 +172,56 @@ const CreateAccountScreen = () => {
               autoComplete="new-password"
               editable={!isLoading}
             />
+
+            {role === 'staff' && (
+              <View style={{ marginBottom: spacing.md }}>
+                <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm }}>
+                  Assign Service Center
+                </Text>
+                {centers.length === 0 ? (
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontStyle: 'italic' }}>
+                    Loading centers...
+                  </Text>
+                ) : (
+                  <View style={{ gap: spacing.xs }}>
+                    {centers.map(center => {
+                      const isSelected = selectedCenterId === center.id;
+                      return (
+                        <Pressable
+                          key={center.id}
+                          onPress={() => setSelectedCenterId(center.id)}
+                          style={{
+                            padding: spacing.md,
+                            borderRadius: radius.md,
+                            borderWidth: 1.5,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                            backgroundColor: isSelected ? colors.primary + '10' : colors.surface,
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: spacing.xs,
+                          }}
+                        >
+                          <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? 'bold' : 'normal' }}>
+                            {center.name}
+                          </Text>
+                          {isSelected && (
+                            <View 
+                              style={{ 
+                                width: 8, 
+                                height: 8, 
+                                borderRadius: 4, 
+                                backgroundColor: colors.primary 
+                              }} 
+                            />
+                          )}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            )}
 
             {error && <Text style={[styles.errorText, { color: colors.error, marginBottom: spacing.md }]}>{error}</Text>}
 
