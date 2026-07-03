@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Phone, ArrowLeft, ChevronDown } from "lucide-react-native";
+import { ArrowLeft, ChevronDown } from "lucide-react-native";
 import { LinearGradient } from "react-native-linear-gradient";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
@@ -40,7 +40,7 @@ const COUNTRIES = [
 ];
 
 const PhoneLoginScreen = () => {
-    const { colors, spacing, typography, radius } = useTheme();
+    const { colors, typography, radius } = useTheme();
     const navigation = useNavigation<PhoneLoginScreenNavigationProp>();
     const { sendPhoneOtp } = useAuth();
 
@@ -75,7 +75,7 @@ const PhoneLoginScreen = () => {
                 useNativeDriver: true,
             })
         ]).start();
-    }, []);
+    }, [fadeAnim, logoScale, slideAnim]);
 
     const filteredCountries = COUNTRIES.filter(country => 
         country.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

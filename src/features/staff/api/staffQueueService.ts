@@ -5,7 +5,6 @@ import type {
   CancelReason,
 } from '../../../types/appointment';
 import type { CreateAuditLogPayload } from '../../../types/audit';
-import { getSlotDateTime } from '../../appointments/utils/appointmentTime';
 
 export type StaffDashboardStats = {
   totalToday: number;
@@ -473,29 +472,32 @@ export const staffQueueService = {
     return updatedAppointment;
   },
 
-  async fetchDoctorSettings(doctorId: string) {
+  async fetchCenterSettings(centerId: string, date: string) {
     const { data, error } = await supabase
-      .from('doctor_queue_settings')
+      .from('center_queue_settings')
       .select('*')
-      .eq('doctor_id', doctorId)
+      .eq('center_id', centerId)
+      .eq('appointment_date', date)
       .maybeSingle();
       
     if (error) {
-      console.warn('[STAFF_QUEUE] Failed to fetch doctor settings:', error.message);
+      console.warn('[STAFF_QUEUE] Failed to fetch center settings:', error.message);
     }
     return data;
   },
 
-  async setDoctorBreak(
-    doctorId: string,
+  async setCenterBreak(
+    centerId: string,
+    date: string,
     isOnBreak: boolean,
     breakStart: string | null,
     breakEnd: string | null,
   ) {
     const { data, error } = await supabase
-      .from('doctor_queue_settings')
+      .from('center_queue_settings')
       .upsert({
-        doctor_id: doctorId,
+        center_id: centerId,
+        appointment_date: date,
         is_on_break: isOnBreak,
         break_start: breakStart,
         break_end: breakEnd,
@@ -510,11 +512,12 @@ export const staffQueueService = {
     return data;
   },
 
-  async updateAverageConsultationTime(doctorId: string, avgMins: number) {
+  async updateCenterAverageConsultationTime(centerId: string, date: string, avgMins: number) {
     const { data, error } = await supabase
-      .from('doctor_queue_settings')
+      .from('center_queue_settings')
       .upsert({
-        doctor_id: doctorId,
+        center_id: centerId,
+        appointment_date: date,
         average_consultation_time: avgMins,
         updated_at: new Date().toISOString(),
       })
