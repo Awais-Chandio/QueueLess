@@ -19,7 +19,6 @@ import {
   ClipboardList,
   Activity,
   Search,
-  SlidersHorizontal,
   LogOut,
   Coffee,
 } from 'lucide-react-native';
@@ -97,7 +96,7 @@ const StaffDashboardScreen = () => {
     if (user?.id && (!profile || profile.id !== user.id)) {
       fetchProfile(user.id);
     }
-  }, [user?.id, profile?.id, fetchProfile]);
+  }, [user?.id, profile, fetchProfile]);
 
   const [centerName, setCenterName] = useState<string | null>(null);
 
@@ -105,7 +104,7 @@ const StaffDashboardScreen = () => {
     if (profile?.role === 'staff' && profile?.center_id) {
       const fetchCenterName = async () => {
         try {
-          const { data, error } = await supabase
+          const { data } = await supabase
             .from('service_centers')
             .select('name')
             .eq('id', profile.center_id)
@@ -144,35 +143,38 @@ const StaffDashboardScreen = () => {
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const [doctorSettings, setDoctorSettings] = useState<any>(null);
 
-  const loadDoctorSettings = useCallback(async () => {
-    if (!user?.id) return;
+  const loadCenterSettings = useCallback(async () => {
+    if (!profile?.center_id) return;
     try {
-      const settings = await staffQueueService.fetchDoctorSettings(user.id);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const settings = await staffQueueService.fetchCenterSettings(profile.center_id, todayStr);
       setDoctorSettings(settings);
     } catch (err) {
-      console.warn('Failed to load doctor settings:', err);
+      console.warn('Failed to load center settings:', err);
     }
-  }, [user?.id]);
+  }, [profile?.center_id]);
 
   useEffect(() => {
-    loadDoctorSettings();
-  }, [loadDoctorSettings]);
+    loadCenterSettings();
+  }, [loadCenterSettings]);
 
   const handleToggleBreak = async () => {
-    if (!user?.id) return;
+    if (!profile?.center_id) return;
     try {
       const nextBreakState = !doctorSettings?.is_on_break;
       const start = nextBreakState ? new Date().toISOString() : null;
       const end = nextBreakState ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null;
+      const todayStr = new Date().toISOString().split('T')[0];
 
-      const updated = await staffQueueService.setDoctorBreak(
-        user.id,
+      const updated = await staffQueueService.setCenterBreak(
+        profile.center_id,
+        todayStr,
         nextBreakState,
         start,
         end,
       );
       setDoctorSettings(updated);
-      toastService.success(nextBreakState ? 'Doctor is now on break.' : 'Doctor is back from break.');
+      toastService.success(nextBreakState ? 'Center queue is now on break.' : 'Center queue is back from break.');
       queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
     } catch (err: any) {
       toastService.error(err.message || 'Failed to update break settings.');
@@ -180,9 +182,14 @@ const StaffDashboardScreen = () => {
   };
 
   const handleUpdateAvgTime = async (mins: number) => {
-    if (!user?.id) return;
+    if (!profile?.center_id) return;
     try {
-      const updated = await staffQueueService.updateAverageConsultationTime(user.id, mins);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const updated = await staffQueueService.updateCenterAverageConsultationTime(
+        profile.center_id,
+        todayStr,
+        mins,
+      );
       setDoctorSettings(updated);
       toastService.success(`Average consultation time updated to ${mins} mins.`);
       queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
@@ -333,16 +340,6 @@ const StaffDashboardScreen = () => {
     [appointments],
   );
 
-  const queueAppointments = useMemo(
-    () =>
-      appointments.filter(item => {
-        const { resolvedStatus } = getAppointmentStatusState(item);
-        return ['confirmed', 'checked_in', 'called', 'in_progress'].includes(
-          resolvedStatus,
-        );
-      }),
-    [appointments],
-  );
 
   const filteredQueueAppointments = useMemo(() => {
     return appointments.filter(item => {
@@ -391,7 +388,7 @@ const StaffDashboardScreen = () => {
 
       return true;
     });
-  }, [appointments, statusFilter, searchQuery]);
+  }, [appointments, statusFilter, searchQuery, selectedDoctorId]);
 
   const renderActionButton = (
     action: QueueAction,

@@ -29,6 +29,8 @@ type CreateAppointmentPayload = {
   scheduled_at: string;
   appointment_date?: string;
   appointment_time?: string;
+  doctor_id?: string;
+  notes?: string;
 };
 
 const shouldFallbackFromAppointmentsFull = (code?: string) =>
@@ -374,6 +376,10 @@ export const appointmentsService = {
       center_id: payload.center_id,
       service_id: payload.service_id,
       scheduled_at: new Date(payload.scheduled_at).toISOString(),
+      appointment_date: payload.appointment_date || null,
+      appointment_time: payload.appointment_time || null,
+      doctor_id: payload.doctor_id || null,
+      notes: payload.notes || null,
     };
 
     console.log('[DEBUG USER]', authenticatedUserId);
@@ -396,6 +402,10 @@ export const appointmentsService = {
         center_id: payload.center_id,
         service_id: payload.service_id,
         scheduled_at: new Date(payload.scheduled_at).toISOString(),
+        appointment_date: payload.appointment_date || null,
+        appointment_time: payload.appointment_time || null,
+        doctor_id: payload.doctor_id || null,
+        notes: payload.notes || null,
       };
 
       const fallback = await supabase
@@ -655,7 +665,7 @@ export const appointmentsService = {
       const authenticatedUserId = await getAuthenticatedUserId();
 
       // Try to cancel via security definer RPC function to bypass update limitations
-      const { data, error: rpcError } = await supabase.rpc(
+      const { error: rpcError } = await supabase.rpc(
         'cancel_appointment',
         {
           p_appointment_id: appointmentId,

@@ -160,7 +160,14 @@ export const getCurrentToken = async (scope?: QueueScope): Promise<number> => {
     return directCurrentToken;
   }
 
-  const { data, error } = await supabase.rpc('get_current_token');
+  const dateStr = scope?.scheduledAt
+    ? new Date(scope.scheduledAt).toISOString().split('T')[0]
+    : new Date().toISOString().split('T')[0];
+
+  const { data, error } = await supabase.rpc('get_current_token', {
+    p_center_id: scope?.centerId || null,
+    p_queue_date: dateStr,
+  });
 
   if (error) {
     throw new Error(error.message);

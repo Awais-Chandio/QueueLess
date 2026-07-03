@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { View, StyleSheet, Text, Pressable, Animated, Dimensions, KeyboardAvoidingView, Platform, ScrollView, Image, TextInput as RNTextInput } from "react-native";
+import { View, StyleSheet, Text, Pressable, Animated, Dimensions, KeyboardAvoidingView, Platform, ScrollView, Image } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Mail, Lock, KeyRound, Phone } from "lucide-react-native";
@@ -19,16 +19,13 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const LoginScreen = () => {
-    const { colors, spacing, typography, radius } = useTheme();
+    const { colors, spacing, radius } = useTheme();
     const navigation = useNavigation<LoginScreenNavigationProp>();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
-    const [phoneNum, setPhoneNum] = useState('');
-    const [phoneError, setPhoneError] = useState('');
-    const [isPhoneSending, setIsPhoneSending] = useState(false);
-    const { login, loginWithGoogle, isLoading, loginWithPhone } = useAuth();
+    const { login, loginWithGoogle, isLoading } = useAuth();
 
     // Mount animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -54,7 +51,7 @@ const LoginScreen = () => {
                 useNativeDriver: true,
             })
         ]).start();
-    }, []);
+    }, [fadeAnim, logoScale, slideAnim]);
 
     async function handleLogin() {
         if (isLoading) return;
@@ -101,55 +98,7 @@ const LoginScreen = () => {
         }
     }
 
-    async function handlePhoneLogin() {
-        if (isPhoneSending || isLoading) return;
 
-        let formatted = phoneNum.trim();
-        if (!formatted) {
-            const msg = 'Phone number is required';
-            setPhoneError(msg);
-            toastService.error(msg);
-            return;
-        }
-
-        // Keep only digits
-        formatted = formatted.replace(/[^0-9]/g, '');
-
-        // Validation for Pakistan: must be 03XXXXXXXXX (11 digits) or 3XXXXXXXXX (10 digits)
-        if (formatted.startsWith('0')) {
-            if (formatted.length !== 11 || !formatted.startsWith('03')) {
-                const msg = 'Please enter a valid Pakistan phone number (e.g., 03001234567)';
-                setPhoneError(msg);
-                toastService.error(msg);
-                return;
-            }
-            formatted = '+92' + formatted.substring(1);
-        } else {
-            if (formatted.length !== 10 || !formatted.startsWith('3')) {
-                const msg = 'Please enter a valid Pakistan phone number (e.g., 3001234567)';
-                setPhoneError(msg);
-                toastService.error(msg);
-                return;
-            }
-            formatted = '+92' + formatted;
-        }
-
-        try {
-            setPhoneError('');
-            setIsPhoneSending(true);
-            const success = await loginWithPhone(formatted);
-            if (success) {
-                toastService.success('OTP sent successfully');
-                navigation.navigate("OTPVerification", { phone: formatted });
-            }
-        } catch (error: any) {
-            const msg = error instanceof Error ? error.message : 'Failed to send OTP';
-            setPhoneError(msg);
-            toastService.error(msg);
-        } finally {
-            setIsPhoneSending(false);
-        }
-    }
 
     return (
         <ScreenWrapper scrollable={false} withPadding={false}>
@@ -281,46 +230,24 @@ const LoginScreen = () => {
                                 </Text>
                             </Pressable>
 
-                            <View style={styles.dividerRow}>
-                                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                                <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or</Text>
-                                <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                            </View>
-
-                            <Text style={[styles.phoneSectionHeader, { color: colors.text, fontSize: typography.sizes.md, marginBottom: 10, fontWeight: 'bold' }]}>
-                                Continue with Phone Number
-                            </Text>
-
-                            <View style={styles.phoneInputRow}>
-                                <View style={[styles.fixedCountryCode, { backgroundColor: colors.background, borderColor: colors.border, borderRadius: radius.borderRadius }]}>
-                                    <Text style={{ color: colors.text, fontWeight: 'bold' }}>🇵🇰 +92</Text>
-                                </View>
-                                <View style={{ flex: 1, marginLeft: 10 }}>
-                                    <RNTextInput
-                                        placeholder="300 1234567"
-                                        placeholderTextColor={colors.textSecondary}
-                                        keyboardType="phone-pad"
-                                        value={phoneNum}
-                                        onChangeText={(text) => {
-                                            const cleaned = text.replace(/[^0-9]/g, '');
-                                            setPhoneNum(cleaned);
-                                            if (phoneError) setPhoneError('');
-                                        }}
-                                        style={[styles.phoneInputField, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.borderRadius }]}
-                                        editable={!isPhoneSending && !isLoading}
-                                    />
-                                </View>
-                            </View>
-
-                            {phoneError ? <Text style={styles.phoneErrorMessage}>{phoneError}</Text> : null}
-
-                            <AppButton
-                                title={isPhoneSending ? "Sending OTP..." : "Send OTP"}
-                                onPress={handlePhoneLogin}
-                                loading={isPhoneSending}
-                                style={styles.sendOtpButton}
+                            <Pressable
                                 disabled={isLoading}
-                            />
+                                onPress={() => navigation.navigate("PhoneLogin")}
+                                style={({ pressed }) => [
+                                    styles.phoneButton,
+                                    {
+                                        borderColor: colors.border,
+                                        borderRadius: radius.md,
+                                        backgroundColor: colors.surface,
+                                    },
+                                    pressed && styles.pressedEffect
+                                ]}
+                            >
+                                <Phone size={scaleFont(18)} color={colors.primary} style={styles.phoneIcon} />
+                                <Text style={[styles.phoneButtonText, { color: colors.text }]}>
+                                    Continue with Phone Number
+                                </Text>
+                            </Pressable>
                         </View>
 
                         <Pressable
@@ -489,37 +416,5 @@ const styles = StyleSheet.create({
         fontSize: scaleFont(14),
         fontWeight: '700',
     },
-    phoneSectionHeader: {
-        textAlign: 'center',
-        marginTop: 15,
-    },
-    phoneInputRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 10,
-        width: '100%',
-    },
-    fixedCountryCode: {
-        height: 52,
-        borderWidth: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingHorizontal: 15,
-    },
-    phoneInputField: {
-        height: 52,
-        borderWidth: 1,
-        paddingHorizontal: 15,
-        fontSize: 16,
-    },
-    phoneErrorMessage: {
-        color: '#EF4444',
-        textAlign: 'center',
-        marginBottom: 10,
-        fontSize: scaleFont(13),
-    },
-    sendOtpButton: {
-        marginTop: 5,
-        marginBottom: 15,
-    },
+
 });
