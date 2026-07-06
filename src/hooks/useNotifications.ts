@@ -1,5 +1,10 @@
 import { useEffect, useCallback } from 'react';
-import messaging from '@react-native-firebase/messaging';
+import {
+    getMessaging,
+    onMessage,
+    onNotificationOpenedApp,
+    getInitialNotification,
+} from '@react-native-firebase/messaging';
 import { fcmService } from '../services/fcmService';
 import { useNotificationsStore } from '../store/notificationsStore';
 import { useAuthStore } from '../store/authStore';
@@ -20,18 +25,59 @@ export const useNotifications = () => {
      * Updates the fcm_token column in Supabase profiles table
      */
     const updateTokenInSupabase = useCallback(async (token: string | null) => {
-        if (!user) return;
-        
-        try {
-            if (__DEV__) {
-                console.log('[useNotifications] Syncing FCM token to Supabase profiles...', { userId: user.id, hasToken: !!token });
-            }
-            const { error } = await supabase
-                .from('profiles')
-                .update({ fcm_token: token } as any)
-                .eq('id', user.id);
+        if (!token) return;
 
-            if (error) throw error;
+        try {
+            let activeUserId = user?.id;
+
+            // Ensure active session headers are configured
+            const { data: sessionData } = await supabase.auth.getSession();
+            const activeSession = sessionData?.session;
+
+            if (activeSession?.user?.id) {
+                activeUserId = activeSession.user.id;
+            }
+
+            if (!activeUserId) {
+                if (__DEV__) console.log('[useNotifications] No active authenticated user found for FCM sync.');
+                return;
+            }
+
+            if (__DEV__) {
+                console.log('[useNotifications] Syncing FCM token to Supabase profiles...', { userId: activeUserId, tokenLength: token.length });
+            }
+
+            // Primary: Attempt update via SECURITY DEFINER RPC
+            const { error: rpcError } = await supabase.rpc('update_user_fcm_token', {
+                p_token: token,
+            });
+
+            if (!rpcError) {
+                if (__DEV__) console.log('[useNotifications] FCM token synced successfully via RPC.');
+                return;
+            }
+
+            if (__DEV__) {
+                console.warn('[useNotifications] RPC update_user_fcm_token unavailable, trying direct table update:', rpcError.message);
+            }
+
+            // Fallback: Direct table update
+            const { error: updateError } = await supabase
+                .from('profiles')
+                .update({ fcm_token: token, updated_at: new Date().toISOString() } as any)
+                .eq('id', activeUserId);
+
+            if (updateError) {
+                console.error('[useNotifications] Direct profile update for FCM token failed:', {
+                    code: updateError.code,
+                    message: updateError.message,
+                    details: updateError.details,
+                    hint: updateError.hint,
+                });
+                throw updateError;
+            }
+
+            if (__DEV__) console.log('[useNotifications] FCM token synced successfully via direct table update.');
         } catch (error) {
             if (__DEV__) {
                 console.warn('[useNotifications] Failed to sync FCM token to Supabase:', error);
@@ -74,7 +120,7 @@ export const useNotifications = () => {
         });
 
         // 4. Handle Foreground Notifications
-        const unsubscribeOnMessage = messaging().onMessage(async (remoteMessage) => {
+        const unsubscribeOnMessage = onMessage(getMessaging(), async (remoteMessage) => {
             if (__DEV__) {
                 console.log('[useNotifications] Foreground message received:', remoteMessage);
             }
@@ -101,7 +147,7 @@ export const useNotifications = () => {
         });
 
         // 5. Handle Background/Quit state notification clicks (when app is opened from notification)
-        const unsubscribeOnNotificationOpened = messaging().onNotificationOpenedApp((remoteMessage) => {
+        const unsubscribeOnNotificationOpened = onNotificationOpenedApp(getMessaging(), (remoteMessage) => {
             if (__DEV__) {
                 console.log('[useNotifications] App opened from background state by notification click:', remoteMessage);
             }
@@ -109,8 +155,7 @@ export const useNotifications = () => {
         });
 
         // Check if app was opened from completely quit state by notification click
-        messaging()
-            .getInitialNotification()
+        getInitialNotification(getMessaging())
             .then((remoteMessage) => {
                 if (remoteMessage) {
                     if (__DEV__) {

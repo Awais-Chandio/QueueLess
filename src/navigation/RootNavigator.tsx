@@ -56,8 +56,8 @@ const RootNavigator = () => {
       return <PatientNavigator />;
     }
 
-    // Return a dark background placeholder while auth is loading or resolving roles initially
-    if (isLoading) {
+    // Return a dark background placeholder while auth is loading initially during boot
+    if (isLoading && !isSplashFinished) {
       return <View style={styles.placeholder} />;
     }
 

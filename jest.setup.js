@@ -50,3 +50,32 @@ jest.mock('react-native-reanimated', () => {
 jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
 }));
+
+jest.mock('@react-native-firebase/app', () => ({
+  initializeApp: jest.fn(),
+}));
+
+jest.mock('@react-native-firebase/auth', () => ({
+  getAuth: jest.fn(() => ({})),
+  signInWithPhoneNumber: jest.fn(),
+  signOut: jest.fn(),
+}));
+
+jest.mock('@react-native-firebase/messaging', () => ({
+  getMessaging: jest.fn(() => ({})),
+  requestPermission: jest.fn(() => Promise.resolve(1)),
+  getToken: jest.fn(() => Promise.resolve('mock-fcm-token')),
+  deleteToken: jest.fn(() => Promise.resolve()),
+  onTokenRefresh: jest.fn(() => jest.fn()),
+  onMessage: jest.fn(() => jest.fn()),
+  onNotificationOpenedApp: jest.fn(() => jest.fn()),
+  getInitialNotification: jest.fn(() => Promise.resolve(null)),
+  setBackgroundMessageHandler: jest.fn(),
+  AuthorizationStatus: {
+    NOT_DETERMINED: -1,
+    DENIED: 0,
+    AUTHORIZED: 1,
+    PROVISIONAL: 2,
+  },
+}));
+

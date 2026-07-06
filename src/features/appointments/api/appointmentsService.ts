@@ -597,8 +597,23 @@ export const appointmentsService = {
 
     console.log('[CALL_TOKEN] Starting token call:', {
       appointmentId,
+      calledAt,
     });
 
+    // Attempt RPC call first
+    const { error: rpcError } = await supabase.rpc('call_appointment', {
+      p_appointment_id: appointmentId,
+    });
+
+    if (!rpcError) {
+      console.log('[CALL_TOKEN] RPC call_appointment succeeded');
+      const appointment = await appointmentsService.fetchAppointmentById(appointmentId);
+      if (appointment) return appointment;
+    } else {
+      console.warn('[CALL_TOKEN] RPC call_appointment skipped or failed, using table update fallback:', rpcError.message);
+    }
+
+    // Direct table update fallback supporting confirmed, checked_in, pending
     const { data, error } = await supabase
       .from('appointments')
       .update({
@@ -606,7 +621,7 @@ export const appointmentsService = {
         called_at: calledAt,
       })
       .eq('id', appointmentId)
-      .eq('status', 'confirmed')
+      .in('status', ['confirmed', 'checked_in', 'pending'])
       .select(appointmentSelect)
       .maybeSingle();
 
@@ -638,7 +653,7 @@ export const appointmentsService = {
         appointmentId,
         currentStatus: currentAppointment.status,
       });
-      throw new Error('Only confirmed appointments can be called.');
+      throw new Error(`Cannot call token from current status: ${currentAppointment.status}`);
     }
 
     console.log('[CALL_TOKEN] Token called successfully:', {

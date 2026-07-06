@@ -445,6 +445,16 @@ export const staffQueueService = {
       calledAt,
     });
 
+    const { error: rpcError } = await supabase.rpc('call_appointment', {
+      p_appointment_id: appointment.id,
+    });
+
+    if (!rpcError) {
+      console.log('[STAFF_QUEUE] RPC call_appointment succeeded for appointment:', appointment.id);
+    } else {
+      console.warn('[STAFF_QUEUE] RPC call_appointment unavailable, using table update fallback:', rpcError.message);
+    }
+
     const updatedAppointment = await updateAppointment(
       appointment,
       'called',
@@ -453,13 +463,23 @@ export const staffQueueService = {
         started_at: calledAt,
       },
       'call_next',
-      ['confirmed', 'checked_in'],
+      ['confirmed', 'checked_in', 'pending', 'called'],
     );
 
     return updatedAppointment;
   },
 
   async completeAppointment(appointment: AppointmentFull) {
+    const { error: rpcError } = await supabase.rpc('complete_appointment', {
+      p_appointment_id: appointment.id,
+    });
+
+    if (!rpcError) {
+      console.log('[STAFF_QUEUE] RPC complete_appointment succeeded for appointment:', appointment.id);
+    } else {
+      console.warn('[STAFF_QUEUE] RPC complete_appointment unavailable, using table update fallback:', rpcError.message);
+    }
+
     const updatedAppointment = await updateAppointment(
       appointment,
       'completed',
@@ -473,17 +493,32 @@ export const staffQueueService = {
   },
 
   async fetchCenterSettings(centerId: string, date: string) {
-    const { data, error } = await supabase
-      .from('center_queue_settings')
-      .select('*')
-      .eq('center_id', centerId)
-      .eq('appointment_date', date)
-      .maybeSingle();
-      
-    if (error) {
-      console.warn('[STAFF_QUEUE] Failed to fetch center settings:', error.message);
+    try {
+      const { data, error } = await supabase
+        .from('center_queue_settings')
+        .select('*')
+        .eq('center_id', centerId)
+        .eq('appointment_date', date)
+        .maybeSingle();
+        
+      if (error?.code === '42703' || error?.code === 'PGRST204') {
+        console.warn('[STAFF_QUEUE] appointment_date column absent in center_queue_settings, trying fallback:', error.message);
+        const fallback = await supabase
+          .from('center_queue_settings')
+          .select('*')
+          .eq('center_id', centerId)
+          .maybeSingle();
+        return fallback.data;
+      }
+
+      if (error) {
+        console.warn('[STAFF_QUEUE] Failed to fetch center settings:', error.message);
+      }
+      return data;
+    } catch (err: any) {
+      console.warn('[STAFF_QUEUE] Error fetching center settings:', err?.message || err);
+      return null;
     }
-    return data;
   },
 
   async setCenterBreak(
@@ -493,18 +528,54 @@ export const staffQueueService = {
     breakStart: string | null,
     breakEnd: string | null,
   ) {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('set_center_break', {
+      p_center_id: centerId,
+      p_queue_date: date,
+      p_break_start: breakStart,
+      p_break_end: breakEnd,
+      p_is_on_break: isOnBreak,
+    });
+
+    if (!rpcError && rpcData) {
+      return rpcData;
+    }
+
+    if (rpcError) {
+      console.warn('[STAFF_QUEUE] RPC set_center_break failed/unavailable, falling back to table upsert:', rpcError.message);
+    }
+
+    const payloadWithDate = {
+      center_id: centerId,
+      appointment_date: date,
+      is_on_break: isOnBreak,
+      break_start: breakStart,
+      break_end: breakEnd,
+      updated_at: new Date().toISOString(),
+    };
+
     const { data, error } = await supabase
       .from('center_queue_settings')
-      .upsert({
+      .upsert(payloadWithDate)
+      .select()
+      .maybeSingle();
+
+    if (error?.code === '42703' || error?.code === 'PGRST204') {
+      const payloadLegacy = {
         center_id: centerId,
-        appointment_date: date,
         is_on_break: isOnBreak,
         break_start: breakStart,
         break_end: breakEnd,
         updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+      };
+      const fallback = await supabase
+        .from('center_queue_settings')
+        .upsert(payloadLegacy)
+        .select()
+        .maybeSingle();
+
+      if (fallback.error) throw new Error(fallback.error.message);
+      return fallback.data;
+    }
 
     if (error) {
       throw new Error(error.message);
@@ -513,16 +584,48 @@ export const staffQueueService = {
   },
 
   async updateCenterAverageConsultationTime(centerId: string, date: string, avgMins: number) {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('update_center_average_consultation_time', {
+      p_center_id: centerId,
+      p_queue_date: date,
+      p_avg_mins: avgMins,
+    });
+
+    if (!rpcError && rpcData) {
+      return rpcData;
+    }
+
+    if (rpcError) {
+      console.warn('[STAFF_QUEUE] RPC update_center_average_consultation_time failed/unavailable, falling back to table upsert:', rpcError.message);
+    }
+
+    const payloadWithDate = {
+      center_id: centerId,
+      appointment_date: date,
+      average_consultation_time: avgMins,
+      updated_at: new Date().toISOString(),
+    };
+
     const { data, error } = await supabase
       .from('center_queue_settings')
-      .upsert({
+      .upsert(payloadWithDate)
+      .select()
+      .maybeSingle();
+
+    if (error?.code === '42703' || error?.code === 'PGRST204') {
+      const payloadLegacy = {
         center_id: centerId,
-        appointment_date: date,
         average_consultation_time: avgMins,
         updated_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+      };
+      const fallback = await supabase
+        .from('center_queue_settings')
+        .upsert(payloadLegacy)
+        .select()
+        .maybeSingle();
+
+      if (fallback.error) throw new Error(fallback.error.message);
+      return fallback.data;
+    }
 
     if (error) {
       throw new Error(error.message);

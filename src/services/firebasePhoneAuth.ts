@@ -1,4 +1,4 @@
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { getAuth, signInWithPhoneNumber, signOut, FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 let confirmationResult: FirebaseAuthTypes.ConfirmationResult | null = null;
 
@@ -8,7 +8,7 @@ export const firebasePhoneAuth = {
             if (__DEV__) {
                 console.log('[firebasePhoneAuth] sendOTP started for:', phoneNumber);
             }
-            const confirmation = await auth().signInWithPhoneNumber(phoneNumber);
+            const confirmation = await signInWithPhoneNumber(getAuth(), phoneNumber);
             confirmationResult = confirmation;
             return true;
         } catch (error: any) {
@@ -42,16 +42,18 @@ export const firebasePhoneAuth = {
 
     async logoutFirebase(): Promise<void> {
         try {
-            await auth().signOut();
+            const firebaseAuth = getAuth();
+            if (firebaseAuth.currentUser) {
+                await signOut(firebaseAuth);
+            }
             confirmationResult = null;
             if (__DEV__) {
                 console.log('[firebasePhoneAuth] Signed out from Firebase.');
             }
-        } catch (error) {
-            if (__DEV__) {
-                console.error('[firebasePhoneAuth] Error in logoutFirebase:', error);
+        } catch (error: any) {
+            if (__DEV__ && error?.code !== 'auth/no-current-user') {
+                console.warn('[firebasePhoneAuth] Logout info:', error?.message || error);
             }
-            throw error;
         }
     },
 
