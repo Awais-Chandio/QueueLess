@@ -120,27 +120,24 @@ const getDayRange = (scheduledAt?: string | null) => {
 const getCurrentTokenFromAppointments = async (
   scope?: QueueScope,
 ): Promise<number | null> => {
-  const dayRange = getDayRange(scope?.scheduledAt);
+  if (!scope?.centerId) {
+    return null;
+  }
 
-  let query = supabase
+  const dateStr = scope?.scheduledAt
+    ? scope.scheduledAt.split('T')[0]
+    : new Date().toISOString().split('T')[0];
+
+  const { data, error } = await supabase
     .from('appointments')
     .select('token_number')
+    .eq('center_id', scope.centerId)
+    .eq('appointment_date', dateStr)
     .in('status', ['called', 'in_progress'])
     .not('token_number', 'is', null)
     .order('token_number', { ascending: false })
-    .limit(1);
-
-  if (scope?.centerId) {
-    query = query.eq('center_id', scope.centerId);
-  }
-
-  if (dayRange) {
-    query = query
-      .gte('scheduled_at', dayRange.start)
-      .lt('scheduled_at', dayRange.end);
-  }
-
-  const { data, error } = await query.maybeSingle();
+    .limit(1)
+    .maybeSingle();
 
   if (error) {
     console.warn('[QUEUE] Direct current token lookup failed:', {
@@ -160,17 +157,22 @@ export const getCurrentToken = async (scope?: QueueScope): Promise<number> => {
     return directCurrentToken;
   }
 
+  if (!scope?.centerId) {
+    return 0;
+  }
+
   const dateStr = scope?.scheduledAt
-    ? new Date(scope.scheduledAt).toISOString().split('T')[0]
+    ? scope.scheduledAt.split('T')[0]
     : new Date().toISOString().split('T')[0];
 
   const { data, error } = await supabase.rpc('get_current_token', {
-    p_center_id: scope?.centerId || null,
+    p_center_id: scope.centerId,
     p_queue_date: dateStr,
   });
 
   if (error) {
-    throw new Error(error.message);
+    console.warn('[QUEUE] RPC get_current_token failed:', error.message);
+    return 0;
   }
 
   return typeof data === 'number' ? data : 0;
@@ -179,20 +181,23 @@ export const getCurrentToken = async (scope?: QueueScope): Promise<number> => {
 export const getPeopleAhead = async (
   myToken: number,
   currentToken?: number,
+  appointmentId?: string | null,
 ): Promise<number> => {
   if (typeof currentToken === 'number') {
     return Math.max(0, myToken - currentToken);
   }
 
-  const { data, error } = await supabase.rpc('people_ahead', {
-    my_token: myToken,
-  });
+  if (appointmentId) {
+    const { data, error } = await supabase.rpc('people_ahead', {
+      p_appointment_id: appointmentId,
+    });
 
-  if (error) {
-    throw new Error(error.message);
+    if (!error && typeof data === 'number') {
+      return data;
+    }
   }
 
-  return typeof data === 'number' ? data : 0;
+  return 0;
 };
 
 export const getQueueSnapshot = async (
@@ -214,7 +219,7 @@ export const getQueueSnapshot = async (
   }
 
   const currentToken = await getCurrentToken(scope);
-  const peopleAhead = await getPeopleAhead(myToken, currentToken);
+  const peopleAhead = await getPeopleAhead(myToken, currentToken, scope?.appointmentId);
 
   console.log('[QUEUE] Queue snapshot calculated:', {
     myToken,

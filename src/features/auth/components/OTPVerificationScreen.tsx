@@ -41,7 +41,7 @@ const OTPVerificationScreen = () => {
     const { colors, spacing, typography, radius } = useTheme();
     const navigation = useNavigation();
     const route = useRoute<OTPVerificationRouteProp>();
-    const { verifyPhoneOTP, loginWithPhone } = useAuth();
+    const { verifyPhoneOtp, loginWithPhone } = useAuth();
 
     const { phone } = route.params;
 
@@ -152,9 +152,9 @@ const OTPVerificationScreen = () => {
         try {
             setErrorMessage('');
             setIsVerifying(true);
-            const firebaseUser = await verifyPhoneOTP(cleanOtp);
+            await verifyPhoneOtp(phone, cleanOtp);
             if (__DEV__) {
-                console.log('[OTPVerificationScreen] Verification success. Firebase User:', firebaseUser);
+                console.log('[OTPVerificationScreen] Verification & Supabase session bridge success');
             }
             
             // Trigger success animation
@@ -256,21 +256,21 @@ const OTPVerificationScreen = () => {
                             <ArrowLeft size={scaleFont(24)} color="#FFFFFF" />
                         </Pressable>
 
-                        <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
+                        <RNAnimated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
                                 <MedicalLogo size={scaleFont(48)} qColor="#FFFFFF" crossColor="#14B8A6" />
                             </View>
-                        </Animated.View>
+                        </RNAnimated.View>
 
-                        <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
+                        <RNAnimated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
                             <Text style={styles.appTitle}>QueueLess</Text>
                             <Text style={styles.appSubtitle}>Smart Healthcare Queue Management</Text>
                             <Text style={styles.tagline}>Verification Code</Text>
-                        </Animated.View>
+                        </RNAnimated.View>
                     </LinearGradient>
 
                     {/* Lower Input Container */}
-                    <Animated.View
+                    <RNAnimated.View
                         style={[
                             styles.formContainer,
                             {
@@ -355,7 +355,7 @@ const OTPVerificationScreen = () => {
                                 )}
                             </View>
                         </Animated.View>
-                    </Animated.View>
+                    </RNAnimated.View>
                 </ScrollView>
             </KeyboardAvoidingView>
         </ScreenWrapper>

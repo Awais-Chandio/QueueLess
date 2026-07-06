@@ -362,16 +362,13 @@ export const useAuth = () => {
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
     if (__DEV__) console.log('[AUTH] sendPhoneOtp (Firebase) started', phone);
-    setLoading(true);
     try {
       await firebasePhoneAuth.sendOTP(phone);
       if (__DEV__) console.log('[AUTH] Firebase OTP confirmation result stored');
     } catch (error) {
       throw toAuthError(error, 'Failed to send OTP via Firebase. Please check the phone number.');
-    } finally {
-      setLoading(false);
     }
-  }, [setLoading]);
+  }, []);
 
   const verifyPhoneOtp = useCallback(async (phone: string, token: string) => {
     if (__DEV__) console.log('[AUTH] verifyPhoneOtp (Firebase) started', phone);
@@ -415,30 +412,24 @@ export const useAuth = () => {
 
   const loginWithPhone = useCallback(async (phone: string) => {
     if (__DEV__) console.log('[AUTH] loginWithPhone started', phone);
-    setLoading(true);
     try {
       const success = await firebasePhoneAuth.sendOTP(phone);
       return success;
     } catch (error) {
       throw toAuthError(error, 'Failed to send OTP via Firebase.');
-    } finally {
-      setLoading(false);
     }
-  }, [setLoading]);
+  }, []);
 
   const verifyPhoneOTP = useCallback(async (code: string) => {
     if (__DEV__) console.log('[AUTH] verifyPhoneOTP started', code);
-    setLoading(true);
     try {
       const userCredential = await firebasePhoneAuth.verifyOTP(code);
       if (__DEV__) console.log('[AUTH] verifyPhoneOTP success, returning Firebase user');
       return userCredential.user;
     } catch (error) {
       throw toAuthError(error, 'Failed to verify OTP via Firebase.');
-    } finally {
-      setLoading(false);
     }
-  }, [setLoading]);
+  }, []);
 
   return {
     session,

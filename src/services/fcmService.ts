@@ -1,4 +1,11 @@
-import messaging from '@react-native-firebase/messaging';
+import {
+    getMessaging,
+    requestPermission,
+    getToken,
+    deleteToken,
+    onTokenRefresh,
+    AuthorizationStatus,
+} from '@react-native-firebase/messaging';
 
 export const fcmService = {
     /**
@@ -6,10 +13,10 @@ export const fcmService = {
      */
     async requestPermission(): Promise<boolean> {
         try {
-            const authStatus = await messaging().requestPermission();
+            const authStatus = await requestPermission(getMessaging());
             const enabled =
-                authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-                authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+                authStatus === AuthorizationStatus.AUTHORIZED ||
+                authStatus === AuthorizationStatus.PROVISIONAL;
 
             if (__DEV__) {
                 console.log('[fcmService] Notification authorization status:', authStatus);
@@ -28,8 +35,7 @@ export const fcmService = {
      */
     async getToken(): Promise<string | null> {
         try {
-            // Register for remote notifications on iOS if required by Firebase
-            const token = await messaging().getToken();
+            const token = await getToken(getMessaging());
             if (__DEV__) {
                 console.log('[fcmService] Retrieved FCM token:', token);
             }
@@ -47,7 +53,7 @@ export const fcmService = {
      */
     async deleteToken(): Promise<void> {
         try {
-            await messaging().deleteToken();
+            await deleteToken(getMessaging());
             if (__DEV__) {
                 console.log('[fcmService] FCM token deleted locally.');
             }
@@ -64,7 +70,7 @@ export const fcmService = {
      * @returns Unsubscribe function.
      */
     onTokenRefresh(callback: (token: string) => void): () => void {
-        return messaging().onTokenRefresh((token) => {
+        return onTokenRefresh(getMessaging(), (token) => {
             if (__DEV__) {
                 console.log('[fcmService] FCM token refreshed:', token);
             }

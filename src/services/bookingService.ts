@@ -1,4 +1,26 @@
+import { supabase } from '../lib/supabase';
 import type { AppointmentFull, AppointmentStatus } from '../types/appointment';
+
+export const getNextToken = async (
+  centerId: string,
+  appointmentDate: string,
+): Promise<number> => {
+  if (!centerId || !appointmentDate) {
+    throw new Error('Center ID and appointment date are required for token allocation.');
+  }
+
+  const { data, error } = await supabase.rpc('get_next_token', {
+    p_center_id: centerId,
+    p_appointment_date: appointmentDate,
+  });
+
+  if (error) {
+    console.error('[BOOKING_SERVICE] Failed to allocate token via RPC:', error);
+    throw new Error(error.message);
+  }
+
+  return data as number;
+};
 
 export const getAppointmentStatusState = (
   appointment: AppointmentFull,

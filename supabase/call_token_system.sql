@@ -192,31 +192,61 @@ CREATE TRIGGER trigger_queue_less_notify_appointment_status_change
   FOR EACH ROW
   EXECUTE FUNCTION public.queue_less_notify_appointment_status_change();
 
-CREATE OR REPLACE FUNCTION public.get_current_token()
-RETURNS integer
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT COALESCE(MAX(token_number), 0)::integer
-  FROM public.appointments
-  WHERE status = 'called';
-$$;
+DROP FUNCTION IF EXISTS public.get_current_token();
+DROP FUNCTION IF EXISTS public.people_ahead(integer);
 
-CREATE OR REPLACE FUNCTION public.people_ahead(
-  my_token integer
+-- get_current_token: Filtered strictly by center_id and appointment_date
+CREATE OR REPLACE FUNCTION public.get_current_token(
+  p_center_id uuid,
+  p_queue_date date DEFAULT CURRENT_DATE
 )
 RETURNS integer
-LANGUAGE sql
+LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT GREATEST(my_token - public.get_current_token(), 0)::integer;
+DECLARE
+  v_current_token integer;
+BEGIN
+  IF p_center_id IS NULL THEN
+    RETURN 0;
+  END IF;
+
+  SELECT COALESCE(MAX(token_number), 0)
+  INTO v_current_token
+  FROM public.appointments
+  WHERE center_id = p_center_id
+    AND appointment_date = p_queue_date
+    AND status IN ('called', 'in_progress');
+
+  RETURN COALESCE(v_current_token, 0);
+END;
 $$;
 
-REVOKE ALL ON FUNCTION public.get_current_token() FROM PUBLIC;
-REVOKE ALL ON FUNCTION public.people_ahead(integer) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_current_token() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.people_ahead(integer) TO authenticated;
+-- people_ahead: Filtered by appointment_id -> center_id & appointment_date
+CREATE OR REPLACE FUNCTION public.people_ahead(
+  p_appointment_id uuid
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_appointment public.appointments%ROWTYPE;
+  v_current_token integer;
+BEGIN
+  SELECT * INTO v_appointment FROM public.appointments WHERE id = p_appointment_id;
+  IF NOT FOUND THEN
+    RETURN 0;
+  END IF;
+
+  v_current_token := public.get_current_token(v_appointment.center_id, v_appointment.appointment_date);
+  RETURN GREATEST(COALESCE(v_appointment.token_number, 0) - v_current_token, 0);
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_current_token(uuid, date) TO authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.people_ahead(uuid) TO authenticated, anon;
 
 NOTIFY pgrst, 'reload schema';
