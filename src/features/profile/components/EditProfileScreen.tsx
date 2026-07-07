@@ -1,10 +1,10 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Text, Pressable } from "react-native";
+import { View, StyleSheet, Text, Pressable, Platform } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigation } from "@react-navigation/native";
 import { launchImageLibrary } from "react-native-image-picker";
-import { Camera } from "lucide-react-native";
+import { Camera, ChevronLeft } from "lucide-react-native";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import AppInput from "../../../components/ui/AppInput";
 import AppButton from "../../../components/ui/AppButton";
@@ -15,14 +15,15 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useProfileStore } from "../../../store/profileStore";
 import { useToastStore } from "../../../store/toastStore";
 import { profileSchema, type ProfileFormData } from "../../../validations/profileSchema";
-import { colors, spacing, typography } from "../../../theme";
-import { scaleFont, wp } from "../../../utils/responsive";
+import { useTheme } from "../../../hooks/useTheme";
+import { scaleFont, wp, hp } from "../../../utils/responsive";
 
 const EditProfileScreen = () => {
   const navigation = useNavigation();
   const { user } = useAuth();
   const { profile, isLoading, isUploadingAvatar, error, fetchProfile, updateProfile, uploadAvatar } =
     useProfileStore();
+  const { colors, spacing, typography, radius } = useTheme();
   const { showToast } = useToastStore();
 
   const {
@@ -139,10 +140,25 @@ const EditProfileScreen = () => {
   }
 
   return (
-    <ScreenWrapper scrollable centered>
+    <ScreenWrapper scrollable>
+      <View style={styles.headerRow}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <ChevronLeft size={24} color={colors.primary} />
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+            Back
+          </Text>
+        </Pressable>
+      </View>
+
       <View style={styles.container}>
-        <Text style={styles.title}>Edit Profile</Text>
-        <Text style={styles.subtitle}>Update your personal information</Text>
+        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>Edit Profile</Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.lg }]}>Update your personal information</Text>
 
         <Pressable
           onPress={handleAvatarUpload}
@@ -151,11 +167,11 @@ const EditProfileScreen = () => {
         >
           <View style={styles.avatarWrapper}>
             <ProfileAvatar uri={profile?.avatar_url} size={96} iconSize={48} />
-            <View style={[styles.cameraIcon, { backgroundColor: colors.primary }]}>
+            <View style={[styles.cameraIcon, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
               <Camera size={scaleFont(14)} color="#FFF" />
             </View>
           </View>
-          <Text style={styles.changeAvatarText}>
+          <Text style={[styles.changeAvatarText, { color: colors.primary, fontSize: typography.small, marginTop: spacing.sm }]}>
             {isUploadingAvatar ? "Uploading..." : "Change Avatar"}
           </Text>
         </Pressable>
@@ -195,35 +211,41 @@ const EditProfileScreen = () => {
           onPress={handleSubmit(onSubmit)}
           loading={isSubmitting || isLoading}
           disabled={isSubmitting || isLoading || isUploadingAvatar}
+          style={{ marginTop: spacing.md }}
         />
 
-        {error && <Text style={styles.errorMessage}>{error}</Text>}
+        {error && <Text style={[styles.errorMessage, { color: colors.error, marginTop: spacing.sm }]}>{error}</Text>}
       </View>
     </ScreenWrapper>
   );
 };
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  backButtonText: {
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
-    justifyContent: "center",
   },
   title: {
-    fontSize: typography.h1,
-    fontWeight: "bold",
-    color: colors.text,
-    marginBottom: spacing.sm,
+    fontWeight: "800",
     textAlign: "center",
   },
   subtitle: {
-    fontSize: typography.body,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
     textAlign: "center",
   },
   avatarSection: {
     alignItems: "center",
-    marginBottom: spacing.lg,
   },
   avatarWrapper: {
     width: wp(26),
@@ -244,19 +266,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "#FFF",
   },
   changeAvatarText: {
-    color: colors.primary,
-    fontSize: typography.small,
     fontWeight: "600",
-    marginTop: spacing.sm,
   },
   errorMessage: {
-    color: colors.error,
     textAlign: "center",
-    marginTop: spacing.sm,
-    fontSize: typography.small,
+    fontSize: scaleFont(14),
   },
 });
 

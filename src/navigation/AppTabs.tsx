@@ -16,6 +16,7 @@ import type { AppTabParamList } from "./types";
 import { useTheme } from "../hooks/useTheme";
 import { Home, MapPin, Calendar, Bell, User } from "lucide-react-native";
 import { hp } from "../utils/responsive";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 let notificationChannelInstance = 0;
@@ -23,26 +24,48 @@ let notificationChannelInstance = 0;
 type TabIconProps = {
     color: string;
     size: number;
+    focused?: boolean;
 };
 
-const AlertsTabIcon = ({ color, size }: TabIconProps) => (
-    <Bell color={color} size={size} />
+const AnimatedTabIcon = ({ Icon, color, size, focused }: { Icon: any; color: string; size: number; focused?: boolean }) => {
+    const scale = useSharedValue(1);
+
+    useEffect(() => {
+        scale.value = withSpring(focused ? 1.25 : 1, {
+            damping: 15,
+            stiffness: 180,
+        });
+    }, [focused]);
+
+    const animStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    return (
+        <Animated.View style={animStyle}>
+            <Icon color={color} size={size} />
+        </Animated.View>
+    );
+};
+
+const AlertsTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={Bell} color={color} size={size} focused={focused} />
 );
 
-const HomeTabIcon = ({ color, size }: TabIconProps) => (
-    <Home color={color} size={size} />
+const HomeTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={Home} color={color} size={size} focused={focused} />
 );
 
-const CentersTabIcon = ({ color, size }: TabIconProps) => (
-    <MapPin color={color} size={size} />
+const CentersTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={MapPin} color={color} size={size} focused={focused} />
 );
 
-const AppointmentsTabIcon = ({ color, size }: TabIconProps) => (
-    <Calendar color={color} size={size} />
+const AppointmentsTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={Calendar} color={color} size={size} focused={focused} />
 );
 
-const ProfileTabIcon = ({ color, size }: TabIconProps) => (
-    <User color={color} size={size} />
+const ProfileTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={User} color={color} size={size} focused={focused} />
 );
 
 const sortNotifications = (notifications: Notification[]) =>
@@ -189,16 +212,28 @@ const AppTabs = () => {
                 tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: colors.textSecondary,
                 tabBarStyle: {
+                    position: 'absolute',
+                    bottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+                    left: spacing.md,
+                    right: spacing.md,
                     backgroundColor: colors.surface,
-                    borderTopColor: colors.border,
-                    height: hp(8) + bottomInset,
-                    paddingBottom: bottomInset,
-                    paddingTop: spacing.sm,
+                    borderRadius: 24,
+                    height: hp(7.8),
+                    borderTopWidth: 0,
+                    borderWidth: 1,
+                    borderColor: colors.border + '40',
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 16,
+                    elevation: 8,
+                    paddingBottom: Platform.OS === 'ios' ? spacing.xs : spacing.sm,
+                    paddingTop: spacing.xs,
                 },
                 tabBarLabelStyle: {
-                    fontSize: typography.sizes.xs,
-                    fontWeight: '500',
-                    lineHeight: typography.sizes.sm,
+                    fontSize: typography.sizes.xs - 1,
+                    fontWeight: '600',
+                    marginBottom: Platform.OS === 'ios' ? 0 : 2,
                 },
                 tabBarItemStyle: {
                     paddingVertical: spacing.xs,

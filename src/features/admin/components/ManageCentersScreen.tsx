@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, ScrollView, Pressable, Modal, Alert } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, Pressable, Modal, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Plus, Edit2, Trash2, Hospital, Stethoscope, ChevronLeft } from 'lucide-react-native';
@@ -223,10 +223,24 @@ const ManageCentersScreen = () => {
   return (
     <ScreenWrapper>
       <View style={styles.container}>
+        {/* Back header button */}
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <ChevronLeft size={24} color={colors.primary} />
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+            Back
+          </Text>
+        </Pressable>
+
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl }]}>
-            Manage Clinics & Services
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800' }]}>
+            Clinics & Services
           </Text>
           <AppButton
             title="Add New"
@@ -236,21 +250,21 @@ const ManageCentersScreen = () => {
         </View>
 
         {/* Custom Tab Bar */}
-        <View style={[styles.tabBar, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.md }]}>
+        <View style={[styles.tabBar, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.lg }]}>
           <Pressable
             onPress={() => setActiveTab('centers')}
             style={[
               styles.tab,
-              activeTab === 'centers' && { backgroundColor: colors.primary, borderRadius: radius.sm },
+              activeTab === 'centers' && { backgroundColor: colors.primary, borderRadius: radius.md },
             ]}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'centers' ? '#FFF' : colors.text }]}>Clinics / Centers</Text>
+            <Text style={[styles.tabText, { color: activeTab === 'centers' ? '#FFF' : colors.text }]}>Clinics</Text>
           </Pressable>
           <Pressable
             onPress={() => setActiveTab('services')}
             style={[
               styles.tab,
-              activeTab === 'services' && { backgroundColor: colors.primary, borderRadius: radius.sm },
+              activeTab === 'services' && { backgroundColor: colors.primary, borderRadius: radius.md },
             ]}
           >
             <Text style={[styles.tabText, { color: activeTab === 'services' ? '#FFF' : colors.text }]}>Services</Text>
@@ -258,24 +272,26 @@ const ManageCentersScreen = () => {
         </View>
 
         {/* Scrollable list */}
-        <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xl }}>
           {activeTab === 'centers' ? (
             centers.map(center => (
               <Card key={center.id} style={styles.itemCard}>
                 <View style={styles.cardInfo}>
-                  <Hospital size={24} color={colors.primary} />
+                  <View style={[styles.iconContainer, { backgroundColor: colors.primary + '10' }]}>
+                    <Hospital size={20} color={colors.primary} />
+                  </View>
                   <View style={styles.cardTexts}>
                     <Text style={[styles.itemName, { color: colors.text, fontSize: typography.sizes.md }]}>{center.name}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>{center.city} | {center.category}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Hours: {center.open_time} - {center.close_time}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }}>{center.city} • {center.category}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2 }}>Hours: {center.open_time} - {center.close_time}</Text>
                   </View>
                 </View>
                 <View style={styles.actionButtons}>
-                  <Pressable onPress={() => handleOpenEdit(center)} style={styles.actionButton}>
-                    <Edit2 size={16} color={colors.primary} />
+                  <Pressable onPress={() => handleOpenEdit(center)} style={[styles.actionButton, { backgroundColor: colors.border + '15' }]}>
+                    <Edit2 size={14} color={colors.primary} />
                   </Pressable>
-                  <Pressable onPress={() => handleDelete(center.id, center.name)} style={styles.actionButton}>
-                    <Trash2 size={16} color={colors.error} />
+                  <Pressable onPress={() => handleDelete(center.id, center.name)} style={[styles.actionButton, { backgroundColor: colors.error + '10' }]}>
+                    <Trash2 size={14} color={colors.error} />
                   </Pressable>
                 </View>
               </Card>
@@ -284,19 +300,21 @@ const ManageCentersScreen = () => {
             services.map(service => (
               <Card key={service.id} style={styles.itemCard}>
                 <View style={styles.cardInfo}>
-                  <Stethoscope size={24} color={colors.info} />
+                  <View style={[styles.iconContainer, { backgroundColor: colors.info + '10' }]}>
+                    <Stethoscope size={20} color={colors.info} />
+                  </View>
                   <View style={styles.cardTexts}>
                     <Text style={[styles.itemName, { color: colors.text, fontSize: typography.sizes.md }]}>{service.name}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>Category: {service.category}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Avg Duration: {service.avg_duration_mins} mins</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }}>Category: {service.category}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2 }}>Avg Duration: {service.avg_duration_mins} mins</Text>
                   </View>
                 </View>
                 <View style={styles.actionButtons}>
-                  <Pressable onPress={() => handleOpenEdit(service)} style={styles.actionButton}>
-                    <Edit2 size={16} color={colors.primary} />
+                  <Pressable onPress={() => handleOpenEdit(service)} style={[styles.actionButton, { backgroundColor: colors.border + '15' }]}>
+                    <Edit2 size={14} color={colors.primary} />
                   </Pressable>
-                  <Pressable onPress={() => handleDelete(service.id, service.name)} style={styles.actionButton}>
-                    <Trash2 size={16} color={colors.error} />
+                  <Pressable onPress={() => handleDelete(service.id, service.name)} style={[styles.actionButton, { backgroundColor: colors.error + '10' }]}>
+                    <Trash2 size={14} color={colors.error} />
                   </Pressable>
                 </View>
               </Card>
@@ -305,14 +323,30 @@ const ManageCentersScreen = () => {
         </ScrollView>
 
         {/* Modal form */}
-        <Modal visible={showModal} transparent animationType="slide">
+        <Modal visible={showModal} transparent animationType="fade">
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { backgroundColor: colors.surface, borderRadius: radius.lg }]}>
-              <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg }]}>
+            <View
+              style={[
+                styles.modalContent,
+                {
+                  backgroundColor: colors.card,
+                  borderRadius: radius.xl,
+                  padding: spacing.lg,
+                  borderColor: colors.border,
+                  borderWidth: Platform.OS === 'ios' ? 0 : 1,
+                  elevation: 10,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 10 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 20,
+                },
+              ]}
+            >
+              <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' }]}>
                 {editingId ? 'Edit' : 'Add New'} {activeTab === 'centers' ? 'Clinic' : 'Service'}
               </Text>
 
-              <ScrollView>
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: '90%' }}>
                 {activeTab === 'centers' ? (
                   <>
                     <AppInput
@@ -400,7 +434,16 @@ export default ManageCentersScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  backButtonText: {
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
@@ -409,20 +452,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontWeight: 'bold',
   },
   addButton: {
     minWidth: 100,
   },
   tabBar: {
     flexDirection: 'row',
-    borderWidth: 1,
+    borderWidth: 1.5,
     padding: 4,
     marginBottom: 16,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
   },
   tabText: {
@@ -441,13 +483,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  iconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   cardTexts: {
-    marginLeft: 16,
+    marginLeft: 12,
     flex: 1,
   },
   itemName: {
-    fontWeight: 'bold',
-    marginBottom: 4,
+    fontWeight: '700',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -455,7 +503,7 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     padding: 8,
-    borderRadius: 4,
+    borderRadius: 8,
   },
   modalOverlay: {
     flex: 1,
@@ -464,12 +512,9 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    maxHeight: '85%',
-    padding: 20,
-    elevation: 5,
+    maxHeight: '90%',
   },
   modalTitle: {
-    fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
   },

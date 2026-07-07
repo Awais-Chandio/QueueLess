@@ -33,10 +33,10 @@ import { analyticsService } from '../api/analyticsService';
 import { getDisplayName } from '../../../utils/getDisplayName';
 
 const ACTION_META: Record<string, { icon: any; color: string; label: string }> = {
-  confirm: { icon: CheckCircle2, color: '#22C55E', label: 'Confirmed' },
+  confirm: { icon: CheckCircle2, color: '#10B981', label: 'Confirmed' },
   cancel: { icon: XCircle, color: '#EF4444', label: 'Cancelled' },
   call_next: { icon: BellRing, color: '#8B5CF6', label: 'Called' },
-  complete_service: { icon: CheckCheck, color: '#22C55E', label: 'Completed' },
+  complete_service: { icon: CheckCheck, color: '#10B981', label: 'Completed' },
 };
 
 const AdminLogsScreen = () => {
@@ -108,9 +108,9 @@ const AdminLogsScreen = () => {
           </Text>
         </View>
         <View style={{ gap: spacing.md, paddingHorizontal: spacing.md }}>
-          <Skeleton height={50} />
-          <Skeleton height={40} />
-          <Skeleton height={300} />
+          <Skeleton height={50} borderRadius={radius.lg} />
+          <Skeleton height={40} borderRadius={radius.lg} />
+          <Skeleton height={300} borderRadius={radius.lg} />
         </View>
       </ScreenWrapper>
     );
@@ -138,10 +138,10 @@ const AdminLogsScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
             Activity Logs
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }]}>
             Monitor and Search Staff Actions
           </Text>
         </View>
@@ -155,12 +155,12 @@ const AdminLogsScreen = () => {
           style={({ pressed }) => [
             styles.logoutIconButton,
             {
-              backgroundColor: pressed ? colors.border + '30' : 'transparent',
+              backgroundColor: pressed ? colors.border + '30' : colors.surface,
               borderColor: colors.border,
             },
           ]}
         >
-          <LogOut color={colors.text} size={20} />
+          <LogOut color={colors.text} size={18} />
         </Pressable>
       </View>
 
@@ -198,8 +198,9 @@ const AdminLogsScreen = () => {
                   styles.filterPill,
                   {
                     borderColor: logActionFilter === actionItem.key ? colors.primary : colors.border,
-                    backgroundColor: logActionFilter === actionItem.key ? `${colors.primary}15` : colors.surface,
-                    borderRadius: radius.md,
+                    backgroundColor: logActionFilter === actionItem.key ? `${colors.primary}10` : colors.surface,
+                    borderRadius: radius.full,
+                    borderWidth: 1.5,
                   }
                 ]}
               >
@@ -207,7 +208,7 @@ const AdminLogsScreen = () => {
                   style={{
                     color: logActionFilter === actionItem.key ? colors.primary : colors.text,
                     fontSize: 12,
-                    fontWeight: '600',
+                    fontWeight: '700',
                   }}
                 >
                   {actionItem.label}
@@ -261,16 +262,16 @@ const AdminLogsScreen = () => {
                     key={activity.id}
                     style={[
                       styles.activityItem,
-                      { borderColor: colors.border },
                       idx > 0 && {
                         borderTopWidth: 1,
+                        borderTopColor: colors.border + '50',
                         paddingTop: spacing.sm,
                         marginTop: spacing.sm,
                       },
                     ]}
                   >
-                    <View style={[styles.activityIconPill, { backgroundColor: meta.color + '15' }]}>
-                      <ActionIcon size={scaleFont(13)} color={meta.color} />
+                    <View style={[styles.activityIconPill, { backgroundColor: meta.color + '10' }]}>
+                      <ActionIcon size={scaleFont(12)} color={meta.color} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.activityText, { color: colors.text, fontSize: typography.sizes.sm }]}>
@@ -317,23 +318,21 @@ const styles = StyleSheet.create({
     marginBottom: hp(2),
   },
   title: {
-    fontWeight: '800',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontWeight: '600',
     marginTop: 2,
   },
   logoutIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardContent: {
-    padding: wp(4),
+    padding: wp(4.5),
   },
   sectionTitle: {
     fontWeight: '700',
@@ -346,7 +345,7 @@ const styles = StyleSheet.create({
   filterPill: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderWidth: 1,
+    borderWidth: 1.5,
   },
   listHeader: {
     flexDirection: 'row',
@@ -362,7 +361,7 @@ const styles = StyleSheet.create({
   activityIconPill: {
     width: scaleFont(28),
     height: scaleFont(28),
-    borderRadius: scaleFont(14),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,

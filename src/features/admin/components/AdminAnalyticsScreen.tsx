@@ -183,7 +183,7 @@ const AdminAnalyticsScreen = () => {
       barPercentage: 0.58,
       barRadius: 6,
       propsForBackgroundLines: {
-        stroke: colors.border,
+        stroke: colors.border + '50',
       },
       propsForLabels: {
         fontSize: scaleFont(9),
@@ -205,9 +205,9 @@ const AdminAnalyticsScreen = () => {
           </Text>
         </View>
         <View style={{ gap: spacing.md, paddingHorizontal: spacing.md }}>
-          <Skeleton height={60} />
-          <Skeleton height={240} />
-          <Skeleton height={200} />
+          <Skeleton height={60} borderRadius={radius.lg} />
+          <Skeleton height={240} borderRadius={radius.lg} />
+          <Skeleton height={200} borderRadius={radius.lg} />
         </View>
       </ScreenWrapper>
     );
@@ -235,10 +235,10 @@ const AdminAnalyticsScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
             Welcome, {adminName}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }]}>
             Overview & Queue Performance
           </Text>
         </View>
@@ -252,19 +252,19 @@ const AdminAnalyticsScreen = () => {
           style={({ pressed }) => [
             styles.logoutIconButton,
             {
-              backgroundColor: pressed ? colors.border + '30' : 'transparent',
+              backgroundColor: pressed ? colors.border + '30' : colors.surface,
               borderColor: colors.border,
             },
           ]}
         >
-          <LogOut color={colors.text} size={20} />
+          <LogOut color={colors.text} size={18} />
         </Pressable>
       </View>
 
       {/* Timeframe Selector */}
       <CardFadeIn delay={20}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <Card variant="elevated" style={[styles.cardContent, { padding: spacing.sm, borderRadius: radius.md }]}>
+          <Card variant="elevated" style={[styles.cardContent, { padding: spacing.sm, borderRadius: radius.lg }]}>
             <View style={styles.timeframeContainer}>
               <View style={styles.timeframeLabelRow}>
                 <TrendingUp color={colors.primary} size={16} />
@@ -286,8 +286,9 @@ const AdminAnalyticsScreen = () => {
                       styles.timeframeButton,
                       {
                         borderColor: dateRange === item.key ? colors.primary : colors.border,
-                        backgroundColor: dateRange === item.key ? `${colors.primary}15` : 'transparent',
-                        borderRadius: radius.sm,
+                        backgroundColor: dateRange === item.key ? `${colors.primary}10` : 'transparent',
+                        borderRadius: radius.md,
+                        borderWidth: 1.5,
                       }
                     ]}
                   >
@@ -319,18 +320,18 @@ const AdminAnalyticsScreen = () => {
                       styles.statMetricItem,
                       {
                         borderColor: colors.border,
-                        borderRadius: radius.md,
+                        borderRadius: radius.lg,
                         backgroundColor: colors.surface,
-                        borderTopWidth: 3,
+                        borderTopWidth: 3.5,
                         borderTopColor: item.accentColor,
                       },
                     ]}
                   >
                     <View style={styles.statHeader}>
-                      <View style={[styles.statIconPill, { backgroundColor: item.color + '15' }]}>
-                        <Icon color={item.color} size={scaleFont(13)} />
+                      <View style={[styles.statIconPill, { backgroundColor: item.color + '10' }]}>
+                        <Icon color={item.color} size={scaleFont(12)} />
                       </View>
-                      <Text style={[styles.statValue, { color: item.color, fontSize: typography.sizes.md }]}>
+                      <Text style={[styles.statValue, { color: item.color, fontSize: typography.sizes.md, fontWeight: '800' }]}>
                         {item.value}
                       </Text>
                     </View>
@@ -348,7 +349,7 @@ const AdminAnalyticsScreen = () => {
                         progress={Math.min(1, item.progress)}
                         color={item.accentColor}
                         height={scaleFont(3)}
-                        trackColor={item.accentColor + '15'}
+                        trackColor={item.accentColor + '10'}
                       />
                     </View>
                   </View>
@@ -436,23 +437,21 @@ const styles = StyleSheet.create({
     marginBottom: hp(2),
   },
   title: {
-    fontWeight: '800',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontWeight: '600',
     marginTop: 2,
   },
   logoutIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardContent: {
-    padding: wp(4),
+    padding: wp(4.5),
   },
   sectionTitle: {
     fontWeight: '700',
@@ -483,7 +482,6 @@ const styles = StyleSheet.create({
   timeframeButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderWidth: 1,
   },
   statsGrid: {
     flexDirection: 'row',
@@ -496,7 +494,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: wp(3),
     paddingVertical: hp(1.2),
-    borderWidth: 1,
+    borderWidth: 1.5,
     marginBottom: hp(0.8),
   },
   statHeader: {
@@ -507,15 +505,14 @@ const styles = StyleSheet.create({
   statIconPill: {
     width: scaleFont(24),
     height: scaleFont(24),
-    borderRadius: scaleFont(12),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statValue: {
-    fontWeight: '800',
   },
   statLabel: {
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: hp(0.5),
   },
   chartHeaderRow: {

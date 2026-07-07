@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Pre
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ShieldAlert, Info } from 'lucide-react-native';
+import { ShieldAlert, Info, ChevronLeft, MapPin } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppInput from '../../../components/ui/AppInput';
@@ -110,18 +110,32 @@ const CreateAccountScreen = () => {
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={{ padding: spacing.md }}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, marginBottom: spacing.lg }]}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: spacing.md }}>
+          {/* Back header button */}
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [
+              styles.backButton,
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <ChevronLeft size={24} color={colors.primary} />
+            <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+              Back
+            </Text>
+          </Pressable>
+
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800', marginBottom: spacing.lg }]}>
             {title}
           </Text>
 
           <Card style={{ marginBottom: spacing.lg }}>
-            <View style={[styles.warningBanner, { backgroundColor: colors.warning + '15', borderColor: colors.warning + '30', borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }]}>
+            <View style={[styles.warningBanner, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '30', borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md }]}>
               <View style={styles.warningHeader}>
-                <ShieldAlert size={20} color={colors.warning} />
-                <Text style={[styles.warningTitle, { color: colors.warning, marginLeft: spacing.sm, fontWeight: 'bold' }]}>Role Architecture Note</Text>
+                <ShieldAlert size={18} color={colors.warning} />
+                <Text style={[styles.warningTitle, { color: colors.warning, marginLeft: spacing.sm, fontWeight: '700', fontSize: typography.sizes.sm }]}>Role Architecture Note</Text>
               </View>
-              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, fontSize: typography.sizes.sm }}>
+              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, fontSize: typography.sizes.sm, lineHeight: 18 }}>
                 You are creating a new {role} account with a separate login. Existing client appointments will NOT be transferred.
               </Text>
             </View>
@@ -174,8 +188,8 @@ const CreateAccountScreen = () => {
             />
 
             {role === 'staff' && (
-              <View style={{ marginBottom: spacing.md }}>
-                <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm }}>
+              <View style={{ marginBottom: spacing.md, marginTop: spacing.xs }}>
+                <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700', marginBottom: spacing.sm }}>
                   Assign Service Center
                 </Text>
                 {centers.length === 0 ? (
@@ -202,9 +216,12 @@ const CreateAccountScreen = () => {
                             marginBottom: spacing.xs,
                           }}
                         >
-                          <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? 'bold' : 'normal' }}>
-                            {center.name}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <MapPin size={16} color={isSelected ? colors.primary : colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                            <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '700' : '500' }}>
+                              {center.name}
+                            </Text>
+                          </View>
                           {isSelected && (
                             <View 
                               style={{ 
@@ -223,7 +240,7 @@ const CreateAccountScreen = () => {
               </View>
             )}
 
-            {error && <Text style={[styles.errorText, { color: colors.error, marginBottom: spacing.md }]}>{error}</Text>}
+            {error && <Text style={[styles.errorText, { color: colors.error, marginBottom: spacing.md, fontSize: typography.sizes.sm }]}>{error}</Text>}
 
             <AppButton
               title={`Create ${role === 'admin' ? 'Admin' : 'Staff'} Account`}
@@ -251,8 +268,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  backButtonText: {
+    fontWeight: '600',
+  },
   title: {
-    fontWeight: 'bold',
   },
   warningBanner: {
     borderWidth: 1,
@@ -265,6 +291,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: '600',
   }
 });

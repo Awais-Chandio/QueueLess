@@ -7,6 +7,7 @@ import {
   View,
   Alert,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -87,7 +88,7 @@ const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
 };
 
 const StaffDashboardScreen = () => {
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, typography, radius, isDarkMode } = useTheme();
   const { logout, user } = useAuth();
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
@@ -197,8 +198,6 @@ const StaffDashboardScreen = () => {
       toastService.error(err.message || 'Failed to update average time.');
     }
   };
-
-
 
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['staff-dashboard', 'today'],
@@ -460,7 +459,7 @@ const StaffDashboardScreen = () => {
           styles.itemContainer,
           index > 0 && {
             borderTopWidth: 1,
-            borderTopColor: colors.border,
+            borderTopColor: colors.border + '50',
             paddingTop: spacing.md,
             marginTop: spacing.md,
           },
@@ -474,7 +473,7 @@ const StaffDashboardScreen = () => {
                 style={[
                   styles.tokenPill,
                   {
-                    backgroundColor: `${colors.primary}15`,
+                    backgroundColor: `${colors.primary}10`,
                     borderColor: `${colors.primary}30`,
                     borderWidth: 1,
                   },
@@ -483,7 +482,7 @@ const StaffDashboardScreen = () => {
                 <Text
                   style={[
                     styles.tokenText,
-                    { color: colors.primary, fontSize: typography.sizes.md },
+                    { color: colors.primary, fontSize: typography.sizes.sm },
                   ]}
                 >
                   {typeof item.token_number === 'number'
@@ -506,7 +505,7 @@ const StaffDashboardScreen = () => {
                 {
                   color: colors.textSecondary,
                   fontSize: typography.sizes.sm,
-                  marginTop: scaleFont(2),
+                  marginTop: scaleFont(4),
                 },
               ]}
             >
@@ -533,7 +532,7 @@ const StaffDashboardScreen = () => {
               },
             ]}
           >
-            <CheckCircle2 color={colors.success} size={scaleFont(13)} />
+            <CheckCircle2 color={colors.success} size={scaleFont(12)} />
             <Text
               style={{
                 color: colors.success,
@@ -557,7 +556,7 @@ const StaffDashboardScreen = () => {
               },
             ]}
           >
-            <BellRing color={colors.info} size={scaleFont(13)} />
+            <BellRing color={colors.info} size={scaleFont(12)} />
             <Text
               style={{
                 color: colors.info,
@@ -598,9 +597,9 @@ const StaffDashboardScreen = () => {
           </Text>
         </View>
         <View style={{ gap: spacing.md }}>
-          <Skeleton height={120} />
-          <Skeleton height={150} />
-          <Skeleton height={150} />
+          <Skeleton height={120} borderRadius={radius.lg} />
+          <Skeleton height={150} borderRadius={radius.lg} />
+          <Skeleton height={150} borderRadius={radius.lg} />
         </View>
       </ScreenWrapper>
     );
@@ -668,7 +667,7 @@ const StaffDashboardScreen = () => {
           <Text
             style={[
               styles.title,
-              { color: colors.text, fontSize: typography.sizes.xxl },
+              { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' },
             ]}
           >
             Welcome, {staffName}
@@ -679,6 +678,7 @@ const StaffDashboardScreen = () => {
               {
                 color: colors.textSecondary,
                 fontSize: typography.sizes.sm,
+                fontWeight: '500',
               },
             ]}
           >
@@ -695,12 +695,12 @@ const StaffDashboardScreen = () => {
           style={({ pressed }) => [
             styles.logoutIconButton,
             {
-              backgroundColor: pressed ? colors.border + '30' : 'transparent',
+              backgroundColor: pressed ? colors.border + '30' : colors.surface,
               borderColor: colors.border,
             },
           ]}
         >
-          <LogOut color={colors.text} size={20} />
+          <LogOut color={colors.text} size={18} />
         </Pressable>
       </View>
 
@@ -718,7 +718,7 @@ const StaffDashboardScreen = () => {
               <View
                 style={[
                   styles.cardTitleIconPill,
-                  { backgroundColor: `${colors.primary}12` },
+                  { backgroundColor: `${colors.primary}10` },
                 ]}
               >
                 <Activity size={scaleFont(16)} color={colors.primary} />
@@ -728,7 +728,7 @@ const StaffDashboardScreen = () => {
                   styles.cardTitle,
                   {
                     color: colors.text,
-                    fontSize: typography.sizes.lg,
+                    fontSize: typography.sizes.md,
                     marginLeft: spacing.sm,
                   },
                 ]}
@@ -746,11 +746,11 @@ const StaffDashboardScreen = () => {
                     style={[
                       styles.statGridItem,
                       {
-                        backgroundColor: item.color + '08',
-                        borderColor: item.color + '25',
-                        borderRadius: scaleFont(10),
+                        backgroundColor: colors.border + '08',
+                        borderColor: colors.border,
+                        borderRadius: radius.lg,
                         borderWidth: 1,
-                        borderTopWidth: 3,
+                        borderTopWidth: 3.5,
                         borderTopColor: item.color,
                         overflow: 'hidden',
                       },
@@ -760,7 +760,7 @@ const StaffDashboardScreen = () => {
                       <View
                         style={[
                           styles.statGridIconPill,
-                          { backgroundColor: item.color + '20' },
+                          { backgroundColor: item.color + '12' },
                         ]}
                       >
                         <Icon size={scaleFont(13)} color={item.color} />
@@ -769,7 +769,7 @@ const StaffDashboardScreen = () => {
                     <Text
                       style={[
                         styles.statGridValue,
-                        { color: item.color, fontSize: typography.sizes.xl },
+                        { color: item.color, fontSize: typography.sizes.xl, fontWeight: '800' },
                       ]}
                     >
                       {item.value}
@@ -791,7 +791,7 @@ const StaffDashboardScreen = () => {
                           progress={queueProgress}
                           color={item.color}
                           height={scaleFont(3)}
-                          trackColor={item.color + '20'}
+                          trackColor={item.color + '12'}
                         />
                       </View>
                     )}
@@ -810,10 +810,10 @@ const StaffDashboardScreen = () => {
             <Card variant="elevated" style={styles.cardContent}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.warning}12` }]}>
+                  <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.warning}10` }]}>
                     <Coffee size={scaleFont(16)} color={colors.warning} />
                   </View>
-                  <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.lg, marginLeft: spacing.sm }]}>
+                  <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.sm }]}>
                     Service Break & Settings
                   </Text>
                 </View>
@@ -842,17 +842,17 @@ const StaffDashboardScreen = () => {
                         onPress={() => handleUpdateAvgTime(mins)}
                         style={({ pressed }) => [
                           {
-                            paddingHorizontal: 8,
-                            paddingVertical: 4,
-                            borderRadius: 4,
-                            borderWidth: 1,
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: radius.sm,
+                            borderWidth: 1.5,
                             borderColor: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.border,
-                            backgroundColor: doctorSettings?.avg_consultation_mins === mins ? `${colors.primary}15` : 'transparent',
+                            backgroundColor: doctorSettings?.avg_consultation_mins === mins ? `${colors.primary}10` : 'transparent',
                             opacity: pressed ? 0.7 : 1,
                           }
                         ]}
                       >
-                        <Text style={{ color: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
+                        <Text style={{ color: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
                           {mins}
                         </Text>
                       </Pressable>
@@ -874,7 +874,7 @@ const StaffDashboardScreen = () => {
                 styles.cardTitle,
                 {
                   color: colors.text,
-                  fontSize: typography.sizes.lg,
+                  fontSize: typography.sizes.md,
                   marginBottom: spacing.md,
                 },
               ]}
@@ -898,7 +898,7 @@ const StaffDashboardScreen = () => {
 
       {/* Card 3: Queue List */}
       <CardFadeIn delay={120}>
-        <View style={{ marginBottom: spacing.lg }}>
+        <View style={{ marginBottom: spacing.xl }}>
           <Card variant="elevated" style={styles.cardContent}>
             {/* Doctor Filter Tabs */}
             {uniqueDoctorIds.length > 1 && (
@@ -917,12 +917,12 @@ const StaffDashboardScreen = () => {
                       paddingHorizontal: 12,
                       paddingVertical: 6,
                       borderRadius: 20,
-                      borderWidth: 1,
+                      borderWidth: 1.5,
                       borderColor: selectedDoctorId === null ? colors.primary : colors.border,
-                      backgroundColor: selectedDoctorId === null ? `${colors.primary}15` : 'transparent',
+                      backgroundColor: selectedDoctorId === null ? `${colors.primary}10` : 'transparent',
                     }}
                   >
-                    <Text style={{ color: selectedDoctorId === null ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
+                    <Text style={{ color: selectedDoctorId === null ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
                       All Counters
                     </Text>
                   </Pressable>
@@ -934,12 +934,12 @@ const StaffDashboardScreen = () => {
                         paddingHorizontal: 12,
                         paddingVertical: 6,
                         borderRadius: 20,
-                        borderWidth: 1,
+                        borderWidth: 1.5,
                         borderColor: selectedDoctorId === docId ? colors.primary : colors.border,
-                        backgroundColor: selectedDoctorId === docId ? `${colors.primary}15` : 'transparent',
+                        backgroundColor: selectedDoctorId === docId ? `${colors.primary}10` : 'transparent',
                       }}
                     >
-                      <Text style={{ color: selectedDoctorId === docId ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
+                      <Text style={{ color: selectedDoctorId === docId ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
                         Counter #{idx + 1}
                       </Text>
                     </Pressable>
@@ -981,7 +981,7 @@ const StaffDashboardScreen = () => {
               <Text
                 style={[
                   styles.cardTitle,
-                  { color: colors.text, fontSize: typography.sizes.lg },
+                  { color: colors.text, fontSize: typography.sizes.md },
                 ]}
               >
                 Queue List
@@ -990,7 +990,7 @@ const StaffDashboardScreen = () => {
                 style={[
                   styles.cardTitleIconPill,
                   {
-                    backgroundColor: `${colors.textSecondary}12`,
+                    backgroundColor: `${colors.textSecondary}10`,
                     width: scaleFont(32),
                     height: scaleFont(32),
                   },
@@ -1001,7 +1001,7 @@ const StaffDashboardScreen = () => {
             </View>
 
             {/* Search Input */}
-            <View style={{ marginBottom: spacing.md }}>
+            <View style={{ marginBottom: spacing.sm }}>
               <AppInput
                 placeholder="Search patient, service, or token..."
                 value={searchQuery}
@@ -1057,7 +1057,7 @@ const StaffDashboardScreen = () => {
                       {
                         borderColor: isSelected ? filterColor : colors.border,
                         backgroundColor: isSelected
-                          ? filterColor + '15'
+                          ? filterColor + '10'
                           : colors.surface,
                         borderRadius: radius.full,
                         borderWidth: 1,
@@ -1126,15 +1126,22 @@ const StaffDashboardScreen = () => {
               styles.modalCard,
               {
                 backgroundColor: colors.card,
-                borderRadius: radius.lg,
+                borderRadius: radius.xl,
                 padding: spacing.lg,
+                borderColor: colors.border,
+                borderWidth: Platform.OS === 'ios' ? 0 : 1,
+                elevation: 10,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.25,
+                shadowRadius: 20,
               },
             ]}
           >
             <Text
               style={[
                 styles.modalTitle,
-                { color: colors.text, fontSize: typography.sizes.lg },
+                { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' },
               ]}
             >
               Cancel Appointment
@@ -1142,7 +1149,7 @@ const StaffDashboardScreen = () => {
             <Text
               style={[
                 styles.modalText,
-                { color: colors.textSecondary, fontSize: typography.sizes.sm },
+                { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md },
               ]}
             >
               Choose a cancellation reason.
@@ -1157,8 +1164,10 @@ const StaffDashboardScreen = () => {
                     borderRadius: radius.md,
                     padding: spacing.md,
                     backgroundColor: pressed
-                      ? colors.background
+                      ? colors.border + '15'
                       : colors.surface,
+                    borderWidth: 1.5,
+                    marginBottom: spacing.xs,
                   },
                 ]}
                 onPress={() => {
@@ -1174,7 +1183,7 @@ const StaffDashboardScreen = () => {
                 }}
               >
                 <Text
-                  style={{ color: colors.text, fontSize: typography.sizes.md }}
+                  style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}
                 >
                   {reason}
                 </Text>
@@ -1204,22 +1213,20 @@ const styles = StyleSheet.create({
     marginBottom: hp(2.4),
   },
   title: {
-    fontWeight: 'bold',
     marginBottom: 2,
   },
   subtitle: {
-    fontWeight: '500',
   },
   logoutIconButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardContent: {
-    padding: wp(4),
+    padding: wp(4.5),
   },
   cardTitle: {
     fontWeight: '700',
@@ -1227,7 +1234,7 @@ const styles = StyleSheet.create({
   cardTitleIconPill: {
     width: scaleFont(30),
     height: scaleFont(30),
-    borderRadius: scaleFont(15),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1240,7 +1247,7 @@ const styles = StyleSheet.create({
     flexBasis: '30%',
     flexGrow: 1,
     paddingHorizontal: wp(2.5),
-    paddingVertical: hp(1),
+    paddingVertical: hp(1.2),
   },
   statGridHeader: {
     alignItems: 'flex-start',
@@ -1249,15 +1256,14 @@ const styles = StyleSheet.create({
   statGridIconPill: {
     width: scaleFont(26),
     height: scaleFont(26),
-    borderRadius: scaleFont(13),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statGridValue: {
-    fontWeight: 'bold',
   },
   statGridLabel: {
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: scaleFont(2),
   },
   itemContainer: {
@@ -1278,12 +1284,12 @@ const styles = StyleSheet.create({
     gap: scaleFont(8),
   },
   tokenPill: {
-    borderRadius: scaleFont(6),
+    borderRadius: scaleFont(8),
     paddingHorizontal: scaleFont(8),
     paddingVertical: scaleFont(3),
   },
   tokenText: {
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   patientName: {
     fontWeight: '700',
@@ -1311,7 +1317,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: wp(5),
@@ -1322,14 +1328,10 @@ const styles = StyleSheet.create({
     maxWidth: wp(92),
   },
   modalText: {
-    marginBottom: hp(1.4),
   },
   modalTitle: {
-    fontWeight: '700',
     marginBottom: hp(0.5),
   },
   reasonButton: {
-    borderWidth: 1,
-    marginBottom: hp(1),
   },
 });
