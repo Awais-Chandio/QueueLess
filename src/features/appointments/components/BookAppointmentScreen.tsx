@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   View,
+  Platform,
 } from 'react-native';
 
 import {
@@ -19,7 +20,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, Calendar as CalendarIcon, Clock, Hourglass, ShieldAlert } from 'lucide-react-native';
 
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,12 +32,7 @@ import ErrorState from '../../../components/ui/ErrorState';
 import Loader from '../../../components/ui/Loader';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 
-import {
-  colors,
-  radius,
-  spacing,
-  typography,
-} from '../../../theme';
+import { useTheme } from '../../../hooks/useTheme';
 
 import type { AppStackParamList } from '../../../navigation/types';
 
@@ -47,10 +43,8 @@ import { toastService } from '../../../services/toastService';
 import { appointmentsService } from '../api/appointmentsService';
 import {
   APPOINTMENT_SLOT_LABELS,
-  AppointmentSlotLabel,
   formatAppointmentDateInput,
   getScheduledAtFromSlot,
-  isPastAppointmentDate,
   isPastAppointmentSlot,
   timeToMinutes,
 } from '../utils/appointmentTime';
@@ -72,6 +66,7 @@ type BookAppointmentNavigationProp =
 const BookAppointmentScreen = () => {
   const route = useRoute<BookAppointmentRouteProp>();
   const navigation = useNavigation<BookAppointmentNavigationProp>();
+  const { colors, spacing, typography, radius } = useTheme();
 
   const centerId = route.params?.centerId;
   const initialServiceId = route.params?.serviceId;
@@ -315,9 +310,21 @@ const BookAppointmentScreen = () => {
 
     return (
       <Pressable
-        style={[
+        style={({ pressed }) => [
           styles.serviceCard,
-          selected && styles.selectedCard,
+          {
+            backgroundColor: colors.surface,
+            borderColor: selected ? colors.primary : colors.border,
+            borderWidth: selected ? 2 : 1,
+            borderRadius: radius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.md,
+            shadowColor: colors.text,
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: selected ? 0.04 : 0.01,
+            shadowRadius: 6,
+          },
+          pressed && { opacity: 0.95 }
         ]}
         onPress={() => {
           setValue('serviceId', item.id, { shouldValidate: true });
@@ -326,24 +333,27 @@ const BookAppointmentScreen = () => {
         accessibilityRole="button"
         accessibilityState={{ selected }}>
         <View style={styles.serviceHeader}>
-          <Text style={styles.serviceName}>
+          <Text style={[styles.serviceName, { color: colors.text, fontSize: typography.sizes.md }]}>
             {item.name}
           </Text>
 
-          <Text style={styles.price}>
+          <Text style={[styles.price, { color: colors.primary, fontSize: typography.sizes.md }]}>
             Rs. {item.price}
           </Text>
         </View>
 
         {!!item.description && (
-          <Text style={styles.description}>
+          <Text style={[styles.description, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
             {item.description}
           </Text>
         )}
 
-        <Text style={styles.meta}>
-          {item.duration_minutes} min
-        </Text>
+        <View style={[styles.metaContainer, { backgroundColor: colors.border + '15', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs / 2 }]}>
+          <Hourglass size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+          <Text style={[styles.meta, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+            {item.duration_minutes} min
+          </Text>
+        </View>
       </Pressable>
     );
   };
@@ -393,7 +403,7 @@ const BookAppointmentScreen = () => {
         keyExtractor={item => item.id}
         renderItem={renderService}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
         ListHeaderComponent={
           <View style={styles.header}>
             <Pressable
@@ -404,19 +414,19 @@ const BookAppointmentScreen = () => {
               ]}
             >
               <ChevronLeft size={24} color={colors.primary} />
-              <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md }]}>Back</Text>
+              <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>Back</Text>
             </Pressable>
             
-            <Text style={styles.title}>
+            <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
               Book Appointment
             </Text>
 
-            <Text style={styles.subtitle}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
               Select a service to continue.
             </Text>
             
             {errors.serviceId && (
-              <Text style={[styles.slotError, { marginTop: spacing.xs }]}>
+              <Text style={[styles.slotError, { color: colors.error, fontSize: typography.sizes.xs }]}>
                 {errors.serviceId.message}
               </Text>
             )}
@@ -429,40 +439,54 @@ const BookAppointmentScreen = () => {
           />
         }
         ListFooterComponent={
-          <View>
+          <View style={{ marginTop: spacing.md }}>
             <View style={styles.dateContainer}>
-              <Text style={styles.label}>
+              <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
                 Selected Date
               </Text>
 
               <Pressable
-                style={styles.dateButton}
+                style={({ pressed }) => [
+                  styles.dateButton,
+                  {
+                    backgroundColor: colors.surface,
+                    borderColor: colors.border,
+                    borderWidth: 1.5,
+                    borderRadius: radius.xl,
+                    padding: spacing.md,
+                    marginBottom: spacing.md,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  },
+                  pressed && { opacity: 0.85 }
+                ]}
                 onPress={() => setShowDatePicker(true)}>
-                <Text style={styles.dateText}>
+                <CalendarIcon size={18} color={colors.primary} style={{ marginRight: spacing.sm }} />
+                <Text style={[styles.dateText, { color: colors.text, fontSize: typography.sizes.md }]}>
                   {date.toDateString()}
                 </Text>
               </Pressable>
 
               {errors.date && (
-                <Text style={styles.slotError}>{errors.date.message}</Text>
+                <Text style={[styles.slotError, { color: colors.error }]}>{errors.date.message}</Text>
               )}
 
-              <Text style={styles.label}>
+              <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.xs }]}>
                 Available Slots
               </Text>
               
               {selectedCenter && (
-                <Text style={[styles.slotHint, { fontStyle: 'italic', marginBottom: spacing.xs }]}>
+                <Text style={[styles.slotHint, { color: colors.textSecondary, fontSize: typography.sizes.xs, fontStyle: 'italic', marginBottom: spacing.sm }]}>
                   Operating Hours: {selectedCenter.open_time || 'N/A'} - {selectedCenter.close_time || 'N/A'}
                 </Text>
               )}
 
               {slotsLoading ? (
-                <Text style={styles.slotHint}>
+                <Text style={[styles.slotHint, { color: colors.textSecondary }]}>
                   Loading slots...
                 </Text>
               ) : slotsError ? (
-                <Text style={styles.slotError}>
+                <Text style={[styles.slotError, { color: colors.error }]}>
                   {slotsError}
                 </Text>
               ) : (
@@ -492,15 +516,36 @@ const BookAppointmentScreen = () => {
                           onPress={() => handleSelectSlot(slot)}
                           style={[
                             styles.slotChip,
-                            selected && styles.selectedSlotChip,
-                            disabled && styles.bookedSlotChip,
+                            {
+                              backgroundColor: colors.surface,
+                              borderColor: colors.border,
+                              borderRadius: radius.full,
+                              borderWidth: 1.5,
+                              paddingHorizontal: spacing.lg,
+                              paddingVertical: spacing.sm,
+                              marginRight: spacing.sm,
+                            },
+                            selected && {
+                              backgroundColor: colors.primary,
+                              borderColor: colors.primary,
+                            },
+                            disabled && {
+                              backgroundColor: colors.border + '50',
+                              borderColor: colors.border + '30',
+                              opacity: 0.5,
+                            },
                           ]}
                         >
                           <Text
                             style={[
                               styles.slotText,
-                              selected && styles.selectedSlotText,
-                              disabled && styles.bookedSlotText,
+                              {
+                                color: colors.text,
+                                fontSize: typography.sizes.xs,
+                                fontWeight: '700',
+                              },
+                              selected && { color: '#FFF' },
+                              disabled && { color: colors.textSecondary },
                             ]}
                           >
                             {slot}
@@ -511,15 +556,18 @@ const BookAppointmentScreen = () => {
                   </ScrollView>
                   
                   {lockTimeLeft !== null && selectedSlot !== '' && (
-                    <View style={[styles.timerContainer, { marginTop: spacing.sm }]}>
-                      <Text style={[styles.timerText, { color: colors.warning }]}>
-                        Slot locked for {formatTimeLeft(lockTimeLeft)} mins. Complete booking before the timer ends!
-                      </Text>
+                    <View style={[styles.timerContainer, { backgroundColor: `${colors.warning}08`, borderColor: `${colors.warning}20`, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.md }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <ShieldAlert size={16} color={colors.warning} />
+                        <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs }]}>
+                          Slot locked for {formatTimeLeft(lockTimeLeft)}. Book now!
+                        </Text>
+                      </View>
                     </View>
                   )}
 
                   {errors.slot && (
-                    <Text style={[styles.slotError, { marginTop: spacing.xs }]}>
+                    <Text style={[styles.slotError, { color: colors.error, marginTop: spacing.xs }]}>
                       {errors.slot.message}
                     </Text>
                   )}
@@ -547,7 +595,7 @@ const BookAppointmentScreen = () => {
             </View>
 
             {!slotsLoading && !slotsError && availableSlots.length === 0 && (
-              <Text style={styles.slotHint}>
+              <Text style={[styles.slotHint, { color: colors.textSecondary, marginTop: spacing.sm }]}>
                 No available slots for this center on the selected date.
               </Text>
             )}
@@ -564,6 +612,7 @@ const BookAppointmentScreen = () => {
                 slotsLoading ||
                 centerServices.length === 0
               }
+              style={{ marginTop: spacing.lg }}
               onPress={handleSubmit(onSubmit)}
             />
           </View>
@@ -576,176 +625,97 @@ const BookAppointmentScreen = () => {
 export default BookAppointmentScreen;
 
 const styles = StyleSheet.create({
-  content: {
-    flexGrow: 1,
-    paddingBottom: spacing.xl,
-  },
-
   header: {
-    marginBottom: spacing.lg,
+    marginBottom: 8,
   },
-
   title: {
-    color: colors.text,
-    fontSize: typography.h1,
-    fontWeight: 'bold',
-    marginBottom: spacing.xs,
+    fontWeight: '800',
   },
-
   subtitle: {
-    color: colors.textSecondary,
-    fontSize: typography.body,
+    fontWeight: '500',
   },
-
   serviceCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    marginBottom: spacing.md,
-    padding: spacing.md,
+    flexDirection: 'column',
+    alignItems: 'flex-start',
   },
-
-  selectedCard: {
-    borderColor: colors.primary,
-    borderWidth: 2,
-  },
-
   serviceHeader: {
     alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: spacing.md,
-    flexWrap: 'wrap',
+    width: '100%',
   },
-
   serviceName: {
-    color: colors.text,
     flex: 1,
-    fontSize: typography.body,
-    fontWeight: 'bold',
-  },
-
-  price: {
-    color: colors.primary,
-    fontSize: typography.body,
     fontWeight: '700',
+  },
+  price: {
+    fontWeight: '800',
     flexShrink: 0,
   },
-
   description: {
-    color: colors.textSecondary,
-    fontSize: typography.small,
-    marginTop: spacing.xs,
+    marginTop: 4,
+    lineHeight: 16,
   },
-
+  metaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
   meta: {
-    color: colors.textSecondary,
-    fontSize: typography.small,
-    marginTop: spacing.sm,
-  },
-
-  dateContainer: {
-    marginBottom: spacing.lg,
-  },
-
-  label: {
-    color: colors.text,
-    fontSize: typography.body,
     fontWeight: '600',
-    marginBottom: spacing.xs,
   },
-
-  dateButton: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+  dateContainer: {
+    marginTop: 8,
   },
-
-  dateText: {
-    color: colors.text,
-    fontSize: typography.body,
-  },
-
-  slotRow: {
-    gap: spacing.sm,
-    paddingBottom: spacing.sm,
-    paddingTop: spacing.xs,
-  },
-
-  slotChip: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-
-  selectedSlotChip: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-
-  bookedSlotChip: {
-    backgroundColor: colors.border,
-    opacity: 0.55,
-  },
-
-  slotText: {
-    color: colors.text,
-    fontSize: typography.small,
+  label: {
     fontWeight: '700',
   },
-
-  selectedSlotText: {
-    color: '#FFF',
+  dateButton: {
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 4,
   },
-
-  bookedSlotText: {
-    color: colors.textSecondary,
+  dateText: {
+    fontWeight: '600',
   },
-
+  slotRow: {
+    paddingVertical: 4,
+  },
+  slotChip: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 1,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 2,
+  },
+  slotText: {
+    textAlign: 'center',
+  },
   slotHint: {
-    color: colors.textSecondary,
-    fontSize: typography.small,
-    marginBottom: spacing.md,
+    fontWeight: '500',
   },
-
   slotError: {
-    color: colors.error,
-    fontSize: typography.small,
-    marginBottom: spacing.md,
+    fontWeight: '600',
   },
-
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: 12,
     alignSelf: 'flex-start',
-    paddingVertical: spacing.xs,
+    paddingVertical: 4,
   },
-
   backButtonText: {
     fontWeight: '600',
-    marginLeft: spacing.xs,
   },
-
   timerContainer: {
-    backgroundColor: '#F59E0B1A',
-    borderColor: '#F59E0B30',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    // flat warning card style
   },
-
   timerText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
   },
 });

@@ -76,17 +76,39 @@ export const fetchDashboardStats = async (userId: string) => {
     queueStatus,
   });
 
-  const todayAppointments = appointments
-    .filter(app => {
-      try {
-        return getAppointmentDateTime(app).toDateString() === now.toDateString();
-      } catch (e) {
-        return false;
-      }
-    })
+  // Sort all appointments descending by date to show actual recent bookings first
+  const sortedDesc = [...appointments].sort(
+    (a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime()
+  );
+
+  const todayAppointments = sortedDesc
+    .slice(0, 3) // Return top 3 recent activities
     .map(app => {
       const centerName = (app as any).service_centers?.name || 'Clinic';
       const serviceName = (app as any).services?.name || 'Appointment';
+      
+      let dateLabel = 'Today';
+      try {
+        const apptDate = getAppointmentDateTime(app);
+        const today = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        if (apptDate.toDateString() === today.toDateString()) {
+          dateLabel = 'Today';
+        } else if (apptDate.toDateString() === tomorrow.toDateString()) {
+          dateLabel = 'Tomorrow';
+        } else if (apptDate.toDateString() === yesterday.toDateString()) {
+          dateLabel = 'Yesterday';
+        } else {
+          dateLabel = apptDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+      } catch (e) {
+        dateLabel = 'Recent';
+      }
+
       return {
         id: app.id,
         status: app.status,
@@ -95,6 +117,7 @@ export const fetchDashboardStats = async (userId: string) => {
         scheduledAt: app.scheduled_at,
         centerName,
         serviceName,
+        dateLabel,
       };
     });
 
@@ -114,6 +137,8 @@ export const fetchDashboardStats = async (userId: string) => {
           tokenNumber: activeAppointment.token_number,
           appointmentDate: activeAppointment.appointment_date,
           appointmentTime: activeAppointment.appointment_time,
+          centerName: (activeAppointment as any).service_centers?.name || 'Clinic',
+          serviceName: (activeAppointment as any).services?.name || 'Appointment',
         }
       : null,
     todayAppointments,

@@ -19,7 +19,7 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const LoginScreen = () => {
-    const { colors, spacing, radius } = useTheme();
+    const { colors, spacing, radius, typography } = useTheme();
     const navigation = useNavigation<LoginScreenNavigationProp>();
 
     const [email, setEmail] = useState('');
@@ -98,8 +98,6 @@ const LoginScreen = () => {
         }
     }
 
-
-
     return (
         <ScreenWrapper scrollable={false} withPadding={false}>
             <KeyboardAvoidingView
@@ -136,8 +134,8 @@ const LoginScreen = () => {
                             styles.formContainer,
                             {
                                 backgroundColor: colors.background,
-                                borderTopLeftRadius: scaleFont(24),
-                                borderTopRightRadius: scaleFont(24),
+                                borderTopLeftRadius: radius.xl,
+                                borderTopRightRadius: radius.xl,
                                 opacity: fadeAnim,
                                 transform: [{ translateY: slideAnim }]
                             }
@@ -150,7 +148,7 @@ const LoginScreen = () => {
                             resizeMode="contain"
                         />
 
-                        <View style={[styles.formCard, { backgroundColor: colors.surface, borderRadius: radius.md }]}>
+                        <View style={[styles.formCard, { backgroundColor: colors.surface, borderRadius: radius.xl }]}>
                             <AppInput
                                 placeholder="Email"
                                 label="Email Address"
@@ -215,7 +213,7 @@ const LoginScreen = () => {
                                     styles.googleButton,
                                     {
                                         borderColor: colors.border,
-                                        borderRadius: radius.md,
+                                        borderRadius: radius.xl,
                                         backgroundColor: colors.surface,
                                     },
                                     pressed && styles.pressedEffect
@@ -237,7 +235,7 @@ const LoginScreen = () => {
                                     styles.phoneButton,
                                     {
                                         borderColor: colors.border,
-                                        borderRadius: radius.md,
+                                        borderRadius: radius.xl,
                                         backgroundColor: colors.surface,
                                     },
                                     pressed && styles.pressedEffect
@@ -285,7 +283,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
     },
     headerGradient: {
-        height: SCREEN_HEIGHT * 0.21,
+        height: SCREEN_HEIGHT * 0.23,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: wp(6),
@@ -295,27 +293,27 @@ const styles = StyleSheet.create({
         marginBottom: hp(0.5),
     },
     logoOutline: {
-        padding: 4,
+        padding: 6,
         borderWidth: 1,
         borderRadius: 24,
         borderColor: 'rgba(255, 255, 255, 0.2)',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     appTitle: {
-        fontSize: scaleFont(25),
+        fontSize: scaleFont(26),
         fontWeight: 'bold',
         color: '#FFFFFF',
         textAlign: 'center',
     },
     appSubtitle: {
-        fontSize: scaleFont(12.5),
+        fontSize: scaleFont(13),
         color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
         marginTop: 4,
         fontWeight: '600',
     },
     tagline: {
-        fontSize: scaleFont(10.5),
+        fontSize: scaleFont(11),
         color: 'rgba(255, 255, 255, 0.7)',
         textAlign: 'center',
         marginTop: 6,
@@ -332,9 +330,11 @@ const styles = StyleSheet.create({
         padding: wp(4.5),
         elevation: 4,
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 16,
+        borderWidth: Platform.OS === 'ios' ? 0 : 1,
+        borderColor: '#E2E8F0',
     },
     forgotPasswordRow: {
         alignItems: 'flex-end',
@@ -388,8 +388,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: hp(1.5),
-        borderWidth: 1,
+        paddingVertical: hp(1.4),
+        borderWidth: 1.5,
         marginTop: hp(1),
     },
     googleIcon: {
@@ -405,8 +405,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: hp(1.5),
-        borderWidth: 1,
+        paddingVertical: hp(1.4),
+        borderWidth: 1.5,
         marginTop: hp(1.2),
     },
     phoneIcon: {
@@ -416,5 +416,4 @@ const styles = StyleSheet.create({
         fontSize: scaleFont(14),
         fontWeight: '700',
     },
-
 });

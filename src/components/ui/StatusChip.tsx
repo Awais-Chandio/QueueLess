@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ViewStyle } from 'react-native';
 import type { AppointmentStatus } from '../../types/appointment';
 import { scaleFont } from '../../utils/responsive';
+import { useTheme } from '../../hooks/useTheme';
 
 export type StatusChipVariant =
   | AppointmentStatus
@@ -13,112 +14,141 @@ export type StatusChipVariant =
   | 'default';
 
 interface StatusConfig {
-  bg: string;
+  bgLight: string;
+  bgDark: string;
   dot: string;
-  text: string;
+  textLight: string;
+  textDark: string;
   label: string;
 }
 
 const STATUS_MAP: Record<string, StatusConfig> = {
   pending: {
-    bg: '#F59E0B18',
+    bgLight: '#F59E0B10',
+    bgDark: '#F59E0B20',
     dot: '#F59E0B',
-    text: '#B45309',
+    textLight: '#B45309',
+    textDark: '#FBBF24',
     label: 'Pending',
   },
   confirmed: {
-    bg: '#2E7DFF18',
+    bgLight: '#2E7DFF10',
+    bgDark: '#2E7DFF20',
     dot: '#2E7DFF',
-    text: '#1565C0',
+    textLight: '#1E40AF',
+    textDark: '#93C5FD',
     label: 'Confirmed',
   },
   called: {
-    bg: '#8B5CF618',
+    bgLight: '#8B5CF610',
+    bgDark: '#8B5CF620',
     dot: '#8B5CF6',
-    text: '#6D28D9',
+    textLight: '#5B21B6',
+    textDark: '#C4B5FD',
     label: 'Called',
   },
   in_progress: {
-    bg: '#8B5CF618',
+    bgLight: '#8B5CF610',
+    bgDark: '#8B5CF620',
     dot: '#8B5CF6',
-    text: '#6D28D9',
+    textLight: '#5B21B6',
+    textDark: '#C4B5FD',
     label: 'In Progress',
   },
   completed: {
-    bg: '#22C55E18',
-    dot: '#22C55E',
-    text: '#15803D',
+    bgLight: '#10B98110',
+    bgDark: '#10B98120',
+    dot: '#10B981',
+    textLight: '#065F46',
+    textDark: '#A7F3D0',
     label: 'Completed',
   },
   cancelled: {
-    bg: '#EF444418',
+    bgLight: '#EF444410',
+    bgDark: '#EF444420',
     dot: '#EF4444',
-    text: '#B91C1C',
+    textLight: '#991B1B',
+    textDark: '#FCA5A5',
     label: 'Cancelled',
   },
   checked_in: {
-    bg: '#3B82F618',
+    bgLight: '#3B82F610',
+    bgDark: '#3B82F620',
     dot: '#3B82F6',
-    text: '#1D4ED8',
+    textLight: '#1E40AF',
+    textDark: '#93C5FD',
     label: 'Checked In',
   },
   expired: {
-    bg: '#EF444418',
-    dot: '#EF4444',
-    text: '#B91C1C',
+    bgLight: '#6B728010',
+    bgDark: '#6B728020',
+    dot: '#6B7280',
+    textLight: '#374151',
+    textDark: '#D1D5DB',
     label: 'Expired',
   },
   no_show: {
-    bg: '#EF444418',
+    bgLight: '#EF444410',
+    bgDark: '#EF444420',
     dot: '#EF4444',
-    text: '#B91C1C',
+    textLight: '#991B1B',
+    textDark: '#FCA5A5',
     label: 'No Show',
   },
-  // Generic variants for convenience
   success: {
-    bg: '#22C55E18',
-    dot: '#22C55E',
-    text: '#15803D',
+    bgLight: '#10B98110',
+    bgDark: '#10B98120',
+    dot: '#10B981',
+    textLight: '#065F46',
+    textDark: '#A7F3D0',
     label: 'Success',
   },
   warning: {
-    bg: '#F59E0B18',
+    bgLight: '#F59E0B10',
+    bgDark: '#F59E0B20',
     dot: '#F59E0B',
-    text: '#B45309',
+    textLight: '#B45309',
+    textDark: '#FBBF24',
     label: 'Warning',
   },
   error: {
-    bg: '#EF444418',
+    bgLight: '#EF444410',
+    bgDark: '#EF444420',
     dot: '#EF4444',
-    text: '#B91C1C',
+    textLight: '#991B1B',
+    textDark: '#FCA5A5',
     label: 'Error',
   },
   info: {
-    bg: '#3B82F618',
+    bgLight: '#3B82F610',
+    bgDark: '#3B82F620',
     dot: '#3B82F6',
-    text: '#1D4ED8',
+    textLight: '#1E40AF',
+    textDark: '#93C5FD',
     label: 'Info',
   },
   default: {
-    bg: '#94A3B818',
+    bgLight: '#94A3B810',
+    bgDark: '#94A3B820',
     dot: '#94A3B8',
-    text: '#64748B',
+    textLight: '#475569',
+    textDark: '#CBD5E1',
     label: 'Unknown',
   },
   all: {
-    bg: '#2E7DFF18',
+    bgLight: '#2E7DFF10',
+    bgDark: '#2E7DFF20',
     dot: '#2E7DFF',
-    text: '#1565C0',
+    textLight: '#1E40AF',
+    textDark: '#93C5FD',
     label: 'All',
   },
 };
 
 interface StatusChipProps {
   status: StatusChipVariant;
-  /** Override the display label. If omitted, uses the built-in label from STATUS_MAP. */
   label?: string;
   style?: ViewStyle;
-  /** Size variant — 'sm' for compact filter chips, 'md' for card badges */
   size?: 'sm' | 'md';
 }
 
@@ -128,22 +158,27 @@ export const StatusChip: React.FC<StatusChipProps> = ({
   style,
   size = 'md',
 }) => {
+  const { isDarkMode } = useTheme();
   const config = STATUS_MAP[status] ?? STATUS_MAP.default;
+
   const dotSize = size === 'sm' ? scaleFont(6) : scaleFont(7);
   const fontSize = size === 'sm' ? scaleFont(11) : scaleFont(12);
   const px = size === 'sm' ? scaleFont(8) : scaleFont(10);
   const py = size === 'sm' ? scaleFont(3) : scaleFont(4);
+
+  const bg = isDarkMode ? config.bgDark : config.bgLight;
+  const textColor = isDarkMode ? config.textDark : config.textLight;
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: config.bg,
+          backgroundColor: bg,
           paddingHorizontal: px,
           paddingVertical: py,
           borderRadius: 999,
-          borderColor: config.dot + '40',
+          borderColor: config.dot + (isDarkMode ? '40' : '20'),
           borderWidth: 1,
         },
         style,
@@ -164,7 +199,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
         style={[
           styles.label,
           {
-            color: config.text,
+            color: textColor,
             fontSize,
           },
         ]}
@@ -181,7 +216,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: scaleFont(5),
+    gap: scaleFont(6),
   },
   dot: {},
   label: {

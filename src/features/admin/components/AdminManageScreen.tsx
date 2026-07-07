@@ -76,8 +76,8 @@ const AdminManageScreen = () => {
           </Text>
         </View>
         <View style={{ gap: spacing.md, paddingHorizontal: spacing.md }}>
-          <Skeleton height={100} />
-          <Skeleton height={200} />
+          <Skeleton height={100} borderRadius={radius.lg} />
+          <Skeleton height={200} borderRadius={radius.lg} />
         </View>
       </ScreenWrapper>
     );
@@ -105,10 +105,10 @@ const AdminManageScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
             System Control
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }]}>
             Infrastructure and Management Panel
           </Text>
         </View>
@@ -122,23 +122,23 @@ const AdminManageScreen = () => {
           style={({ pressed }) => [
             styles.logoutIconButton,
             {
-              backgroundColor: pressed ? colors.border + '30' : 'transparent',
+              backgroundColor: pressed ? colors.border + '30' : colors.surface,
               borderColor: colors.border,
             },
           ]}
         >
-          <LogOut color={colors.text} size={20} />
+          <LogOut color={colors.text} size={18} />
         </Pressable>
       </View>
 
       {/* Database/System Status Row */}
       <CardFadeIn delay={20}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <Card variant="elevated" style={[styles.cardContent, { borderRadius: radius.md }]}>
+          <Card variant="elevated" style={[styles.cardContent, { borderRadius: radius.lg }]}>
             <View style={styles.statusRowContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Shield color={colors.primary} size={20} />
-                <Text style={[styles.statusTitle, { color: colors.text, fontSize: typography.sizes.sm }]}>
+                <Text style={[styles.statusTitle, { color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700' }]}>
                   System Health & Status
                 </Text>
               </View>
@@ -147,12 +147,13 @@ const AdminManageScreen = () => {
                   styles.statusPill,
                   {
                     backgroundColor: analytics?.systemOverview?.dbConnected
-                      ? colors.success + '18'
-                      : colors.error + '18',
+                      ? colors.success + '10'
+                      : colors.error + '10',
                     borderColor: analytics?.systemOverview?.dbConnected
                       ? colors.success + '40'
                       : colors.error + '40',
                     borderRadius: radius.full,
+                    borderWidth: 1.5,
                   },
                 ]}
               >
@@ -203,11 +204,11 @@ const AdminManageScreen = () => {
               ].map((item, idx) => {
                 const MetricIcon = item.icon;
                 return (
-                  <View key={item.label} style={[styles.systemMetricItem, { borderColor: colors.border }]}>
+                  <View key={item.label} style={[styles.systemMetricItem, { borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1.5 }]}>
                     <View style={[styles.metricIconPill, { backgroundColor: item.color + '10' }]}>
                       <MetricIcon color={item.color} size={18} />
                     </View>
-                    <Text style={[styles.systemMetricValue, { color: colors.text, fontSize: typography.sizes.lg }]}>
+                    <Text style={[styles.systemMetricValue, { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' }]}>
                       {item.value}
                     </Text>
                     <Text style={[styles.systemMetricLabel, { color: colors.textSecondary, fontSize: typography.caption }]}>
@@ -263,23 +264,21 @@ const styles = StyleSheet.create({
     marginBottom: hp(2),
   },
   title: {
-    fontWeight: '800',
     letterSpacing: -0.5,
   },
   subtitle: {
-    fontWeight: '600',
     marginTop: 2,
   },
   logoutIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardContent: {
-    padding: wp(4),
+    padding: wp(4.5),
   },
   sectionTitle: {
     fontWeight: '700',
@@ -291,12 +290,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statusTitle: {
-    fontWeight: '700',
   },
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
     paddingHorizontal: scaleFont(10),
     paddingVertical: scaleFont(4),
     gap: scaleFont(6),
@@ -318,8 +315,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: hp(1.2),
-    borderWidth: 1,
-    borderRadius: 8,
   },
   metricIconPill: {
     width: 32,
@@ -330,12 +325,11 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   systemMetricLabel: {
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
     marginTop: 2,
     paddingHorizontal: 4,
   },
   systemMetricValue: {
-    fontWeight: '800',
   },
 });

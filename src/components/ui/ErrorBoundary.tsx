@@ -1,7 +1,9 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import AppButton from './AppButton';
-import { colors, spacing, typography } from '../../theme';
+import { colors } from '../../theme/colors';
+import { spacing } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
 import { AlertTriangle } from 'lucide-react-native';
 import { scaleFont } from '../../utils/responsive';
 

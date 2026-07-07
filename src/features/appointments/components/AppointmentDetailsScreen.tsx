@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { RouteProp } from '@react-navigation/native';
@@ -25,6 +25,7 @@ import {
   Hash,
   MapPin,
   XCircle,
+  ChevronLeft,
 } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import {
@@ -39,7 +40,7 @@ const AppointmentDetailsScreen = () => {
   const route = useRoute<AppointmentDetailsRouteProp>();
   const navigation = useNavigation<NavigationProp>();
   const appointmentId = route.params?.appointmentId;
-  const { colors, spacing, typography } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const showToast = useToastStore(state => state.showToast);
   const checkInAppointment = useAppointmentsStore(
     state => state.checkInAppointment,
@@ -70,8 +71,8 @@ const AppointmentDetailsScreen = () => {
     return (
       <ScreenWrapper>
         <View style={{ gap: spacing.md }}>
-          <Skeleton height={150} />
-          <Skeleton height={200} />
+          <Skeleton height={150} borderRadius={radius.lg} />
+          <Skeleton height={200} borderRadius={radius.lg} />
         </View>
       </ScreenWrapper>
     );
@@ -123,13 +124,28 @@ const AppointmentDetailsScreen = () => {
 
   return (
     <ScreenWrapper scrollable onRefresh={refetch}>
+      <View style={styles.headerRow}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <ChevronLeft size={24} color={colors.primary} />
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+            Back
+          </Text>
+        </Pressable>
+      </View>
+
       <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.lg }]}>
         Appointment Details
       </Text>
 
       <CardFadeIn delay={0}>
         <Card style={{ marginBottom: spacing.md }}>
-          <View style={styles.headerRow}>
+          <View style={styles.cardHeaderRow}>
             <View style={styles.headerText}>
               <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '700', marginBottom: spacing.xs }}>
                 {appointment.service_name || 'Service'}
@@ -144,30 +160,30 @@ const AppointmentDetailsScreen = () => {
             <StatusChip status={resolvedStatus} label={statusLabel} />
           </View>
 
-          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: spacing.md }} />
+          <View style={{ height: 1, backgroundColor: colors.border + '50', marginVertical: spacing.md }} />
 
           <View style={{ gap: spacing.md }}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}10` }]}>
                 <Calendar color={colors.primary} size={scaleFont(16)} />
               </View>
-              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
+              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>
                 {getAppointmentDateLabel(appointment)}
               </Text>
             </View>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconPill, { backgroundColor: `${colors.info}12` }]}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.info}10` }]}>
                 <Clock color={colors.info} size={scaleFont(16)} />
               </View>
-              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
+              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>
                 {getAppointmentTimeLabel(appointment)}
               </Text>
             </View>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}10` }]}>
                 <Hash color={colors.primary} size={scaleFont(16)} />
               </View>
-              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md }}>
+              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md, fontWeight: '500' }}>
                 Token #{appointment.token_number || 'N/A'}
               </Text>
             </View>
@@ -177,14 +193,14 @@ const AppointmentDetailsScreen = () => {
 
       {appointment.status === 'cancelled' && (
         <CardFadeIn delay={60}>
-          <Card style={{ marginBottom: spacing.md, borderColor: colors.error, borderWidth: 1 }}>
+          <Card style={{ marginBottom: spacing.md, borderColor: colors.error + '50', borderWidth: 1 }}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconPill, { backgroundColor: `${colors.error}12` }]}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.error}10` }]}>
                 <XCircle color={colors.error} size={scaleFont(16)} />
               </View>
               <Text style={{ color: colors.error, fontSize: typography.sizes.md, fontWeight: '600' }}>Cancellation Reason</Text>
             </View>
-            <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm }}>
+            <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm, lineHeight: 18 }}>
               {appointment.cancel_reason || 'No cancellation reason provided.'}
             </Text>
           </Card>
@@ -195,12 +211,12 @@ const AppointmentDetailsScreen = () => {
         <CardFadeIn delay={60}>
           <Card style={{ marginBottom: spacing.md }}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconPill, { backgroundColor: `${colors.warning}12` }]}>
+              <View style={[styles.detailIconPill, { backgroundColor: `${colors.warning}10` }]}>
                 <AlignLeft color={colors.warning} size={scaleFont(16)} />
               </View>
               <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>Notes</Text>
             </View>
-            <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm }}>
+            <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm, lineHeight: 18 }}>
               {appointment.notes}
             </Text>
           </Card>
@@ -258,10 +274,23 @@ const AppointmentDetailsScreen = () => {
 export default AppointmentDetailsScreen;
 
 const styles = StyleSheet.create({
-  title: {
-    fontWeight: 'bold',
-  },
   headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  backButtonText: {
+    fontWeight: '600',
+  },
+  title: {
+    fontWeight: '800',
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
@@ -280,7 +309,7 @@ const styles = StyleSheet.create({
   detailIconPill: {
     width: scaleFont(34),
     height: scaleFont(34),
-    borderRadius: scaleFont(17),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable, Platform } from 'react-native';
 import {
   useRoute,
   useIsFocused,
@@ -53,7 +53,7 @@ const QueueStatusScreen = () => {
   const route = useRoute<QueueStatusRouteProp>();
   const navigation = useNavigation();
   const { appointmentId } = route.params;
-  const { colors, spacing, typography } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const isFocused = useIsFocused();
 
   const [appointment, setAppointment] = useState<AppointmentFull | null>(null);
@@ -103,9 +103,9 @@ const QueueStatusScreen = () => {
     return (
       <ScreenWrapper>
         <View style={{ gap: spacing.md }}>
-          <Skeleton height={200} />
-          <Skeleton height={150} />
-          <Skeleton height={140} />
+          <Skeleton height={200} borderRadius={radius.lg} />
+          <Skeleton height={150} borderRadius={radius.lg} />
+          <Skeleton height={140} borderRadius={radius.lg} />
         </View>
       </ScreenWrapper>
     );
@@ -323,13 +323,14 @@ const QueueStatusScreen = () => {
                 style={[
                   styles.breakBanner,
                   {
-                    backgroundColor: `${colors.warning}14`,
-                    borderColor: `${colors.warning}35`,
+                    backgroundColor: `${colors.warning}10`,
+                    borderColor: `${colors.warning}30`,
                     marginBottom: spacing.md,
+                    borderRadius: radius.md,
                   },
                 ]}
               >
-                <Info color={colors.warning} size={scaleFont(17)} />
+                <Info color={colors.warning} size={scaleFont(18)} />
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{
@@ -356,8 +357,8 @@ const QueueStatusScreen = () => {
             <View style={styles.circularSection}>
               <CircularProgress
                 progress={circularProgress}
-                size={scaleFont(130)}
-                strokeWidth={scaleFont(10)}
+                size={scaleFont(120)}
+                strokeWidth={scaleFont(8)}
                 color={
                   status === 'called' || status === 'in_progress'
                     ? colors.warning
@@ -365,19 +366,20 @@ const QueueStatusScreen = () => {
                     ? colors.success
                     : colors.primary
                 }
-                trackColor={colors.border}
+                trackColor={colors.border + '50'}
                 centerLabel={showQueueMetrics ? peopleAheadLabel : '--'}
                 centerCaption="Ahead"
                 centerLabelColor={colors.text}
                 centerCaptionColor={colors.textSecondary}
               />
               <View style={styles.circularMeta}>
-                <View style={styles.circularMetaItem}>
+                <View style={[styles.metaDataRow, { backgroundColor: colors.border + '12', borderRadius: radius.md, padding: spacing.sm }]}>
                   <Text
                     style={{
                       color: colors.textSecondary,
-                      fontSize: typography.sizes.xs,
-                      fontWeight: '500',
+                      fontSize: typography.sizes.xs - 1,
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
                     }}
                   >
                     Est. Wait
@@ -385,21 +387,23 @@ const QueueStatusScreen = () => {
                   <Text
                     style={{
                       color: colors.text,
-                      fontSize: typography.sizes.xl,
+                      fontSize: typography.sizes.lg,
                       fontWeight: '800',
+                      marginTop: 2,
                     }}
                   >
                     {estimatedWaitLabel}
                   </Text>
                 </View>
                 <View
-                  style={[styles.circularMetaItem, { marginTop: spacing.sm }]}
+                  style={[styles.metaDataRow, { backgroundColor: colors.border + '12', borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.xs }]}
                 >
                   <Text
                     style={{
                       color: colors.textSecondary,
-                      fontSize: typography.sizes.xs,
-                      fontWeight: '500',
+                      fontSize: typography.sizes.xs - 1,
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
                     }}
                   >
                     Queue Position
@@ -407,8 +411,9 @@ const QueueStatusScreen = () => {
                   <Text
                     style={{
                       color: colors.text,
-                      fontSize: typography.sizes.xl,
+                      fontSize: typography.sizes.lg,
                       fontWeight: '800',
+                      marginTop: 2,
                     }}
                   >
                     {currentPositionLabel}
@@ -417,16 +422,17 @@ const QueueStatusScreen = () => {
               </View>
             </View>
 
-            <View style={{ marginTop: spacing.md }}>
-              <ProgressBar progress={progress} color={colors.primary} />
+            <View style={{ marginTop: spacing.lg }}>
+              <ProgressBar progress={progress} color={colors.primary} height={6} />
             </View>
 
             <Text
               style={{
                 color: colors.textSecondary,
                 fontSize: typography.sizes.xs,
-                marginTop: spacing.sm,
+                marginTop: spacing.md,
                 textAlign: 'center',
+                fontWeight: '500',
               }}
             >
               {queueHelperText}
@@ -443,16 +449,18 @@ const QueueStatusScreen = () => {
                 style={[
                   styles.tokenBox,
                   {
-                    backgroundColor: colors.border + '40',
+                    backgroundColor: colors.border + '15',
                     borderColor: colors.border,
+                    borderRadius: radius.xl,
                   },
                 ]}
               >
                 <Text
                   style={{
                     color: colors.textSecondary,
-                    fontSize: typography.sizes.xs,
-                    fontWeight: '500',
+                    fontSize: typography.sizes.xs - 1,
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
                   }}
                 >
                   Current Token
@@ -462,7 +470,7 @@ const QueueStatusScreen = () => {
                     color: colors.text,
                     fontSize: typography.sizes.xxl,
                     fontWeight: '800',
-                    marginTop: scaleFont(2),
+                    marginTop: scaleFont(4),
                   }}
                 >
                   {currentServingToken != null
@@ -474,16 +482,18 @@ const QueueStatusScreen = () => {
                 style={[
                   styles.tokenBox,
                   {
-                    backgroundColor: colors.primary + '12',
-                    borderColor: colors.primary + '40',
+                    backgroundColor: colors.primary + '10',
+                    borderColor: colors.primary + '30',
+                    borderRadius: radius.xl,
                   },
                 ]}
               >
                 <Text
                   style={{
                     color: colors.primary,
-                    fontSize: typography.sizes.xs,
-                    fontWeight: '500',
+                    fontSize: typography.sizes.xs - 1,
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
                   }}
                 >
                   Your Token
@@ -493,7 +503,7 @@ const QueueStatusScreen = () => {
                     color: colors.primary,
                     fontSize: typography.sizes.xxl,
                     fontWeight: '800',
-                    marginTop: scaleFont(2),
+                    marginTop: scaleFont(4),
                   }}
                 >
                   {appointment.token_number != null
@@ -504,12 +514,12 @@ const QueueStatusScreen = () => {
             </View>
 
             {/* Queue metric rows */}
-            <View style={[styles.queueCardRows, { marginTop: spacing.lg }]}>
-              <View style={styles.queueCardRow}>
+            <View style={[styles.queueCardRows, { marginTop: spacing.xl }]}>
+              <View style={[styles.queueCardRow, { borderBottomWidth: 1, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
                 <View
                   style={[
                     styles.metricIconPill,
-                    { backgroundColor: `${colors.warning}15` },
+                    { backgroundColor: `${colors.warning}10` },
                   ]}
                 >
                   <Users color={colors.warning} size={scaleFont(16)} />
@@ -519,6 +529,7 @@ const QueueStatusScreen = () => {
                     color: colors.textSecondary,
                     fontSize: typography.sizes.sm,
                     flex: 1,
+                    fontWeight: '500',
                   }}
                 >
                   People Ahead
@@ -534,11 +545,11 @@ const QueueStatusScreen = () => {
                 </Text>
               </View>
 
-              <View style={styles.queueCardRow}>
+              <View style={[styles.queueCardRow, { borderBottomWidth: 1, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
                 <View
                   style={[
                     styles.metricIconPill,
-                    { backgroundColor: `${colors.info}15` },
+                    { backgroundColor: `${colors.info}10` },
                   ]}
                 >
                   <Clock color={colors.info} size={scaleFont(16)} />
@@ -548,6 +559,7 @@ const QueueStatusScreen = () => {
                     color: colors.textSecondary,
                     fontSize: typography.sizes.sm,
                     flex: 1,
+                    fontWeight: '500',
                   }}
                 >
                   Estimated Wait
@@ -563,11 +575,11 @@ const QueueStatusScreen = () => {
                 </Text>
               </View>
 
-              <View style={styles.queueCardRow}>
+              <View style={[styles.queueCardRow, { borderBottomWidth: 1, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
                 <View
                   style={[
                     styles.metricIconPill,
-                    { backgroundColor: `${colors.primary}15` },
+                    { backgroundColor: `${colors.primary}10` },
                   ]}
                 >
                   <CircleDot color={colors.primary} size={scaleFont(16)} />
@@ -577,6 +589,7 @@ const QueueStatusScreen = () => {
                     color: colors.textSecondary,
                     fontSize: typography.sizes.sm,
                     flex: 1,
+                    fontWeight: '500',
                   }}
                 >
                   Service Avg. Time
@@ -602,10 +615,10 @@ const QueueStatusScreen = () => {
                       backgroundColor:
                         queueStatusLabel === 'Called' ||
                         queueStatusLabel === 'Service on Break'
-                          ? `${colors.warning}15`
+                          ? `${colors.warning}10`
                           : queueStatusLabel === 'Arrived'
-                          ? `${colors.success}15`
-                          : `${colors.primary}15`,
+                          ? `${colors.success}10`
+                          : `${colors.primary}10`,
                     },
                   ]}
                 >
@@ -626,6 +639,7 @@ const QueueStatusScreen = () => {
                     color: colors.textSecondary,
                     fontSize: typography.sizes.sm,
                     flex: 1,
+                    fontWeight: '500',
                   }}
                 >
                   Status
@@ -664,6 +678,7 @@ const QueueStatusScreen = () => {
                 loading={cancelling}
                 onPress={handleCancel}
                 disabled={checkingIn || cancelling}
+                style={{ marginTop: canCheckIn ? 0 : spacing.lg }}
               />
             )}
 
@@ -672,20 +687,23 @@ const QueueStatusScreen = () => {
                 style={[
                   styles.checkedInRow,
                   {
-                    marginTop: spacing.md,
-                    backgroundColor: `${colors.success}10`,
-                    borderRadius: scaleFont(8),
-                    padding: spacing.sm,
+                    marginTop: spacing.lg,
+                    backgroundColor: `${colors.success}08`,
+                    borderRadius: radius.md,
+                    padding: spacing.md,
+                    borderWidth: 1,
+                    borderColor: `${colors.success}20`,
                   },
                 ]}
               >
-                <CheckCircle2 color={colors.success} size={scaleFont(16)} />
+                <CheckCircle2 color={colors.success} size={scaleFont(18)} />
                 <Text
                   style={{
                     color: colors.success,
                     fontSize: typography.sizes.sm,
                     fontWeight: '600',
                     flex: 1,
+                    lineHeight: 18,
                   }}
                 >
                   Checked in successfully. Keep this screen open for live
@@ -702,6 +720,8 @@ const QueueStatusScreen = () => {
               color: colors.error,
               fontSize: typography.sizes.sm,
               marginBottom: spacing.md,
+              textAlign: 'center',
+              fontWeight: '500',
             }}
           >
             Live updates are temporarily unavailable: {queueError}
@@ -715,6 +735,7 @@ const QueueStatusScreen = () => {
               fontSize: typography.sizes.sm,
               marginBottom: spacing.md,
               textAlign: 'center',
+              fontWeight: '500',
             }}
           >
             Connecting to live queue…
@@ -723,12 +744,12 @@ const QueueStatusScreen = () => {
 
         {/* Details Card */}
         <CardFadeIn delay={180}>
-          <Card style={{ marginBottom: spacing.lg }}>
+          <Card style={{ marginBottom: spacing.xl }}>
             <Text
               style={{
                 color: colors.text,
-                fontSize: typography.sizes.lg,
-                fontWeight: '600',
+                fontSize: typography.sizes.md,
+                fontWeight: '700',
                 marginBottom: spacing.md,
               }}
             >
@@ -739,7 +760,7 @@ const QueueStatusScreen = () => {
                 <View
                   style={[
                     styles.detailIconPill,
-                    { backgroundColor: `${colors.primary}12` },
+                    { backgroundColor: `${colors.primary}10` },
                   ]}
                 >
                   <Hash color={colors.primary} size={scaleFont(16)} />
@@ -749,6 +770,7 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs,
+                      fontWeight: '500',
                     }}
                   >
                     Token Number
@@ -757,7 +779,8 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.text,
                       fontSize: typography.sizes.md,
-                      fontWeight: '500',
+                      fontWeight: '600',
+                      marginTop: 2,
                     }}
                   >
                     #{appointment.token_number || 'N/A'}
@@ -768,7 +791,7 @@ const QueueStatusScreen = () => {
                 <View
                   style={[
                     styles.detailIconPill,
-                    { backgroundColor: `${colors.primary}12` },
+                    { backgroundColor: `${colors.primary}10` },
                   ]}
                 >
                   <Calendar color={colors.primary} size={scaleFont(16)} />
@@ -778,6 +801,7 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs,
+                      fontWeight: '500',
                     }}
                   >
                     Date & Time
@@ -786,7 +810,8 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.text,
                       fontSize: typography.sizes.md,
-                      fontWeight: '500',
+                      fontWeight: '600',
+                      marginTop: 2,
                     }}
                   >
                     {getAppointmentDateLabel(appointment)} •{' '}
@@ -798,7 +823,7 @@ const QueueStatusScreen = () => {
                 <View
                   style={[
                     styles.detailIconPill,
-                    { backgroundColor: `${colors.primary}12` },
+                    { backgroundColor: `${colors.primary}10` },
                   ]}
                 >
                   <MapPin color={colors.primary} size={scaleFont(16)} />
@@ -808,6 +833,7 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs,
+                      fontWeight: '500',
                     }}
                   >
                     Center
@@ -816,7 +842,8 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.text,
                       fontSize: typography.sizes.md,
-                      fontWeight: '500',
+                      fontWeight: '600',
+                      marginTop: 2,
                     }}
                   >
                     {appointment.center_name}
@@ -828,7 +855,7 @@ const QueueStatusScreen = () => {
                   <View
                     style={[
                       styles.detailIconPill,
-                      { backgroundColor: `${colors.error}12` },
+                      { backgroundColor: `${colors.error}10` },
                     ]}
                   >
                     <Info color={colors.error} size={scaleFont(16)} />
@@ -838,6 +865,7 @@ const QueueStatusScreen = () => {
                       style={{
                         color: colors.textSecondary,
                         fontSize: typography.sizes.xs,
+                        fontWeight: '500',
                       }}
                     >
                       Cancellation Reason
@@ -846,7 +874,8 @@ const QueueStatusScreen = () => {
                       style={{
                         color: colors.error,
                         fontSize: typography.sizes.md,
-                        fontWeight: '500',
+                        fontWeight: '600',
+                        marginTop: 2,
                       }}
                     >
                       {appointment.cancel_reason}
@@ -869,22 +898,23 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   circularSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleFont(20),
+    gap: scaleFont(16),
   },
   circularMeta: {
     flex: 1,
   },
-  circularMetaItem: {},
+  metaDataRow: {
+    justifyContent: 'center',
+  },
   breakBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderRadius: scaleFont(8),
     gap: scaleFont(10),
     paddingHorizontal: scaleFont(12),
     paddingVertical: scaleFont(10),
@@ -895,10 +925,9 @@ const styles = StyleSheet.create({
   },
   tokenBox: {
     flex: 1,
-    borderRadius: scaleFont(12),
     borderWidth: 1,
     paddingHorizontal: scaleFont(16),
-    paddingVertical: scaleFont(12),
+    paddingVertical: scaleFont(16),
     alignItems: 'center',
   },
   queueCardRows: {
@@ -912,7 +941,7 @@ const styles = StyleSheet.create({
   metricIconPill: {
     width: scaleFont(34),
     height: scaleFont(34),
-    borderRadius: scaleFont(17),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -929,7 +958,7 @@ const styles = StyleSheet.create({
   detailIconPill: {
     width: scaleFont(36),
     height: scaleFont(36),
-    borderRadius: scaleFont(18),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },

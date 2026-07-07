@@ -1,10 +1,11 @@
 import { scaleFont } from '../utils/responsive';
 
 export const radius = {
-  sm: scaleFont(6),
-  md: scaleFont(8),
-  lg: scaleFont(10),
-  xl: scaleFont(12),
-  borderRadius: scaleFont(4),
+  sm: scaleFont(8),
+  md: scaleFont(12),
+  lg: scaleFont(16),
+  xl: scaleFont(24),
+  xxl: scaleFont(32),
+  borderRadius: scaleFont(12),
   full: 9999,
 };

@@ -213,8 +213,9 @@ const OTPVerificationScreen = () => {
                         styles.otpCell,
                         { 
                             borderColor: isFocused ? colors.primary : colors.border,
+                            borderWidth: isFocused ? 2 : 1.5,
                             backgroundColor: colors.surface,
-                            borderRadius: radius.borderRadius
+                            borderRadius: radius.md
                         }
                     ]}
                     onPress={() => inputRef.current?.focus()}
@@ -233,7 +234,7 @@ const OTPVerificationScreen = () => {
     };
 
     return (
-        <ScreenWrapper scrollable={false}>
+        <ScreenWrapper scrollable={false} withPadding={false}>
             <KeyboardAvoidingView
                 style={styles.keyboardContainer}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -275,8 +276,8 @@ const OTPVerificationScreen = () => {
                             styles.formContainer,
                             {
                                 backgroundColor: colors.background,
-                                borderTopLeftRadius: scaleFont(24),
-                                borderTopRightRadius: scaleFont(24),
+                                borderTopLeftRadius: radius.xl,
+                                borderTopRightRadius: radius.xl,
                                 opacity: fadeAnim,
                                 transform: [{ translateY: slideAnim }]
                             }
@@ -289,7 +290,7 @@ const OTPVerificationScreen = () => {
                             resizeMode="contain"
                         />
 
-                        <Animated.View style={[styles.formCard, shakeAnimatedStyle, { backgroundColor: colors.surface, borderRadius: radius.md }]}>
+                        <Animated.View style={[styles.formCard, shakeAnimatedStyle, { backgroundColor: colors.surface, borderRadius: radius.xl }]}>
                             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
                                 Verify Your Phone
                             </Text>
@@ -397,27 +398,27 @@ const styles = StyleSheet.create({
         marginBottom: hp(0.5),
     },
     logoOutline: {
-        padding: 4,
+        padding: 6,
         borderWidth: 1,
         borderRadius: 24,
         borderColor: 'rgba(255, 255, 255, 0.2)',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     appTitle: {
-        fontSize: scaleFont(25),
+        fontSize: scaleFont(26),
         fontWeight: 'bold',
         color: '#FFFFFF',
         textAlign: 'center',
     },
     appSubtitle: {
-        fontSize: scaleFont(12.5),
+        fontSize: scaleFont(13),
         color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
         marginTop: 4,
         fontWeight: '600',
     },
     tagline: {
-        fontSize: scaleFont(10.5),
+        fontSize: scaleFont(11),
         color: 'rgba(255, 255, 255, 0.7)',
         textAlign: 'center',
         marginTop: 6,
@@ -434,44 +435,47 @@ const styles = StyleSheet.create({
         padding: wp(5),
         elevation: 4,
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 16,
+        borderWidth: Platform.OS === 'ios' ? 0 : 1,
+        borderColor: '#E2E8F0',
     },
     title: {
-        fontWeight: 'bold',
+        fontWeight: '700',
         marginBottom: hp(0.5),
     },
     subtitle: {
-        marginBottom: hp(2),
+        marginBottom: hp(2.5),
         lineHeight: 18,
     },
     hiddenInput: {
         position: 'absolute',
-        width: 1,
-        height: 1,
+        width: 0,
+        height: 0,
         opacity: 0,
-        zIndex: -1,
     },
     otpRowContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
         width: '100%',
-        paddingHorizontal: 5,
+        marginBottom: hp(2.5),
+        paddingHorizontal: wp(1),
     },
     otpCell: {
-        width: wp(11),
-        height: wp(13),
-        borderWidth: 1.5,
+        width: wp(11.5),
+        aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        elevation: 1,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.02,
+        shadowRadius: 2,
     },
     otpCellText: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        textAlign: 'center',
+        fontSize: scaleFont(22),
+        fontWeight: '700',
     },
     verifyButton: {
         marginTop: hp(1),
@@ -479,16 +483,16 @@ const styles = StyleSheet.create({
     errorMessage: {
         color: '#EF4444',
         textAlign: 'center',
-        marginBottom: hp(1.5),
+        marginBottom: hp(2),
         fontSize: scaleFont(13),
     },
     resendContainer: {
-        marginTop: hp(2),
+        marginTop: hp(2.5),
         alignItems: 'center',
         justifyContent: 'center',
     },
     resendText: {
-        fontSize: scaleFont(13),
+        fontSize: scaleFont(14),
     },
     resendPressable: {
         flexDirection: 'row',
@@ -496,8 +500,8 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     resendLink: {
-        fontSize: scaleFont(13),
-        fontWeight: '600',
+        fontSize: scaleFont(14),
+        fontWeight: '700',
     },
     pressedEffect: {
         opacity: 0.75,

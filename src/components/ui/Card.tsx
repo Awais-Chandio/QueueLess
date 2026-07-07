@@ -10,7 +10,7 @@ interface CardProps extends ViewProps {
 }
 
 export const Card: React.FC<CardProps> = ({ children, style, variant = 'elevated', ...props }) => {
-  const { colors, radius, spacing } = useTheme();
+  const { colors, radius, spacing, isDarkMode } = useTheme();
 
   return (
     <View
@@ -18,19 +18,26 @@ export const Card: React.FC<CardProps> = ({ children, style, variant = 'elevated
         styles.card,
         {
           backgroundColor: colors.card,
-          borderRadius: radius.lg,
-          padding: spacing.md,
+          borderRadius: radius.lg, // Use modern radius
+          padding: spacing.lg,
         },
         variant === 'elevated' && {
-          shadowColor: colors.text,
-          shadowOffset: { width: 0, height: scaleFont(4) },
-          shadowOpacity: 0.05,
-          shadowRadius: 12,
-          elevation: 3,
+          // Sleek card shadow for iOS
+          shadowColor: isDarkMode ? '#000000' : '#0F172A',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: isDarkMode ? 0.4 : 0.04,
+          shadowRadius: 16,
+          // Subtle border highlight in dark mode
+          borderWidth: isDarkMode ? 1 : 0,
+          borderColor: colors.border,
+          elevation: isDarkMode ? 2 : 4,
         },
         variant === 'outlined' && {
-          borderWidth: 1,
+          borderWidth: 1.5,
           borderColor: colors.border,
+        },
+        variant === 'flat' && {
+          backgroundColor: colors.border + '15',
         },
         style,
       ]}

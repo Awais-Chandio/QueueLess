@@ -40,7 +40,7 @@ const COUNTRIES = [
 ];
 
 const PhoneLoginScreen = () => {
-    const { colors, typography, radius } = useTheme();
+    const { colors, typography, radius, spacing } = useTheme();
     const navigation = useNavigation<PhoneLoginScreenNavigationProp>();
     const { sendPhoneOtp } = useAuth();
 
@@ -126,7 +126,7 @@ const PhoneLoginScreen = () => {
     };
 
     return (
-        <ScreenWrapper scrollable={false}>
+        <ScreenWrapper scrollable={false} withPadding={false}>
             <KeyboardAvoidingView
                 style={styles.keyboardContainer}
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -168,8 +168,8 @@ const PhoneLoginScreen = () => {
                             styles.formContainer,
                             {
                                 backgroundColor: colors.background,
-                                borderTopLeftRadius: scaleFont(24),
-                                borderTopRightRadius: scaleFont(24),
+                                borderTopLeftRadius: radius.xl,
+                                borderTopRightRadius: radius.xl,
                                 opacity: fadeAnim,
                                 transform: [{ translateY: slideAnim }]
                             }
@@ -182,7 +182,7 @@ const PhoneLoginScreen = () => {
                             resizeMode="contain"
                         />
 
-                        <View style={[styles.formCard, { backgroundColor: colors.surface, borderRadius: radius.md }]}>
+                        <View style={[styles.formCard, { backgroundColor: colors.surface, borderRadius: radius.xl }]}>
                             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
                                 Login with Phone
                             </Text>
@@ -192,8 +192,8 @@ const PhoneLoginScreen = () => {
 
                             {/* Beautiful Integrated Phone Input */}
                             <View style={styles.inputWrapper}>
-                                <Text style={[styles.inputLabel, { color: colors.text, fontSize: typography.sizes.sm }]}>Phone Number</Text>
-                                <View style={[styles.phoneInputContainer, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.borderRadius }]}>
+                                <Text style={[styles.inputLabel, { color: colors.text, fontSize: typography.sizes.xs, marginBottom: spacing.xs }]}>Phone Number</Text>
+                                <View style={[styles.phoneInputContainer, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl }]}>
                                     <Pressable 
                                         style={styles.countryPickerButton}
                                         onPress={() => setShowCountryModal(true)}
@@ -205,7 +205,7 @@ const PhoneLoginScreen = () => {
                                     <View style={[styles.verticalSeparator, { backgroundColor: colors.border }]} />
                                     <RNTextInput
                                         placeholder="300 1234567"
-                                        placeholderTextColor={colors.textSecondary}
+                                        placeholderTextColor={colors.textTertiary}
                                         keyboardType="phone-pad"
                                         value={phone}
                                         onChangeText={(text) => {
@@ -240,7 +240,7 @@ const PhoneLoginScreen = () => {
                 onRequestClose={() => setShowCountryModal(false)}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+                    <View style={[styles.modalContent, { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl }]}>
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: colors.text }]}>Select Country</Text>
                             <Pressable onPress={() => { setShowCountryModal(false); setSearchQuery(''); }}>
@@ -250,8 +250,8 @@ const PhoneLoginScreen = () => {
                         
                         <RNTextInput
                             placeholder="Search country..."
-                            placeholderTextColor={colors.textSecondary}
-                            style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
+                            placeholderTextColor={colors.textTertiary}
+                            style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background, borderRadius: radius.md }]}
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                         />
@@ -316,27 +316,27 @@ const styles = StyleSheet.create({
         marginBottom: hp(0.5),
     },
     logoOutline: {
-        padding: 4,
+        padding: 6,
         borderWidth: 1,
         borderRadius: 24,
         borderColor: 'rgba(255, 255, 255, 0.2)',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
     },
     appTitle: {
-        fontSize: scaleFont(25),
+        fontSize: scaleFont(26),
         fontWeight: 'bold',
         color: '#FFFFFF',
         textAlign: 'center',
     },
     appSubtitle: {
-        fontSize: scaleFont(12.5),
+        fontSize: scaleFont(13),
         color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
         marginTop: 4,
         fontWeight: '600',
     },
     tagline: {
-        fontSize: scaleFont(10.5),
+        fontSize: scaleFont(11),
         color: 'rgba(255, 255, 255, 0.7)',
         textAlign: 'center',
         marginTop: 6,
@@ -353,12 +353,14 @@ const styles = StyleSheet.create({
         padding: wp(5),
         elevation: 4,
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 16,
+        borderWidth: Platform.OS === 'ios' ? 0 : 1,
+        borderColor: '#E2E8F0',
     },
     title: {
-        fontWeight: 'bold',
+        fontWeight: '700',
         marginBottom: hp(0.5),
     },
     subtitle: {
@@ -370,14 +372,13 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
     inputLabel: {
-        marginBottom: 8,
         fontWeight: '600',
     },
     phoneInputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1,
-        height: 52,
+        borderWidth: 1.5,
+        height: 54,
     },
     countryPickerButton: {
         flexDirection: 'row',
@@ -414,12 +415,10 @@ const styles = StyleSheet.create({
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
         padding: 20,
         maxHeight: '60%',
     },
@@ -435,8 +434,7 @@ const styles = StyleSheet.create({
     },
     searchInput: {
         height: 48,
-        borderWidth: 1,
-        borderRadius: 8,
+        borderWidth: 1.5,
         paddingHorizontal: 15,
         marginBottom: 15,
     },
