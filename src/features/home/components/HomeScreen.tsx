@@ -316,7 +316,7 @@ const HomeScreen = () => {
                         </View>
                         <View>
                           <Text style={[styles.metricCaption, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                            Now Serving
+                            Current Token
                           </Text>
                           <Text style={[styles.metricValue, { color: colors.text, fontSize: typography.sizes.lg }]}>
                             #{currentToken}

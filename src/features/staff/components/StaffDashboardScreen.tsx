@@ -814,7 +814,7 @@ const StaffDashboardScreen = () => {
                     <Coffee size={scaleFont(16)} color={colors.warning} />
                   </View>
                   <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.lg, marginLeft: spacing.sm }]}>
-                    Doctor Break & Settings
+                    Service Break & Settings
                   </Text>
                 </View>
                 <StatusChip
@@ -833,7 +833,7 @@ const StaffDashboardScreen = () => {
                 
                 <View style={{ flex: 1, minWidth: 160 }}>
                   <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 4, fontWeight: '600' }}>
-                    Avg Consult Time (mins):
+                    Avg Service Time (mins):
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
                     {[10, 15, 20, 30].map(mins => (
@@ -904,7 +904,7 @@ const StaffDashboardScreen = () => {
             {uniqueDoctorIds.length > 1 && (
               <View style={{ marginBottom: spacing.md }}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 6, fontWeight: '600' }}>
-                  Filter by Doctor/Counter:
+                  Filter by Counter:
                 </Text>
                 <ScrollView
                   horizontal
@@ -923,7 +923,7 @@ const StaffDashboardScreen = () => {
                     }}
                   >
                     <Text style={{ color: selectedDoctorId === null ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
-                      All Doctors
+                      All Counters
                     </Text>
                   </Pressable>
                   {uniqueDoctorIds.map((docId, idx) => (
@@ -940,7 +940,7 @@ const StaffDashboardScreen = () => {
                       }}
                     >
                       <Text style={{ color: selectedDoctorId === docId ? colors.primary : colors.text, fontSize: 12, fontWeight: '600' }}>
-                        Doctor #{idx + 1}
+                        Counter #{idx + 1}
                       </Text>
                     </Pressable>
                   ))}
@@ -955,12 +955,12 @@ const StaffDashboardScreen = () => {
                 variant="primary"
                 onPress={() => {
                   Alert.alert(
-                    'Call Next Patient',
+                    'Call Next Client',
                     `Are you sure you want to call Token #${nextPatient.token_number} (${getDisplayName(nextPatient)}) to the counter?`,
                     [
                       { text: 'Cancel', style: 'cancel' },
                       {
-                        text: 'Call Patient',
+                        text: 'Call Client',
                         onPress: () => runActionMutation.mutate({ action: 'start_service', appointment: nextPatient }),
                       },
                     ]
