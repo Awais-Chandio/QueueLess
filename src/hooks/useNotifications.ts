@@ -14,11 +14,11 @@ import type { Notification } from '../types/notification';
 
 export const useNotifications = () => {
     const { user } = useAuthStore();
-    const { 
-        setFcmToken, 
-        setPermissionGranted, 
+    const {
+        setFcmToken,
+        setPermissionGranted,
         upsertNotification,
-        fcmToken 
+        fcmToken
     } = useNotificationsStore();
 
     /**
@@ -92,7 +92,7 @@ export const useNotifications = () => {
         // 1. Request permission
         const hasPermission = await fcmService.requestPermission();
         setPermissionGranted(hasPermission);
-        
+
         if (!hasPermission) {
             if (__DEV__) console.log('[useNotifications] Notification permission denied.');
             return;
@@ -101,7 +101,7 @@ export const useNotifications = () => {
         // 2. Retrieve token
         const token = await fcmService.getToken();
         setFcmToken(token);
-        
+
         if (token && user) {
             await updateTokenInSupabase(token);
         }

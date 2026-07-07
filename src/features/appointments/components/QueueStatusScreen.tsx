@@ -154,7 +154,7 @@ const QueueStatusScreen = () => {
     !isExpired &&
     !isNoShow;
   const queueStatusLabel = isDoctorOnBreak
-    ? 'Doctor on Break'
+    ? 'Service on Break'
     : status === 'called' || status === 'in_progress'
     ? 'Called'
     : status === 'checked_in'
@@ -259,7 +259,7 @@ const QueueStatusScreen = () => {
     : !hasQueueMetrics
     ? 'Waiting for live queue data...'
     : isDoctorOnBreak
-    ? 'Doctor is on break. Your position is saved and ETA will resume after the break.'
+    ? 'Service is on break. Your position is saved and ETA will resume after the break.'
     : status === 'called' || status === 'in_progress'
     ? 'Your token has been called. Please proceed to the counter.'
     : peopleAhead === 0
@@ -338,7 +338,7 @@ const QueueStatusScreen = () => {
                       fontWeight: '800',
                     }}
                   >
-                    Doctor on Break
+                    Service on Break
                   </Text>
                   <Text
                     style={{
@@ -347,7 +347,7 @@ const QueueStatusScreen = () => {
                       marginTop: scaleFont(2),
                     }}
                   >
-                    Queue ETA is paused until consultation resumes.
+                    Queue ETA is paused until service resumes.
                   </Text>
                 </View>
               </View>
@@ -455,7 +455,7 @@ const QueueStatusScreen = () => {
                     fontWeight: '500',
                   }}
                 >
-                  Now Serving
+                  Current Token
                 </Text>
                 <Text
                   style={{
@@ -579,7 +579,7 @@ const QueueStatusScreen = () => {
                     flex: 1,
                   }}
                 >
-                  Doctor Avg. Time
+                  Service Avg. Time
                 </Text>
                 <Text
                   style={{
@@ -601,7 +601,7 @@ const QueueStatusScreen = () => {
                     {
                       backgroundColor:
                         queueStatusLabel === 'Called' ||
-                        queueStatusLabel === 'Doctor on Break'
+                        queueStatusLabel === 'Service on Break'
                           ? `${colors.warning}15`
                           : queueStatusLabel === 'Arrived'
                           ? `${colors.success}15`
@@ -612,7 +612,7 @@ const QueueStatusScreen = () => {
                   <BellRing
                     color={
                       queueStatusLabel === 'Called' ||
-                      queueStatusLabel === 'Doctor on Break'
+                      queueStatusLabel === 'Service on Break'
                         ? colors.warning
                         : queueStatusLabel === 'Arrived'
                         ? colors.success
@@ -634,7 +634,7 @@ const QueueStatusScreen = () => {
                   style={{
                     color:
                       queueStatusLabel === 'Called' ||
-                      queueStatusLabel === 'Doctor on Break'
+                      queueStatusLabel === 'Service on Break'
                         ? colors.warning
                         : queueStatusLabel === 'Arrived'
                         ? colors.success
