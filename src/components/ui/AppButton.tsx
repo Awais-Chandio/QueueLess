@@ -11,6 +11,7 @@ interface AppButtonProps {
   disabled?: boolean;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   style?: ViewStyle;
+  containerStyle?: ViewStyle;
   textStyle?: TextStyle;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -23,6 +24,7 @@ const AppButton = ({
   disabled = false,
   variant = 'primary',
   style,
+  containerStyle,
   textStyle,
   leftIcon,
   rightIcon,
@@ -93,7 +95,7 @@ const AppButton = ({
       onPressOut={handlePressOut}
       accessibilityRole="button"
       accessibilityState={{ busy: loading, disabled: isDisabled }}
-      style={{ width: '100%', marginTop: spacing.sm }}
+      style={[{ width: '100%', marginTop: spacing.sm }, containerStyle]}
     >
       <Animated.View
         style={[

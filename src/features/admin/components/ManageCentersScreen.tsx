@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, Pressable, Modal, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Plus, Edit2, Trash2, Hospital, Stethoscope, ChevronLeft } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Hospital, Stethoscope, ChevronLeft, X } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppInput from '../../../components/ui/AppInput';
@@ -239,13 +239,14 @@ const ManageCentersScreen = () => {
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800' }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800', flex: 1, marginRight: spacing.md }]}>
             Clinics & Services
           </Text>
           <AppButton
             title="Add New"
             onPress={handleOpenAdd}
-            style={styles.addButton}
+            containerStyle={{ width: 'auto', marginTop: 0 }}
+            style={{ minWidth: 100, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 0 }}
           />
         </View>
 
@@ -323,9 +324,18 @@ const ManageCentersScreen = () => {
         </ScrollView>
 
         {/* Modal form */}
-        <Modal visible={showModal} transparent animationType="fade">
-          <View style={styles.modalOverlay}>
-            <View
+        <Modal
+          visible={showModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowModal(false)}
+        >
+          <Pressable
+            style={styles.modalOverlay}
+            onPress={() => setShowModal(false)}
+          >
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
               style={[
                 styles.modalContent,
                 {
@@ -339,12 +349,25 @@ const ManageCentersScreen = () => {
                   shadowOffset: { width: 0, height: 10 },
                   shadowOpacity: 0.25,
                   shadowRadius: 20,
+                  width: '100%',
                 },
               ]}
             >
-              <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' }]}>
-                {editingId ? 'Edit' : 'Add New'} {activeTab === 'centers' ? 'Clinic' : 'Service'}
-              </Text>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+                <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' }]}>
+                  {editingId ? 'Edit' : 'Add New'} {activeTab === 'centers' ? 'Clinic' : 'Service'}
+                </Text>
+                <Pressable
+                  onPress={() => setShowModal(false)}
+                  disabled={loading}
+                  style={({ pressed }) => [
+                    styles.closeButton,
+                    pressed && { opacity: 0.7 }
+                  ]}
+                >
+                  <X size={20} color={colors.textSecondary} />
+                </Pressable>
+              </View>
 
               <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: '90%' }}>
                 {activeTab === 'centers' ? (
@@ -411,18 +434,25 @@ const ManageCentersScreen = () => {
                 )}
 
                 <View style={styles.modalButtons}>
-                  <AppButton title="Save" onPress={handleSave} style={{ flex: 1 }} loading={loading} />
+                  <AppButton
+                    title="Save"
+                    onPress={handleSave}
+                    containerStyle={{ flex: 1, marginTop: 0 }}
+                    style={{ flex: 1 }}
+                    loading={loading}
+                  />
                   <AppButton
                     title="Cancel"
                     onPress={() => setShowModal(false)}
                     variant="outline"
+                    containerStyle={{ flex: 1, marginTop: 0 }}
                     style={{ flex: 1 }}
                     disabled={loading}
                   />
                 </View>
               </ScrollView>
-            </View>
-          </View>
+            </Pressable>
+          </Pressable>
         </Modal>
       </View>
     </ScreenWrapper>
@@ -512,11 +542,20 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    maxHeight: '90%',
+    maxHeight: '95%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
   },
   modalTitle: {
-    marginBottom: 16,
-    textAlign: 'center',
+  },
+  closeButton: {
+    padding: 4,
   },
   modalButtons: {
     flexDirection: 'row',
