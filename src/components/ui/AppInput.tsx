@@ -19,6 +19,7 @@ type AppInputProps = {
     autoComplete?: TextInputProps["autoComplete"];
     editable?: TextInputProps["editable"];
     leftIcon?: LucideIcon;
+    multiline?: boolean;
 }
 
 const AppInput = (props: AppInputProps) => {
@@ -74,13 +75,15 @@ const AppInput = (props: AppInputProps) => {
                     textContentType={props.textContentType}
                     autoComplete={props.autoComplete}
                     editable={props.editable}
+                    multiline={props.multiline}
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     style={[
                         styles.input, 
                         { color: colors.text, fontSize: typography.body, minHeight: hp(5.6), padding: spacing.md },
                         isPasswordField && { paddingRight: wp(12) },
-                        LeftIconComponent && { paddingLeft: scaleFont(42) }
+                        LeftIconComponent && { paddingLeft: scaleFont(42) },
+                        props.multiline && { minHeight: hp(10), textAlignVertical: 'top' }
                     ]}
                     placeholderTextColor={colors.textTertiary}
                 />

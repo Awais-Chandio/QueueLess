@@ -37,7 +37,7 @@ export const Card: React.FC<CardProps> = ({
           style={[
             styles.cardBody,
             {
-              borderRadius: radius.lg,
+              borderRadius: radius.xl,
               padding: spacing.lg,
             },
             style,

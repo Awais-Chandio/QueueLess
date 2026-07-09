@@ -10,6 +10,7 @@ import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import AppButton from '../../../components/ui/AppButton';
 import SectionHeader from '../../../components/ui/SectionHeader';
 import IconButton from '../../../components/ui/IconButton';
+import AnimatedHeader from '../../../components/ui/AnimatedHeader';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -238,41 +239,14 @@ const HomeScreen = () => {
       >
         {/* A. Welcome Header */}
         <CardFadeIn delay={0}>
-          <View style={[styles.header, { marginBottom: spacing.lg, marginTop: spacing.sm }]}>
-            <View style={styles.headerText}>
-              <Text style={[styles.welcomeText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                {greeting},
-              </Text>
-              <Text style={[styles.nameText, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: typography.weights.bold }]}>
-                {displayName}
-              </Text>
-
-              {/* Location Chip */}
-              <View style={[styles.locationChip, { backgroundColor: colors.border + '20', borderColor: colors.border + '40' }]}>
-                <MapPin size={11} color={colors.primary} />
-                <Text style={[styles.locationText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                  {centers[0]?.city || 'Karachi'}, Pakistan
-                </Text>
-              </View>
-            </View>
-            <View style={styles.headerRight}>
-              <IconButton
-                icon={Bell}
-                onPress={() => (navigation as any).navigate('Notifications')}
-                style={{ marginRight: spacing.md }}
-              />
-              <Pressable
-                onPress={() => (navigation as any).navigate('Profile')}
-                style={({ pressed }) => [
-                  styles.avatarRing,
-                  { borderColor: colors.primary + '30' },
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <ProfileAvatar uri={profile?.avatar_url} size={44} />
-              </Pressable>
-            </View>
-          </View>
+          <AnimatedHeader
+            title={displayName}
+            subtitle={`${greeting},`}
+            avatarUri={profile?.avatar_url}
+            location={centers[0]?.city ? `${centers[0]?.city}, Pakistan` : 'Karachi, Pakistan'}
+            onPressAvatar={() => (navigation as any).navigate('Profile')}
+            onPressNotifications={() => (navigation as any).navigate('Notifications')}
+          />
         </CardFadeIn>
 
         {/* B. Health Hero Banner */}
@@ -288,7 +262,7 @@ const HomeScreen = () => {
                 <Text style={styles.bannerTitle}>Need a Consultation Today?</Text>
                 <Text style={styles.bannerSubtitle}>Skip the waiting room. Book your virtual or physical slot instantly.</Text>
                 <AppButton
-                  title="Book Appointment"
+                  title="Book a Consultation"
                   onPress={() => (navigation as any).navigate('Centers')}
                   variant="secondary"
                   style={{ backgroundColor: '#FFFFFF', borderWidth: 0 }}
@@ -555,7 +529,7 @@ const HomeScreen = () => {
 
         {/* G. Nearby Service Centers */}
         <ReAnimated.View entering={FadeInDown.delay(350).duration(400)} style={{ marginBottom: spacing.xl }}>
-          <SectionHeader title="Nearby Centers" onPressAction={() => (navigation as any).navigate('Centers')} />
+          <SectionHeader title="Nearby Clinics" onPressAction={() => (navigation as any).navigate('Centers')} />
 
           <ScrollView
             horizontal
@@ -594,8 +568,8 @@ const HomeScreen = () => {
                 </Card>
               ))
             ) : (
-              <Card style={styles.emptyCentersScroll}>
-                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>No centers found.</Text>
+            <Card style={styles.emptyCentersScroll}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>No clinics found.</Text>
               </Card>
             )}
           </ScrollView>

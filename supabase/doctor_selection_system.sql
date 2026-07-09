@@ -98,6 +98,7 @@ $$;
 -- ====================================================================
 -- PHASE B: Update live queue tracking and stats calculations
 -- ====================================================================
+DROP FUNCTION IF EXISTS public.refresh_live_queue(uuid, date);
 CREATE OR REPLACE FUNCTION public.refresh_live_queue(
   p_doctor_id uuid,
   p_queue_date date
@@ -181,6 +182,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.recalculate_doctor_average(uuid);
 CREATE OR REPLACE FUNCTION public.recalculate_doctor_average(
   p_doctor_id uuid
 )
@@ -224,6 +226,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.get_doctor_queue_snapshot(uuid, date);
 CREATE OR REPLACE FUNCTION public.get_doctor_queue_snapshot(
   p_doctor_id uuid,
   p_queue_date date DEFAULT CURRENT_DATE
@@ -377,6 +380,7 @@ GRANT SELECT ON public.appointments_full TO authenticated;
 -- ====================================================================
 -- PHASE B: Update staff performance analytics function
 -- ====================================================================
+DROP FUNCTION IF EXISTS public.staff_performance(text);
 CREATE OR REPLACE FUNCTION public.staff_performance(p_range text)
 RETURNS TABLE(staff_name text, completed_count bigint, avg_time_minutes numeric)
 LANGUAGE plpgsql

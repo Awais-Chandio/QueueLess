@@ -52,7 +52,7 @@ const CentersScreen = () => {
     return (
       <ScreenWrapper>
         <ErrorState
-          title="Failed To Load Centers"
+          title="Failed To Load Clinics"
           message={error}
           buttonTitle="Retry"
           onRetry={fetchCenters}
@@ -65,8 +65,8 @@ const CentersScreen = () => {
     return (
       <ScreenWrapper>
         <EmptyState
-          title="No Centers Found"
-          subtitle="No centers available right now"
+          title="No Clinics Found"
+          subtitle="No clinics available right now"
           buttonTitle="Reload"
           onButtonPress={fetchCenters}
         />
@@ -78,7 +78,7 @@ const CentersScreen = () => {
     <ScreenWrapper>
       <View style={styles.container}>
         <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.lg }]}>
-          Service Centers
+          Clinics
         </Text>
 
         <FlatList

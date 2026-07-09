@@ -205,19 +205,20 @@ Deno.serve(async (req) => {
 
     // 2. Queue movement trigger: recalculate waiting users
     if (
-      record.doctor_id &&
+      record.center_id &&
       (record.status === "called" ||
         record.status === "completed" ||
         record.status === "no_show" ||
         record.status === "skipped")
     ) {
-      const today = new Date().toISOString().split("T")[0];
+      const today = record.appointment_date || new Date().toISOString().split("T")[0];
 
-      // Query current token settings for doctor/queue
+      // Query current token settings for center/queue
       const { data: queueSetting } = await supabase
-        .from("doctor_queue_settings")
+        .from("center_queue_settings")
         .select("current_token")
-        .eq("doctor_id", record.doctor_id)
+        .eq("center_id", record.center_id)
+        .eq("appointment_date", today)
         .maybeSingle();
 
       const currentToken = queueSetting?.current_token || 0;
@@ -226,7 +227,7 @@ Deno.serve(async (req) => {
       const { data: waitingAppts } = await supabase
         .from("appointments")
         .select("id, user_id, token_number")
-        .eq("doctor_id", record.doctor_id)
+        .eq("center_id", record.center_id)
         .eq("appointment_date", today)
         .in("status", ["confirmed", "checked_in"])
         .order("token_number", { ascending: true });
