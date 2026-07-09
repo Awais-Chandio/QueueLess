@@ -1,14 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { View, StyleSheet, TextInput, Text, Pressable } from "react-native";
 import type { TextInputProps } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  interpolateColor,
-} from "react-native-reanimated";
-import { colors, radius, spacing, typography } from "../../theme/index";
+import { useTheme } from "../../hooks/useTheme";
 import { Eye, EyeOff, LucideIcon } from "lucide-react-native";
 import { hp, scaleFont, wp } from "../../utils/responsive";
 
@@ -29,6 +22,7 @@ type AppInputProps = {
 }
 
 const AppInput = (props: AppInputProps) => {
+    const { colors, radius, spacing, typography } = useTheme();
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
 
@@ -36,61 +30,33 @@ const AppInput = (props: AppInputProps) => {
     const shouldHideText = isPasswordField && !isPasswordVisible;
     const LeftIconComponent = props.leftIcon;
 
-    // Shared values for animations
-    const focusAnim = useSharedValue(0);
-    const shakeAnim = useSharedValue(0);
-
-    // Focus animation
-    useEffect(() => {
-        focusAnim.value = withTiming(isFocused ? 1 : 0, { duration: 200 });
-    }, [isFocused, focusAnim]);
-
-    // Error shake animation
-    useEffect(() => {
-        if (props.error) {
-            shakeAnim.value = withSequence(
-                withTiming(-8, { duration: 60 }),
-                withTiming(8, { duration: 60 }),
-                withTiming(-6, { duration: 60 }),
-                withTiming(6, { duration: 60 }),
-                withTiming(0, { duration: 60 })
-            );
-        }
-    }, [props.error, shakeAnim]);
-
-    const animatedInputContainerStyle = useAnimatedStyle(() => {
-        const borderColor = interpolateColor(
-            focusAnim.value,
-            [0, 1],
-            [
-                props.error ? colors.error : colors.border,
-                props.error ? colors.error : colors.primary
-            ]
-        );
-
-        return {
-            borderColor: borderColor,
-            borderWidth: focusAnim.value ? 1.5 : 1,
-            transform: [{ translateX: shakeAnim.value }],
-            // Modern subtle shadow on focus
-            shadowColor: colors.primary,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: focusAnim.value * 0.08,
-            shadowRadius: 4,
-            elevation: focusAnim.value ? 2 : 0,
-        };
-    });
+    const inputBorderColor = props.error ? colors.error : isFocused ? colors.primary : colors.border;
 
     return (
-        <View style={Styles.container}>
+        <View style={[styles.container, { marginBottom: spacing.md }]}>
             {props.label && (
-                <Text style={[Styles.label, { color: props.error ? colors.error : colors.text }]}>
+                <Text style={[styles.label, { color: props.error ? colors.error : colors.text, marginBottom: spacing.xs, fontSize: typography.small }]}>
                     {props.label}
                 </Text>
             )}
-            <Animated.View style={[Styles.inputWrapper, animatedInputContainerStyle]}>
+            <View
+                style={[
+                    styles.inputWrapper,
+                    {
+                        backgroundColor: colors.card,
+                        borderRadius: radius.lg,
+                        borderColor: inputBorderColor,
+                        borderWidth: isFocused ? 1.5 : 1,
+                        shadowColor: colors.primary,
+                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: isFocused ? 0.12 : 0.04,
+                        shadowRadius: isFocused ? 18 : 10,
+                        elevation: isFocused ? 4 : 1,
+                    },
+                ]}
+            >
                 {LeftIconComponent && (
-                    <View style={Styles.leftIconContainer}>
+                    <View style={styles.leftIconContainer}>
                         <LeftIconComponent
                             size={scaleFont(18)}
                             color={isFocused ? colors.primary : colors.textSecondary}
@@ -111,7 +77,8 @@ const AppInput = (props: AppInputProps) => {
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     style={[
-                        Styles.input, 
+                        styles.input, 
+                        { color: colors.text, fontSize: typography.body, minHeight: hp(5.6), padding: spacing.md },
                         isPasswordField && { paddingRight: wp(12) },
                         LeftIconComponent && { paddingLeft: scaleFont(42) }
                     ]}
@@ -119,7 +86,7 @@ const AppInput = (props: AppInputProps) => {
                 />
                 {isPasswordField && (
                     <Pressable
-                        style={Styles.eyeIconContainer}
+                        style={[styles.eyeIconContainer, { right: spacing.md }]}
                         onPress={() => setIsPasswordVisible(!isPasswordVisible)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
@@ -130,58 +97,47 @@ const AppInput = (props: AppInputProps) => {
                         )}
                     </Pressable>
                 )}
-            </Animated.View>
-            {props.error && <Text style={Styles.errorText}>{props.error}</Text>}
+            </View>
+            {props.error && <Text style={[styles.errorText, { color: colors.error, fontSize: typography.caption, marginTop: spacing.xs, marginLeft: spacing.xs }]}>{props.error}</Text>}
         </View>
     );
 };
 
 export default AppInput;
 
-const Styles = StyleSheet.create({
+const styles = StyleSheet.create({
     container: {
         width: '100%',
-        marginBottom: spacing.md,
     },
     label: {
-        marginBottom: spacing.xs,
         fontWeight: '600',
-        fontSize: typography.small,
+        letterSpacing: 0,
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
         position: 'relative',
-        backgroundColor: colors.surface,
-        borderRadius: radius.xl, // Premium round borders
         overflow: 'hidden',
     },
     input: {
         flex: 1,
-        padding: spacing.md,
-        color: colors.text,
-        fontSize: typography.body,
-        minHeight: hp(5.6),
     },
     eyeIconContainer: {
         position: 'absolute',
-        right: spacing.md,
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
     },
     leftIconContainer: {
         position: 'absolute',
-        left: spacing.md,
+        left: 14,
         zIndex: 1,
         height: '100%',
         justifyContent: 'center',
         alignItems: 'center',
     },
     errorText: {
-        color: colors.error,
-        fontSize: typography.caption,
-        marginTop: spacing.xs,
-        marginLeft: spacing.xs,
+        fontWeight: '500',
+        letterSpacing: 0,
     }
 });

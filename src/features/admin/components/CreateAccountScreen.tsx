@@ -129,13 +129,13 @@ const CreateAccountScreen = () => {
             {title}
           </Text>
 
-          <Card style={{ marginBottom: spacing.lg }}>
-            <View style={[styles.warningBanner, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '30', borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md }]}>
+          <Card style={{ marginBottom: spacing.lg, padding: spacing.md }}>
+            <View style={[styles.warningBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30', borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md }]}>
               <View style={styles.warningHeader}>
                 <ShieldAlert size={18} color={colors.warning} />
-                <Text style={[styles.warningTitle, { color: colors.warning, marginLeft: spacing.sm, fontWeight: '700', fontSize: typography.sizes.sm }]}>Role Architecture Note</Text>
+                <Text style={[styles.warningTitle, { color: colors.warning, marginLeft: spacing.sm, fontWeight: '800', fontSize: typography.sizes.sm }]}>Role Architecture Note</Text>
               </View>
-              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, fontSize: typography.sizes.sm, lineHeight: 18 }}>
+              <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, fontSize: typography.sizes.sm, lineHeight: 18, fontWeight: '500' }}>
                 You are creating a new {role} account with a separate login. Existing client appointments will NOT be transferred.
               </Text>
             </View>
@@ -189,11 +189,11 @@ const CreateAccountScreen = () => {
 
             {role === 'staff' && (
               <View style={{ marginBottom: spacing.md, marginTop: spacing.xs }}>
-                <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700', marginBottom: spacing.sm }}>
+                <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '800', marginBottom: spacing.sm }}>
                   Assign Service Center
                 </Text>
                 {centers.length === 0 ? (
-                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontStyle: 'italic' }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontStyle: 'italic', fontWeight: '500' }}>
                     Loading centers...
                   </Text>
                 ) : (
@@ -207,7 +207,7 @@ const CreateAccountScreen = () => {
                           style={{
                             padding: spacing.md,
                             borderRadius: radius.md,
-                            borderWidth: 1.5,
+                            borderWidth: 1.2,
                             borderColor: isSelected ? colors.primary : colors.border,
                             backgroundColor: isSelected ? colors.primary + '10' : colors.surface,
                             flexDirection: 'row',
@@ -218,7 +218,7 @@ const CreateAccountScreen = () => {
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                             <MapPin size={16} color={isSelected ? colors.primary : colors.textSecondary} style={{ marginRight: spacing.xs }} />
-                            <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '700' : '500' }}>
+                            <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '800' : '600' }}>
                               {center.name}
                             </Text>
                           </View>
@@ -276,10 +276,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   backButtonText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
-  title: {
-  },
+  title: {},
   warningBanner: {
     borderWidth: 1,
   },
@@ -287,10 +286,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  warningTitle: {
-  },
+  warningTitle: {},
   errorText: {
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '800',
   }
 });

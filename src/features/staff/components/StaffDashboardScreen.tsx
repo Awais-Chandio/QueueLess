@@ -55,7 +55,7 @@ import { getDisplayName } from '../../../utils/getDisplayName';
 import { toastService } from '../../../services/toastService';
 import { supabase } from '../../../lib/supabase';
 
-type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service';
+type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
 
 const cancelReasons: CancelReason[] = [
   'Patient Requested',
@@ -81,14 +81,14 @@ const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
       return ['start_service', 'cancel'];
     case 'called':
     case 'in_progress':
-      return ['complete_service'];
+      return ['complete_service', 'no_show'];
     default:
       return [];
   }
 };
 
 const StaffDashboardScreen = () => {
-  const { colors, spacing, typography, radius, isDarkMode } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const { logout, user } = useAuth();
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
@@ -304,6 +304,10 @@ const StaffDashboardScreen = () => {
         return staffQueueService.startService(appointment);
       }
 
+      if (action === 'no_show') {
+        return staffQueueService.noShowAppointment(appointment);
+      }
+
       return staffQueueService.completeAppointment(appointment);
     },
     onSuccess: (data, variables) => {
@@ -316,6 +320,8 @@ const StaffDashboardScreen = () => {
         successMsg = 'Appointment cancelled successfully.';
       } else if (variables.action === 'start_service') {
         successMsg = 'Appointment service started.';
+      } else if (variables.action === 'no_show') {
+        successMsg = 'Appointment marked as No Show.';
       } else if (variables.action === 'complete_service') {
         successMsg = 'Appointment completed successfully.';
       }
@@ -327,6 +333,10 @@ const StaffDashboardScreen = () => {
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'Action failed. Please try again.';
       toastService.error(message);
+      if (message.includes('already updated')) {
+        queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      }
     },
   });
 
@@ -398,6 +408,7 @@ const StaffDashboardScreen = () => {
       cancel: 'Cancel',
       start_service: 'Call',
       complete_service: 'Complete',
+      no_show: 'No Show',
     };
 
     const isCancel = action === 'cancel';
@@ -414,7 +425,7 @@ const StaffDashboardScreen = () => {
         key={action}
         title={labels[action]}
         variant={
-          isCancel ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
+          isCancel || action === 'no_show' ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
         }
         loading={isBusy}
         disabled={runActionMutation.isPending || isCallBlocked}

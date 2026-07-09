@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 
 import {
   getQueueSnapshot,
@@ -75,6 +76,16 @@ export const useRealtimeQueue = (
       },
     });
 
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        console.log('[REALTIME] App returned to active/foreground, refetching queue...');
+        loadInitialData();
+        onAppointmentChange?.();
+      }
+    };
+
+    const appStateSub = AppState.addEventListener('change', handleAppStateChange);
+
     const refreshTimer = setInterval(() => {
       loadInitialData();
     }, 20000);
@@ -82,6 +93,7 @@ export const useRealtimeQueue = (
     return () => {
       clearInterval(refreshTimer);
       unsubscribeAppointments(queueChannel);
+      appStateSub.remove();
     };
   }, [loadInitialData, onAppointmentChange, isActive, myToken]);
 

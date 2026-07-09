@@ -1,6 +1,13 @@
 import { scaleFont } from '../utils/responsive';
 
 export const typography = {
+  fontFamily: 'System',
+  fonts: {
+    regular: 'System',
+    medium: 'System',
+    semibold: 'System',
+    bold: 'System',
+  },
   h1: scaleFont(28),
   h2: scaleFont(24),
   h3: scaleFont(20),
@@ -16,9 +23,10 @@ export const typography = {
     xxl: scaleFont(24),
   },
   weights: {
-    normal: '400' as const,
-    medium: '500' as const,
+    normal: '500' as const,
+    medium: '600' as const,
     semibold: '600' as const,
     bold: '700' as const,
+    extrabold: '800' as const,
   },
 };

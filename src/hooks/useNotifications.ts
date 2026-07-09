@@ -1,9 +1,13 @@
 import { useEffect, useCallback } from 'react';
+import { Platform } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     getMessaging,
     onMessage,
     onNotificationOpenedApp,
     getInitialNotification,
+    AuthorizationStatus,
 } from '@react-native-firebase/messaging';
 import { fcmService } from '../services/fcmService';
 import { useNotificationsStore } from '../store/notificationsStore';
@@ -11,9 +15,11 @@ import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { toastService } from '../services/toastService';
 import type { Notification } from '../types/notification';
+import type { AppStackParamList } from '../navigation/types';
 
 export const useNotifications = () => {
     const { user } = useAuthStore();
+    const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
     const {
         setFcmToken,
         setPermissionGranted,
@@ -22,7 +28,7 @@ export const useNotifications = () => {
     } = useNotificationsStore();
 
     /**
-     * Updates the fcm_token column in Supabase profiles table
+     * Updates the fcm_token in Supabase device_tokens table
      */
     const updateTokenInSupabase = useCallback(async (token: string | null) => {
         if (!token) return;
@@ -44,24 +50,29 @@ export const useNotifications = () => {
             }
 
             if (__DEV__) {
-                console.log('[useNotifications] Syncing FCM token to Supabase profiles...', { userId: activeUserId, tokenLength: token.length });
+                console.log('[useNotifications] Syncing FCM token to Supabase device_tokens...', { userId: activeUserId, tokenLength: token.length });
             }
 
-            // Primary: Attempt update via SECURITY DEFINER RPC
-            const { error: rpcError } = await supabase.rpc('update_user_fcm_token', {
-                p_token: token,
-            });
+            // Primary: Attempt update via device_tokens table
+            const { error: tokenError } = await supabase
+                .from('device_tokens')
+                .upsert({
+                    user_id: activeUserId,
+                    fcm_token: token,
+                    platform: Platform.OS,
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'fcm_token' });
 
-            if (!rpcError) {
-                if (__DEV__) console.log('[useNotifications] FCM token synced successfully via RPC.');
+            if (!tokenError) {
+                if (__DEV__) console.log('[useNotifications] FCM token synced successfully via device_tokens table.');
                 return;
             }
 
             if (__DEV__) {
-                console.warn('[useNotifications] RPC update_user_fcm_token unavailable, trying direct table update:', rpcError.message);
+                console.warn('[useNotifications] device_tokens upsert failed, trying direct profiles fallback:', tokenError.message);
             }
 
-            // Fallback: Direct table update
+            // Fallback: Direct table update to profiles
             const { error: updateError } = await supabase
                 .from('profiles')
                 .update({ fcm_token: token, updated_at: new Date().toISOString() } as any)
@@ -71,13 +82,11 @@ export const useNotifications = () => {
                 console.error('[useNotifications] Direct profile update for FCM token failed:', {
                     code: updateError.code,
                     message: updateError.message,
-                    details: updateError.details,
-                    hint: updateError.hint,
                 });
                 throw updateError;
             }
 
-            if (__DEV__) console.log('[useNotifications] FCM token synced successfully via direct table update.');
+            if (__DEV__) console.log('[useNotifications] FCM token synced successfully via direct profiles update.');
         } catch (error) {
             if (__DEV__) {
                 console.warn('[useNotifications] Failed to sync FCM token to Supabase:', error);
@@ -86,15 +95,32 @@ export const useNotifications = () => {
     }, [user]);
 
     /**
-     * Initializes FCM, requests permissions, and retrieves token
+     * Initializes FCM, requests permissions contextually, and retrieves token
      */
-    const initializeFCM = useCallback(async () => {
-        // 1. Request permission
-        const hasPermission = await fcmService.requestPermission();
+    const initializeFCM = useCallback(async (requestIfDenied = false) => {
+        let hasPermission = false;
+        try {
+            // Check current authorization status first
+            const authStatus = await getMessaging().hasPermission();
+            hasPermission =
+                authStatus === AuthorizationStatus.AUTHORIZED ||
+                authStatus === AuthorizationStatus.PROVISIONAL;
+
+            if (!hasPermission && requestIfDenied) {
+                // Trigger native prompt contextually
+                const requestStatus = await fcmService.requestPermission();
+                hasPermission = requestStatus;
+            }
+        } catch (err) {
+            if (__DEV__) {
+                console.warn('[useNotifications] Permission check error:', err);
+            }
+        }
+
         setPermissionGranted(hasPermission);
 
         if (!hasPermission) {
-            if (__DEV__) console.log('[useNotifications] Notification permission denied.');
+            if (__DEV__) console.log('[useNotifications] Notification permission not active/granted.');
             return;
         }
 
@@ -107,9 +133,23 @@ export const useNotifications = () => {
         }
     }, [user, setFcmToken, setPermissionGranted, updateTokenInSupabase]);
 
+    const requestPermission = useCallback(async () => {
+        await initializeFCM(true);
+    }, [initializeFCM]);
+
+    const handleNotificationClick = useCallback((remoteMessage: any) => {
+        const appointmentId = remoteMessage?.data?.appointmentId || remoteMessage?.data?.appointment_id;
+        if (appointmentId) {
+            if (__DEV__) {
+                console.log('[useNotifications] App clicked notification for appointment:', appointmentId);
+            }
+            navigation.navigate('QueueStatus', { appointmentId });
+        }
+    }, [navigation]);
+
     useEffect(() => {
-        // Initialize permissions and token on mount
-        initializeFCM();
+        // Initialize permission check (don't request yet if denied/undetermined)
+        initializeFCM(false);
 
         // 3. Listen to token refreshes
         const unsubscribeTokenRefresh = fcmService.onTokenRefresh(async (newToken) => {
@@ -151,7 +191,7 @@ export const useNotifications = () => {
             if (__DEV__) {
                 console.log('[useNotifications] App opened from background state by notification click:', remoteMessage);
             }
-            // Optional: Implement custom navigation or state change based on remoteMessage.data here
+            handleNotificationClick(remoteMessage);
         });
 
         // Check if app was opened from completely quit state by notification click
@@ -161,7 +201,7 @@ export const useNotifications = () => {
                     if (__DEV__) {
                         console.log('[useNotifications] App opened from quit state by notification click:', remoteMessage);
                     }
-                    // Optional: Implement custom navigation or state change here
+                    handleNotificationClick(remoteMessage);
                 }
             })
             .catch((err) => {
@@ -173,11 +213,12 @@ export const useNotifications = () => {
             unsubscribeOnMessage();
             unsubscribeOnNotificationOpened();
         };
-    }, [user, initializeFCM, setFcmToken, upsertNotification, updateTokenInSupabase]);
+    }, [user, initializeFCM, setFcmToken, upsertNotification, updateTokenInSupabase, handleNotificationClick]);
 
     return {
         fcmToken,
         initializeFCM,
+        requestPermission,
         updateTokenInSupabase,
     };
 };

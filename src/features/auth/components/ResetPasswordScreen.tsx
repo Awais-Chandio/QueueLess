@@ -3,14 +3,18 @@ import { StyleSheet, Text, View } from "react-native";
 import AppButton from "../../../components/ui/AppButton";
 import AppInput from "../../../components/ui/AppInput";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
+import Card from "../../../components/ui/Card";
 import { authService } from "../api/authService";
 import { useAuthStore } from "../../../store/authStore";
 import { toastService } from "../../../services/toastService";
-import { colors, spacing, typography } from "../../../theme";
+import { useTheme } from "../../../hooks/useTheme";
+import { Lock } from "lucide-react-native";
+import { hp, scaleFont, wp } from "../../../utils/responsive";
 
 const MIN_PASSWORD_LENGTH = 6;
 
 const ResetPasswordScreen = () => {
+  const { colors, spacing, typography, radius } = useTheme();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -77,47 +81,53 @@ const ResetPasswordScreen = () => {
 
   return (
     <ScreenWrapper scrollable centered>
-      <View style={styles.container}>
-        <Text style={styles.title}>Reset Password</Text>
-        <Text style={styles.subtitle}>Create a new password for your account.</Text>
+      <View style={[styles.container, { paddingHorizontal: wp(5) }]}>
+        <Card variant="elevated" style={styles.formCard}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.h1 }]}>Reset Password</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.body, marginTop: spacing.sm, marginBottom: spacing.lg }]}>
+            Create a secure new password for your account.
+          </Text>
 
-        <AppInput
-          placeholder="New Password"
-          label="New Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          textContentType="newPassword"
-          autoComplete="new-password"
-          editable={!isLoading}
-        />
+          <AppInput
+            placeholder="New Password"
+            label="New Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="newPassword"
+            autoComplete="new-password"
+            editable={!isLoading}
+            leftIcon={Lock}
+          />
 
-        <AppInput
-          placeholder="Confirm Password"
-          label="Confirm Password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          textContentType="newPassword"
-          autoComplete="new-password"
-          editable={!isLoading}
-        />
+          <AppInput
+            placeholder="Confirm Password"
+            label="Confirm Password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="newPassword"
+            autoComplete="new-password"
+            editable={!isLoading}
+            leftIcon={Lock}
+          />
 
-        <AppButton
-          title={isLoading ? "Updating..." : "Update Password"}
-          onPress={handleUpdatePassword}
-          loading={isLoading}
-          disabled={isLoading}
-        />
+          <AppButton
+            title={isLoading ? "Updating..." : "Update Password"}
+            onPress={handleUpdatePassword}
+            loading={isLoading}
+            containerStyle={{ marginTop: spacing.md }}
+          />
 
-        {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
-        {successMessage ? (
-          <Text style={styles.successMessage}>{successMessage}</Text>
-        ) : null}
+          {errorMessage ? <Text style={[styles.errorMessage, { color: colors.error, fontSize: typography.small, marginTop: spacing.md }]}>{errorMessage}</Text> : null}
+          {successMessage ? (
+            <Text style={[styles.successMessage, { color: colors.success, fontSize: typography.small, marginTop: spacing.md }]}>{successMessage}</Text>
+          ) : null}
+        </Card>
       </View>
     </ScreenWrapper>
   );
@@ -129,30 +139,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
+    width: "100%",
+  },
+  formCard: {
+    padding: wp(6),
   },
   title: {
-    fontSize: typography.h1,
-    color: colors.text,
     textAlign: "center",
-    fontWeight: "bold",
+    fontWeight: "800",
   },
   subtitle: {
-    fontSize: typography.body,
-    color: colors.textSecondary,
     textAlign: "center",
-    marginTop: spacing.md,
-    marginBottom: spacing.xl,
+    lineHeight: 22,
   },
   errorMessage: {
-    color: colors.error,
     textAlign: "center",
-    marginTop: spacing.sm,
-    fontSize: typography.small,
+    fontWeight: "600",
   },
   successMessage: {
-    color: colors.success,
     textAlign: "center",
-    marginTop: spacing.sm,
-    fontSize: typography.small,
+    fontWeight: "600",
   },
 });

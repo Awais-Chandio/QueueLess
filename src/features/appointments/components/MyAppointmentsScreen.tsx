@@ -17,28 +17,35 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
 import { StatusChip } from '../../../components/ui/StatusChip';
 import { SkeletonLoader } from '../../../components/animations/SkeletonLoader';
-import { CardFadeIn } from '../../../components/animations/CardFadeIn';
+import AnimatedCard from '../../../components/ui/AnimatedCard';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAppointments } from '../hooks/useAppointments';
 import { useAuthStore } from '../../../store/authStore';
 import type { AppStackParamList } from '../../../navigation/types';
-import type { AppointmentStatus } from '../../../types/appointment';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
-import { Calendar, Clock, MapPin, SearchX, Hash } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, SearchX, Hash, Stethoscope, Heart, Smile } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import {
   getAppointmentDateLabel,
   getAppointmentTimeLabel,
 } from '../utils/appointmentTime';
 
+const getServiceIcon = (serviceName: string) => {
+  const name = (serviceName || '').toLowerCase();
+  if (name.includes('pediatric')) return { icon: Smile, color: '#0891B2' };
+  if (name.includes('cardio') || name.includes('heart')) return { icon: Heart, color: '#EF4444' };
+  if (name.includes('dental') || name.includes('teeth')) return { icon: Hash, color: '#F59E0B' };
+  return { icon: Stethoscope, color: '#0E7490' };
+};
+
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 type StatusFilter = 'all' | 'upcoming' | 'active' | 'completed' | 'cancelled';
 
 const statusFilters = [
-  { key: 'all' as const, label: 'All', dotColor: '#2563EB' },
+  { key: 'all' as const, label: 'All', dotColor: '#0E7490' },
   { key: 'upcoming' as const, label: 'Upcoming', dotColor: '#F59E0B' },
-  { key: 'active' as const, label: 'Active', dotColor: '#8B5CF6' },
-  { key: 'completed' as const, label: 'Completed', dotColor: '#10B981' },
+  { key: 'active' as const, label: 'Active', dotColor: '#3B82F6' },
+  { key: 'completed' as const, label: 'Completed', dotColor: '#0E7490' },
   { key: 'cancelled' as const, label: 'Cancelled', dotColor: '#EF4444' },
 ];
 
@@ -106,8 +113,8 @@ const MyAppointmentsScreen = () => {
         </Text>
 
         {/* Status filter chips with dot indicators */}
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={{ maxHeight: scaleFont(44), marginBottom: spacing.md }}
           contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
@@ -195,87 +202,76 @@ const MyAppointmentsScreen = () => {
               const { resolvedStatus, isExpired, isNoShow } = getAppointmentStatusState(item);
               const { label: statusLabel } = getStatusDisplayProperties(resolvedStatus);
 
+              const serviceIconInfo = getServiceIcon(item.service_name ?? '');
+
               return (
-                <CardFadeIn delay={Math.min(index * 60, 300)}>
-                  <Card style={{ marginBottom: spacing.md }}>
-                    <Pressable
-                      onPress={() =>
-                        navigation.navigate('AppointmentDetails', {
-                          appointmentId: item.id,
-                        })
-                      }
-                      style={({ pressed }) => pressed ? { opacity: 0.85 } : {}}
-                    >
-                      <View style={styles.cardHeader}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
-                            {item.service_name ?? 'Service'}
+                <AnimatedCard delay={Math.min(index * 60, 300)}>
+                  <Card
+                    onPress={() =>
+                      navigation.navigate('AppointmentDetails', {
+                        appointmentId: item.id,
+                      })
+                    }
+                    style={{ padding: spacing.md, borderRadius: 20 }}
+                    containerStyle={{ marginBottom: spacing.md }}
+                  >
+                    <View style={styles.cardHeader}>
+                      <View style={[styles.serviceIconWrapper, { backgroundColor: serviceIconInfo.color + '12' }]}>
+                        <serviceIconInfo.icon size={18} color={serviceIconInfo.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }}>
+                          {item.service_name ?? 'Service'}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs / 2 }}>
+                          <MapPin size={scaleFont(12)} color={colors.textSecondary} />
+                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginLeft: spacing.xs, flex: 1 }} numberOfLines={1}>
+                            {item.center_name ?? 'Center'}
                           </Text>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
-                            <MapPin size={scaleFont(13)} color={colors.textSecondary} />
-                            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, flex: 1 }}>
-                              {item.center_name ?? 'Center'}
-                            </Text>
-                          </View>
                         </View>
-                        <StatusChip
-                          status={resolvedStatus}
-                          label={statusLabel}
-                          size="sm"
-                        />
+                      </View>
+                      <StatusChip
+                        status={resolvedStatus}
+                        label={statusLabel}
+                        size="sm"
+                      />
+                    </View>
+
+                    <View style={[styles.divider, { backgroundColor: colors.border + '40', marginVertical: spacing.md }]} />
+
+                    <View style={styles.detailsRow}>
+                      <View style={styles.detailBlock}>
+                        <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}10` }]}>
+                          <Calendar size={12} color={colors.primary} />
+                        </View>
+                        <View>
+                          <Text style={styles.detailLabel}>Date</Text>
+                          <Text style={[styles.detailValue, { color: colors.text }]}>{getAppointmentDateLabel(item)}</Text>
+                        </View>
                       </View>
 
-                      <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
-
-                      <View style={styles.detailsRow}>
-                        <View style={styles.timelineLine}>
-                          <View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
-                          <View style={[styles.timelineConnector, { backgroundColor: colors.border }]} />
-                          <View style={[styles.timelineDot, { backgroundColor: colors.info }]} />
+                      <View style={styles.detailBlock}>
+                        <View style={[styles.detailIconPill, { backgroundColor: `${colors.info}10` }]}>
+                          <Clock size={12} color={colors.info} />
                         </View>
-                        
-                        <View style={{ flex: 1, gap: spacing.md }}>
-                          <View style={styles.detailItem}>
-                            <View style={[styles.detailIconRow, { marginBottom: spacing.xs / 2 }]}>
-                              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
-                                <Calendar size={scaleFont(12)} color={colors.primary} />
-                              </View>
-                              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Date</Text>
-                            </View>
-                            <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '600' }}>
-                              {getAppointmentDateLabel(item)}
-                            </Text>
-                          </View>
-
-                          <View style={styles.detailItem}>
-                            <View style={[styles.detailIconRow, { marginBottom: spacing.xs / 2 }]}>
-                              <View style={[styles.detailIconPill, { backgroundColor: `${colors.info}12` }]}>
-                                <Clock size={scaleFont(12)} color={colors.info} />
-                              </View>
-                              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Time</Text>
-                            </View>
-                            <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '600' }}>
-                              {getAppointmentTimeLabel(item)}
-                            </Text>
-                          </View>
+                        <View>
+                          <Text style={styles.detailLabel}>Time</Text>
+                          <Text style={[styles.detailValue, { color: colors.text }]}>{getAppointmentTimeLabel(item)}</Text>
                         </View>
-
-
-                        {typeof item.token_number === 'number' && (
-                          <View style={styles.detailItem}>
-                            <View style={[styles.detailIconRow, { marginBottom: spacing.xs / 2 }]}>
-                              <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}12` }]}>
-                                <Hash size={scaleFont(12)} color={colors.primary} />
-                              </View>
-                              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>Token</Text>
-                            </View>
-                            <Text style={{ color: colors.primary, fontSize: typography.sizes.sm, fontWeight: 'bold' }}>
-                              #{item.token_number}
-                            </Text>
-                          </View>
-                        )}
                       </View>
-                    </Pressable>
+
+                      {typeof item.token_number === 'number' && (
+                        <View style={styles.detailBlock}>
+                          <View style={[styles.detailIconPill, { backgroundColor: `${colors.primary}10` }]}>
+                            <Hash size={12} color={colors.primary} />
+                          </View>
+                          <View>
+                            <Text style={styles.detailLabel}>Token</Text>
+                            <Text style={[styles.detailValue, { color: colors.primary, fontWeight: '800' }]}>#{item.token_number}</Text>
+                          </View>
+                        </View>
+                      )}
+                    </View>
 
                     {['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus) && !isExpired && !isNoShow && (
                       <AppButton
@@ -290,7 +286,7 @@ const MyAppointmentsScreen = () => {
                       />
                     )}
                   </Card>
-                </CardFadeIn>
+                </AnimatedCard>
               );
             }}
           />
@@ -307,60 +303,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontWeight: 'bold',
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   filterButton: {
-    borderWidth: 1,
+    borderWidth: 1.2,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: scaleFont(8),
+    alignItems: 'center',
+    gap: scaleFont(10),
+  },
+  serviceIconWrapper: {
+    width: scaleFont(36),
+    height: scaleFont(36),
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   divider: {
-    height: StyleSheet.hairlineWidth,
+    height: 1,
   },
   detailsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     flexWrap: 'wrap',
-    gap: scaleFont(12),
+    gap: scaleFont(8),
   },
-  detailItem: {
-    flex: 1,
-    minWidth: '28%',
-  },
-  detailIconRow: {
+  detailBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleFont(4),
+    gap: scaleFont(6),
+    minWidth: '28%',
   },
   detailIconPill: {
-    width: scaleFont(20),
-    height: scaleFont(20),
-    borderRadius: scaleFont(10),
+    width: scaleFont(26),
+    height: scaleFont(26),
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  timelineLine: {
-    width: 20,
-    alignItems: 'center',
-    marginRight: scaleFont(12),
-    paddingVertical: scaleFont(6),
+  detailLabel: {
+    fontSize: 9,
+    color: '#64748B',
+    fontWeight: '600',
+    textTransform: 'uppercase',
   },
-  timelineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  timelineConnector: {
-    width: 2,
-    flex: 1,
-    marginVertical: 4,
+  detailValue: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 1,
   },
 });

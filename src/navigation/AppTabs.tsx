@@ -1,7 +1,6 @@
 import React, { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import HomeScreen from "../features/home/components/HomeScreen";
 import CentersScreen from "../features/centers/components/CentersScreen";
@@ -29,22 +28,44 @@ type TabIconProps = {
 
 const AnimatedTabIcon = ({ Icon, color, size, focused }: { Icon: any; color: string; size: number; focused?: boolean }) => {
     const scale = useSharedValue(1);
+    const activeProgress = useSharedValue(focused ? 1 : 0);
 
     useEffect(() => {
-        scale.value = withSpring(focused ? 1.25 : 1, {
+        scale.value = withSpring(focused ? 1.15 : 1, {
             damping: 15,
             stiffness: 180,
         });
-    }, [focused]);
+        activeProgress.value = withSpring(focused ? 1 : 0, {
+            damping: 15,
+            stiffness: 180,
+        });
+    }, [focused, activeProgress, scale]);
 
     const animStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
     }));
 
+    const bgStyle = useAnimatedStyle(() => ({
+        opacity: activeProgress.value,
+        transform: [{ scale: activeProgress.value }],
+    }));
+
     return (
-        <Animated.View style={animStyle}>
-            <Icon color={color} size={size} />
-        </Animated.View>
+        <View style={{ alignItems: 'center', justifyContent: 'center', height: 32, width: 56 }}>
+            <Animated.View style={[
+                {
+                    position: 'absolute',
+                    width: 48,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: color + '12',
+                },
+                bgStyle
+            ]} />
+            <Animated.View style={animStyle}>
+                <Icon color={color} size={size} fill={focused ? color : 'transparent'} />
+            </Animated.View>
+        </View>
     );
 };
 
@@ -131,7 +152,6 @@ const AppTabs = () => {
     const upsertStoreNotification = useNotificationsStore(state => state.upsertNotification);
     const removeStoreNotification = useNotificationsStore(state => state.removeNotification);
     const queryClient = useQueryClient();
-    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         if (userId) {
@@ -200,10 +220,6 @@ const AppTabs = () => {
         upsertStoreNotification,
         userId,
     ]);
-    const bottomInset = Math.max(
-        insets.bottom,
-        Platform.OS === "android" ? spacing.xl : spacing.sm,
-    );
 
     return (
         <Tab.Navigator

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import { useTheme } from '../../hooks/useTheme';
 
-export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'default';
+export type BadgeVariant = 'success' | 'warning' | 'error' | 'info' | 'teal' | 'emerald' | 'default';
 
 interface BadgeProps {
   label: string;
@@ -16,7 +16,7 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = 'default', style,
 
   const getVariantStyles = () => {
     // Opacity changes based on dark or light mode
-    const opacityHex = isDarkMode ? '30' : '15';
+    const opacityHex = isDarkMode ? '32' : '18';
     switch (variant) {
       case 'success':
         return {
@@ -42,11 +42,23 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = 'default', style,
           text: colors.info,
           border: colors.info + '30',
         };
+      case 'teal':
+        return {
+          bg: colors.primary + opacityHex,
+          text: colors.primary,
+          border: colors.primary + '30',
+        };
+      case 'emerald':
+        return {
+          bg: colors.success + opacityHex,
+          text: colors.success,
+          border: colors.success + '30',
+        };
       default:
         return {
-          bg: colors.border + '40',
+          bg: isDarkMode ? colors.primaryLight : colors.primary + '10',
           text: colors.textSecondary,
-          border: colors.border + '60',
+          border: colors.border,
         };
     }
   };

@@ -97,25 +97,6 @@ const getBackendQueueSnapshot = async (
   return normalizeBackendSnapshot(data as BackendQueueSnapshot);
 };
 
-const getDayRange = (scheduledAt?: string | null) => {
-  if (!scheduledAt) {
-    return null;
-  }
-
-  const start = new Date(scheduledAt);
-  if (Number.isNaN(start.getTime())) {
-    return null;
-  }
-
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-
-  return {
-    start: start.toISOString(),
-    end: end.toISOString(),
-  };
-};
 
 const getCurrentTokenFromAppointments = async (
   scope?: QueueScope,
@@ -272,7 +253,15 @@ export const subscribeToAppointments = ({
         onChange();
       },
     )
-    .subscribe();
+    .subscribe((status, err) => {
+      console.log(`[REALTIME_STATUS] ${channelName ?? 'appointments-live'}: ${status}`, err ? err : '');
+      if (status === 'CHANNEL_ERROR') {
+        console.warn(`[REALTIME] Channel error on ${channelName}, reconnecting...`);
+      }
+      if (status === 'TIMED_OUT') {
+        console.warn(`[REALTIME] Channel timed out on ${channelName}, reconnecting...`);
+      }
+    });
 };
 
 export const unsubscribeAppointments = (
