@@ -253,6 +253,30 @@ export const subscribeToAppointments = ({
         onChange();
       },
     )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'center_queue_settings',
+      },
+      payload => {
+        console.log('[QUEUE CENTER_SETTINGS UPDATE]', payload.new?.center_id);
+        onChange();
+      },
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'doctor_queue_settings',
+      },
+      payload => {
+        console.log('[QUEUE DOCTOR_SETTINGS UPDATE]', payload.new?.doctor_id);
+        onChange();
+      },
+    )
     .subscribe((status, err) => {
       console.log(`[REALTIME_STATUS] ${channelName ?? 'appointments-live'}: ${status}`, err ? err : '');
       if (status === 'CHANNEL_ERROR') {

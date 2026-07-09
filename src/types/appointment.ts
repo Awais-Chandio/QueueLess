@@ -70,6 +70,7 @@ export interface AppointmentFull {
   center_id: string;
   service_id: string;
   doctor_id?: string | null;
+  doctor_name?: string | null;
   center_name?: string;
   service_name?: string;
   scheduled_at: string;

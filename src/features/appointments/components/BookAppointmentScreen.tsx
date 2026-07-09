@@ -90,7 +90,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChevronLeft, Calendar as CalendarIcon, Hourglass, ShieldAlert } from 'lucide-react-native';
+import { ChevronLeft, Calendar as CalendarIcon, Hourglass, ShieldAlert, Stethoscope, UserCheck, Users } from 'lucide-react-native';
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -123,6 +123,8 @@ import { hp } from '../../../utils/responsive';
 
 import type { AppointmentFull } from '../../../types/appointment';
 import type { CenterService } from '../../../types/center';
+import { doctorsService } from '../api/doctorsService';
+import type { Doctor } from '../api/doctorsService';
 
 type BookAppointmentRouteProp = RouteProp<
   AppStackParamList,
@@ -161,6 +163,11 @@ const BookAppointmentScreen = () => {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+
+  // Doctor selection state
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null | 'any'>('any');
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
 
   const [lockTimeLeft, setLockTimeLeft] = useState<number | null>(null);
   const timerRef = useRef<any>(null);
@@ -218,6 +225,30 @@ const BookAppointmentScreen = () => {
   const date = watch('date');
   const selectedSlot = watch('slot');
 
+  // Fetch active doctors when service selection changes
+  useEffect(() => {
+    if (!selectedServiceId) {
+      setDoctors([]);
+      setSelectedDoctorId('any');
+      return;
+    }
+    let cancelled = false;
+    setDoctorsLoading(true);
+    setSelectedDoctorId('any');
+    doctorsService
+      .getByServiceId(selectedServiceId)
+      .then(data => {
+        if (!cancelled) setDoctors(data);
+      })
+      .catch(() => {
+        if (!cancelled) setDoctors([]);
+      })
+      .finally(() => {
+        if (!cancelled) setDoctorsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [selectedServiceId]);
+
   const appointmentDate = useMemo(() => {
     return formatAppointmentDateInput(date);
   }, [date]);
@@ -272,6 +303,8 @@ const BookAppointmentScreen = () => {
         user_id: user.id,
         center_id: centerId,
         service_id: formData.serviceId,
+        // null = "Any Available Doctor" (default behavior preserved)
+        doctor_id: selectedDoctorId === 'any' || !selectedDoctorId ? null : selectedDoctorId,
         scheduled_at: scheduledAt,
         appointment_date: appointmentDate,
         appointment_time: formData.slot,
@@ -349,8 +382,8 @@ const BookAppointmentScreen = () => {
     return (
       <ScreenWrapper>
         <EmptyState
-          title="Center Missing"
-          subtitle="Please select a center before booking an appointment."
+          title="Clinic Missing"
+          subtitle="Please select a clinic before booking a consultation."
           buttonTitle="Go Back"
           onButtonPress={navigation.goBack}
         />
@@ -370,7 +403,7 @@ const BookAppointmentScreen = () => {
     return (
       <ScreenWrapper>
         <ErrorState
-          title="Failed To Load Services"
+          title="Failed To Load Departments"
           message={error}
           buttonTitle="Retry"
           onRetry={() => fetchCenterServices(centerId)}
@@ -405,11 +438,11 @@ const BookAppointmentScreen = () => {
             </Pressable>
 
             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
-              Book Appointment
+              Book a Consultation
             </Text>
 
             <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
-              Select a service to continue.
+              Select a department to continue.
             </Text>
 
             {errors.serviceId && (
@@ -421,12 +454,97 @@ const BookAppointmentScreen = () => {
         }
         ListEmptyComponent={
           <EmptyState
-            title="No Services"
-            subtitle="No services available for this center."
+            title="No Departments"
+            subtitle="No departments available for this clinic."
           />
         }
         ListFooterComponent={
           <View style={{ marginTop: spacing.md }}>
+
+            {/* ─── Doctor Selection (Phase B) ────────────────────────────── */}
+            {selectedServiceId !== '' && !doctorsLoading && doctors.length > 0 && (
+              <View style={{ marginBottom: spacing.lg }}>
+                <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
+                  Choose a Doctor
+                </Text>
+
+                {/* Any Available Doctor card */}
+                <Pressable
+                  onPress={() => setSelectedDoctorId('any')}
+                  style={({ pressed }) => [
+                    styles.doctorCard,
+                    {
+                      backgroundColor: selectedDoctorId === 'any' ? colors.primary + '08' : colors.surface,
+                      borderColor: selectedDoctorId === 'any' ? colors.primary : colors.border + '40',
+                      borderRadius: radius.xl,
+                      borderWidth: selectedDoctorId === 'any' ? 2 : 1,
+                      padding: spacing.md,
+                      marginBottom: spacing.sm,
+                    },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <View style={[styles.doctorAvatarCircle, { backgroundColor: colors.primary + '12' }]}>
+                    <Users size={18} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.doctorName, { color: colors.text, fontSize: typography.sizes.md }]}>
+                        Any Available Doctor
+                      </Text>
+                      <View style={[styles.recommendedBadge, { backgroundColor: colors.success + '15', borderColor: colors.success + '30' }]}>
+                        <Text style={{ color: colors.success, fontSize: typography.sizes.xs - 1, fontWeight: '700' }}>Fastest</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.doctorSpec, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                      Assigned by the clinic on arrival
+                    </Text>
+                  </View>
+                  {selectedDoctorId === 'any' && (
+                    <UserCheck size={18} color={colors.primary} />
+                  )}
+                </Pressable>
+
+                {/* Individual doctor cards */}
+                {doctors.map(doc => (
+                  <Pressable
+                    key={doc.id}
+                    onPress={() => setSelectedDoctorId(doc.id)}
+                    style={({ pressed }) => [
+                      styles.doctorCard,
+                      {
+                        backgroundColor: selectedDoctorId === doc.id ? colors.primary + '08' : colors.surface,
+                        borderColor: selectedDoctorId === doc.id ? colors.primary : colors.border + '40',
+                        borderRadius: radius.xl,
+                        borderWidth: selectedDoctorId === doc.id ? 2 : 1,
+                        padding: spacing.md,
+                        marginBottom: spacing.sm,
+                      },
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <View style={[styles.doctorAvatarCircle, { backgroundColor: colors.primary + '12' }]}>
+                      <Stethoscope size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                      <Text style={[styles.doctorName, { color: colors.text, fontSize: typography.sizes.md }]}>
+                        {doc.name}
+                      </Text>
+                      {!!doc.specialization && (
+                        <Text style={[styles.doctorSpec, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                          {doc.specialization}
+                        </Text>
+                      )}
+                    </View>
+                    {selectedDoctorId === doc.id && (
+                      <UserCheck size={18} color={colors.primary} />
+                    )}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            {/* ───────────────────────────────────────────────────────────── */}
+
             <View style={styles.dateContainer}>
               <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
                 Selected Date
@@ -558,7 +676,7 @@ const BookAppointmentScreen = () => {
             )}
 
             <AppButton
-              title="Confirm Slot"
+              title="Confirm Booking"
               loading={appointmentLoading}
               disabled={appointmentLoading || selectedSlot === '' || slotsLoading}
               onPress={handleSubmit(onBook)}
@@ -664,5 +782,29 @@ const styles = StyleSheet.create({
   },
   timerText: {
     textAlign: 'center',
+  },
+  doctorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  doctorAvatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doctorName: {
+    fontWeight: '800',
+  },
+  doctorSpec: {
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  recommendedBadge: {
+    borderWidth: 1,
+    borderRadius: 99,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
 });

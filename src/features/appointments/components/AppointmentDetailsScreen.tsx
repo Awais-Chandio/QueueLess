@@ -28,6 +28,7 @@ import {
   MapPin,
   XCircle,
   ChevronLeft,
+  Stethoscope,
 } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 import {
@@ -209,6 +210,16 @@ const AppointmentDetailsScreen = () => {
                 Token #{appointment.token_number || 'N/A'}
               </Text>
             </View>
+            {!!appointment.doctor_name && (
+              <View style={styles.detailRow}>
+                <View style={[styles.detailIconPill, { backgroundColor: `${colors.info}12` }]}>
+                  <Stethoscope color={colors.info} size={scaleFont(16)} />
+                </View>
+                <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md, fontWeight: '700' }}>
+                  {appointment.doctor_name}
+                </Text>
+              </View>
+            )}
           </View>
         </Card>
       </CardFadeIn>

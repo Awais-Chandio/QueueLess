@@ -198,8 +198,8 @@ const AdminManageScreen = () => {
             </View>
             <View style={styles.systemMetricsGrid}>
               {[
-                { label: 'Service Centers', value: analytics?.systemOverview?.totalCenters ?? 0, color: colors.primary, icon: Building },
-                { label: 'Services', value: analytics?.systemOverview?.totalServices ?? 0, color: colors.info, icon: Stethoscope },
+                { label: 'Clinics', value: analytics?.systemOverview?.totalCenters ?? 0, color: colors.primary, icon: Building },
+                { label: 'Departments', value: analytics?.systemOverview?.totalServices ?? 0, color: colors.info, icon: Stethoscope },
                 { label: 'Registered Users', value: analytics?.systemOverview?.totalUsers ?? 0, color: colors.success, icon: UserCheck },
               ].map((item, idx) => {
                 const MetricIcon = item.icon;
@@ -239,7 +239,7 @@ const AdminManageScreen = () => {
                 style={{ borderRadius: radius.md }}
               />
               <AppButton
-                title="Manage Clinics & Services"
+                title="Manage Clinics & Departments"
                 variant="outline"
                 onPress={() => (navigation as any).navigate('ManageCenters')}
                 style={{ borderColor: colors.border, borderRadius: radius.md }}

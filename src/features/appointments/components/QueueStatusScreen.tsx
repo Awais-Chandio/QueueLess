@@ -41,6 +41,7 @@ import {
   Hash,
   CheckCircle2,
   ChevronLeft,
+  Stethoscope,
 } from 'lucide-react-native';
 import { scaleFont, wp } from '../../../utils/responsive';
 import { toastService } from '../../../services/toastService';
@@ -176,7 +177,7 @@ const QueueStatusScreen = () => {
     !isExpired &&
     !isNoShow;
   const queueStatusLabel = isDoctorOnBreak
-    ? 'Service on Break'
+    ? 'Department on Break'
     : status === 'called' || status === 'in_progress'
       ? 'Called'
       : status === 'checked_in'
@@ -361,7 +362,7 @@ const QueueStatusScreen = () => {
                       fontWeight: '800',
                     }}
                   >
-                    Service on Break
+                    Department on Break
                   </Text>
                   <Text
                     style={{
@@ -588,7 +589,7 @@ const QueueStatusScreen = () => {
                     {
                       backgroundColor:
                         queueStatusLabel === 'Called' ||
-                          queueStatusLabel === 'Service on Break'
+                          queueStatusLabel === 'Department on Break'
                           ? `${colors.warning}12`
                           : queueStatusLabel === 'Arrived'
                             ? `${colors.primary}12`
@@ -599,7 +600,7 @@ const QueueStatusScreen = () => {
                   <BellRing
                     color={
                       queueStatusLabel === 'Called' ||
-                        queueStatusLabel === 'Service on Break'
+                        queueStatusLabel === 'Department on Break'
                         ? colors.warning
                         : queueStatusLabel === 'Arrived'
                           ? colors.primary
@@ -622,7 +623,7 @@ const QueueStatusScreen = () => {
                   style={{
                     color:
                       queueStatusLabel === 'Called' ||
-                        queueStatusLabel === 'Service on Break'
+                        queueStatusLabel === 'Department on Break'
                         ? colors.warning
                         : queueStatusLabel === 'Arrived'
                           ? colors.primary
@@ -781,7 +782,7 @@ const QueueStatusScreen = () => {
                       fontWeight: '600',
                     }}
                   >
-                    Center
+                    Clinic
                   </Text>
                   <Text
                     style={{
@@ -795,6 +796,39 @@ const QueueStatusScreen = () => {
                   </Text>
                 </View>
               </View>
+              {!!appointment.doctor_name && (
+                <View style={styles.detailRow}>
+                  <View
+                    style={[
+                      styles.detailIconPill,
+                      { backgroundColor: `${colors.info}12` },
+                    ]}
+                  >
+                    <Stethoscope color={colors.info} size={scaleFont(16)} />
+                  </View>
+                  <View style={styles.detailText}>
+                    <Text
+                      style={{
+                        color: colors.textSecondary,
+                        fontSize: typography.sizes.xs,
+                        fontWeight: '600',
+                      }}
+                    >
+                      Doctor
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.text,
+                        fontSize: typography.sizes.md,
+                        fontWeight: '700',
+                        marginTop: 2,
+                      }}
+                    >
+                      {appointment.doctor_name}
+                    </Text>
+                  </View>
+                </View>
+              )}
               {status === 'cancelled' && appointment.cancel_reason && (
                 <View style={styles.detailRow}>
                   <View

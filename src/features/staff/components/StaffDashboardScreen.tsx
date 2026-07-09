@@ -212,12 +212,14 @@ const StaffDashboardScreen = () => {
   );
   const stats = data?.stats;
 
-  const uniqueDoctorIds = useMemo(() => {
-    const ids = new Set<string>();
+  const uniqueDoctors = useMemo(() => {
+    const map = new Map<string, string>();
     appointments.forEach(item => {
-      if (item.doctor_id) ids.add(item.doctor_id);
+      if (item.doctor_id) {
+        map.set(item.doctor_id, item.doctor_name || 'Doctor');
+      }
     });
-    return Array.from(ids);
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [appointments]);
 
   const getNextPatientToCall = () => {
@@ -520,7 +522,7 @@ const StaffDashboardScreen = () => {
                 },
               ]}
             >
-              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)}
+              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)} • {item.doctor_name ? `Dr. ${item.doctor_name}` : 'Any Available'}
             </Text>
           </View>
           {!isPendingSection && (
@@ -912,10 +914,10 @@ const StaffDashboardScreen = () => {
         <View style={{ marginBottom: spacing.xl }}>
           <Card variant="elevated" style={styles.cardContent}>
             {/* Doctor Filter Tabs */}
-            {uniqueDoctorIds.length > 1 && (
+            {uniqueDoctors.length > 1 && (
               <View style={{ marginBottom: spacing.md }}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 6, fontWeight: '600' }}>
-                  Filter by Counter:
+                  Filter by Doctor:
                 </Text>
                 <ScrollView
                   horizontal
@@ -934,10 +936,10 @@ const StaffDashboardScreen = () => {
                     }}
                   >
                     <Text style={{ color: selectedDoctorId === null ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
-                      All Counters
+                      All Doctors
                     </Text>
                   </Pressable>
-                  {uniqueDoctorIds.map((docId, idx) => (
+                  {uniqueDoctors.map(({ id: docId, name: docName }) => (
                     <Pressable
                       key={docId}
                       onPress={() => setSelectedDoctorId(docId)}
@@ -951,7 +953,7 @@ const StaffDashboardScreen = () => {
                       }}
                     >
                       <Text style={{ color: selectedDoctorId === docId ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
-                        Counter #{idx + 1}
+                        {docName}
                       </Text>
                     </Pressable>
                   ))}

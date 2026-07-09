@@ -4,7 +4,7 @@ import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
 import { hp } from "../../utils/responsive";
 
-interface AppButtonProps {
+export interface AppButtonProps {
   onPress: () => void;
   title: string;
   loading?: boolean;

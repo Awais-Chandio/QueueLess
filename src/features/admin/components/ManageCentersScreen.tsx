@@ -2,7 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, Pressable, Modal, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Plus, Edit2, Trash2, Hospital, Stethoscope, ChevronLeft, X } from 'lucide-react-native';
+import { Plus, Edit2, Trash2, Hospital, Stethoscope, ChevronLeft, X, UserPlus, ToggleLeft, ToggleRight } from 'lucide-react-native';
+import { doctorsService } from '../../appointments/api/doctorsService';
+import type { Doctor } from '../../appointments/api/doctorsService';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppInput from '../../../components/ui/AppInput';
@@ -29,6 +31,7 @@ interface Service {
   name: string;
   avg_duration_mins: number;
   category: string;
+  on_duty_note?: string | null;
 }
 
 const ManageCentersScreen = () => {
@@ -56,6 +59,16 @@ const ManageCentersScreen = () => {
   const [serviceName, setServiceName] = useState('');
   const [serviceAvgDuration, setServiceAvgDuration] = useState('30');
   const [serviceCategory, setServiceCategory] = useState('General');
+  const [serviceOnDutyNote, setServiceOnDutyNote] = useState('');
+
+  // Doctor state (for service edit modal)
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
+  const [showDoctorForm, setShowDoctorForm] = useState(false);
+  const [editingDoctorId, setEditingDoctorId] = useState<string | null>(null);
+  const [doctorName, setDoctorName] = useState('');
+  const [doctorSpec, setDoctorSpec] = useState('');
+  const [doctorFormLoading, setDoctorFormLoading] = useState(false);
 
   const fetchCenters = useCallback(async () => {
     try {
@@ -104,6 +117,7 @@ const ManageCentersScreen = () => {
       setServiceName('');
       setServiceAvgDuration('30');
       setServiceCategory('General');
+      setServiceOnDutyNote('');
     }
     setShowModal(true);
   };
@@ -121,8 +135,106 @@ const ManageCentersScreen = () => {
       setServiceName(item.name || '');
       setServiceAvgDuration(String(item.avg_duration_mins || 30));
       setServiceCategory(item.category || 'General');
+      setServiceOnDutyNote(item.on_duty_note || '');
+      // Load doctors for this service
+      setDoctorsLoading(true);
+      doctorsService.getAllByServiceId(item.id).then(data => {
+        setDoctors(data);
+        setDoctorsLoading(false);
+      }).catch(() => {
+        setDoctors([]);
+        setDoctorsLoading(false);
+      });
     }
+    setShowDoctorForm(false);
     setShowModal(true);
+  };
+
+  const handleOpenAddDoctor = () => {
+    setEditingDoctorId(null);
+    setDoctorName('');
+    setDoctorSpec('');
+    setShowDoctorForm(true);
+  };
+
+  const handleOpenEditDoctor = (doc: Doctor) => {
+    setEditingDoctorId(doc.id);
+    setDoctorName(doc.name);
+    setDoctorSpec(doc.specialization || '');
+    setShowDoctorForm(true);
+  };
+
+  const handleSaveDoctor = async () => {
+    if (!doctorName.trim()) {
+      toastService.error('Doctor name is required');
+      return;
+    }
+    if (!editingId) {
+      toastService.error('Save the department first before adding doctors');
+      return;
+    }
+    setDoctorFormLoading(true);
+    try {
+      if (editingDoctorId) {
+        await doctorsService.update(editingDoctorId, {
+          name: doctorName.trim(),
+          specialization: doctorSpec.trim() || undefined,
+        });
+        toastService.success('Doctor updated');
+      } else {
+        await doctorsService.create({
+          name: doctorName.trim(),
+          specialization: doctorSpec.trim() || undefined,
+          service_id: editingId,
+        });
+        toastService.success('Doctor added');
+      }
+      const refreshed = await doctorsService.getAllByServiceId(editingId);
+      setDoctors(refreshed);
+      setShowDoctorForm(false);
+    } catch (err: any) {
+      toastService.error('Failed to save doctor: ' + err.message);
+    } finally {
+      setDoctorFormLoading(false);
+    }
+  };
+
+  const handleDeleteDoctor = (doc: Doctor) => {
+    Alert.alert(
+      'Remove Doctor',
+      `Are you sure you want to remove Dr. ${doc.name}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await doctorsService.delete(doc.id);
+              toastService.success('Doctor removed');
+              if (editingId) {
+                const refreshed = await doctorsService.getAllByServiceId(editingId);
+                setDoctors(refreshed);
+              }
+            } catch (err: any) {
+              toastService.error('Failed to remove: ' + err.message);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleToggleDoctor = async (doc: Doctor) => {
+    try {
+      await doctorsService.toggleActive(doc.id, !doc.is_active);
+      if (editingId) {
+        const refreshed = await doctorsService.getAllByServiceId(editingId);
+        setDoctors(refreshed);
+      }
+    } catch (err: any) {
+      toastService.error('Failed to update: ' + err.message);
+    }
   };
 
   const handleSave = async () => {
@@ -170,6 +282,7 @@ const ManageCentersScreen = () => {
         name: serviceName.trim(),
         avg_duration_mins: parseInt(serviceAvgDuration.trim(), 10) || 30,
         category: serviceCategory.trim(),
+        on_duty_note: serviceOnDutyNote.trim() || null,
       };
 
       try {
@@ -268,7 +381,7 @@ const ManageCentersScreen = () => {
               activeTab === 'services' && { backgroundColor: colors.primary, borderRadius: radius.lg },
             ]}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'services' ? '#FFF' : colors.text }]}>Services</Text>
+            <Text style={[styles.tabText, { color: activeTab === 'services' ? '#FFF' : colors.text }]}>Departments</Text>
           </Pressable>
         </View>
 
@@ -355,7 +468,7 @@ const ManageCentersScreen = () => {
             >
               <View style={[styles.modalHeader, { borderBottomColor: colors.border + '50' }]}>
                 <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' }]}>
-                  {editingId ? 'Edit' : 'Add New'} {activeTab === 'centers' ? 'Clinic' : 'Service'}
+                  {editingId ? 'Edit' : 'Add New'} {activeTab === 'centers' ? 'Clinic' : 'Department'}
                 </Text>
                 <Pressable
                   onPress={() => setShowModal(false)}
@@ -412,8 +525,8 @@ const ManageCentersScreen = () => {
                 ) : (
                   <>
                     <AppInput
-                      label="Service Name"
-                      placeholder="Service Name (e.g. Consultation)"
+                      label="Department Name"
+                      placeholder="Department Name (e.g. Cardiology)"
                       value={serviceName}
                       onChangeText={setServiceName}
                     />
@@ -430,6 +543,110 @@ const ManageCentersScreen = () => {
                       value={serviceCategory}
                       onChangeText={setServiceCategory}
                     />
+                    <AppInput
+                      label="On-duty note (optional)"
+                      placeholder="e.g. Dr. Ahmed on duty today"
+                      value={serviceOnDutyNote}
+                      onChangeText={setServiceOnDutyNote}
+                      multiline
+                    />
+
+                    {/* Doctors subsection — only visible when editing an existing department */}
+                    {!!editingId && (
+                      <View style={{ marginTop: spacing.md }}>
+                        <View style={[styles.divider, { backgroundColor: colors.border + '50' }]} />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm, marginTop: spacing.md }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Stethoscope size={15} color={colors.primary} />
+                            <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '800' }}>
+                              Doctors
+                            </Text>
+                            {doctorsLoading && (
+                              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>(loading...)</Text>
+                            )}
+                          </View>
+                          {!showDoctorForm && (
+                            <Pressable
+                              onPress={handleOpenAddDoctor}
+                              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.sm, paddingVertical: 5, borderRadius: radius.md, backgroundColor: colors.primary + '12' }}
+                            >
+                              <UserPlus size={13} color={colors.primary} />
+                              <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>Add Doctor</Text>
+                            </Pressable>
+                          )}
+                        </View>
+
+                        {/* Doctor list */}
+                        {doctors.length === 0 && !doctorsLoading && !showDoctorForm && (
+                          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+                            No doctors yet. Tap "Add Doctor" to assign one.
+                          </Text>
+                        )}
+                        {doctors.map(doc => (
+                          <View
+                            key={doc.id}
+                            style={[styles.doctorRow, { borderColor: colors.border + '50', backgroundColor: colors.surface }]}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700' }}>{doc.name}</Text>
+                              {!!doc.specialization && (
+                                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{doc.specialization}</Text>
+                              )}
+                            </View>
+                            <Pressable onPress={() => handleToggleDoctor(doc)} style={{ marginRight: 8 }}>
+                              {doc.is_active
+                                ? <ToggleRight size={22} color={colors.success} />
+                                : <ToggleLeft size={22} color={colors.textSecondary} />
+                              }
+                            </Pressable>
+                            <Pressable onPress={() => handleOpenEditDoctor(doc)} style={{ marginRight: 8 }}>
+                              <Edit2 size={15} color={colors.primary} />
+                            </Pressable>
+                            <Pressable onPress={() => handleDeleteDoctor(doc)}>
+                              <Trash2 size={15} color={colors.error} />
+                            </Pressable>
+                          </View>
+                        ))}
+
+                        {/* Inline Add/Edit doctor form */}
+                        {showDoctorForm && (
+                          <View style={[styles.doctorForm, { borderColor: colors.border + '50', backgroundColor: colors.primary + '04' }]}>
+                            <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '800', marginBottom: spacing.sm }}>
+                              {editingDoctorId ? 'Edit Doctor' : 'New Doctor'}
+                            </Text>
+                            <AppInput
+                              label="Doctor Name"
+                              placeholder="e.g. Dr. Sarah Khan"
+                              value={doctorName}
+                              onChangeText={setDoctorName}
+                            />
+                            <AppInput
+                              label="Specialization (optional)"
+                              placeholder="e.g. Cardiologist"
+                              value={doctorSpec}
+                              onChangeText={setDoctorSpec}
+                            />
+                            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                              <AppButton
+                                title={editingDoctorId ? 'Update' : 'Add'}
+                                onPress={handleSaveDoctor}
+                                loading={doctorFormLoading}
+                                containerStyle={{ flex: 1, marginTop: 0 }}
+                                style={{ flex: 1 }}
+                              />
+                              <AppButton
+                                title="Cancel"
+                                variant="outline"
+                                onPress={() => setShowDoctorForm(false)}
+                                disabled={doctorFormLoading}
+                                containerStyle={{ flex: 1, marginTop: 0 }}
+                                style={{ flex: 1 }}
+                              />
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </>
                 )}
 
@@ -553,5 +770,23 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 20,
     paddingBottom: 10,
+  },
+  divider: {
+    height: 1,
+    marginBottom: 4,
+  },
+  doctorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  doctorForm: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 8,
   },
 });

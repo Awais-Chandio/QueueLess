@@ -40,7 +40,7 @@ export const centersService = {
   ): Promise<CenterService[]> {
     const { data, error } = await supabase
       .from('services')
-      .select('*')
+      .select('id, center_id, name, description, duration_minutes, price, on_duty_note, created_at')
       .eq('center_id', centerId)
       .order('created_at', { ascending: true });
 
