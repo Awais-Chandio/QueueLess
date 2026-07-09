@@ -1,15 +1,15 @@
 import React from "react";
 import { ActivityIndicator, StyleSheet, Text, View, ViewStyle, TextStyle, Pressable } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
+import LinearGradient from "react-native-linear-gradient";
 import { useTheme } from "../../hooks/useTheme";
-import { hp, scaleFont } from "../../utils/responsive";
+import { hp } from "../../utils/responsive";
 
 interface AppButtonProps {
   onPress: () => void;
   title: string;
   loading?: boolean;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'success';
   style?: ViewStyle;
   containerStyle?: ViewStyle;
   textStyle?: TextStyle;
@@ -36,10 +36,11 @@ const AppButton = ({
     switch (variant) {
       case 'secondary':
         return {
-          bg: colors.border + '30',
-          text: colors.text,
-          border: colors.border,
-          borderWidth: 1,
+          bg: colors.card,
+          text: colors.primary,
+          border: colors.primary,
+          borderWidth: 1.5,
+          isGradient: false,
         };
       case 'outline':
         return {
@@ -47,6 +48,7 @@ const AppButton = ({
           text: colors.primary,
           border: colors.primary,
           borderWidth: 1.5,
+          isGradient: false,
         };
       case 'danger':
         return {
@@ -54,6 +56,15 @@ const AppButton = ({
           text: '#FFF',
           border: colors.error,
           borderWidth: 0,
+          isGradient: false,
+        };
+      case 'success':
+        return {
+          bg: colors.success,
+          text: '#FFF',
+          border: colors.success,
+          borderWidth: 0,
+          isGradient: false,
         };
       case 'primary':
       default:
@@ -62,75 +73,93 @@ const AppButton = ({
           text: '#FFF',
           border: colors.primary,
           borderWidth: 0,
+          isGradient: true,
         };
     }
   };
 
-  const { bg, text, border, borderWidth } = getVariantStyles();
+  const { bg, text, border, borderWidth, isGradient } = getVariantStyles();
 
-  // Reanimated press scale animation
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: scale.value }],
-    };
-  });
-
-  const handlePressIn = () => {
-    if (!isDisabled) {
-      scale.value = withSpring(0.96, { damping: 15, stiffness: 200 });
-    }
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 200 });
-  };
+  const renderContent = () => (
+    <View style={styles.contentContainer}>
+      {loading ? (
+        <>
+          <ActivityIndicator size="small" color={text} style={{ marginRight: spacing.sm }} />
+          <Text style={[styles.buttonText, { color: text, fontSize: typography.sizes.md }, textStyle]}>
+            {title}
+          </Text>
+        </>
+      ) : (
+        <>
+          {leftIcon && <View style={{ marginRight: spacing.sm }}>{leftIcon}</View>}
+          <Text style={[styles.buttonText, { color: text, fontSize: typography.sizes.md }, textStyle]}>
+            {title}
+          </Text>
+          {rightIcon && <View style={{ marginLeft: spacing.sm }}>{rightIcon}</View>}
+        </>
+      )}
+    </View>
+  );
 
   return (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       accessibilityRole="button"
       accessibilityState={{ busy: loading, disabled: isDisabled }}
-      style={[{ width: '100%', marginTop: spacing.sm }, containerStyle]}
+      style={({ pressed }) => [
+        styles.pressable,
+        { marginTop: spacing.sm },
+        !isDisabled && pressed && styles.pressed,
+        containerStyle,
+      ]}
     >
-      <Animated.View
-        style={[
-          styles.button,
-          {
-            backgroundColor: bg,
-            borderColor: border,
-            borderWidth: borderWidth,
-            borderRadius: radius.xl, // Premium rounded pills style
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
-            minHeight: hp(5.6),
-          },
-          isDisabled && styles.disabledButton,
-          style,
-          animatedStyle,
-        ]}
-      >
-        {loading ? (
-          <View style={styles.contentContainer}>
-            <ActivityIndicator size="small" color={text} style={{ marginRight: spacing.sm }} />
-            <Text style={[styles.buttonText, { color: text, fontSize: typography.sizes.md }, textStyle]}>
-              {title}
-            </Text>
-          </View>
+      <View style={styles.fullWidth}>
+        {isGradient && !isDisabled ? (
+          <LinearGradient
+            colors={colors.gradients.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.button,
+              {
+                borderRadius: radius.xl,
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.md,
+                minHeight: hp(5.6),
+                borderColor: border,
+                borderWidth: borderWidth,
+              },
+              styles.primaryShadow,
+              style,
+            ]}
+          >
+            {renderContent()}
+          </LinearGradient>
         ) : (
-          <View style={styles.contentContainer}>
-            {leftIcon && <View style={{ marginRight: spacing.sm }}>{leftIcon}</View>}
-            <Text style={[styles.buttonText, { color: text, fontSize: typography.sizes.md }, textStyle]}>
-              {title}
-            </Text>
-            {rightIcon && <View style={{ marginLeft: spacing.sm }}>{rightIcon}</View>}
+          <View
+            style={[
+              styles.button,
+              {
+                backgroundColor: bg,
+                borderColor: border,
+                borderWidth: borderWidth,
+                borderRadius: radius.xl,
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.md,
+                minHeight: hp(5.6),
+              },
+              variant === 'primary' && !isDisabled && styles.primaryShadow,
+              variant === 'danger' && !isDisabled && styles.dangerShadow,
+              variant === 'success' && !isDisabled && styles.successShadow,
+              isDisabled && styles.disabledButton,
+              style,
+            ]}
+          >
+            {renderContent()}
           </View>
         )}
-      </Animated.View>
+      </View>
     </Pressable>
   );
 };
@@ -138,6 +167,15 @@ const AppButton = ({
 export default AppButton;
 
 const styles = StyleSheet.create({
+  pressable: {
+    width: '100%',
+  },
+  fullWidth: {
+    width: '100%',
+  },
+  pressed: {
+    transform: [{ scale: 0.96 }],
+  },
   button: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -150,10 +188,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
-    fontWeight: '600',
+    fontWeight: '700',
     textAlign: 'center',
+    letterSpacing: 0,
   },
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.5,
+  },
+  primaryShadow: {
+    shadowColor: '#0F766E',
+    shadowOffset: { width: 0, height: 9 },
+    shadowOpacity: 0.24,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  dangerShadow: {
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 7,
+  },
+  successShadow: {
+    shadowColor: '#22C55E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 7,
   },
 });

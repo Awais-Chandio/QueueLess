@@ -29,7 +29,7 @@ import AppButton from "../../../components/ui/AppButton";
 import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
 import { toastService } from "../../../services/toastService";
-import MedicalLogo from "../../../components/ui/MedicalLogo";
+import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 
 type OTPVerificationRouteProp = RouteProp<AuthStackParamList, "OTPVerification">;
@@ -38,7 +38,7 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const RESEND_COOLDOWN = 60; // 60 seconds cooldown for resending
 
 const OTPVerificationScreen = () => {
-    const { colors, spacing, typography, radius } = useTheme();
+    const { colors, spacing, typography, radius, isDarkMode } = useTheme();
     const navigation = useNavigation();
     const route = useRoute<OTPVerificationRouteProp>();
     const { verifyPhoneOtp, loginWithPhone } = useAuth();
@@ -61,25 +61,26 @@ const OTPVerificationScreen = () => {
 
     // Mount animations
     const fadeAnim = useRef(new RNAnimated.Value(0)).current;
-    const slideAnim = useRef(new RNAnimated.Value(30)).current;
-    const logoScale = useRef(new RNAnimated.Value(0.85)).current;
+    const slideAnim = useRef(new RNAnimated.Value(40)).current;
+    const logoScale = useRef(new RNAnimated.Value(0.8)).current;
 
     useEffect(() => {
         RNAnimated.parallel([
             RNAnimated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 500,
+                duration: 600,
                 useNativeDriver: true,
             }),
-            RNAnimated.timing(slideAnim, {
+            RNAnimated.spring(slideAnim, {
                 toValue: 0,
-                duration: 500,
+                friction: 8,
+                tension: 40,
                 useNativeDriver: true,
             }),
             RNAnimated.spring(logoScale, {
                 toValue: 1,
-                friction: 6,
-                tension: 40,
+                friction: 5,
+                tension: 30,
                 useNativeDriver: true,
             })
         ]).start();
@@ -213,19 +214,19 @@ const OTPVerificationScreen = () => {
                         styles.otpCell,
                         { 
                             borderColor: isFocused ? colors.primary : colors.border,
-                            borderWidth: isFocused ? 2 : 1.5,
+                            borderWidth: isFocused ? 2 : 1.2,
                             backgroundColor: colors.surface,
-                            borderRadius: radius.md
+                            borderRadius: radius.lg
                         }
                     ]}
                     onPress={() => inputRef.current?.focus()}
                 >
                     {isSuccess ? (
                         <Animated.View style={successAnimatedStyle}>
-                            <Check size={20} color={colors.success || '#10B981'} />
+                            <Check size={20} color={colors.success || '#22C55E'} />
                         </Animated.View>
                     ) : (
-                        <Text style={[styles.otpCellText, { color: colors.text }]}>{char}</Text>
+                        <Text style={[styles.otpCellText, { color: colors.text, fontSize: typography.sizes.xl }]}>{char}</Text>
                     )}
                 </Pressable>
             );
@@ -242,24 +243,25 @@ const OTPVerificationScreen = () => {
                 <ScrollView
                     contentContainerStyle={styles.scrollContainer}
                     showsVerticalScrollIndicator={false}
+                    bounces={false}
                 >
                     {/* Upper Gradient Header */}
                     <LinearGradient
-                        colors={[colors.primary, '#14B8A6']}
+                        colors={colors.gradients.primary}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.headerGradient}
                     >
                         <Pressable 
-                            style={styles.backButton}
+                            style={[styles.backButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
                             onPress={() => navigation.goBack()}
                         >
-                            <ArrowLeft size={scaleFont(24)} color="#FFFFFF" />
+                            <ArrowLeft size={20} color="#FFFFFF" />
                         </Pressable>
 
                         <RNAnimated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <MedicalLogo size={scaleFont(48)} qColor="#FFFFFF" crossColor="#14B8A6" />
+                                <Floating3DLogo size={scaleFont(46)} qColor="#FFFFFF" crossColor="#14B8A6" />
                             </View>
                         </RNAnimated.View>
 
@@ -276,8 +278,8 @@ const OTPVerificationScreen = () => {
                             styles.formContainer,
                             {
                                 backgroundColor: colors.background,
-                                borderTopLeftRadius: radius.xl,
-                                borderTopRightRadius: radius.xl,
+                                borderTopLeftRadius: radius.xxl,
+                                borderTopRightRadius: radius.xxl,
                                 opacity: fadeAnim,
                                 transform: [{ translateY: slideAnim }]
                             }
@@ -290,11 +292,25 @@ const OTPVerificationScreen = () => {
                             resizeMode="contain"
                         />
 
-                        <Animated.View style={[styles.formCard, shakeAnimatedStyle, { backgroundColor: colors.surface, borderRadius: radius.xl }]}>
+                        <Animated.View style={[
+                            styles.formCard, 
+                            shakeAnimatedStyle, 
+                            { 
+                                backgroundColor: colors.surface, 
+                                borderRadius: radius.xl,
+                                shadowColor: isDarkMode ? '#000000' : colors.primary,
+                                shadowOffset: { width: 0, height: 8 },
+                                shadowOpacity: isDarkMode ? 0.3 : 0.05,
+                                shadowRadius: 20,
+                                elevation: 4,
+                                borderColor: colors.border + '60',
+                                borderWidth: 0.5
+                            }
+                        ]}>
                             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
                                 Verify Your Phone
                             </Text>
-                            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+                            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
                                 We have sent a 6-digit verification code to <Text style={{ fontWeight: 'bold', color: colors.text }}>{phone}</Text>. Please enter it below.
                             </Text>
 
@@ -327,10 +343,7 @@ const OTPVerificationScreen = () => {
                                 title={isSuccess ? "Verified" : (isVerifying ? "Verifying OTP..." : "Verify OTP")}
                                 onPress={handleVerifyOTP}
                                 loading={isVerifying}
-                                style={{
-                                    ...styles.verifyButton,
-                                    ...(isSuccess ? { backgroundColor: colors.success || '#10B981' } : {})
-                                }}
+                                style={isSuccess ? { backgroundColor: colors.success || '#22C55E' } : {}}
                                 disabled={isSuccess}
                             />
 
@@ -339,7 +352,7 @@ const OTPVerificationScreen = () => {
                                     <Text style={[styles.resendText, { color: colors.textSecondary }]}>
                                         Resend code in {cooldown}s
                                     </Text>
-                                ) : (
+                               ) : (
                                     <Pressable 
                                         disabled={isResending || isSuccess} 
                                         onPress={handleResendOTP}
@@ -348,12 +361,12 @@ const OTPVerificationScreen = () => {
                                             pressed && styles.pressedEffect
                                         ]}
                                     >
-                                        <RefreshCw size={scaleFont(14)} color={colors.primary} style={{ marginRight: spacing.xs }} />
-                                        <Text style={[styles.resendLink, { color: colors.primary }]}>
-                                            {isResending ? "Resending..." : "Resend Code"}
+                                        <RefreshCw size={14} color={colors.primary} style={styles.resendIcon} />
+                                        <Text style={[styles.resendActionText, { color: colors.primary }]}>
+                                            {isResending ? "Resending..." : "Resend Verification Code"}
                                         </Text>
                                     </Pressable>
-                                )}
+                               )}
                             </View>
                         </Animated.View>
                     </RNAnimated.View>
@@ -373,32 +386,32 @@ const styles = StyleSheet.create({
         width: '100%',
         height: hp(11),
         alignSelf: 'center',
-        marginBottom: hp(2),
-        marginTop: hp(1),
+        marginBottom: hp(1.5),
+        marginTop: hp(0.5),
     },
     scrollContainer: {
         flexGrow: 1,
     },
     headerGradient: {
-        height: SCREEN_HEIGHT * 0.23,
+        height: SCREEN_HEIGHT * 0.24,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: wp(6),
         paddingTop: hp(2),
-        position: 'relative',
     },
     backButton: {
         position: 'absolute',
+        top: hp(2),
         left: wp(4),
-        top: Platform.OS === 'ios' ? hp(6) : hp(3),
         padding: 8,
+        borderRadius: 999,
         zIndex: 10,
     },
     logoContainer: {
         marginBottom: hp(0.5),
     },
     logoOutline: {
-        padding: 6,
+        padding: 8,
         borderWidth: 1,
         borderRadius: 24,
         borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -406,7 +419,7 @@ const styles = StyleSheet.create({
     },
     appTitle: {
         fontSize: scaleFont(26),
-        fontWeight: 'bold',
+        fontWeight: '900',
         color: '#FFFFFF',
         textAlign: 'center',
     },
@@ -421,32 +434,26 @@ const styles = StyleSheet.create({
         fontSize: scaleFont(11),
         color: 'rgba(255, 255, 255, 0.7)',
         textAlign: 'center',
-        marginTop: 6,
+        marginTop: 4,
         fontStyle: 'italic',
     },
     formContainer: {
         flex: 1,
-        marginTop: -20,
+        marginTop: -24,
         paddingHorizontal: wp(5),
-        paddingTop: hp(2.5),
-        paddingBottom: hp(2.5),
+        paddingTop: hp(2),
+        paddingBottom: hp(4),
     },
     formCard: {
         padding: wp(5),
-        elevation: 4,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 16,
-        borderWidth: Platform.OS === 'ios' ? 0 : 1,
-        borderColor: '#E2E8F0',
     },
     title: {
-        fontWeight: '700',
-        marginBottom: hp(0.5),
+        fontWeight: '800',
+        textAlign: 'center',
     },
     subtitle: {
-        marginBottom: hp(2.5),
+        textAlign: 'center',
+        marginTop: 4,
         lineHeight: 18,
     },
     hiddenInput: {
@@ -458,49 +465,52 @@ const styles = StyleSheet.create({
     otpRowContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        width: '100%',
-        marginBottom: hp(2.5),
-        paddingHorizontal: wp(1),
+        marginVertical: hp(2.5),
+        paddingHorizontal: wp(2),
     },
     otpCell: {
-        width: wp(11.5),
+        width: wp(11),
         aspectRatio: 1,
         justifyContent: 'center',
         alignItems: 'center',
         elevation: 1,
         shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 1 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.02,
-        shadowRadius: 2,
+        shadowRadius: 4,
     },
     otpCellText: {
-        fontSize: scaleFont(22),
         fontWeight: '700',
-    },
-    verifyButton: {
-        marginTop: hp(1),
     },
     errorMessage: {
         color: '#EF4444',
         textAlign: 'center',
-        marginBottom: hp(2),
         fontSize: scaleFont(13),
+        fontWeight: '600',
+        marginBottom: hp(1),
+    },
+    verifyButton: {
+        marginTop: hp(1),
     },
     resendContainer: {
-        marginTop: hp(2.5),
         alignItems: 'center',
-        justifyContent: 'center',
+        marginTop: hp(2),
+        paddingVertical: 4,
     },
     resendText: {
-        fontSize: scaleFont(14),
+        fontSize: scaleFont(13),
+        fontWeight: '600',
     },
     resendPressable: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 4,
+        justifyContent: 'center',
     },
-    resendLink: {
-        fontSize: scaleFont(14),
+    resendIcon: {
+        marginRight: wp(1.5),
+    },
+    resendActionText: {
+        fontSize: scaleFont(13),
         fontWeight: '700',
     },
     pressedEffect: {

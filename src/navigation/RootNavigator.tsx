@@ -8,8 +8,10 @@ import { useAuthStore } from "../store/authStore";
 import { useProfileStore } from "../store/profileStore";
 import { getUserRoute } from "../utils/roleMapping";
 import SplashScreen from "../features/auth/components/SplashScreen";
+import { useNotifications } from "../hooks/useNotifications";
 
 const RootNavigator = () => {
+  useNotifications();
   const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
   const { profile } = useProfileStore();
   const [isSplashFinished, setIsSplashFinished] = useState(false);
@@ -118,6 +120,6 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     flex: 1,
-    backgroundColor: "#0F172A", // Dark blue placeholder matching the gradient splash theme
+    backgroundColor: "#061A1A", // Dark clinical placeholder matching the gradient splash theme
   },
 });

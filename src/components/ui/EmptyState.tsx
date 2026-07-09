@@ -1,11 +1,11 @@
 import React, { useEffect } from "react";
-import { View, StyleSheet, Text, StyleProp, ViewStyle } from "react-native";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing } from "react-native-reanimated";
+import { Animated, View, StyleSheet, Text, StyleProp, ViewStyle } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import AppButton from "./AppButton";
 import { LucideIcon } from "lucide-react-native";
 import { scaleFont } from "../../utils/responsive";
 import LottieView from 'lottie-react-native';
+import BrandIllustration from "./BrandIllustration";
 
 type EmptyStateProps = {
   title?: string;
@@ -14,28 +14,32 @@ type EmptyStateProps = {
   onButtonPress?: () => void;
   Icon?: LucideIcon;
   lottieSource?: any;
+  illustrationKind?: 'empty' | 'error' | 'success' | 'queue' | 'appointment' | 'notification';
   style?: StyleProp<ViewStyle>;
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ title, subtitle, buttonTitle, onButtonPress, Icon, lottieSource, style }) => {
+export const EmptyState: React.FC<EmptyStateProps> = ({ title, subtitle, buttonTitle, onButtonPress, Icon, lottieSource, illustrationKind = 'empty', style }) => {
   const { colors, spacing, typography } = useTheme();
-  const opacity = useSharedValue(0);
-  const translateY = useSharedValue(16);
+  const opacity = React.useRef(new Animated.Value(0)).current;
+  const translateY = React.useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 400, easing: Easing.out(Easing.ease) });
-    translateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.ease) });
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, [opacity, translateY]);
 
-  const animatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacity.value,
-      transform: [{ translateY: translateY.value }],
-    };
-  });
-
   return (
-    <Animated.View style={[styles.container, { padding: spacing.lg }, animatedStyle, style]}>
+    <Animated.View style={[styles.container, { padding: spacing.lg, opacity, transform: [{ translateY }] }, style]}>
       {lottieSource ? (
         <LottieView
           source={lottieSource}
@@ -58,13 +62,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ title, subtitle, buttonT
         >
           <Icon size={scaleFont(36)} color={colors.primary} />
         </View>
-      ) : null}
+      ) : (
+        <View style={{ marginBottom: spacing.lg }}>
+          <BrandIllustration kind={illustrationKind} size={scaleFont(150)} />
+        </View>
+      )}
 
-      <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: typography.weights.bold, marginBottom: spacing.xs }]}>
+      <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: typography.weights.extrabold, marginBottom: spacing.xs }]}>
         {title || "No Data"}
       </Text>
       {subtitle && (
-        <Text style={[styles.subtitle, { color: colors.textSecondary, marginBottom: spacing.xl, fontSize: typography.sizes.md }]}>
+        <Text style={[styles.subtitle, { color: colors.textSecondary, marginBottom: spacing.xl, fontSize: typography.sizes.md, lineHeight: scaleFont(23) }]}>
           {subtitle}
         </Text>
       )}
@@ -94,7 +102,6 @@ const styles = StyleSheet.create({
   subtitle: {
     textAlign: 'center',
     maxWidth: '80%',
-    lineHeight: 24,
   },
   button: {
     width: '100%',

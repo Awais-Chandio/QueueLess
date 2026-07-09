@@ -341,6 +341,8 @@ const updateAppointment = async (
 
     if (allowedCurrentStatuses?.length) {
       query = query.in('status', allowedCurrentStatuses);
+    } else {
+      query = query.eq('status', appointment.status);
     }
 
     return query.select(select).maybeSingle();
@@ -362,7 +364,7 @@ const updateAppointment = async (
   }
 
   if (!data) {
-    console.warn('[STAFF_QUEUE] Invalid status transition:', {
+    console.warn('[STAFF_QUEUE] Mismatch or invalid status transition:', {
       appointmentId: appointment.id,
       action,
       currentStatus: appointment.status,
@@ -370,9 +372,7 @@ const updateAppointment = async (
       nextStatus,
     });
     throw new Error(
-      `Cannot ${action.replace('_', ' ')} this appointment from ${
-        appointment.status
-      }.`,
+      'This appointment has already been updated by another staff member. Refreshing...'
     );
   }
 
@@ -415,6 +415,7 @@ export const staffQueueService = {
       'confirmed',
       {},
       'confirm',
+      ['pending'],
     );
 
     return updatedAppointment;
@@ -431,6 +432,7 @@ export const staffQueueService = {
         cancelled_at: new Date().toISOString(),
       },
       'cancel',
+      ['pending', 'confirmed', 'checked_in', 'called', 'in_progress'],
     );
 
     return updatedAppointment;
@@ -463,7 +465,21 @@ export const staffQueueService = {
         started_at: calledAt,
       },
       'call_next',
-      ['confirmed', 'checked_in', 'pending', 'called'],
+      ['confirmed', 'checked_in', 'called'],
+    );
+
+    return updatedAppointment;
+  },
+
+  async noShowAppointment(appointment: AppointmentFull) {
+    const updatedAppointment = await updateAppointment(
+      appointment,
+      'no_show',
+      {
+        skipped_at: new Date().toISOString(),
+      },
+      'no_show',
+      ['called', 'in_progress'],
     );
 
     return updatedAppointment;
@@ -487,6 +503,7 @@ export const staffQueueService = {
         completed_at: new Date().toISOString(),
       },
       'complete_service',
+      ['called', 'in_progress'],
     );
 
     return updatedAppointment;

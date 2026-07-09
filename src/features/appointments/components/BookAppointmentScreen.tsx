@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 
 import {
   Alert,
@@ -8,8 +8,78 @@ import {
   StyleSheet,
   Text,
   View,
-  Platform,
 } from 'react-native';
+
+const AnimatedSlotChip = ({
+  slot,
+  selected,
+  disabled,
+  onPress,
+  colors,
+  radius,
+  spacing,
+  typography,
+  styles,
+}: {
+  slot: string;
+  selected: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  colors: any;
+  radius: any;
+  spacing: any;
+  typography: any;
+  styles: any;
+}) => {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        { marginRight: spacing.sm },
+        !disabled && pressed && { transform: [{ scale: 0.92 }] },
+      ]}
+    >
+      <View
+        style={[
+          styles.slotChip,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radius.full,
+            borderWidth: 1.2,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.sm,
+          },
+          selected && {
+            backgroundColor: colors.primary,
+            borderColor: colors.primary,
+          },
+          disabled && {
+            backgroundColor: colors.border + '30',
+            borderColor: colors.border + '20',
+            opacity: 0.4,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.slotText,
+            {
+              color: colors.text,
+              fontSize: typography.sizes.xs,
+              fontWeight: '700',
+            },
+            selected && { color: '#FFF' },
+            disabled && { color: colors.textSecondary },
+          ]}
+        >
+          {slot}
+        </Text>
+      </View>
+    </Pressable>
+  );
+};
 
 import {
   useNavigation,
@@ -20,9 +90,9 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChevronLeft, Calendar as CalendarIcon, Clock, Hourglass, ShieldAlert } from 'lucide-react-native';
+import { ChevronLeft, Calendar as CalendarIcon, Hourglass, ShieldAlert } from 'lucide-react-native';
 
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingSchema, BookingFormData } from '../../../validations/bookingSchema';
 
@@ -31,6 +101,7 @@ import EmptyState from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
 import Loader from '../../../components/ui/Loader';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import Card from '../../../components/ui/Card';
 
 import { useTheme } from '../../../hooks/useTheme';
 
@@ -48,6 +119,7 @@ import {
   isPastAppointmentSlot,
   timeToMinutes,
 } from '../utils/appointmentTime';
+import { hp } from '../../../utils/responsive';
 
 import type { AppointmentFull } from '../../../types/appointment';
 import type { CenterService } from '../../../types/center';
@@ -77,7 +149,7 @@ const BookAppointmentScreen = () => {
 
   const centerServices = useCentersStore(state => state.centerServices);
   const selectedCenter = useCentersStore(state => state.selectedCenter);
-  
+
   const fetchCenterServices = useCentersStore(state => state.fetchCenterServices);
   const fetchCenterById = useCentersStore(state => state.fetchCenterById);
   const loading = useCentersStore(state => state.loading);
@@ -104,7 +176,7 @@ const BookAppointmentScreen = () => {
     try {
       setValue('slot', slot, { shouldValidate: true });
       await appointmentsService.lockSlot(centerId, appointmentDate, slot);
-      
+
       // Reset and start countdown timer (10 mins = 600 secs)
       if (timerRef.current) clearInterval(timerRef.current);
       setLockTimeLeft(600);
@@ -121,25 +193,14 @@ const BookAppointmentScreen = () => {
           return prev - 1;
         });
       }, 1000);
-    } catch (err: any) {
-      toastService.error(err.message || 'Failed to lock slot');
+
+    } catch {
       setValue('slot', '');
+      toastService.error('This slot was recently locked or booked by another patient. Please choose another slot.');
     }
   };
 
-  // Cleanup timer and slot lock on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      appointmentsService.unlockSlot().catch(console.warn);
-    };
-  }, []);
-
-  // Initialize React Hook Form with Zod validation
   const {
-    control,
     handleSubmit,
     setValue,
     watch,
@@ -147,7 +208,7 @@ const BookAppointmentScreen = () => {
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
-      serviceId: initialServiceId ?? '',
+      serviceId: initialServiceId || '',
       date: new Date(),
       slot: '',
     },
@@ -157,78 +218,47 @@ const BookAppointmentScreen = () => {
   const date = watch('date');
   const selectedSlot = watch('slot');
 
-  const appointmentDate = formatAppointmentDateInput(date);
+  const appointmentDate = useMemo(() => {
+    return formatAppointmentDateInput(date);
+  }, [date]);
 
-  // Load center details and services on mount
   useEffect(() => {
     if (centerId) {
       fetchCenterServices(centerId);
       fetchCenterById(centerId);
     }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      appointmentsService.unlockSlot().catch(console.warn);
+    };
   }, [centerId, fetchCenterServices, fetchCenterById]);
 
-  // Set default initial service if navigation params passed it
+  // Fetch available slots from backend
   useEffect(() => {
-    if (initialServiceId) {
-      setValue('serviceId', initialServiceId, { shouldValidate: true });
-    }
-  }, [initialServiceId, setValue]);
-
-  // Fetch available slots from backend whenever date or service changes
-  useEffect(() => {
-    if (!centerId) return;
-
-    let cancelled = false;
-
-    const loadSlots = async () => {
+    const fetchSlots = async () => {
+      if (!centerId) return;
       try {
         setSlotsLoading(true);
         setSlotsError(null);
-
-        const slots = await appointmentsService.getAvailableSlots(
+        setValue('slot', ''); // clear selected slot on date change
+        const booked = await appointmentsService.getAvailableSlots(
           appointmentDate,
           centerId,
         );
-
-        if (cancelled) return;
-
-        setAvailableSlots(slots);
-        
-        // Reset selected slot if it is no longer available in the newly loaded slots
-        if (selectedSlot && !slots.includes(selectedSlot)) {
-          setValue('slot', '');
-        }
-      } catch (slotError) {
-        if (cancelled) return;
-
-        const message =
-          slotError instanceof Error ? slotError.message : 'Failed to load slots.';
-
-        console.error('[SLOTS] Failed to load booking slots:', {
-          appointmentDate,
-          centerId,
-          message,
-        });
-        setSlotsError(message);
-        setAvailableSlots([]);
-        setValue('slot', '');
+        setAvailableSlots(booked);
+      } catch {
+        setSlotsError('Failed to load available slots. Please try changing the date.');
       } finally {
-        if (!cancelled) {
-          setSlotsLoading(false);
-        }
+        setSlotsLoading(false);
       }
     };
 
-    loadSlots();
+    fetchSlots();
+  }, [centerId, appointmentDate, setValue]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [appointmentDate, centerId, setValue, selectedSlot]);
-
-  // Submit appointment booking
-  const onSubmit = async (formData: BookingFormData) => {
-    if (!centerId || !user?.id) {
+  const onBook = async (formData: BookingFormData) => {
+    if (!user || !centerId) {
+      toastService.error('You must be logged in to book slots');
       return;
     }
 
@@ -238,65 +268,28 @@ const BookAppointmentScreen = () => {
         formData.slot,
       );
 
-      console.log('[DEBUG] BookAppointmentScreen: Creating appointment with slot:', {
-        appointmentDate,
-        appointmentTime: formData.slot,
-        scheduledAt,
-      });
-
-      const appointment = await createAppointment({
+      const payload = {
         user_id: user.id,
         center_id: centerId,
         service_id: formData.serviceId,
         scheduled_at: scheduledAt,
         appointment_date: appointmentDate,
         appointment_time: formData.slot,
-      });
+      };
 
-      queryClient.setQueryData<AppointmentFull[]>(
-        ['appointments', user.id],
-        currentAppointments => {
-          const nextAppointment: AppointmentFull = {
-            ...appointment,
-          };
+      const result = await createAppointment(payload);
+      if (result) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        await queryClient.refetchQueries({ queryKey: ['appointments'] });
+        await queryClient.refetchQueries({ queryKey: ['dashboard-stats'] });
 
-          const appointments = currentAppointments ?? [];
-          return [
-            nextAppointment,
-            ...appointments.filter(item => item.id !== appointment.id),
-          ].sort(
-            (a, b) =>
-              new Date(a.scheduled_at).getTime() -
-              new Date(b.scheduled_at).getTime(),
-          );
-        },
-      );
+        toastService.success('Appointment booked successfully!');
 
-      // Navigate immediately to QueueStatus to ensure an instant, fluid transition
-      toastService.success('Appointment booked successfully');
-      navigation.navigate('QueueStatus', {
-        appointmentId: appointment.id,
-      });
-
-      // Perform invalidations and available slot refreshes in the background (no awaiting!)
-      queryClient.invalidateQueries({
-        queryKey: ['appointments', user.id],
-        refetchType: 'all',
-      }).catch(err => console.warn('[Appt Invalidation] Error:', err));
-
-      queryClient.invalidateQueries({
-        queryKey: ['staff-dashboard'],
-      }).catch(err => console.warn('[Staff Invalidation] Error:', err));
-
-      appointmentsService.getAvailableSlots(
-        appointmentDate,
-        centerId,
-      ).then(slots => {
-        setAvailableSlots(slots);
-        setValue('slot', '');
-      }).catch(err => console.warn('[Slots Reload] Error:', err));
+        navigation.replace('AppointmentDetails', {
+          appointmentId: (result as AppointmentFull).id,
+        });
+      }
     } catch (createError) {
-      console.error('[DEBUG] BookAppointmentScreen: Failed to create appointment:', createError);
       toastService.error(
         createError instanceof Error
           ? `Failed to book appointment: ${createError.message}`
@@ -309,29 +302,23 @@ const BookAppointmentScreen = () => {
     const selected = selectedServiceId === item.id;
 
     return (
-      <Pressable
-        style={({ pressed }) => [
-          styles.serviceCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: selected ? colors.primary : colors.border,
-            borderWidth: selected ? 2 : 1,
-            borderRadius: radius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.md,
-            shadowColor: colors.text,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: selected ? 0.04 : 0.01,
-            shadowRadius: 6,
-          },
-          pressed && { opacity: 0.95 }
-        ]}
+      <Card
         onPress={() => {
           setValue('serviceId', item.id, { shouldValidate: true });
           setValue('slot', '');
         }}
-        accessibilityRole="button"
-        accessibilityState={{ selected }}>
+        variant={selected ? 'flat' : 'elevated'}
+        style={[
+          styles.serviceCard,
+          {
+            borderColor: selected ? colors.primary : colors.border + '30',
+            borderWidth: selected ? 2 : 0.5,
+            padding: spacing.md,
+            backgroundColor: selected ? colors.primary + '06' : colors.surface,
+          },
+        ]}
+        containerStyle={{ marginBottom: spacing.md }}
+      >
         <View style={styles.serviceHeader}>
           <Text style={[styles.serviceName, { color: colors.text, fontSize: typography.sizes.md }]}>
             {item.name}
@@ -348,13 +335,13 @@ const BookAppointmentScreen = () => {
           </Text>
         )}
 
-        <View style={[styles.metaContainer, { backgroundColor: colors.border + '15', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs / 2 }]}>
+        <View style={[styles.metaContainer, { backgroundColor: colors.border + '20', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs / 2 }]}>
           <Hourglass size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
           <Text style={[styles.meta, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
             {item.duration_minutes} min
           </Text>
         </View>
-      </Pressable>
+      </Card>
     );
   };
 
@@ -416,7 +403,7 @@ const BookAppointmentScreen = () => {
               <ChevronLeft size={24} color={colors.primary} />
               <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>Back</Text>
             </Pressable>
-            
+
             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
               Book Appointment
             </Text>
@@ -424,9 +411,9 @@ const BookAppointmentScreen = () => {
             <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
               Select a service to continue.
             </Text>
-            
+
             {errors.serviceId && (
-              <Text style={[styles.slotError, { color: colors.error, fontSize: typography.sizes.xs }]}>
+              <Text style={[styles.slotError, { color: colors.error, fontSize: typography.sizes.xs, marginBottom: spacing.sm }]}>
                 {errors.serviceId.message}
               </Text>
             )}
@@ -451,7 +438,7 @@ const BookAppointmentScreen = () => {
                   {
                     backgroundColor: colors.surface,
                     borderColor: colors.border,
-                    borderWidth: 1.5,
+                    borderWidth: 1.2,
                     borderRadius: radius.xl,
                     padding: spacing.md,
                     marginBottom: spacing.md,
@@ -474,7 +461,7 @@ const BookAppointmentScreen = () => {
               <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.xs }]}>
                 Available Slots
               </Text>
-              
+
               {selectedCenter && (
                 <Text style={[styles.slotHint, { color: colors.textSecondary, fontSize: typography.sizes.xs, fontStyle: 'italic', marginBottom: spacing.sm }]}>
                   Operating Hours: {selectedCenter.open_time || 'N/A'} - {selectedCenter.close_time || 'N/A'}
@@ -499,67 +486,38 @@ const BookAppointmentScreen = () => {
                     {APPOINTMENT_SLOT_LABELS.map(slot => {
                       const slotMin = timeToMinutes(slot);
                       const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
-                      
+
                       const pastSlot = isPastAppointmentSlot(
                         appointmentDate,
                         slot,
                       );
                       const booked = !availableSlots.includes(slot);
-                      
+
                       const disabled = pastSlot || booked || !isWithinHours;
                       const selected = selectedSlot === slot;
 
                       return (
-                        <Pressable
+                        <AnimatedSlotChip
                           key={slot}
+                          slot={slot}
+                          selected={selected}
                           disabled={disabled}
                           onPress={() => handleSelectSlot(slot)}
-                          style={[
-                            styles.slotChip,
-                            {
-                              backgroundColor: colors.surface,
-                              borderColor: colors.border,
-                              borderRadius: radius.full,
-                              borderWidth: 1.5,
-                              paddingHorizontal: spacing.lg,
-                              paddingVertical: spacing.sm,
-                              marginRight: spacing.sm,
-                            },
-                            selected && {
-                              backgroundColor: colors.primary,
-                              borderColor: colors.primary,
-                            },
-                            disabled && {
-                              backgroundColor: colors.border + '50',
-                              borderColor: colors.border + '30',
-                              opacity: 0.5,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.slotText,
-                              {
-                                color: colors.text,
-                                fontSize: typography.sizes.xs,
-                                fontWeight: '700',
-                              },
-                              selected && { color: '#FFF' },
-                              disabled && { color: colors.textSecondary },
-                            ]}
-                          >
-                            {slot}
-                          </Text>
-                        </Pressable>
+                          colors={colors}
+                          radius={radius}
+                          spacing={spacing}
+                          typography={typography}
+                          styles={styles}
+                        />
                       );
                     })}
                   </ScrollView>
-                  
+
                   {lockTimeLeft !== null && selectedSlot !== '' && (
-                    <View style={[styles.timerContainer, { backgroundColor: `${colors.warning}08`, borderColor: `${colors.warning}20`, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.md }]}>
+                    <View style={[styles.timerContainer, { backgroundColor: `${colors.warning}10`, borderColor: `${colors.warning}30`, borderWidth: 1, borderRadius: radius.lg, padding: spacing.sm, marginTop: spacing.md }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <ShieldAlert size={16} color={colors.warning} />
-                        <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs }]}>
+                        <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs, fontWeight: '700' }]}>
                           Slot locked for {formatTimeLeft(lockTimeLeft)}. Book now!
                         </Text>
                       </View>
@@ -579,7 +537,7 @@ const BookAppointmentScreen = () => {
                   value={date}
                   mode="date"
                   minimumDate={new Date()}
-                  onValueChange={(
+                  onChange={(
                     _event,
                     selectedDate,
                   ) => {
@@ -589,7 +547,6 @@ const BookAppointmentScreen = () => {
                       setValue('slot', '');
                     }
                   }}
-                  onDismiss={() => setShowDatePicker(false)}
                 />
               )}
             </View>
@@ -601,19 +558,11 @@ const BookAppointmentScreen = () => {
             )}
 
             <AppButton
-              title={
-                appointmentLoading
-                  ? 'Scheduling...'
-                  : 'Confirm Appointment'
-              }
+              title="Confirm Slot"
               loading={appointmentLoading}
-              disabled={
-                appointmentLoading ||
-                slotsLoading ||
-                centerServices.length === 0
-              }
+              disabled={appointmentLoading || selectedSlot === '' || slotsLoading}
+              onPress={handleSubmit(onBook)}
               style={{ marginTop: spacing.lg }}
-              onPress={handleSubmit(onSubmit)}
             />
           </View>
         }
@@ -626,7 +575,16 @@ export default BookAppointmentScreen;
 
 const styles = StyleSheet.create({
   header: {
+    marginBottom: hp(1),
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
     marginBottom: 8,
+  },
+  backButtonText: {
+    fontWeight: '700',
   },
   title: {
     fontWeight: '800',
@@ -636,21 +594,19 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     flexDirection: 'column',
-    alignItems: 'flex-start',
   },
   serviceHeader: {
-    alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
+    alignItems: 'center',
   },
   serviceName: {
+    fontWeight: '800',
     flex: 1,
-    fontWeight: '700',
+    paddingRight: 10,
   },
   price: {
     fontWeight: '800',
-    flexShrink: 0,
   },
   description: {
     marginTop: 4,
@@ -659,16 +615,17 @@ const styles = StyleSheet.create({
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     marginTop: 8,
   },
   meta: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   dateContainer: {
-    marginTop: 8,
+    marginTop: hp(1),
   },
   label: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   dateButton: {
     elevation: 1,
@@ -678,19 +635,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   dateText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   slotRow: {
     paddingVertical: 4,
   },
   slotChip: {
-    alignItems: 'center',
     justifyContent: 'center',
-    elevation: 1,
+    alignItems: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
-    shadowRadius: 2,
+    shadowRadius: 4,
+    elevation: 1,
   },
   slotText: {
     textAlign: 'center',
@@ -701,21 +658,11 @@ const styles = StyleSheet.create({
   slotError: {
     fontWeight: '600',
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  backButtonText: {
-    fontWeight: '600',
-  },
   timerContainer: {
-    // flat warning card style
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timerText: {
-    fontWeight: '700',
     textAlign: 'center',
   },
 });

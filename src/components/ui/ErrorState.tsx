@@ -1,7 +1,9 @@
 import React from "react";
 import { View, StyleSheet, Text, } from "react-native";
-import { colors, spacing, typography } from "../../theme";
 import AppButton from "./AppButton";
+import { useTheme } from "../../hooks/useTheme";
+import BrandIllustration from "./BrandIllustration";
+import { scaleFont } from "../../utils/responsive";
 type ErrorStateProps = {
     title?: string
     message?: string
@@ -9,18 +11,21 @@ type ErrorStateProps = {
     onRetry?: () => void
 }
 const ErrorState = (props: ErrorStateProps) => {
+    const { colors, spacing, typography } = useTheme();
+
     return (
-        <View style={Styles.container}>
+        <View style={[Styles.container, { paddingHorizontal: spacing.lg }]}>
+            <BrandIllustration kind="error" size={scaleFont(150)} />
             <Text
-                style={Styles.title}>
+                style={[Styles.title, { color: colors.text, fontSize: typography.sizes.xl, marginTop: spacing.md, marginBottom: spacing.xs }]}>
                 {props.title || "Something went wrong"}
             </Text>
             {props.message && <Text
-                style={Styles.subtitle}
+                style={[Styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.md, marginBottom: spacing.lg }]}
             >{props.message}</Text>}
 
             {props.buttonTitle && props.onRetry && (
-                <View style={Styles.button}>
+                <View style={[Styles.button, { marginTop: spacing.sm }]}>
                     <AppButton
                         title={props.buttonTitle}
                         onPress={props.onRetry}
@@ -39,23 +44,17 @@ const Styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
-        paddingHorizontal: spacing.md,
     },
     title: {
-        fontSize: typography.h1,
-        fontWeight: "bold",
-        color: colors.error,
-        marginBottom: spacing.sm,
+        fontWeight: "800",
         textAlign: "center",
     },
     subtitle: {
-        fontSize: typography.body,
-        color: colors.text,
-        marginBottom: spacing.md,
         textAlign: "center",
+        lineHeight: scaleFont(23),
     },
     button: {
-        marginTop: spacing.md,
         width: "100%",
+        maxWidth: 300,
     },
 });

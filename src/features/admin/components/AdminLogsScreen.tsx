@@ -30,13 +30,12 @@ import { useProfileStore } from '../../../store/profileStore';
 import { useTheme } from '../../../hooks/useTheme';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { analyticsService } from '../api/analyticsService';
-import { getDisplayName } from '../../../utils/getDisplayName';
 
 const ACTION_META: Record<string, { icon: any; color: string; label: string }> = {
-  confirm: { icon: CheckCircle2, color: '#10B981', label: 'Confirmed' },
+  confirm: { icon: CheckCircle2, color: '#27AE60', label: 'Confirmed' },
   cancel: { icon: XCircle, color: '#EF4444', label: 'Cancelled' },
-  call_next: { icon: BellRing, color: '#8B5CF6', label: 'Called' },
-  complete_service: { icon: CheckCheck, color: '#10B981', label: 'Completed' },
+  call_next: { icon: BellRing, color: '#3B82F6', label: 'Called' },
+  complete_service: { icon: CheckCheck, color: '#27AE60', label: 'Completed' },
 };
 
 const AdminLogsScreen = () => {
@@ -44,16 +43,13 @@ const AdminLogsScreen = () => {
   const { logout, user } = useAuth();
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
+  const profileId = profile?.id;
 
   useEffect(() => {
-    if (user?.id && (!profile || profile.id !== user.id)) {
+    if (user?.id && profileId !== user.id) {
       fetchProfile(user.id);
     }
-  }, [user?.id, profile?.id, fetchProfile]);
-
-  const adminName = useMemo(() => {
-    return getDisplayName(profile);
-  }, [profile]);
+  }, [user?.id, profileId, fetchProfile]);
 
   const [logSearchQuery, setLogSearchQuery] = useState('');
   const [logActionFilter, setLogActionFilter] = useState<string>('all');
@@ -101,9 +97,9 @@ const AdminLogsScreen = () => {
 
   if (isLoading) {
     return (
-      <ScreenWrapper scrollable>
+      <ScreenWrapper>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
             Activity Logs
           </Text>
         </View>
@@ -118,7 +114,7 @@ const AdminLogsScreen = () => {
 
   if (isError) {
     return (
-      <ScreenWrapper scrollable>
+      <ScreenWrapper>
         <ErrorState
           title="Logs Unavailable"
           message={error instanceof Error ? error.message : 'Please try again.'}
@@ -138,10 +134,10 @@ const AdminLogsScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800', letterSpacing: 0.3 }]}>
             Activity Logs
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600' }]}>
             Monitor and Search Staff Actions
           </Text>
         </View>
@@ -198,9 +194,9 @@ const AdminLogsScreen = () => {
                   styles.filterPill,
                   {
                     borderColor: logActionFilter === actionItem.key ? colors.primary : colors.border,
-                    backgroundColor: logActionFilter === actionItem.key ? `${colors.primary}10` : colors.surface,
+                    backgroundColor: logActionFilter === actionItem.key ? `${colors.primary}12` : colors.surface,
                     borderRadius: radius.full,
-                    borderWidth: 1.5,
+                    borderWidth: 1.2,
                   }
                 ]}
               >
@@ -208,7 +204,7 @@ const AdminLogsScreen = () => {
                   style={{
                     color: logActionFilter === actionItem.key ? colors.primary : colors.text,
                     fontSize: 12,
-                    fontWeight: '700',
+                    fontWeight: '800',
                   }}
                 >
                   {actionItem.label}
@@ -222,7 +218,7 @@ const AdminLogsScreen = () => {
       {/* Logs List Card */}
       <CardFadeIn delay={60}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.lg }}>
-          <Card variant="elevated" style={styles.cardContent}>
+          <Card style={[styles.cardContent, { padding: spacing.md, borderRadius: radius.xl }]}>
             <View style={styles.listHeader}>
               <History color={colors.primary} size={18} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
@@ -263,14 +259,14 @@ const AdminLogsScreen = () => {
                     style={[
                       styles.activityItem,
                       idx > 0 && {
-                        borderTopWidth: 1,
+                        borderTopWidth: 0.5,
                         borderTopColor: colors.border + '50',
                         paddingTop: spacing.sm,
                         marginTop: spacing.sm,
                       },
                     ]}
                   >
-                    <View style={[styles.activityIconPill, { backgroundColor: meta.color + '10' }]}>
+                    <View style={[styles.activityIconPill, { backgroundColor: meta.color + '12', borderRadius: radius.sm }]}>
                       <ActionIcon size={scaleFont(12)} color={meta.color} />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -278,7 +274,7 @@ const AdminLogsScreen = () => {
                         {actionText}
                       </Text>
                       <View style={styles.actionMetaRow}>
-                        <View style={[styles.actionTag, { backgroundColor: meta.color + '10' }]}>
+                        <View style={[styles.actionTag, { backgroundColor: meta.color + '12' }]}>
                           <Text style={[styles.actionTagText, { color: meta.color }]}>
                             {meta.label}
                           </Text>
@@ -294,7 +290,7 @@ const AdminLogsScreen = () => {
             ) : (
               <View style={styles.emptyContainer}>
                 <Info color={colors.textSecondary} size={28} style={{ marginBottom: 8 }} />
-                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '700' }}>
                   No recent activity logs match your search.
                 </Text>
               </View>
@@ -327,15 +323,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1.5,
+    borderWidth: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardContent: {
-    padding: wp(4.5),
-  },
+  cardContent: {},
   sectionTitle: {
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
   filtersContainer: {
@@ -345,7 +339,7 @@ const styles = StyleSheet.create({
   filterPill: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderWidth: 1.5,
+    borderWidth: 1.2,
   },
   listHeader: {
     flexDirection: 'row',
@@ -361,14 +355,13 @@ const styles = StyleSheet.create({
   activityIconPill: {
     width: scaleFont(28),
     height: scaleFont(28),
-    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
     marginTop: 2,
   },
   activityText: {
-    fontWeight: '600',
+    fontWeight: '700',
     lineHeight: 18,
   },
   actionMetaRow: {
@@ -382,11 +375,11 @@ const styles = StyleSheet.create({
   },
   actionTagText: {
     fontSize: 9,
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
   },
   activityTime: {
-    fontWeight: '600',
+    fontWeight: '700',
     flexShrink: 0,
     marginTop: 2,
   },

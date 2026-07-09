@@ -251,12 +251,12 @@ const ManageCentersScreen = () => {
         </View>
 
         {/* Custom Tab Bar */}
-        <View style={[styles.tabBar, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.lg }]}>
+        <View style={[styles.tabBar, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl, padding: 4 }]}>
           <Pressable
             onPress={() => setActiveTab('centers')}
             style={[
               styles.tab,
-              activeTab === 'centers' && { backgroundColor: colors.primary, borderRadius: radius.md },
+              activeTab === 'centers' && { backgroundColor: colors.primary, borderRadius: radius.lg },
             ]}
           >
             <Text style={[styles.tabText, { color: activeTab === 'centers' ? '#FFF' : colors.text }]}>Clinics</Text>
@@ -265,7 +265,7 @@ const ManageCentersScreen = () => {
             onPress={() => setActiveTab('services')}
             style={[
               styles.tab,
-              activeTab === 'services' && { backgroundColor: colors.primary, borderRadius: radius.md },
+              activeTab === 'services' && { backgroundColor: colors.primary, borderRadius: radius.lg },
             ]}
           >
             <Text style={[styles.tabText, { color: activeTab === 'services' ? '#FFF' : colors.text }]}>Services</Text>
@@ -276,22 +276,22 @@ const ManageCentersScreen = () => {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xl }}>
           {activeTab === 'centers' ? (
             centers.map(center => (
-              <Card key={center.id} style={styles.itemCard}>
+              <Card key={center.id} style={[styles.itemCard, { padding: spacing.md, borderWidth: 0.5, borderColor: colors.border + '50' }]} containerStyle={{ marginBottom: spacing.md }}>
                 <View style={styles.cardInfo}>
-                  <View style={[styles.iconContainer, { backgroundColor: colors.primary + '10' }]}>
+                  <View style={[styles.iconContainer, { backgroundColor: colors.primary + '12', borderRadius: radius.md }]}>
                     <Hospital size={20} color={colors.primary} />
                   </View>
                   <View style={styles.cardTexts}>
                     <Text style={[styles.itemName, { color: colors.text, fontSize: typography.sizes.md }]}>{center.name}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }}>{center.city} • {center.category}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2 }}>Hours: {center.open_time} - {center.close_time}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600' }}>{center.city} • {center.category}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '500' }}>Hours: {center.open_time} - {center.close_time}</Text>
                   </View>
                 </View>
                 <View style={styles.actionButtons}>
                   <Pressable onPress={() => handleOpenEdit(center)} style={[styles.actionButton, { backgroundColor: colors.border + '15' }]}>
                     <Edit2 size={14} color={colors.primary} />
                   </Pressable>
-                  <Pressable onPress={() => handleDelete(center.id, center.name)} style={[styles.actionButton, { backgroundColor: colors.error + '10' }]}>
+                  <Pressable onPress={() => handleDelete(center.id, center.name)} style={[styles.actionButton, { backgroundColor: colors.error + '12' }]}>
                     <Trash2 size={14} color={colors.error} />
                   </Pressable>
                 </View>
@@ -299,22 +299,22 @@ const ManageCentersScreen = () => {
             ))
           ) : (
             services.map(service => (
-              <Card key={service.id} style={styles.itemCard}>
+              <Card key={service.id} style={[styles.itemCard, { padding: spacing.md, borderWidth: 0.5, borderColor: colors.border + '50' }]} containerStyle={{ marginBottom: spacing.md }}>
                 <View style={styles.cardInfo}>
-                  <View style={[styles.iconContainer, { backgroundColor: colors.info + '10' }]}>
+                  <View style={[styles.iconContainer, { backgroundColor: colors.info + '12', borderRadius: radius.md }]}>
                     <Stethoscope size={20} color={colors.info} />
                   </View>
                   <View style={styles.cardTexts}>
                     <Text style={[styles.itemName, { color: colors.text, fontSize: typography.sizes.md }]}>{service.name}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }}>Category: {service.category}</Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2 }}>Avg Duration: {service.avg_duration_mins} mins</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600' }}>Category: {service.category}</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '500' }}>Avg Duration: {service.avg_duration_mins} mins</Text>
                   </View>
                 </View>
                 <View style={styles.actionButtons}>
                   <Pressable onPress={() => handleOpenEdit(service)} style={[styles.actionButton, { backgroundColor: colors.border + '15' }]}>
                     <Edit2 size={14} color={colors.primary} />
                   </Pressable>
-                  <Pressable onPress={() => handleDelete(service.id, service.name)} style={[styles.actionButton, { backgroundColor: colors.error + '10' }]}>
+                  <Pressable onPress={() => handleDelete(service.id, service.name)} style={[styles.actionButton, { backgroundColor: colors.error + '12' }]}>
                     <Trash2 size={14} color={colors.error} />
                   </Pressable>
                 </View>
@@ -353,7 +353,7 @@ const ManageCentersScreen = () => {
                 },
               ]}
             >
-              <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: colors.border + '50' }]}>
                 <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' }]}>
                   {editingId ? 'Edit' : 'Add New'} {activeTab === 'centers' ? 'Clinic' : 'Service'}
                 </Text>
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   backButtonText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   header: {
     flexDirection: 'row',
@@ -481,15 +481,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  title: {
-  },
-  addButton: {
-    minWidth: 100,
-  },
+  title: {},
   tabBar: {
     flexDirection: 'row',
-    borderWidth: 1.5,
-    padding: 4,
+    borderWidth: 1.2,
     marginBottom: 16,
   },
   tab: {
@@ -498,15 +493,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   tabText: {
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 14,
   },
   itemCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    marginBottom: 12,
   },
   cardInfo: {
     flexDirection: 'row',
@@ -516,7 +509,6 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -525,7 +517,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemName: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   actionButtons: {
     flexDirection: 'row',
@@ -552,8 +544,7 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     borderBottomWidth: 1,
   },
-  modalTitle: {
-  },
+  modalTitle: {},
   closeButton: {
     padding: 4,
   },

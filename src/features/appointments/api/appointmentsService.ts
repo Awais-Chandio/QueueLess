@@ -702,7 +702,8 @@ export const appointmentsService = {
             cancelled_at: new Date().toISOString(),
           })
           .eq('id', appointmentId)
-          .eq('user_id', authenticatedUserId);
+          .eq('user_id', authenticatedUserId)
+          .in('status', ['pending', 'confirmed', 'checked_in', 'called', 'in_progress']);
 
         if (error) {
           console.error(

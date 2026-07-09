@@ -17,6 +17,7 @@ import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
 import AppButton from '../../../components/ui/AppButton';
 import Badge from '../../../components/ui/Badge';
+import Card from '../../../components/ui/Card';
 import { Clock, MapPin, Sparkles, ChevronLeft, CreditCard, Hourglass } from 'lucide-react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
@@ -179,9 +180,12 @@ const CenterDetailsScreen = () => {
             )}
 
             {openingTime && closingTime && (
-              <View style={[styles.timingCard, { backgroundColor: colors.surface, borderRadius: radius.lg, borderColor: colors.border, borderWidth: 1, padding: spacing.lg, marginTop: spacing.lg }]}>
+              <Card
+                variant="flat"
+                style={[styles.timingCard, { marginTop: spacing.lg, padding: spacing.md }]}
+              >
                 <View style={styles.cardRow}>
-                  <Clock size={18} color={colors.primary} style={{ marginRight: spacing.xs }} />
+                  <Clock size={16} color={colors.primary} style={{ marginRight: spacing.xs }} />
                   <Text style={[styles.timingLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                     Working Hours
                   </Text>
@@ -190,10 +194,10 @@ const CenterDetailsScreen = () => {
                 <Text style={[styles.timingValue, { color: colors.text, fontSize: typography.sizes.md, marginTop: spacing.xs }]}>
                   {openingTime} - {closingTime}
                 </Text>
-              </View>
+              </Card>
             )}
 
-            <View style={[styles.sectionTitleRow, { marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+            <View style={[styles.sectionTitleRow, { marginTop: spacing.lg, marginBottom: spacing.xs }]}>
               <Sparkles size={18} color={colors.primary} style={{ marginRight: spacing.xs }} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
                 Available Services
@@ -202,7 +206,11 @@ const CenterDetailsScreen = () => {
           </View>
         }
         renderItem={({ item }) => (
-          <View style={[styles.serviceCard, { backgroundColor: colors.surface, borderRadius: radius.lg, borderColor: colors.border, borderWidth: 1, padding: spacing.lg, marginBottom: spacing.md }]}>
+          <Card
+            variant="elevated"
+            style={[styles.serviceCard, { padding: spacing.md }]}
+            containerStyle={{ marginBottom: spacing.md }}
+          >
             <Text style={[styles.serviceName, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.xs }]}>
               {item.name}
             </Text>
@@ -214,21 +222,21 @@ const CenterDetailsScreen = () => {
             )}
 
             <View style={styles.metaRow}>
-              <View style={[styles.metaItem, { backgroundColor: colors.border + '15', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
-                <Hourglass size={14} color={colors.textSecondary} style={{ marginRight: 4 }} />
+              <View style={[styles.metaItem, { backgroundColor: colors.border + '30', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
+                <Hourglass size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
                 <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                   {item.duration_minutes} mins
                 </Text>
               </View>
 
-              <View style={[styles.metaItem, { backgroundColor: colors.border + '15', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
-                <CreditCard size={14} color={colors.textSecondary} style={{ marginRight: 4 }} />
+              <View style={[styles.metaItem, { backgroundColor: colors.border + '30', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
+                <CreditCard size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
                 <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                   Rs. {item.price}
                 </Text>
               </View>
             </View>
-          </View>
+          </Card>
         )}
         ListEmptyComponent={
           <EmptyState
@@ -269,13 +277,13 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   backButtonText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   title: {
     fontWeight: '800',
   },
   subtitle: {
-    fontWeight: '500',
+    fontWeight: '600',
   },
   addressContainer: {
     flexDirection: 'row',
@@ -289,39 +297,33 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   timingCard: {
-    elevation: 1,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 4,
+    borderWidth: 0,
   },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   timingLabel: {
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   timingValue: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   sectionTitle: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   serviceCard: {
-    elevation: 2,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   serviceName: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   serviceDescription: {
     lineHeight: 16,
@@ -336,6 +338,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   metaText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

@@ -69,9 +69,9 @@ const AdminManageScreen = () => {
 
   if (isLoading) {
     return (
-      <ScreenWrapper scrollable>
+      <ScreenWrapper>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
             System Control
           </Text>
         </View>
@@ -85,7 +85,7 @@ const AdminManageScreen = () => {
 
   if (isError) {
     return (
-      <ScreenWrapper scrollable>
+      <ScreenWrapper>
         <ErrorState
           title="Overview Unavailable"
           message={error instanceof Error ? error.message : 'Please try again.'}
@@ -105,10 +105,10 @@ const AdminManageScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800', letterSpacing: 0.3 }]}>
             System Control
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600' }]}>
             Infrastructure and Management Panel
           </Text>
         </View>
@@ -134,11 +134,11 @@ const AdminManageScreen = () => {
       {/* Database/System Status Row */}
       <CardFadeIn delay={20}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <Card variant="elevated" style={[styles.cardContent, { borderRadius: radius.lg }]}>
+          <Card style={[styles.cardContent, { borderRadius: radius.xl, padding: spacing.md }]}>
             <View style={styles.statusRowContainer}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Shield color={colors.primary} size={20} />
-                <Text style={[styles.statusTitle, { color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700' }]}>
+                <Text style={[styles.statusTitle, { color: colors.text, fontSize: typography.sizes.sm, fontWeight: '800' }]}>
                   System Health & Status
                 </Text>
               </View>
@@ -147,13 +147,13 @@ const AdminManageScreen = () => {
                   styles.statusPill,
                   {
                     backgroundColor: analytics?.systemOverview?.dbConnected
-                      ? colors.success + '10'
-                      : colors.error + '10',
+                      ? colors.success + '12'
+                      : colors.error + '12',
                     borderColor: analytics?.systemOverview?.dbConnected
                       ? colors.success + '40'
                       : colors.error + '40',
                     borderRadius: radius.full,
-                    borderWidth: 1.5,
+                    borderWidth: 1.2,
                   },
                 ]}
               >
@@ -189,7 +189,7 @@ const AdminManageScreen = () => {
       {/* Card: System Metrics Overview */}
       <CardFadeIn delay={40}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <Card variant="elevated" style={styles.cardContent}>
+          <Card style={[styles.cardContent, { padding: spacing.md }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}>
               <Activity color={colors.primary} size={18} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
@@ -204,14 +204,14 @@ const AdminManageScreen = () => {
               ].map((item, idx) => {
                 const MetricIcon = item.icon;
                 return (
-                  <View key={item.label} style={[styles.systemMetricItem, { borderColor: colors.border, borderRadius: radius.lg, borderWidth: 1.5 }]}>
-                    <View style={[styles.metricIconPill, { backgroundColor: item.color + '10' }]}>
+                  <View key={item.label} style={[styles.systemMetricItem, { borderColor: colors.border + '50', borderRadius: radius.lg, borderWidth: 0.5 }]}>
+                    <View style={[styles.metricIconPill, { backgroundColor: item.color + '12' }]}>
                       <MetricIcon color={item.color} size={18} />
                     </View>
                     <Text style={[styles.systemMetricValue, { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' }]}>
                       {item.value}
                     </Text>
-                    <Text style={[styles.systemMetricLabel, { color: colors.textSecondary, fontSize: typography.caption }]}>
+                    <Text style={[styles.systemMetricLabel, { color: colors.textSecondary, fontSize: typography.caption, fontWeight: '700' }]}>
                       {item.label}
                     </Text>
                   </View>
@@ -225,7 +225,7 @@ const AdminManageScreen = () => {
       {/* Card: Team Management Controls */}
       <CardFadeIn delay={80}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.lg }}>
-          <Card variant="elevated" style={styles.cardContent}>
+          <Card style={[styles.cardContent, { padding: spacing.md }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md }}>
               <UserPlus color={colors.primary} size={18} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
@@ -236,7 +236,7 @@ const AdminManageScreen = () => {
               <AppButton
                 title="Create Staff Account"
                 onPress={() => navigation.navigate('CreateAccount', { role: 'staff' })}
-                style={{ backgroundColor: colors.primary, borderRadius: radius.md }}
+                style={{ borderRadius: radius.md }}
               />
               <AppButton
                 title="Manage Clinics & Services"
@@ -273,15 +273,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1.5,
+    borderWidth: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardContent: {
-    padding: wp(4.5),
-  },
+  cardContent: {},
   sectionTitle: {
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
   statusRowContainer: {
@@ -289,8 +287,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  statusTitle: {
-  },
+  statusTitle: {},
   statusPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,17 +316,15 @@ const styles = StyleSheet.create({
   metricIconPill: {
     width: 32,
     height: 32,
-    borderRadius: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
   },
   systemMetricLabel: {
-    fontWeight: '700',
     textAlign: 'center',
     marginTop: 2,
     paddingHorizontal: 4,
   },
-  systemMetricValue: {
-  },
+  systemMetricValue: {},
 });
