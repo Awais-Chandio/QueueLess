@@ -28,7 +28,12 @@ const SplashScreen = ({
   isGentlyLoading = false,
   message,
 }: SplashScreenProps) => {
-  const { spacing } = useTheme();
+  const { colors, spacing, isDarkMode } = useTheme();
+
+  // Vibrant premium clinical blue-cyan gradient
+  const gradientColors = isDarkMode
+    ? ['#031C24', '#0E7490', '#0891B2']
+    : ['#083344', '#0E7490', '#06B6D4'];
 
   // Animation values
   const containerOpacity = useRef(new Animated.Value(1)).current;
@@ -319,7 +324,7 @@ const SplashScreen = ({
     <Animated.View style={[styles.container, { opacity: containerOpacity }]} pointerEvents={introFinished && isReady ? 'none' : 'auto'}>
       {/* QueueLess clinical gradient */}
       <LinearGradient
-        colors={['#115E59', '#0F766E', '#14B8A6']}
+        colors={gradientColors}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -413,7 +418,7 @@ const SplashScreen = ({
           },
         ]}
       >
-        <Floating3DLogo size={scaleFont(104)} qColor="#FFFFFF" crossColor="#A7F3D0" />
+        <Floating3DLogo size={scaleFont(104)} qColor="#FFFFFF" crossColor={colors.accent} />
       </Animated.View>
 
       {/* Typography Content */}

@@ -14,7 +14,7 @@ const Loader = (props: LoaderProps) => {
     return (
 
         <View style={[Styles.container, { padding: spacing.lg }]}>
-            <View style={[Styles.logoWrap, { marginBottom: spacing.md }]}>
+            <View style={[Styles.logoWrap, { marginBottom: spacing.md, shadowColor: colors.primary }]}>
                 <MedicalLogo size={scaleFont(58)} showBackground />
             </View>
             <ActivityIndicator

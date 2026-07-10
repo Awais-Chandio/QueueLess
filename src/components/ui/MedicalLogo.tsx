@@ -19,15 +19,15 @@ export const MedicalLogo: React.FC<MedicalLogoProps> = ({
   const { colors } = useTheme();
 
   const finalQColor = qColor || (showBackground ? '#FFFFFF' : colors.primary);
-  const finalCrossColor = crossColor || (showBackground ? '#A7F3D0' : colors.success);
+  const finalCrossColor = crossColor || (showBackground ? '#A5F3FC' : colors.accent);
 
   return (
     <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
       <Svg width={size} height={size} viewBox="0 0 100 100" fill="none">
         <Defs>
           <LinearGradient id="bgGradient" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor="#0F766E" />
-            <Stop offset="100%" stopColor="#14B8A6" />
+            <Stop offset="0%" stopColor={colors.gradients.primary[0]} />
+            <Stop offset="100%" stopColor={colors.gradients.primary[1]} />
           </LinearGradient>
           <LinearGradient id="pinGradient" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={showBackground ? 0.96 : 0} />

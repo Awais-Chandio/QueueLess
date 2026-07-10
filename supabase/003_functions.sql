@@ -470,7 +470,6 @@ BEGIN
 END;
 $$;
 
--- Function: trigger_queue_notification
 CREATE OR REPLACE FUNCTION public.trigger_queue_notification()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -478,6 +477,7 @@ AS $$
 DECLARE
   v_payload jsonb;
   v_url text;
+  v_has_net boolean;
 BEGIN
   -- Kong Gateway URL for Supabase Edge Functions
   v_url := 'http://kong:8000/functions/v1/send-queue-notification';
@@ -504,12 +504,28 @@ BEGIN
       )
     );
 
-    -- Call Edge Function asynchronously using pg_net extension
-    PERFORM net.http_post(
-      url := v_url,
-      headers := '{"Content-Type": "application/json"}'::jsonb,
-      body := v_payload
-    );
+    -- Check if pg_net is actually installed in the extensions or schema list
+    SELECT EXISTS (
+      SELECT 1 FROM pg_extension WHERE extname = 'pg_net'
+    ) OR EXISTS (
+      SELECT 1 FROM pg_namespace WHERE nspname = 'net'
+    ) INTO v_has_net;
+
+    IF v_has_net THEN
+      -- Use EXECUTE to prevent compile-time static binding errors 
+      -- if the net schema/function is not present.
+      BEGIN
+        EXECUTE 'SELECT net.http_post(
+          url := $1,
+          headers := $2,
+          body := $3
+        )' USING v_url, '{"Content-Type": "application/json"}'::jsonb, v_payload;
+      EXCEPTION WHEN OTHERS THEN
+        RAISE WARNING 'Failed to execute net.http_post: %', SQLERRM;
+      END;
+    ELSE
+      RAISE WARNING 'pg_net extension is not enabled in database. Skipping edge function call.';
+    END IF;
   END IF;
 
   RETURN NEW;

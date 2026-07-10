@@ -22,6 +22,7 @@ GRANT UPDATE(status, checked_in_at, cancelled_at, cancelled_by, cancel_reason, c
 -- Grant access on notifications and queue_updates
 GRANT SELECT, INSERT, UPDATE ON public.notifications TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.queue_updates TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.device_tokens TO authenticated;
 
 -- Grant select access on views
 GRANT SELECT ON public.appointments_full TO authenticated;

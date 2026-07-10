@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text, Pressable, StyleProp, ViewStyle } from 'react-native';
+import { View, StyleSheet, Text, StyleProp, ViewStyle } from 'react-native';
 import { MapPin, Clock, ChevronRight } from 'lucide-react-native';
 import Card from './Card';
 import { useTheme } from '../../hooks/useTheme';
@@ -47,7 +47,7 @@ export const CenterCard: React.FC<CenterCardProps> = ({
             <Badge
               label={category}
               variant="info"
-              containerStyle={{ borderRadius: radius.sm }}
+              style={{ borderRadius: radius.sm }}
             />
           )}
         </View>

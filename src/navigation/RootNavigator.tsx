@@ -9,9 +9,11 @@ import { useProfileStore } from "../store/profileStore";
 import { getUserRoute } from "../utils/roleMapping";
 import SplashScreen from "../features/auth/components/SplashScreen";
 import { useNotifications } from "../hooks/useNotifications";
+import { useTheme } from "../hooks/useTheme";
 
 const RootNavigator = () => {
   useNotifications();
+  const { isDarkMode } = useTheme();
   const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
   const { profile } = useProfileStore();
   const [isSplashFinished, setIsSplashFinished] = useState(false);
@@ -60,7 +62,7 @@ const RootNavigator = () => {
 
     // Return a dark background placeholder while auth is loading initially during boot
     if (isLoading && !isSplashFinished) {
-      return <View style={styles.placeholder} />;
+      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
     }
 
     if (!user || isPasswordRecovery) {
@@ -68,7 +70,7 @@ const RootNavigator = () => {
     }
 
     if (!role) {
-      return <View style={styles.placeholder} />;
+      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
     }
 
     const targetRoute = getUserRoute(role);

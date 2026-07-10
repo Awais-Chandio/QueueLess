@@ -19,7 +19,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import AppInput from "../../../components/ui/AppInput";
 import AppButton from "../../../components/ui/AppButton";
-import { authService } from "../api/authService";
+import { authService } from "../../../services/authService";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
 import { toastService } from "../../../services/toastService";
 import Floating3DLogo from "../../../components/ui/Floating3DLogo";

@@ -9,14 +9,12 @@ import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import AppButton from '../../../components/ui/AppButton';
 import SectionHeader from '../../../components/ui/SectionHeader';
-import IconButton from '../../../components/ui/IconButton';
 import AnimatedHeader from '../../../components/ui/AnimatedHeader';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../../../navigation/types';
 import {
-  Bell,
   Calendar,
   Clock,
   Users,
@@ -36,14 +34,13 @@ import {
 } from 'lucide-react-native';
 import { useAuthStore } from '../../../store/authStore';
 import { useProfileStore } from '../../../store/profileStore';
-import { useCentersStore } from '../../../store/centersStore';
+import { useCentersStore } from '../../../store/queueStore';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import ProfileAvatar from '../../../components/ui/ProfileAvatar';
 import {
   getAppointmentDateLabel,
   getAppointmentTimeLabel,
 } from '../../appointments/utils/appointmentTime';
-import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue';
+import { useQueue } from '../../../hooks/useQueue';
 import type { AppointmentStatus } from '../../../types/appointment';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
 import { getDisplayName } from '../../../utils/getDisplayName';
@@ -131,7 +128,7 @@ const HomeScreen = () => {
   const {
     queueData,
     loading: queueLoading,
-  } = useRealtimeQueue(
+  } = useQueue(
     activeToken,
     refetch,
     {

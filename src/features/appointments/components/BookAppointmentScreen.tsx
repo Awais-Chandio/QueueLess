@@ -90,7 +90,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChevronLeft, Calendar as CalendarIcon, Hourglass, ShieldAlert, Stethoscope, UserCheck, Users } from 'lucide-react-native';
+import { ChevronLeft, Calendar as CalendarIcon, Hourglass, ShieldAlert, Stethoscope, UserCheck, Users, MapPin } from 'lucide-react-native';
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -108,10 +108,10 @@ import { useTheme } from '../../../hooks/useTheme';
 import type { AppStackParamList } from '../../../navigation/types';
 
 import { useAuthStore } from '../../../store/authStore';
-import { useAppointmentsStore } from '../../../store/appointmentsStore';
-import { useCentersStore } from '../../../store/centersStore';
+import { useAppointmentsStore } from '../../../store/appointmentStore';
+import { useCentersStore } from '../../../store/queueStore';
 import { toastService } from '../../../services/toastService';
-import { appointmentsService } from '../api/appointmentsService';
+import { appointmentService } from '../../../services/appointmentService';
 import {
   APPOINTMENT_SLOT_LABELS,
   formatAppointmentDateInput,
@@ -123,8 +123,8 @@ import { hp } from '../../../utils/responsive';
 
 import type { AppointmentFull } from '../../../types/appointment';
 import type { CenterService } from '../../../types/center';
-import { doctorsService } from '../api/doctorsService';
-import type { Doctor } from '../api/doctorsService';
+import { doctorService } from '../../../services/doctorService';
+import type { Doctor } from '../../../services/doctorService';
 
 type BookAppointmentRouteProp = RouteProp<
   AppStackParamList,
@@ -166,7 +166,7 @@ const BookAppointmentScreen = () => {
 
   // Doctor selection state
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null | 'any'>('any');
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null | 'any'>(route.params?.doctorId || 'any');
   const [doctorsLoading, setDoctorsLoading] = useState(false);
 
   const [lockTimeLeft, setLockTimeLeft] = useState<number | null>(null);
@@ -182,7 +182,7 @@ const BookAppointmentScreen = () => {
     if (!centerId) return;
     try {
       setValue('slot', slot, { shouldValidate: true });
-      await appointmentsService.lockSlot(centerId, appointmentDate, slot);
+      await appointmentService.lockSlot(centerId, appointmentDate, slot);
 
       // Reset and start countdown timer (10 mins = 600 secs)
       if (timerRef.current) clearInterval(timerRef.current);
@@ -193,7 +193,7 @@ const BookAppointmentScreen = () => {
           if (prev === null || prev <= 1) {
             if (timerRef.current) clearInterval(timerRef.current);
             setValue('slot', '');
-            appointmentsService.unlockSlot().catch(console.warn);
+            appointmentService.unlockSlot().catch(console.warn);
             Alert.alert('Lock Expired', 'Your time-slot lock has expired. Please select a slot again to book.');
             return null;
           }
@@ -234,20 +234,32 @@ const BookAppointmentScreen = () => {
     }
     let cancelled = false;
     setDoctorsLoading(true);
-    setSelectedDoctorId('any');
-    doctorsService
+    doctorService
       .getByServiceId(selectedServiceId)
       .then(data => {
-        if (!cancelled) setDoctors(data);
+        if (cancelled) return;
+        setDoctors(data);
+        
+        // If an initial doctor ID was passed and matches one of the doctors for this service,
+        // select it. Otherwise default to 'any'.
+        const initialDoctorId = route.params?.doctorId;
+        if (initialDoctorId && data.some(d => d.id === initialDoctorId)) {
+          setSelectedDoctorId(initialDoctorId);
+        } else {
+          setSelectedDoctorId('any');
+        }
       })
-      .catch(() => {
-        if (!cancelled) setDoctors([]);
+      .catch(err => {
+        console.warn('Failed to load doctors:', err);
+        setSelectedDoctorId('any');
       })
       .finally(() => {
         if (!cancelled) setDoctorsLoading(false);
       });
-    return () => { cancelled = true; };
-  }, [selectedServiceId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedServiceId, route.params?.doctorId]);
 
   const appointmentDate = useMemo(() => {
     return formatAppointmentDateInput(date);
@@ -260,7 +272,7 @@ const BookAppointmentScreen = () => {
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      appointmentsService.unlockSlot().catch(console.warn);
+      appointmentService.unlockSlot().catch(console.warn);
     };
   }, [centerId, fetchCenterServices, fetchCenterById]);
 
@@ -272,7 +284,7 @@ const BookAppointmentScreen = () => {
         setSlotsLoading(true);
         setSlotsError(null);
         setValue('slot', ''); // clear selected slot on date change
-        const booked = await appointmentsService.getAvailableSlots(
+        const booked = await appointmentService.getAvailableSlots(
           appointmentDate,
           centerId,
         );
@@ -418,6 +430,259 @@ const BookAppointmentScreen = () => {
 
   return (
     <ScreenWrapper>
+  if (initialServiceId) {
+    const selectedService = centerServices.find(s => s.id === selectedServiceId);
+    const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
+
+    return (
+      <ScreenWrapper>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && { opacity: 0.7 }
+              ]}
+            >
+              <ChevronLeft size={24} color={colors.primary} />
+              <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>Back</Text>
+            </Pressable>
+
+            <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
+              Book a Consultation
+            </Text>
+
+            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
+              Confirm details and select a slot.
+            </Text>
+          </View>
+
+          {/* Consultation Details Card */}
+          <Card
+            variant="elevated"
+            style={{
+              padding: spacing.md,
+              backgroundColor: colors.surface,
+              borderRadius: radius.xl,
+              marginBottom: spacing.lg,
+              borderWidth: 1,
+              borderColor: colors.border + '30',
+            }}
+          >
+            <Text style={{ fontSize: typography.sizes.xs, fontWeight: '800', color: colors.textSecondary, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Consultation Details
+            </Text>
+            
+            {/* Clinic */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                <MapPin size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: typography.sizes.xs - 2, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase' }}>
+                  Clinic / Center
+                </Text>
+                <Text style={{ fontSize: typography.sizes.sm, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                  {selectedCenter?.name || 'Loading Clinic...'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Department / Service */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                <Stethoscope size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: typography.sizes.xs - 2, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase' }}>
+                  Department / Service
+                </Text>
+                <Text style={{ fontSize: typography.sizes.sm, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                  {selectedService?.name || 'Loading Service...'}
+                </Text>
+                {selectedService && (
+                  <Text style={{ fontSize: typography.sizes.xs, color: colors.textSecondary, marginTop: 2, fontWeight: '600' }}>
+                    Rs. {selectedService.price} • {selectedService.duration_minutes} mins
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {/* Consulting Doctor */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                {selectedDoctorId === 'any' ? (
+                  <Users size={18} color={colors.primary} />
+                ) : (
+                  <UserCheck size={18} color={colors.primary} />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: typography.sizes.xs - 2, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase' }}>
+                  Consulting Doctor
+                </Text>
+                <Text style={{ fontSize: typography.sizes.sm, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                  {selectedDoctorId === 'any' ? 'Any Available Doctor' : selectedDoctor?.name || 'Loading Doctor...'}
+                </Text>
+                {selectedDoctorId !== 'any' && (selectedDoctor?.specialty || selectedDoctor?.specialization) && (
+                  <Text style={{ fontSize: typography.sizes.xs, color: colors.textSecondary, marginTop: 2, fontWeight: '600' }}>
+                    {selectedDoctor.specialty || selectedDoctor.specialization}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </Card>
+
+          {/* Date & Time Slot selection */}
+          <View style={styles.dateContainer}>
+            <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
+              Selected Date
+            </Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.dateButton,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1.2,
+                  borderRadius: radius.xl,
+                  padding: spacing.md,
+                  marginBottom: spacing.md,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                },
+                pressed && { opacity: 0.85 }
+              ]}
+              onPress={() => setShowDatePicker(true)}>
+              <CalendarIcon size={18} color={colors.primary} style={{ marginRight: spacing.sm }} />
+              <Text style={[styles.dateText, { color: colors.text, fontSize: typography.sizes.md }]}>
+                {date.toDateString()}
+              </Text>
+            </Pressable>
+
+            {errors.date && (
+              <Text style={[styles.slotError, { color: colors.error }]}>{errors.date.message}</Text>
+            )}
+
+            <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.xs }]}>
+              Available Slots
+            </Text>
+
+            {selectedCenter && (
+              <Text style={[styles.slotHint, { color: colors.textSecondary, fontSize: typography.sizes.xs, fontStyle: 'italic', marginBottom: spacing.sm }]}>
+                Operating Hours: {selectedCenter.open_time || 'N/A'} - {selectedCenter.close_time || 'N/A'}
+              </Text>
+            )}
+
+            {slotsLoading ? (
+              <Text style={[styles.slotHint, { color: colors.textSecondary }]}>
+                Loading slots...
+              </Text>
+            ) : slotsError ? (
+              <Text style={[styles.slotError, { color: colors.error }]}>
+                {slotsError}
+              </Text>
+            ) : (
+              <View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.slotRow}
+                >
+                  {APPOINTMENT_SLOT_LABELS.map(slot => {
+                    const slotMin = timeToMinutes(slot);
+                    const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
+
+                    const pastSlot = isPastAppointmentSlot(
+                      appointmentDate,
+                      slot,
+                    );
+                    const booked = !availableSlots.includes(slot);
+
+                    const disabled = pastSlot || booked || !isWithinHours;
+                    const selected = selectedSlot === slot;
+
+                    return (
+                      <AnimatedSlotChip
+                        key={slot}
+                        slot={slot}
+                        selected={selected}
+                        disabled={disabled}
+                        onPress={() => handleSelectSlot(slot)}
+                        colors={colors}
+                        radius={radius}
+                        spacing={spacing}
+                        typography={typography}
+                        styles={styles}
+                      />
+                    );
+                  })}
+                </ScrollView>
+
+                {lockTimeLeft !== null && selectedSlot !== '' && (
+                  <View style={[styles.timerContainer, { backgroundColor: `${colors.warning}10`, borderColor: `${colors.warning}30`, borderWidth: 1, borderRadius: radius.lg, padding: spacing.sm, marginTop: spacing.md }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <ShieldAlert size={16} color={colors.warning} />
+                      <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs, fontWeight: '700' }]}>
+                        Slot locked for {formatTimeLeft(lockTimeLeft)}. Book now!
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {errors.slot && (
+                  <Text style={[styles.slotError, { color: colors.error, marginTop: spacing.xs }]}>
+                    {errors.slot.message}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                minimumDate={new Date()}
+                onChange={(
+                  _event,
+                  selectedDate,
+                ) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setValue('date', selectedDate, { shouldValidate: true });
+                    setValue('slot', '');
+                  }
+                }}
+              />
+            )}
+          </View>
+
+          {!slotsLoading && !slotsError && availableSlots.length === 0 && (
+            <Text style={[styles.slotHint, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+              No available slots for this center on the selected date.
+            </Text>
+          )}
+
+          <AppButton
+            title="Confirm Booking"
+            loading={appointmentLoading}
+            disabled={appointmentLoading || selectedSlot === '' || slotsLoading}
+            onPress={handleSubmit(onBook)}
+            style={{ marginTop: spacing.lg }}
+          />
+        </ScrollView>
+      </ScreenWrapper>
+    );
+  }
+
+  return (
+    <ScreenWrapper>
       <FlatList
         data={centerServices}
         keyExtractor={item => item.id}
@@ -530,9 +795,9 @@ const BookAppointmentScreen = () => {
                       <Text style={[styles.doctorName, { color: colors.text, fontSize: typography.sizes.md }]}>
                         {doc.name}
                       </Text>
-                      {!!doc.specialization && (
+                      {!!(doc.specialty || doc.specialization) && (
                         <Text style={[styles.doctorSpec, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                          {doc.specialization}
+                          {doc.specialty || doc.specialization}
                         </Text>
                       )}
                     </View>

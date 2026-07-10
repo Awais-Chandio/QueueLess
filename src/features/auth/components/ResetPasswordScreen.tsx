@@ -4,7 +4,7 @@ import AppButton from "../../../components/ui/AppButton";
 import AppInput from "../../../components/ui/AppInput";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import Card from "../../../components/ui/Card";
-import { authService } from "../api/authService";
+import { authService } from "../../../services/authService";
 import { useAuthStore } from "../../../store/authStore";
 import { toastService } from "../../../services/toastService";
 import { useTheme } from "../../../hooks/useTheme";

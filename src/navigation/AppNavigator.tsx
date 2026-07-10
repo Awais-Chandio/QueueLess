@@ -5,6 +5,7 @@ import CenterDetailsScreen from "../features/centers/components/CenterDetailsScr
 import BookAppointmentScreen from "../features/appointments/components/BookAppointmentScreen";
 import AppointmentDetailsScreen from "../features/appointments/components/AppointmentDetailsScreen";
 import QueueStatusScreen from "../features/appointments/components/QueueStatusScreen";
+import DoctorListScreen from "../features/appointments/components/DoctorListScreen";
 import EditProfileScreen from "../features/profile/components/EditProfileScreen";
 import SettingsScreen from "../features/profile/components/SettingsScreen";
 import {
@@ -45,6 +46,11 @@ const AppNavigator = () => {
         name="CenterDetails"
         component={CenterDetailsScreen}
         options={{ title: "Center Details" }}
+      />
+      <Stack.Screen
+        name="DoctorList"
+        component={DoctorListScreen}
+        options={{ title: "Select Doctor", headerShown: false }}
       />
       <Stack.Screen
         name="BookAppointment"

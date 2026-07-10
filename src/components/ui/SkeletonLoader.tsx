@@ -1,10 +1,10 @@
 import React from 'react';
-import { StyleProp, ViewStyle } from 'react-native';
-import Skeleton from './Skeleton';
+import { DimensionValue, StyleProp, ViewStyle } from 'react-native';
+import { Skeleton } from './Skeleton';
 
 export interface SkeletonLoaderProps {
-  width?: number | string;
-  height?: number;
+  width?: DimensionValue;
+  height?: DimensionValue;
   borderRadius?: number;
   style?: StyleProp<ViewStyle>;
 }

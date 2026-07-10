@@ -12,7 +12,7 @@ import { Card } from '../../../components/ui/Card';
 import { accountService } from '../api/accountService';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 import { toastService } from '../../../services/toastService';
-import { supabase } from '../../../lib/supabase';
+import { centerService } from '../../../services/centerService';
 
 type CreateAccountScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'CreateAccount'>;
 type CreateAccountScreenRouteProp = RouteProp<AdminStackParamList, 'CreateAccount'>;
@@ -39,14 +39,12 @@ const CreateAccountScreen = () => {
     if (role === 'staff') {
       const fetchCenters = async () => {
         try {
-          const { data, error } = await supabase
-            .from('service_centers')
-            .select('id, name')
-            .order('name');
-          if (error) throw error;
-          setCenters(data || []);
-          if (data && data.length > 0) {
-            setSelectedCenterId(data[0].id);
+          const data = await centerService.getCenters();
+          // Sort by name in memory to match original behavior
+          const sortedData = [...(data || [])].sort((a, b) => a.name.localeCompare(b.name));
+          setCenters(sortedData);
+          if (sortedData && sortedData.length > 0) {
+            setSelectedCenterId(sortedData[0].id);
           }
         } catch (err) {
           console.warn('Failed to load centers:', err);

@@ -238,6 +238,9 @@ const CenterDetailsScreen = () => {
                 Available Departments
               </Text>
             </View>
+            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: spacing.sm, fontStyle: 'italic' }}>
+              Tap a department to choose your doctor & view live queue
+            </Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -245,6 +248,13 @@ const CenterDetailsScreen = () => {
           return (
             <Card
               variant="elevated"
+              onPress={() =>
+                navigation.navigate('DoctorList', {
+                  centerId: center.id,
+                  serviceId: item.id,
+                  serviceName: item.name,
+                })
+              }
               style={[styles.serviceCard, { padding: spacing.md }]}
               containerStyle={{ marginBottom: spacing.md }}
             >
@@ -296,20 +306,6 @@ const CenterDetailsScreen = () => {
           <EmptyState
             title="No Departments Found"
             subtitle="No departments available for this clinic"
-          />
-        }
-        ListFooterComponent={
-          <AppButton
-            title="Book a Consultation"
-            style={{ marginTop: spacing.md }}
-            onPress={() =>
-              navigation.navigate(
-                'BookAppointment',
-                {
-                  centerId: center.id,
-                },
-              )
-            }
           />
         }
       />

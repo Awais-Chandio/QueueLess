@@ -15,12 +15,12 @@ import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useTheme } from '../../../hooks/useTheme';
-import { useAuthStore } from '../../../store/authStore';
-import { useNotificationsStore } from '../../../store/notificationsStore';
+import { useAuthStore } from '../../../stores/authStore';
+import { useNotificationsStore } from '../../../stores/notificationStore';
 import { toastService } from '../../../services/toastService';
 import type { Notification } from '../../../types/notification';
 import { scaleFont } from '../../../utils/responsive';
-import { notificationsService } from '../api/notificationsService';
+import { notificationService } from '../../../services/notificationService';
 import AnimatedCard from '../../../components/ui/AnimatedCard';
 
 // Category metadata per notification type
@@ -91,7 +91,7 @@ const NotificationsScreen = () => {
   const handleMarkAsRead = useCallback(
     async (notificationId: string) => {
       try {
-        await notificationsService.markAsRead(notificationId);
+        await notificationService.markAsRead(notificationId);
         const nextNotifications = storeNotifications.map(notification =>
           notification.id === notificationId
             ? { ...notification, is_read: true }
@@ -115,7 +115,7 @@ const NotificationsScreen = () => {
     }
 
     try {
-      await notificationsService.markAllAsRead(userId);
+      await notificationService.markAllAsRead(userId);
       const nextNotifications = storeNotifications.map(notification => ({
         ...notification,
         is_read: true,

@@ -1,5 +1,4 @@
 import { useEffect, useCallback } from 'react';
-import { Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -10,9 +9,9 @@ import {
     AuthorizationStatus,
 } from '@react-native-firebase/messaging';
 import { fcmService } from '../services/fcmService';
-import { useNotificationsStore } from '../store/notificationsStore';
-import { useAuthStore } from '../store/authStore';
-import { supabase } from '../lib/supabase';
+import { useNotificationsStore } from '../stores/notificationStore';
+import { useAuthStore } from '../stores/authStore';
+import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
 import type { Notification } from '../types/notification';
 import type { AppStackParamList } from '../navigation/types';
@@ -28,21 +27,13 @@ export const useNotifications = () => {
     } = useNotificationsStore();
 
     /**
-     * Updates the fcm_token in Supabase device_tokens table
+     * Updates the fcm_token in Supabase device_tokens table via service
      */
     const updateTokenInSupabase = useCallback(async (token: string | null) => {
         if (!token) return;
 
         try {
-            let activeUserId = user?.id;
-
-            // Ensure active session headers are configured
-            const { data: sessionData } = await supabase.auth.getSession();
-            const activeSession = sessionData?.session;
-
-            if (activeSession?.user?.id) {
-                activeUserId = activeSession.user.id;
-            }
+            const activeUserId = user?.id;
 
             if (!activeUserId) {
                 if (__DEV__) console.log('[useNotifications] No active authenticated user found for FCM sync.');
@@ -50,43 +41,10 @@ export const useNotifications = () => {
             }
 
             if (__DEV__) {
-                console.log('[useNotifications] Syncing FCM token to Supabase device_tokens...', { userId: activeUserId, tokenLength: token.length });
+                console.log('[useNotifications] Syncing FCM token to Supabase...', { userId: activeUserId, tokenLength: token.length });
             }
 
-            // Primary: Attempt update via device_tokens table
-            const { error: tokenError } = await supabase
-                .from('device_tokens')
-                .upsert({
-                    user_id: activeUserId,
-                    fcm_token: token,
-                    platform: Platform.OS,
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'fcm_token' });
-
-            if (!tokenError) {
-                if (__DEV__) console.log('[useNotifications] FCM token synced successfully via device_tokens table.');
-                return;
-            }
-
-            if (__DEV__) {
-                console.warn('[useNotifications] device_tokens upsert failed, trying direct profiles fallback:', tokenError.message);
-            }
-
-            // Fallback: Direct table update to profiles
-            const { error: updateError } = await supabase
-                .from('profiles')
-                .update({ fcm_token: token, updated_at: new Date().toISOString() } as any)
-                .eq('id', activeUserId);
-
-            if (updateError) {
-                console.error('[useNotifications] Direct profile update for FCM token failed:', {
-                    code: updateError.code,
-                    message: updateError.message,
-                });
-                throw updateError;
-            }
-
-            if (__DEV__) console.log('[useNotifications] FCM token synced successfully via direct profiles update.');
+            await notificationService.syncFcmToken(activeUserId, token);
         } catch (error) {
             if (__DEV__) {
                 console.warn('[useNotifications] Failed to sync FCM token to Supabase:', error);
@@ -124,7 +82,7 @@ export const useNotifications = () => {
             return;
         }
 
-        // 2. Retrieve token
+        // Retrieve token
         const token = await fcmService.getToken();
         setFcmToken(token);
 
@@ -151,7 +109,7 @@ export const useNotifications = () => {
         // Initialize permission check (don't request yet if denied/undetermined)
         initializeFCM(false);
 
-        // 3. Listen to token refreshes
+        // Listen to token refreshes
         const unsubscribeTokenRefresh = fcmService.onTokenRefresh(async (newToken) => {
             setFcmToken(newToken);
             if (user) {
@@ -159,7 +117,7 @@ export const useNotifications = () => {
             }
         });
 
-        // 4. Handle Foreground Notifications
+        // Handle Foreground Notifications
         const unsubscribeOnMessage = onMessage(getMessaging(), async (remoteMessage) => {
             if (__DEV__) {
                 console.log('[useNotifications] Foreground message received:', remoteMessage);
@@ -186,7 +144,7 @@ export const useNotifications = () => {
             toastService.success(`${title}\n${body}`);
         });
 
-        // 5. Handle Background/Quit state notification clicks (when app is opened from notification)
+        // Handle Background/Quit state notification clicks (when app is opened from notification)
         const unsubscribeOnNotificationOpened = onNotificationOpenedApp(getMessaging(), (remoteMessage) => {
             if (__DEV__) {
                 console.log('[useNotifications] App opened from background state by notification click:', remoteMessage);

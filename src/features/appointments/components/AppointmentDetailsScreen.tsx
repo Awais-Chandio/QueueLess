@@ -12,11 +12,11 @@ import { Skeleton } from '../../../components/ui/Skeleton';
 import AppButton from '../../../components/ui/AppButton';
 import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useTheme } from '../../../hooks/useTheme';
-import { appointmentsService } from '../api/appointmentsService';
-import { useAppointmentsStore } from '../../../store/appointmentsStore';
-import { useToastStore } from '../../../store/toastStore';
+import { appointmentService } from '../../../services/appointmentService';
+import { useAppointmentsStore } from '../../../stores/appointmentStore';
+import { useToastStore } from '../../../stores/toastStore';
 import { useNotifications } from '../../../hooks/useNotifications';
-import { useNotificationsStore } from '../../../store/notificationsStore';
+import { useNotificationsStore } from '../../../stores/notificationStore';
 import type { AppStackParamList } from '../../../navigation/types';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
 import {
@@ -54,7 +54,7 @@ const AppointmentDetailsScreen = () => {
   const queryClient = useQueryClient();
   const { data: appointment, isLoading, isError, refetch } = useQuery({
     queryKey: ['appointment', appointmentId],
-    queryFn: () => appointmentsService.fetchAppointmentById(appointmentId!),
+    queryFn: () => appointmentService.fetchAppointmentById(appointmentId!),
     enabled: !!appointmentId,
   });
 
@@ -77,7 +77,7 @@ const AppointmentDetailsScreen = () => {
   }, [appointment, permissionGranted, requestPermission]);
 
   const cancelMutation = useMutation({
-    mutationFn: (id: string) => appointmentsService.cancelAppointment(id),
+    mutationFn: (id: string) => appointmentService.cancelAppointment(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
       queryClient.invalidateQueries({ queryKey: ['appointment', appointmentId] });
