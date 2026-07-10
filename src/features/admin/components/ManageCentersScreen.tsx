@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, Pressable, Modal, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Plus, Edit2, Trash2, Hospital, Stethoscope, ChevronLeft, X, UserPlus, ToggleLeft, ToggleRight } from 'lucide-react-native';
+import { Edit2, Trash2, Hospital, Stethoscope, ChevronLeft, X, UserPlus, ToggleLeft, ToggleRight } from 'lucide-react-native';
 import { doctorsService } from '../../appointments/api/doctorsService';
 import type { Doctor } from '../../appointments/api/doctorsService';
 import { useTheme } from '../../../hooks/useTheme';
@@ -10,8 +10,9 @@ import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppInput from '../../../components/ui/AppInput';
 import AppButton from '../../../components/ui/AppButton';
 import { Card } from '../../../components/ui/Card';
-import { supabase } from '../../../lib/supabase';
 import { toastService } from '../../../services/toastService';
+import { centerService } from '../../../services/centerService';
+import { serviceService } from '../../../services/serviceService';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 
 type ManageCentersScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'ManageCenters'>;
@@ -21,9 +22,9 @@ interface Center {
   name: string;
   city: string;
   address: string;
-  open_time: string;
-  close_time: string;
-  category: string;
+  open_time: string | null;
+  close_time: string | null;
+  category: string | null;
 }
 
 interface Service {
@@ -72,9 +73,9 @@ const ManageCentersScreen = () => {
 
   const fetchCenters = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from('service_centers').select('*').order('name');
-      if (error) throw error;
-      setCenters(data || []);
+      const data = await centerService.getCenters();
+      const sorted = [...(data || [])].sort((a, b) => a.name.localeCompare(b.name));
+      setCenters(sorted);
     } catch (err: any) {
       toastService.error('Failed to load centers: ' + err.message);
     }
@@ -82,9 +83,9 @@ const ManageCentersScreen = () => {
 
   const fetchServices = useCallback(async () => {
     try {
-      const { data, error } = await supabase.from('services').select('*').order('name');
-      if (error) throw error;
-      setServices(data || []);
+      const data = await serviceService.getServices();
+      const sorted = [...(data || [])].sort((a, b) => a.name.localeCompare(b.name));
+      setServices(sorted);
     } catch (err: any) {
       toastService.error('Failed to load services: ' + err.message);
     }
@@ -256,12 +257,10 @@ const ManageCentersScreen = () => {
 
       try {
         if (editingId) {
-          const { error } = await supabase.from('service_centers').update(payload).eq('id', editingId);
-          if (error) throw error;
+          await centerService.updateCenter(editingId, payload);
           toastService.success('Center updated successfully');
         } else {
-          const { error } = await supabase.from('service_centers').insert(payload);
-          if (error) throw error;
+          await centerService.createCenter(payload);
           toastService.success('Center added successfully');
         }
         setShowModal(false);
@@ -287,12 +286,10 @@ const ManageCentersScreen = () => {
 
       try {
         if (editingId) {
-          const { error } = await supabase.from('services').update(payload).eq('id', editingId);
-          if (error) throw error;
+          await serviceService.updateService(editingId, payload);
           toastService.success('Service updated successfully');
         } else {
-          const { error } = await supabase.from('services').insert(payload);
-          if (error) throw error;
+          await serviceService.createService(payload);
           toastService.success('Service added successfully');
         }
         setShowModal(false);
@@ -317,9 +314,11 @@ const ManageCentersScreen = () => {
           onPress: async () => {
             setLoading(true);
             try {
-              const table = activeTab === 'centers' ? 'service_centers' : 'services';
-              const { error } = await supabase.from(table).delete().eq('id', id);
-              if (error) throw error;
+              if (activeTab === 'centers') {
+                await centerService.deleteCenter(id);
+              } else {
+                await serviceService.deleteService(id);
+              }
               toastService.success('Deleted successfully');
               loadData();
             } catch (err: any) {

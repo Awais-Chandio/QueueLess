@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import type { AppointmentStatus } from '../../types/appointment';
 import { scaleFont } from '../../utils/responsive';
 import { useTheme } from '../../hooks/useTheme';
@@ -11,6 +10,7 @@ export type StatusChipVariant =
   | 'warning'
   | 'error'
   | 'info'
+  | 'doctor_on_break'
   | 'default';
 
 interface StatusConfig {
@@ -165,6 +165,7 @@ interface StatusChipProps {
   status: StatusChipVariant;
   label?: string;
   style?: ViewStyle;
+  textStyle?: TextStyle;
   size?: 'sm' | 'md';
 }
 
@@ -172,6 +173,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
   status,
   label,
   style,
+  textStyle,
   size = 'md',
 }) => {
   const { isDarkMode } = useTheme();
@@ -218,6 +220,7 @@ export const StatusChip: React.FC<StatusChipProps> = ({
             color: textColor,
             fontSize,
           },
+          textStyle,
         ]}
         numberOfLines={1}
       >

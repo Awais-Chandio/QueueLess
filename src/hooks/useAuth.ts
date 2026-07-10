@@ -1,14 +1,14 @@
 import { useCallback } from "react";
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import { User } from '@supabase/supabase-js';
-import { authService } from '../features/auth/api/authService';
-import { useAuthStore } from '../store/authStore';
-import { useProfileStore } from '../store/profileStore';
+import { authService } from '../services/authService';
+import { useAuthStore } from '../stores/authStore';
+import { useProfileStore } from '../stores/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
-import { profileService } from '../features/profile/api/profileService';
+import { profileService } from '../services/profileService';
 import { firebasePhoneAuth } from '../services/firebasePhoneAuth';
 import { fcmService } from '../services/fcmService';
-import { useNotificationsStore } from '../store/notificationsStore';
+import { useNotificationsStore } from '../stores/notificationStore';
 import { supabase } from '../lib/supabase';
 
 

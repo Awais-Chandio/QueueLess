@@ -4,7 +4,7 @@ import { ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import { scaleFont } from '../../utils/responsive';
 
-interface SectionHeaderProps {
+export interface SectionHeaderProps {
   title: string;
   onPressAction?: () => void;
   actionLabel?: string;

@@ -20,7 +20,7 @@ import { SkeletonLoader } from '../../../components/animations/SkeletonLoader';
 import AnimatedCard from '../../../components/ui/AnimatedCard';
 import AppointmentTile from '../../../components/ui/AppointmentTile';
 import { useTheme } from '../../../hooks/useTheme';
-import { useAppointments } from '../hooks/useAppointments';
+import { useAppointments } from '../../../hooks/useAppointments';
 import { useAuthStore } from '../../../store/authStore';
 import type { AppStackParamList } from '../../../navigation/types';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';

@@ -53,7 +53,7 @@ export const QueueCard: React.FC<QueueCardProps> = ({
         </View>
         <StatusChip
           status={isBreak ? 'doctor_on_break' : (status as AppointmentStatus)}
-          containerStyle={{ backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 0 }}
+          style={{ backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 0 }}
           textStyle={{ color: '#FFF', fontWeight: '800' }}
         />
       </View>

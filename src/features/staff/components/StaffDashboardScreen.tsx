@@ -36,24 +36,20 @@ import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useAuth } from '../../../hooks/useAuth';
 import { useProfileStore } from '../../../store/profileStore';
 import { useTheme } from '../../../hooks/useTheme';
-import { useStaffQueueStore } from '../../../store/staffQueueStore';
+import { useStaffQueueStore } from '../../../store/queueStore';
 import type {
   AppointmentFull,
   AppointmentStatus,
   CancelReason,
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import { staffQueueService } from '../api/staffQueueService';
+import { queueService } from '../../../services/queueService';
+import { centerService } from '../../../services/centerService';
 import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
-import {
-  subscribeToAppointments,
-  unsubscribeAppointments,
-} from '../../queue/api/queueService';
 import { getAppointmentStatusState } from '../../../services/bookingService';
 
 import { getDisplayName } from '../../../utils/getDisplayName';
 import { toastService } from '../../../services/toastService';
-import { supabase } from '../../../lib/supabase';
 
 type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
 
@@ -103,13 +99,10 @@ const StaffDashboardScreen = () => {
 
   useEffect(() => {
     if (profile?.role === 'staff' && profile?.center_id) {
+      const centerId = profile.center_id;
       const fetchCenterName = async () => {
         try {
-          const { data } = await supabase
-            .from('service_centers')
-            .select('name')
-            .eq('id', profile.center_id)
-            .maybeSingle();
+          const data = await centerService.getCenterById(centerId);
           if (data?.name) {
             setCenterName(data.name);
           }
@@ -148,7 +141,7 @@ const StaffDashboardScreen = () => {
     if (!profile?.center_id) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const settings = await staffQueueService.fetchCenterSettings(profile.center_id, todayStr);
+      const settings = await queueService.fetchCenterSettings(profile.center_id, todayStr);
       setDoctorSettings(settings);
     } catch (err) {
       console.warn('Failed to load center settings:', err);
@@ -167,7 +160,7 @@ const StaffDashboardScreen = () => {
       const end = nextBreakState ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null;
       const todayStr = new Date().toISOString().split('T')[0];
 
-      const updated = await staffQueueService.setCenterBreak(
+      const updated = await queueService.setCenterBreak(
         profile.center_id,
         todayStr,
         nextBreakState,
@@ -186,7 +179,7 @@ const StaffDashboardScreen = () => {
     if (!profile?.center_id) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const updated = await staffQueueService.updateCenterAverageConsultationTime(
+      const updated = await queueService.updateCenterAverageConsultationTime(
         profile.center_id,
         todayStr,
         mins,
@@ -201,7 +194,7 @@ const StaffDashboardScreen = () => {
 
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['staff-dashboard', 'today'],
-    queryFn: () => staffQueueService.fetchDashboard('today'),
+    queryFn: () => queueService.fetchDashboard('today'),
     refetchOnMount: 'always',
     staleTime: 0,
   });
@@ -265,7 +258,7 @@ const StaffDashboardScreen = () => {
   useEffect(() => {
     if (!isFocused) return;
 
-    const channel = subscribeToAppointments({
+    const channel = queueService.subscribeToAppointments({
       channelName: `staff-dashboard-today-${Date.now()}`,
       onChange: () => {
         queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
@@ -273,7 +266,7 @@ const StaffDashboardScreen = () => {
     });
 
     return () => {
-      unsubscribeAppointments(channel);
+      queueService.unsubscribeAppointments(channel);
     };
   }, [queryClient, isFocused]);
 
@@ -292,25 +285,25 @@ const StaffDashboardScreen = () => {
       reason?: CancelReason;
     }) => {
       if (action === 'confirm') {
-        return staffQueueService.confirmAppointment(appointment);
+        return queueService.confirmAppointment(appointment);
       }
 
       if (action === 'cancel') {
-        return staffQueueService.cancelAppointment(
+        return queueService.cancelAppointment(
           appointment,
           reason ?? 'Other',
         );
       }
 
       if (action === 'start_service') {
-        return staffQueueService.startService(appointment);
+        return queueService.startService(appointment);
       }
 
       if (action === 'no_show') {
-        return staffQueueService.noShowAppointment(appointment);
+        return queueService.noShowAppointment(appointment);
       }
 
-      return staffQueueService.completeAppointment(appointment);
+      return queueService.completeAppointment(appointment);
     },
     onSuccess: (data, variables) => {
       setCancelTarget(null);
