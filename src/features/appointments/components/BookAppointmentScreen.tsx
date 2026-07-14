@@ -428,8 +428,6 @@ const BookAppointmentScreen = () => {
   const openMin = selectedCenter?.open_time ? timeToMinutes(selectedCenter.open_time) : 0;
   const closeMin = selectedCenter?.close_time ? timeToMinutes(selectedCenter.close_time) : 1440;
 
-  return (
-    <ScreenWrapper>
   if (initialServiceId) {
     const selectedService = centerServices.find(s => s.id === selectedServiceId);
     const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
