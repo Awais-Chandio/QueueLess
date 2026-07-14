@@ -18,6 +18,13 @@ export interface Doctor {
   is_active: boolean;
   is_on_break: boolean;
   created_at: string;
+  profile_id?: string | null;
+  employee_code?: string | null;
+  license_number?: string | null;
+  gender?: string | null;
+  fee?: number | null;
+  status?: string | null;
+  updated_at?: string;
 }
 
 export interface DoctorAvailability {

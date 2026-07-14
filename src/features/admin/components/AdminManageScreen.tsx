@@ -244,6 +244,12 @@ const AdminManageScreen = () => {
                 onPress={() => (navigation as any).navigate('ManageCenters')}
                 style={{ borderColor: colors.border, borderRadius: radius.md }}
               />
+              <AppButton
+                title="Manage Doctors"
+                variant="outline"
+                onPress={() => (navigation as any).navigate('ManageDoctors')}
+                style={{ borderColor: colors.border, borderRadius: radius.md, marginTop: spacing.xs }}
+              />
             </View>
           </Card>
         </View>
