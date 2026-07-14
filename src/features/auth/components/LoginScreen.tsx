@@ -31,8 +31,10 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const googleIconStyle = { marginRight: wp(2) };
+
 const GoogleIcon = () => (
-    <Svg width={18} height={18} viewBox="0 0 24 24" style={{ marginRight: wp(2) }}>
+    <Svg width={18} height={18} viewBox="0 0 24 24" style={googleIconStyle}>
         <Path
             fill="#4285F4"
             d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -53,7 +55,7 @@ const GoogleIcon = () => (
 );
 
 const LoginScreen = () => {
-    const { colors, spacing, radius, typography, isDarkMode } = useTheme();
+    const { colors, spacing, radius, isDarkMode } = useTheme();
     const navigation = useNavigation<LoginScreenNavigationProp>();
 
     const [email, setEmail] = useState('');
@@ -104,7 +106,7 @@ const LoginScreen = () => {
                 Animated.timing(bgAnim2, { toValue: 0, duration: 5000, useNativeDriver: true }),
             ])
         ).start();
-    }, []);
+    }, [bgAnim1, bgAnim2, fadeAnim, logoScale, slideAnim]);
 
     async function handleLogin() {
         if (isLoading) return;
@@ -150,6 +152,144 @@ const LoginScreen = () => {
         }
     }
 
+    // Dynamic Styles to avoid inline styling warnings
+    const dynamicBgShape1Style = [
+        styles.bgShape,
+        {
+            top: hp(25),
+            left: wp(-10),
+            backgroundColor: colors.primary + '15',
+            transform: [{ translateY: bgAnim1 }]
+        }
+    ];
+
+    const dynamicBgShape2Style = [
+        styles.bgShape2,
+        {
+            top: hp(65),
+            right: wp(-15),
+            backgroundColor: colors.info + '15',
+            transform: [{ translateX: bgAnim2 }]
+        }
+    ];
+
+    const dynamicLogoStyle = [
+        styles.logoContainer,
+        {
+            opacity: fadeAnim,
+            transform: [{ scale: logoScale }]
+        }
+    ];
+
+    const titleContainerStyle = [
+        styles.titleContainer,
+        {
+            opacity: fadeAnim
+        }
+    ];
+
+    const dynamicFormContainerStyle = [
+        styles.formContainer,
+        {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+        }
+    ];
+
+    const dynamicFormCardStyle = [
+        styles.formCard,
+        {
+            backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+            borderRadius: radius.xl,
+            borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.65)',
+            shadowColor: isDarkMode ? '#000000' : colors.primary,
+            shadowOpacity: isDarkMode ? 0.4 : 0.08,
+        }
+    ];
+
+    const dynamicFormTitleStyle = [
+        styles.formTitle,
+        {
+            color: colors.text,
+            marginBottom: spacing.md,
+        }
+    ];
+
+    const inputContainerStyle = {
+        marginTop: spacing.xs,
+    };
+
+    const keyRoundIconStyle = {
+        marginRight: spacing.xs,
+    };
+
+    const forgotPasswordTextStyle = [
+        styles.forgotPasswordText,
+        {
+            color: colors.primary
+        }
+    ];
+
+    const socialButtonStyle = [
+        styles.socialButton,
+        {
+            borderColor: colors.border,
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
+            borderRadius: radius.xl,
+        }
+    ];
+
+    const socialButtonTextStyle = [
+        styles.socialButtonText,
+        {
+            color: colors.text
+        }
+    ];
+
+    const secureEncryptionBadgeStyle = [
+        styles.badge,
+        {
+            backgroundColor: isDarkMode ? 'rgba(37, 99, 235, 0.12)' : '#EFF6FF'
+        }
+    ];
+
+    const secureEncryptionBadgeTextStyle = [
+        styles.badgeText,
+        {
+            color: colors.primary
+        }
+    ];
+
+    const smartQueueingBadgeStyle = [
+        styles.badge,
+        {
+            backgroundColor: isDarkMode ? 'rgba(0, 194, 168, 0.12)' : '#E6FDF9'
+        }
+    ];
+
+    const footerTextStyle = [
+        styles.footerText,
+        {
+            color: colors.textSecondary
+        }
+    ];
+
+    const signUpLinkStyle = {
+        color: colors.primary,
+        fontWeight: '800' as const,
+    };
+
+    const dividerLineStyle = {
+        backgroundColor: colors.border,
+    };
+
+    const dividerTextStyle = [
+        styles.dividerText,
+        {
+            color: colors.textSecondary
+        }
+    ];
+
     return (
         <ScreenWrapper scrollable={false} withPadding={false} edges={['left', 'right', 'bottom']}>
             <StatusBar barStyle="light-content" backgroundColor="transparent" translucent={true} />
@@ -158,24 +298,8 @@ const LoginScreen = () => {
                 behavior={Platform.OS === "ios" ? "padding" : undefined}
             >
                 {/* Floating soft background shapes */}
-                <Animated.View style={[
-                    styles.bgShape,
-                    {
-                        top: hp(25),
-                        left: wp(-10),
-                        backgroundColor: colors.primary + '15',
-                        transform: [{ translateY: bgAnim1 }]
-                    }
-                ]} />
-                <Animated.View style={[
-                    styles.bgShape2,
-                    {
-                        top: hp(65),
-                        right: wp(-15),
-                        backgroundColor: colors.info + '15',
-                        transform: [{ translateX: bgAnim2 }]
-                    }
-                ]} />
+                <Animated.View style={dynamicBgShape1Style} />
+                <Animated.View style={dynamicBgShape2Style} />
 
                 <ScrollView
                     contentContainerStyle={styles.scrollContainer}
@@ -189,55 +313,34 @@ const LoginScreen = () => {
                         end={{ x: 1, y: 1 }}
                         style={styles.headerGradient}
                     >
-                        <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
+                        <Animated.View style={dynamicLogoStyle}>
                             <View style={styles.logoOutline}>
                                 <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" crossColor="#14B8A6" />
                             </View>
                         </Animated.View>
 
-                        <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
+                        <Animated.View style={titleContainerStyle}>
                             <Text style={styles.appTitle}>QueueLess</Text>
                             <Text style={styles.appSubtitle}>Smart Healthcare Portal</Text>
                         </Animated.View>
                     </LinearGradient>
 
                     {/* Lower Card Container */}
-                    <Animated.View
-                        style={[
-                            styles.formContainer,
-                            {
-                                opacity: fadeAnim,
-                                transform: [{ translateY: slideAnim }]
-                            }
-                        ]}
-                    >
+                    <Animated.View style={dynamicFormContainerStyle}>
                         <View style={styles.mainContent}>
                             {/* Premium Healthcare Welcome Illustration */}
                             <DoctorSchedulingAnimation />
                             <Text style={styles.illustrationText}>Smart Scheduling • Live Queue Tracking</Text>
 
                             {/* Glassmorphic Form Card */}
-                            <View style={[
-                                styles.formCard,
-                                {
-                                    backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.75)' : 'rgba(255, 255, 255, 0.85)',
-                                    borderRadius: radius.xl,
-                                    borderWidth: 1,
-                                    borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.65)',
-                                    shadowColor: isDarkMode ? '#000000' : colors.primary,
-                                    shadowOffset: { width: 0, height: 12 },
-                                    shadowOpacity: isDarkMode ? 0.4 : 0.08,
-                                    shadowRadius: 24,
-                                    elevation: 8,
-                                }
-                            ]}>
+                            <View style={dynamicFormCardStyle}>
                                 {/* Form Header */}
-                                <Text style={[styles.formTitle, { color: colors.text, fontSize: scaleFont(18), fontWeight: '800', marginBottom: spacing.md, textAlign: 'center' }]}>
+                                <Text style={dynamicFormTitleStyle}>
                                     Sign In
                                 </Text>
 
                                 {/* Email inputs */}
-                                <View style={{ marginTop: spacing.xs }}>
+                                <View style={inputContainerStyle}>
                                     <AppInput
                                         placeholder="Email Address"
                                         label="Email"
@@ -275,8 +378,8 @@ const LoginScreen = () => {
                                                 pressed && styles.pressedEffect
                                             ]}
                                         >
-                                            <KeyRound size={scaleFont(13)} color={colors.primary} style={{ marginRight: spacing.xs }} />
-                                            <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>Forgot Password?</Text>
+                                            <KeyRound size={scaleFont(13)} color={colors.primary} style={keyRoundIconStyle} />
+                                            <Text style={forgotPasswordTextStyle}>Forgot Password?</Text>
                                         </Pressable>
                                     </View>
                                 </View>
@@ -293,40 +396,35 @@ const LoginScreen = () => {
 
                                 {/* Divider */}
                                 <View style={styles.dividerRow}>
-                                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
-                                    <Text style={[styles.dividerText, { color: colors.textSecondary }]}>or continue with</Text>
-                                    <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+                                    <View style={dividerLineStyle} />
+                                    <Text style={dividerTextStyle}>or continue with</Text>
+                                    <View style={dividerLineStyle} />
                                 </View>
 
                                 {/* Google Sign-in Button */}
                                 <Pressable
                                     style={({ pressed }) => [
-                                        styles.socialButton,
-                                        {
-                                            borderColor: colors.border,
-                                            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : '#FFFFFF',
-                                            borderRadius: radius.xl,
-                                        },
+                                        socialButtonStyle,
                                         pressed && styles.pressedEffect
                                     ]}
                                     onPress={handleGoogleLogin}
                                     disabled={isLoading}
                                 >
                                     <GoogleIcon />
-                                    <Text style={[styles.socialButtonText, { color: colors.text }]}>Sign in with Google</Text>
+                                    <Text style={socialButtonTextStyle}>Sign in with Google</Text>
                                 </Pressable>
                             </View>
                         </View>
 
                         {/* Security & Support Badges to fill space */}
                         <View style={styles.badgeRow}>
-                            <View style={[styles.badge, { backgroundColor: isDarkMode ? 'rgba(37, 99, 235, 0.12)' : '#EFF6FF' }]}>
-                                <ShieldCheck size={scaleFont(11)} color={colors.primary} style={{ marginRight: 4 }} />
-                                <Text style={[styles.badgeText, { color: colors.primary }]}>Secure Encryption</Text>
+                            <View style={secureEncryptionBadgeStyle}>
+                                <ShieldCheck size={scaleFont(11)} color={colors.primary} style={styles.badgeIcon} />
+                                <Text style={secureEncryptionBadgeTextStyle}>Secure Encryption</Text>
                             </View>
-                            <View style={[styles.badge, { backgroundColor: isDarkMode ? 'rgba(0, 194, 168, 0.12)' : '#E6FDF9' }]}>
-                                <Sparkles size={scaleFont(11)} color="#14B8A6" style={{ marginRight: 4 }} />
-                                <Text style={[styles.badgeText, { color: '#14B8A6' }]}>Smart Queueing</Text>
+                            <View style={smartQueueingBadgeStyle}>
+                                <Sparkles size={scaleFont(11)} color="#14B8A6" style={styles.badgeIcon} />
+                                <Text style={[styles.badgeText, styles.tealBadgeText]}>Smart Queueing</Text>
                             </View>
                         </View>
 
@@ -338,8 +436,8 @@ const LoginScreen = () => {
                                 pressed && styles.pressedEffect
                             ]}
                         >
-                            <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                                Don't have an account? <Text style={{ color: colors.primary, fontWeight: '800' }}>Sign Up</Text>
+                            <Text style={footerTextStyle}>
+                                Don't have an account? <Text style={signUpLinkStyle}>Sign Up</Text>
                             </Text>
                         </Pressable>
                     </Animated.View>
@@ -381,6 +479,9 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 25,
         borderBottomRightRadius: 25,
     },
+    titleContainer: {
+        alignItems: 'center',
+    },
     logoContainer: {
         marginBottom: hp(0.3),
     },
@@ -419,9 +520,13 @@ const styles = StyleSheet.create({
     formCard: {
         paddingVertical: hp(1.5),
         paddingHorizontal: wp(4),
+        borderWidth: 1,
+        shadowOffset: { width: 0, height: 12 },
+        shadowRadius: 24,
+        elevation: 8,
     },
     formTitle: {
-        fontSize: scaleFont(16),
+        fontSize: scaleFont(18),
         fontWeight: '800',
         textAlign: 'center',
     },
@@ -515,5 +620,11 @@ const styles = StyleSheet.create({
     badgeText: {
         fontSize: scaleFont(10.5),
         fontWeight: '700',
+    },
+    badgeIcon: {
+        marginRight: 4,
+    },
+    tealBadgeText: {
+        color: '#14B8A6',
     },
 });

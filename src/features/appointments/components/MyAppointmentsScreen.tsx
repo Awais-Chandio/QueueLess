@@ -7,37 +7,22 @@ import {
   RefreshControl,
   StyleSheet,
   ScrollView,
+  TextStyle,
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
-import AppButton from '../../../components/ui/AppButton';
-import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
-import { StatusChip } from '../../../components/ui/StatusChip';
 import { SkeletonLoader } from '../../../components/animations/SkeletonLoader';
-import AnimatedCard from '../../../components/ui/AnimatedCard';
 import AppointmentTile from '../../../components/ui/AppointmentTile';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAppointments } from '../../../hooks/useAppointments';
 import { useAuthStore } from '../../../store/authStore';
 import type { AppStackParamList } from '../../../navigation/types';
-import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
-import { Calendar, Clock, MapPin, SearchX, Hash, Stethoscope, Heart, Smile } from 'lucide-react-native';
+import { getAppointmentStatusState } from '../../../services/bookingService';
+import { SearchX } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
-import {
-  getAppointmentDateLabel,
-  getAppointmentTimeLabel,
-} from '../utils/appointmentTime';
-
-const getServiceIcon = (serviceName: string) => {
-  const name = (serviceName || '').toLowerCase();
-  if (name.includes('pediatric')) return { icon: Smile, color: '#0891B2' };
-  if (name.includes('cardio') || name.includes('heart')) return { icon: Heart, color: '#EF4444' };
-  if (name.includes('dental') || name.includes('teeth')) return { icon: Hash, color: '#F59E0B' };
-  return { icon: Stethoscope, color: '#0E7490' };
-};
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 type StatusFilter = 'all' | 'upcoming' | 'active' | 'completed' | 'cancelled';
@@ -100,16 +85,43 @@ const MyAppointmentsScreen = () => {
     return false;
   });
 
+  const skeletonContainerStyle = { paddingBottom: spacing.xl };
+
   const renderSkeleton = () => (
-    <View style={{ paddingBottom: spacing.xl }}>
+    <View style={skeletonContainerStyle}>
       <SkeletonLoader height={140} count={3} gap={spacing.md} />
     </View>
   );
 
+  // Dynamic Styles
+  const titleStyle = [
+    styles.title,
+    {
+      color: colors.text,
+      fontSize: typography.sizes.xxl,
+      marginBottom: spacing.lg,
+    },
+  ];
+
+  const filterListStyle = [
+    styles.filterList,
+    { marginBottom: spacing.md },
+  ];
+
+  const filterListContentStyle = {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  };
+
+  const listContentStyle = [
+    styles.listContent,
+    { paddingBottom: spacing.xl },
+  ];
+
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.lg }]}>
+        <Text style={titleStyle}>
           My Appointments
         </Text>
 
@@ -117,45 +129,48 @@ const MyAppointmentsScreen = () => {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ maxHeight: scaleFont(44), marginBottom: spacing.md }}
-          contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
+          style={filterListStyle}
+          contentContainerStyle={filterListContentStyle}
         >
           {statusFilters.map(filter => {
             const isSelected = selectedStatus === filter.key;
             const dotColor = filter.dotColor;
+
+            const filterButtonStyle = [
+              styles.filterButton,
+              {
+                borderColor: isSelected ? dotColor : colors.border,
+                backgroundColor: isSelected ? dotColor + '18' : colors.surface,
+                borderRadius: radius.full,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.xs,
+              },
+            ];
+
+            const dotStyle = [
+              styles.filterDot,
+              {
+                backgroundColor: isSelected ? dotColor : colors.textSecondary + '60',
+              },
+            ];
+
+            const filterButtonTextStyle = {
+              color: isSelected ? dotColor : colors.textSecondary,
+              fontSize: typography.sizes.sm,
+              fontWeight: (isSelected ? '700' : '500') as TextStyle['fontWeight'],
+            };
+
             return (
               <Pressable
                 key={filter.key}
                 onPress={() => setSelectedStatus(filter.key)}
                 style={({ pressed }) => [
-                  styles.filterButton,
-                  {
-                    borderColor: isSelected ? dotColor : colors.border,
-                    backgroundColor: isSelected ? dotColor + '18' : colors.surface,
-                    borderRadius: radius.full,
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: spacing.xs,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: scaleFont(5),
-                    height: scaleFont(30),
-                  },
-                  pressed && { opacity: 0.75 },
+                  filterButtonStyle,
+                  pressed && styles.pressedEffect,
                 ]}
               >
-                <View
-                  style={{
-                    width: scaleFont(6),
-                    height: scaleFont(6),
-                    borderRadius: scaleFont(3),
-                    backgroundColor: isSelected ? dotColor : colors.textSecondary + '60',
-                  }}
-                />
-                <Text style={{
-                  color: isSelected ? dotColor : colors.textSecondary,
-                  fontSize: typography.sizes.sm,
-                  fontWeight: isSelected ? '700' : '500',
-                }}>
+                <View style={dotStyle} />
+                <Text style={filterButtonTextStyle}>
                   {filter.label}
                 </Text>
               </Pressable>
@@ -184,7 +199,7 @@ const MyAppointmentsScreen = () => {
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={5}
-            contentContainerStyle={{ paddingBottom: spacing.xl, flexGrow: 1 }}
+            contentContainerStyle={listContentStyle}
             refreshControl={
               <RefreshControl
                 tintColor={colors.primary}
@@ -232,54 +247,25 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.3,
   },
+  filterList: {
+    maxHeight: scaleFont(44),
+  },
   filterButton: {
     borderWidth: 1.2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: scaleFont(10),
-  },
-  serviceIconWrapper: {
-    width: scaleFont(36),
-    height: scaleFont(36),
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  divider: {
-    height: 1,
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: scaleFont(8),
-  },
-  detailBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: scaleFont(6),
-    minWidth: '28%',
+    gap: scaleFont(5),
+    height: scaleFont(30),
   },
-  detailIconPill: {
-    width: scaleFont(26),
-    height: scaleFont(26),
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  filterDot: {
+    width: scaleFont(6),
+    height: scaleFont(6),
+    borderRadius: scaleFont(3),
   },
-  detailLabel: {
-    fontSize: 9,
-    color: '#64748B',
-    fontWeight: '600',
-    textTransform: 'uppercase',
+  pressedEffect: {
+    opacity: 0.75,
   },
-  detailValue: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginTop: 1,
+  listContent: {
+    flexGrow: 1,
   },
 });
