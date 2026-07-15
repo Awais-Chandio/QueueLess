@@ -2,7 +2,7 @@ export type Profile = {
   id: string;
   full_name: string;
   email: string;
-  role?: 'client' | 'staff' | 'admin' | null;
+  role?: 'client' | 'staff' | 'admin' | 'doctor' | null;
   center_id?: string | null;
   phone: string | null;
   avatar_url: string | null;
@@ -14,7 +14,7 @@ export type CreateProfilePayload = {
   id: string;
   full_name: string;
   email: string;
-  role?: 'client' | 'staff' | 'admin';
+  role?: 'client' | 'staff' | 'admin' | 'doctor';
   center_id?: string | null;
   phone?: string;
   avatar_url?: string;
@@ -37,6 +37,6 @@ export type CreateManagedAccountPayload = {
   name: string;
   email: string;
   password?: string;
-  role: 'staff' | 'admin';
+  role: 'staff' | 'admin' | 'doctor' | 'client';
   centerId?: string;
 };

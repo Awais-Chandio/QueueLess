@@ -6,12 +6,22 @@ import {
     UpdateProfilePayload,
 } from "../types/profile";
 
+export async function getStaffContext() {
+    const { data, error } = await supabase.rpc('get_my_staff_context');
+    if (error) throw error;
+    return data?.[0] as { role: string; is_doctor: boolean; doctor_id: string | null } | null;
+}
+
 export const profileService = {
     async getProfileById(userId: string) {
         if (__DEV__) console.log('[profileService.getProfileById] userId:', userId);
         const result = await supabase.from('profiles').select('*').eq('id', userId).single();
         if (__DEV__) console.log('[profileService.getProfileById] result:', { data: result.data, error: result.error?.message });
         return result;
+    },
+
+    async getStaffContext() {
+        return getStaffContext();
     },
     
     async createProfile(payload: CreateProfilePayload) {

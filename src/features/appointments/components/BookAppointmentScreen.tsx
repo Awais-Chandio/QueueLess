@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 
 import {
   Alert,
@@ -277,27 +277,27 @@ const BookAppointmentScreen = () => {
   }, [centerId, fetchCenterServices, fetchCenterById]);
 
   // Fetch available slots from backend
-  useEffect(() => {
-    const fetchSlots = async () => {
-      if (!centerId) return;
-      try {
-        setSlotsLoading(true);
-        setSlotsError(null);
-        setValue('slot', ''); // clear selected slot on date change
-        const booked = await appointmentService.getAvailableSlots(
-          appointmentDate,
-          centerId,
-        );
-        setAvailableSlots(booked);
-      } catch {
-        setSlotsError('Failed to load available slots. Please try changing the date.');
-      } finally {
-        setSlotsLoading(false);
-      }
-    };
-
-    fetchSlots();
+  const fetchSlots = useCallback(async () => {
+    if (!centerId) return;
+    try {
+      setSlotsLoading(true);
+      setSlotsError(null);
+      setValue('slot', ''); // clear selected slot on date change
+      const booked = await appointmentService.getAvailableSlots(
+        appointmentDate,
+        centerId,
+      );
+      setAvailableSlots(booked);
+    } catch {
+      setSlotsError('Failed to load available slots. Please try changing the date.');
+    } finally {
+      setSlotsLoading(false);
+    }
   }, [centerId, appointmentDate, setValue]);
+
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
 
   const onBook = async (formData: BookingFormData) => {
     if (!user || !centerId) {
@@ -334,12 +334,17 @@ const BookAppointmentScreen = () => {
           appointmentId: (result as AppointmentFull).id,
         });
       }
-    } catch (createError) {
-      toastService.error(
-        createError instanceof Error
-          ? `Failed to book appointment: ${createError.message}`
-          : 'Failed to book appointment. Please try again.',
-      );
+    } catch (createError: any) {
+      if (createError.code === '23505' || createError.message?.includes('23505')) {
+        Alert.alert('Slot just taken', 'Someone else booked this slot a moment ago — please pick another.');
+        fetchSlots();
+      } else {
+        toastService.error(
+          createError instanceof Error
+            ? `Failed to book appointment: ${createError.message}`
+            : 'Failed to book appointment. Please try again.',
+        );
+      }
     }
   };
 

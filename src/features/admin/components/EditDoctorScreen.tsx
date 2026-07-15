@@ -24,7 +24,6 @@ import { Card } from '../../../components/ui/Card';
 import { centerService } from '../../../services/centerService';
 import { doctorService } from '../../../services/doctorService';
 import { toastService } from '../../../services/toastService';
-import { hp, wp, scaleFont } from '../../../utils/responsive';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 
 type EditDoctorScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'EditDoctor'>;
@@ -143,6 +142,8 @@ const EditDoctorScreen = () => {
         mediaType: 'photo',
         includeBase64: true,
         quality: 0.8,
+        maxWidth: 1200,
+        maxHeight: 1200,
         selectionLimit: 1,
       });
 
@@ -153,9 +154,23 @@ const EditDoctorScreen = () => {
       }
 
       const asset = result.assets?.[0];
+      if (__DEV__) {
+        console.log('[EditDoctor] Image picker result', {
+          hasUri: Boolean(asset?.uri),
+          hasBase64: Boolean(asset?.base64),
+          base64Length: asset?.base64?.length ?? 0,
+          fileSize: asset?.fileSize ?? 0,
+          type: asset?.type,
+        });
+      }
+
       if (asset?.uri) {
+        if (!asset.base64) {
+          toastService.error('Selected photo could not be read. Please choose another image.');
+          return;
+        }
         setAvatarUri(asset.uri);
-        setAvatarBase64(asset.base64 || null);
+        setAvatarBase64(asset.base64);
         setAvatarMimeType(asset.type || 'image/jpeg');
       }
     } catch (err) {
@@ -209,6 +224,13 @@ const EditDoctorScreen = () => {
 
     setIsSaving(true);
     try {
+      if (__DEV__) {
+        console.log('[EditDoctor] Photo save payload', {
+          hasBase64: Boolean(avatarBase64),
+          base64Length: avatarBase64?.length ?? 0,
+          mimeType: avatarMimeType,
+        });
+      }
       await doctorService.updateDoctor(doctorId, {
         name: name.trim(),
         phone: phone.trim(),
@@ -216,6 +238,7 @@ const EditDoctorScreen = () => {
         qualification: qualification.trim(),
         experienceYears: parseInt(experience.trim(), 10),
         licenseNumber: licenseNumber.trim(),
+        employeeCode: employeeCode.trim(),
         fee: parseFloat(fee.trim()),
         centerId: selectedCenterId!,
         serviceIds: selectedServiceIds,
@@ -305,10 +328,12 @@ const EditDoctorScreen = () => {
             />
 
             <AppInput
-              label="Employee Code (Read Only)"
+              label="Employee Code"
+              placeholder="e.g. EMP-990"
               value={employeeCode}
-              onChangeText={() => {}}
-              editable={false}
+              onChangeText={setEmployeeCode}
+              error={formErrors.employeeCode}
+              editable={!isSaving}
             />
 
             {/* Editable Info */}

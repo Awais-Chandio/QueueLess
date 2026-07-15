@@ -10,6 +10,7 @@ import {
   Image,
   Switch,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,7 +24,6 @@ import { Card } from '../../../components/ui/Card';
 import { centerService } from '../../../services/centerService';
 import { doctorService } from '../../../services/doctorService';
 import { toastService } from '../../../services/toastService';
-import { hp, wp, scaleFont } from '../../../utils/responsive';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 
 type AddDoctorScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'AddDoctor'>;
@@ -38,6 +38,7 @@ const AddDoctorScreen = () => {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [gender, setGender] = useState('Male'); // 'Male' | 'Female' | 'Other'
+  const [specialty, setSpecialty] = useState('General Physician');
   const [qualification, setQualification] = useState('');
   const [experience, setExperience] = useState('');
   const [licenseNumber, setLicenseNumber] = useState('');
@@ -112,6 +113,8 @@ const AddDoctorScreen = () => {
         mediaType: 'photo',
         includeBase64: true,
         quality: 0.8,
+        maxWidth: 1200,
+        maxHeight: 1200,
         selectionLimit: 1,
       });
 
@@ -122,9 +125,23 @@ const AddDoctorScreen = () => {
       }
 
       const asset = result.assets?.[0];
+      if (__DEV__) {
+        console.log('[AddDoctor] Image picker result', {
+          hasUri: Boolean(asset?.uri),
+          hasBase64: Boolean(asset?.base64),
+          base64Length: asset?.base64?.length ?? 0,
+          fileSize: asset?.fileSize ?? 0,
+          type: asset?.type,
+        });
+      }
+
       if (asset?.uri) {
+        if (!asset.base64) {
+          toastService.error('Selected photo could not be read. Please choose another image.');
+          return;
+        }
         setAvatarUri(asset.uri);
-        setAvatarBase64(asset.base64 || null);
+        setAvatarBase64(asset.base64);
         setAvatarMimeType(asset.type || 'image/jpeg');
       }
     } catch (err) {
@@ -145,6 +162,7 @@ const AddDoctorScreen = () => {
     const errors: Record<string, string> = {};
 
     if (!name.trim()) errors.name = 'Full name is required';
+    if (!specialty.trim()) errors.specialty = 'Specialty is required';
     if (!email.trim()) {
       errors.email = 'Email address is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
@@ -191,12 +209,20 @@ const AddDoctorScreen = () => {
 
     setIsSaving(true);
     try {
+      if (__DEV__) {
+        console.log('[AddDoctor] Photo save payload', {
+          hasBase64: Boolean(avatarBase64),
+          base64Length: avatarBase64?.length ?? 0,
+          mimeType: avatarMimeType,
+        });
+      }
       await doctorService.createDoctor({
         name: name.trim(),
         email: email.trim().toLowerCase(),
         phone: phone.trim(),
         password: password,
         gender,
+        specialty: specialty.trim(),
         qualification: qualification.trim(),
         experienceYears: parseInt(experience.trim(), 10),
         licenseNumber: licenseNumber.trim(),
@@ -212,7 +238,16 @@ const AddDoctorScreen = () => {
       toastService.success('New doctor registered successfully!');
       navigation.goBack();
     } catch (err: any) {
-      toastService.error(err.message || 'Failed to register doctor.');
+      const errMsg = err.message || '';
+      if (errMsg.includes('created, but') || errMsg.includes('setup failed')) {
+        Alert.alert(
+          'Profile Setup Incomplete',
+          'Doctor account bana lekin profile setup incomplete raha — dobara try karein ya support ko batayein.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        toastService.error(errMsg || 'Failed to register doctor.');
+      }
     } finally {
       setIsSaving(false);
     }
@@ -335,6 +370,15 @@ const AddDoctorScreen = () => {
                 })}
               </View>
             </View>
+
+            <AppInput
+              label="Specialty"
+              placeholder="e.g. Pediatrician, Dermatologist"
+              value={specialty}
+              onChangeText={setSpecialty}
+              error={formErrors.specialty}
+              editable={!isSaving}
+            />
 
             <AppInput
               label="Qualification"

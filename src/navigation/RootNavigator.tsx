@@ -3,7 +3,8 @@ import { View, StyleSheet } from "react-native";
 import AuthNavigator from "./AuthNavigator";
 import AdminNavigator from "./AdminNavigator";
 import PatientNavigator from "./PatientNavigator";
-import StaffNavigator from "./StaffNavigator";
+import DoctorNavigator from "./DoctorNavigator";
+import CounterStaffNavigator from "./CounterStaffNavigator";
 import { useAuthStore } from "../store/authStore";
 import { useProfileStore } from "../store/profileStore";
 import { getUserRoute } from "../utils/roleMapping";
@@ -44,22 +45,6 @@ const RootNavigator = () => {
   }, [isReady, isSplashFinished, user, role]);
 
   const renderContent = () => {
-    if (loading === false && role === 'client' && !isPasswordRecovery) {
-      return <PatientNavigator />;
-    }
-
-    // Navigate immediately if session and role/profile exists
-    if (user && role && !isPasswordRecovery) {
-      const targetRoute = getUserRoute(role);
-      if (targetRoute === "AdminNavigator") {
-        return <AdminNavigator />;
-      }
-      if (targetRoute === "StaffNavigator") {
-        return <StaffNavigator />;
-      }
-      return <PatientNavigator />;
-    }
-
     // Return a dark background placeholder while auth is loading initially during boot
     if (isLoading && !isSplashFinished) {
       return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
@@ -73,15 +58,10 @@ const RootNavigator = () => {
       return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
     }
 
-    const targetRoute = getUserRoute(role);
-
-    if (targetRoute === "AdminNavigator") {
-      return <AdminNavigator />;
-    }
-
-    if (targetRoute === "StaffNavigator") {
-      return <StaffNavigator />;
-    }
+    if (role === 'admin') return <AdminNavigator />;
+    if (role === 'doctor') return <DoctorNavigator />;
+    if (role === 'staff') return <CounterStaffNavigator />;
+    if (role === 'client') return <PatientNavigator />;
 
     return <PatientNavigator />;
   };
