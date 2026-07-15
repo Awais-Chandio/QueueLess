@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, Text, FlatList, Pressable, Alert, TextInput, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, StyleSheet, Text, FlatList, Pressable, Alert, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Search, UserCheck, UserX, Stethoscope } from 'lucide-react-native';
+import { ChevronLeft, Search, Stethoscope } from 'lucide-react-native';
 import { doctorService, type Doctor } from '../../../services/doctorService';
 import DoctorCard from '../../../components/ui/DoctorCard';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -10,7 +10,7 @@ import MedicalFAB from '../../../components/ui/MedicalFAB';
 import EmptyState from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
 import { useTheme } from '../../../hooks/useTheme';
-import { scaleFont, wp, hp } from '../../../utils/responsive';
+import { wp, hp } from '../../../utils/responsive';
 import { toastService } from '../../../services/toastService';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 
@@ -26,6 +26,11 @@ const ManageDoctorsScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Filters State
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [selectedSpecialty, setSelectedSpecialty] = useState('All');
+  const [selectedCenterId, setSelectedCenterId] = useState('all');
 
   const fetchDoctors = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -109,13 +114,48 @@ const ManageDoctorsScreen = () => {
     );
   };
 
-  const filteredDoctors = doctors.filter(doc => {
-    const query = searchQuery.toLowerCase();
-    const nameMatch = doc.name?.toLowerCase().includes(query);
-    const qualMatch = doc.qualification?.toLowerCase().includes(query) || false;
-    const codeMatch = doc.employee_code?.toLowerCase().includes(query) || false;
-    return nameMatch || qualMatch || codeMatch;
-  });
+  // Dynamic filter lists
+  const specialties = useMemo(() => {
+    const specs = doctors.map(d => d.specialty).filter(Boolean);
+    return ['All', ...new Set(specs)];
+  }, [doctors]);
+
+  const centersList = useMemo(() => {
+    const map = new Map();
+    doctors.forEach(d => {
+      if (d.service_centers) {
+        map.set(d.service_centers.id, d.service_centers.name);
+      }
+    });
+    return [{ id: 'all', name: 'All Clinics' }, ...Array.from(map.entries()).map(([id, name]) => ({ id, name }))];
+  }, [doctors]);
+
+  // Filtering Logic
+  const filteredDoctors = useMemo(() => {
+    return doctors.filter(doc => {
+      // 1. Search Query filter
+      const query = searchQuery.toLowerCase();
+      const nameMatch = doc.name?.toLowerCase().includes(query);
+      const qualMatch = doc.qualification?.toLowerCase().includes(query) || false;
+      const codeMatch = doc.employee_code?.toLowerCase().includes(query) || false;
+      const searchMatch = nameMatch || qualMatch || codeMatch;
+
+      // 2. Status filter
+      const isDocActive = doc.status === 'active' || doc.is_active;
+      const statusMatch =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && isDocActive) ||
+        (statusFilter === 'inactive' && !isDocActive);
+
+      // 3. Specialty filter
+      const specialtyMatch = selectedSpecialty === 'All' || doc.specialty === selectedSpecialty;
+
+      // 4. Center filter
+      const centerMatch = selectedCenterId === 'all' || doc.center_id === selectedCenterId;
+
+      return searchMatch && statusMatch && specialtyMatch && centerMatch;
+    });
+  }, [doctors, searchQuery, statusFilter, selectedSpecialty, selectedCenterId]);
 
   const renderItem = ({ item }: { item: Doctor }) => (
     <DoctorCard
@@ -158,6 +198,91 @@ const ManageDoctorsScreen = () => {
           />
         </View>
 
+        {/* Horizontal Filters */}
+        <View style={styles.filtersWrapper}>
+          {/* Status Tabs */}
+          <View style={[styles.statusTabs, { backgroundColor: colors.border + '30', borderRadius: radius.md }]}>
+            {(['all', 'active', 'inactive'] as const).map(status => {
+              const isActiveTab = statusFilter === status;
+              return (
+                <Pressable
+                  key={status}
+                  onPress={() => setStatusFilter(status)}
+                  style={[
+                    styles.statusTabButton,
+                    isActiveTab && { backgroundColor: colors.surface, borderRadius: radius.sm },
+                  ]}
+                >
+                  <Text style={[
+                    styles.statusTabText,
+                    { color: isActiveTab ? colors.primary : colors.textSecondary, fontSize: typography.sizes.xs },
+                    isActiveTab && { fontWeight: '700' }
+                  ]}>
+                    {status.toUpperCase()}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Specialty & Clinic Quick Chips */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+            {/* Specialty Picker */}
+            <Text style={[styles.filterLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>Specialty:</Text>
+            {specialties.map((spec: string) => {
+              const isSelected = selectedSpecialty === spec;
+              return (
+                <Pressable
+                  key={spec}
+                  onPress={() => setSelectedSpecialty(spec)}
+                  style={[
+                    styles.chipButton,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      borderRadius: radius.full
+                    }
+                  ]}
+                >
+                  <Text style={[styles.chipText, { color: isSelected ? '#FFF' : colors.text, fontSize: typography.sizes.xs }]}>
+                    {spec}
+                  </Text>
+                </Pressable>
+              );
+            })}
+
+            {/* Clinic Center Picker */}
+            <View style={{ width: 12 }} />
+            <Text style={[styles.filterLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>Clinic:</Text>
+            {centersList.map((center: { id: string; name: string }) => {
+              const isSelected = selectedCenterId === center.id;
+              return (
+                <Pressable
+                  key={center.id}
+                  onPress={() => setSelectedCenterId(center.id)}
+                  style={[
+                    styles.chipButton,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                      borderRadius: radius.full
+                    }
+                  ]}
+                >
+                  <Text style={[styles.chipText, { color: isSelected ? '#FFF' : colors.text, fontSize: typography.sizes.xs }]}>
+                    {center.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Text
+            style={[styles.resultsCount, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}
+          >
+            Showing {filteredDoctors.length} of {doctors.length} doctors
+          </Text>
+        </View>
+
         {/* Doctor List */}
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -179,20 +304,22 @@ const ManageDoctorsScreen = () => {
           <View style={{ flex: 1, padding: spacing.md }}>
             <EmptyState
               title="No Doctors Found"
-              subtitle={searchQuery ? "Try altering your query parameters." : "No registered doctors found in the database yet."}
+              subtitle="Try altering your search or filters."
               Icon={Stethoscope}
             />
           </View>
         ) : (
-          <FlatList
-            data={filteredDoctors}
-            keyExtractor={item => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={[styles.listContent, { paddingBottom: hp(12) }]}
-            refreshing={refreshing}
-            onRefresh={() => fetchDoctors(true)}
-            showsVerticalScrollIndicator={false}
-          />
+          <View style={{ flex: 1 }}>
+            <FlatList
+              data={filteredDoctors}
+              keyExtractor={item => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={[styles.listContent, { paddingBottom: 16 }]}
+              refreshing={refreshing}
+              onRefresh={() => fetchDoctors(true)}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
         )}
 
         {/* Floating Action Button */}
@@ -233,13 +360,53 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     marginHorizontal: wp(4),
-    marginBottom: 16,
+    marginBottom: 12,
     height: 48,
     borderWidth: 1.2,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 8,
+    fontWeight: '600',
+  },
+  filtersWrapper: {
+    paddingHorizontal: wp(4),
+    marginBottom: 16,
+  },
+  statusTabs: {
+    flexDirection: 'row',
+    padding: 3,
+    marginBottom: 12,
+  },
+  statusTabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusTabText: {
+    fontWeight: '600',
+  },
+  chipsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  filterLabel: {
+    fontWeight: '700',
+    marginRight: 8,
+  },
+  resultsCount: {
+    marginTop: 8,
+    fontWeight: '600',
+  },
+  chipButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  chipText: {
     fontWeight: '600',
   },
   loadingContainer: {

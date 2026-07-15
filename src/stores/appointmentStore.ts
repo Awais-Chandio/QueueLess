@@ -85,7 +85,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
       }));
       console.log('[DEBUG] Store: Appointment created:', newAppointment.id);
       return newAppointment;
-    } catch (error) {
+    } catch (error: any) {
       const message =
         error instanceof Error ? error.message : 'Failed to create appointment';
 
@@ -95,7 +95,11 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
         error: message,
       });
 
-      throw new Error(message);
+      const storeError = new Error(message);
+      if (error && typeof error === 'object' && 'code' in error) {
+        (storeError as any).code = error.code;
+      }
+      throw storeError;
     }
   },
 

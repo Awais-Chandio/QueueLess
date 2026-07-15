@@ -211,6 +211,7 @@ const enrichAppointments = async (appointments: AppointmentFull[]) => {
 
 const fetchScopedAppointments = async (
   scope: StaffDashboardScope,
+  doctorId?: string | null,
 ): Promise<AppointmentFull[]> => {
   const { start, end } = getTodayRange();
 
@@ -218,6 +219,7 @@ const fetchScopedAppointments = async (
     scope,
     todayStart: start,
     todayEnd: end,
+    doctorId,
   });
 
   const userId = await getCurrentUserId();
@@ -232,6 +234,9 @@ const fetchScopedAppointments = async (
   let query = supabase.from('appointments_full').select(appointmentSelect);
   if (centerId) {
     query = query.eq('center_id', centerId);
+  }
+  if (doctorId) {
+    query = query.eq('doctor_id', doctorId);
   }
 
   const response = await applyScopeRange(
@@ -256,6 +261,9 @@ const fetchScopedAppointments = async (
     if (centerId) {
       fallbackQuery = fallbackQuery.eq('center_id', centerId);
     }
+    if (doctorId) {
+      fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
+    }
 
     const fallback = await applyScopeRange(
       fallbackQuery,
@@ -277,6 +285,9 @@ const fetchScopedAppointments = async (
     if (centerId) {
       tableQuery = tableQuery.eq('center_id', centerId);
     }
+    if (doctorId) {
+      tableQuery = tableQuery.eq('doctor_id', doctorId);
+    }
 
     let fallback = await applyScopeRange(
       tableQuery,
@@ -287,6 +298,9 @@ const fetchScopedAppointments = async (
       let legacyQuery = supabase.from('appointments').select(baseAppointmentLegacySelect);
       if (centerId) {
         legacyQuery = legacyQuery.eq('center_id', centerId);
+      }
+      if (doctorId) {
+        legacyQuery = legacyQuery.eq('doctor_id', doctorId);
       }
 
       fallback = await applyScopeRange(
@@ -700,9 +714,10 @@ export const queueService = {
   // Staff Queue Functions
   async fetchDashboard(
     scope: StaffDashboardScope = 'today',
+    doctorId?: string | null,
   ): Promise<StaffDashboardData> {
     const appointments = sortStaffQueueAppointments(
-      await fetchScopedAppointments(scope),
+      await fetchScopedAppointments(scope, doctorId),
     );
     console.log(
       '[STAFF_QUEUE] Sorted appointment order:',

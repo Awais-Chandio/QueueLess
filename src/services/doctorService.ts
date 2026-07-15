@@ -2,6 +2,54 @@ import { supabase } from '../lib/supabase';
 import { base64ToArrayBuffer } from './imageUploadService';
 import { accountService } from '../features/admin/api/accountService';
 
+const STORAGE_UPLOAD_TIMEOUT_MS = 15_000;
+const STORAGE_VERIFY_TIMEOUT_MS = 10_000;
+const DATABASE_WRITE_TIMEOUT_MS = 15_000;
+const DATABASE_VERIFY_TIMEOUT_MS = 10_000;
+
+const withTimeout = <T>(promise: PromiseLike<T>, timeoutMs: number, message: string): Promise<T> =>
+  new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+
+    Promise.resolve(promise).then(
+      value => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      error => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+
+const updateDoctorRow = async (doctorId: string, changes: Record<string, unknown>): Promise<Doctor> => {
+  let writeFailure: unknown = null;
+
+  try {
+    const { error } = await withTimeout(supabase.from('doctors').update(changes).eq('id', doctorId), DATABASE_WRITE_TIMEOUT_MS, 'Doctor update response timed out.');
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    writeFailure = error;
+    console.warn('[doctorService] Doctor update response failed/timed out; verifying row.', error);
+  }
+
+  const { data, error: verifyError } = await withTimeout(supabase.from('doctors').select('*').eq('id', doctorId).single(), DATABASE_VERIFY_TIMEOUT_MS, 'Doctor row verification timed out.');
+  if (verifyError || !data) {
+    throw new Error(verifyError?.message || (writeFailure instanceof Error ? writeFailure.message : 'Doctor update could not be verified.'));
+  }
+
+  const mismatchedKey = Object.keys(changes).find(key => data[key] !== changes[key]);
+  if (mismatchedKey) {
+    throw new Error(writeFailure instanceof Error ? writeFailure.message : `Doctor update verification failed for ${mismatchedKey}.`);
+  }
+
+  if (__DEV__) {
+    console.log('[doctorService] Doctor row update verified', { doctorId });
+  }
+  return data as Doctor;
+};
+
 export interface Doctor {
   id: string;
   center_id: string;
@@ -25,13 +73,15 @@ export interface Doctor {
     id: string;
     name: string;
   } | null;
-  doctor_services?: {
+  doctor_services?:
+    | {
     service_id: string;
     services?: {
       id: string;
       name: string;
     } | null;
-  }[] | null;
+      }[]
+    | null;
   specialization?: string | null; // For backward compatibility
   service_id?: string; // For backward compatibility
 }
@@ -58,11 +108,7 @@ export interface DoctorPayload {
 export const doctorService = {
   /** Fetch all doctors for a given service (active only by default) */
   async getByServiceId(serviceId: string, activeOnly = true): Promise<Doctor[]> {
-    let query = supabase
-      .from('doctors')
-      .select('id, name, specialization, photo_url, service_id, is_active, created_at')
-      .eq('service_id', serviceId)
-      .order('created_at', { ascending: true });
+    let query = supabase.from('doctors').select('id, name, specialization, photo_url, service_id, is_active, created_at').eq('service_id', serviceId).order('created_at', { ascending: true });
 
     if (activeOnly) {
       query = query.eq('is_active', true);
@@ -80,23 +126,14 @@ export const doctorService = {
 
   /** Create a new doctor */
   async create(payload: DoctorPayload): Promise<Doctor> {
-    const { data, error } = await supabase
-      .from('doctors')
-      .insert(payload)
-      .select()
-      .single();
+    const { data, error } = await supabase.from('doctors').insert(payload).select().single();
     if (error) throw new Error(error.message);
     return data as any as Doctor;
   },
 
   /** Update an existing doctor */
   async update(doctorId: string, payload: Partial<DoctorPayload>): Promise<Doctor> {
-    const { data, error } = await supabase
-      .from('doctors')
-      .update(payload)
-      .eq('id', doctorId)
-      .select()
-      .single();
+    const { data, error } = await supabase.from('doctors').update(payload).eq('id', doctorId).select().single();
     if (error) throw new Error(error.message);
     return data as any as Doctor;
   },
@@ -108,10 +145,7 @@ export const doctorService = {
 
   /** Delete a doctor */
   async delete(doctorId: string): Promise<void> {
-    const { error } = await supabase
-      .from('doctors')
-      .delete()
-      .eq('id', doctorId);
+    const { error } = await supabase.from('doctors').delete().eq('id', doctorId);
     if (error) throw new Error(error.message);
   },
 
@@ -119,26 +153,57 @@ export const doctorService = {
    * Upload a doctor photo to Supabase Storage and return the public URL.
    * Uses the same base64 → ArrayBuffer pattern as imageUploadService.
    */
-  async uploadPhoto(
-    doctorId: string,
-    base64: string,
-    mimeType = 'image/jpeg',
-  ): Promise<string> {
+  async uploadPhoto(doctorId: string, base64: string, mimeType = 'image/jpeg'): Promise<string> {
     const fileBody = base64ToArrayBuffer(base64);
+    if (__DEV__) {
+      console.log('[doctorService] Doctor photo prepared for Storage', {
+        hasBase64: Boolean(base64),
+        base64Length: base64.length,
+        uploadBytes: fileBody.byteLength,
+        mimeType,
+      });
+    }
     const ext = mimeType.split('/')[1] ?? 'jpg';
     const path = `doctors/${doctorId}/photo.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(path, fileBody, {
+    try {
+      const { error: uploadError } = await withTimeout(
+        supabase.storage.from('avatars').upload(path, fileBody, {
         contentType: mimeType,
         upsert: true,
         cacheControl: '3600',
-      });
+        }),
+        STORAGE_UPLOAD_TIMEOUT_MS,
+        'Doctor photo upload response timed out.',
+      );
 
     if (uploadError) throw new Error(uploadError.message);
+    } catch (uploadError) {
+      // React Native can occasionally receive no completion callback even though
+      // Storage committed the object. Verify the exact path before failing.
+      console.warn('[doctorService] Upload response failed/timed out; verifying Storage object.', uploadError);
+      const directory = path.slice(0, path.lastIndexOf('/'));
+      const fileName = path.slice(path.lastIndexOf('/') + 1);
+      const { data: storedFiles, error: verifyError } = await withTimeout(
+        supabase.storage.from('avatars').list(directory, {
+          limit: 10,
+          search: fileName,
+        }),
+        STORAGE_VERIFY_TIMEOUT_MS,
+        'Doctor photo Storage verification timed out.',
+      );
+      const uploadedFile = storedFiles?.find(file => file.name === fileName);
+      if (verifyError || !uploadedFile) {
+        throw new Error(verifyError?.message || (uploadError instanceof Error ? uploadError.message : 'Doctor photo upload failed.'));
+      }
+    }
+
+    if (__DEV__) {
+      console.log('[doctorService] Doctor photo confirmed in Storage', { path });
+    }
  
      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    if (!data.publicUrl) throw new Error('Supabase Storage did not return a public photo URL.');
      return `${data.publicUrl}?v=${Date.now()}`;
    },
  
@@ -146,7 +211,8 @@ export const doctorService = {
    async getAllDoctors(): Promise<Doctor[]> {
      const { data, error } = await supabase
        .from('doctors')
-       .select(`
+      .select(
+        `
          *,
          service_centers (
            id,
@@ -159,7 +225,8 @@ export const doctorService = {
              name
            )
          )
-       `)
+       `,
+      )
        .order('created_at', { ascending: false });
  
      if (error) throw new Error(error.message);
@@ -173,7 +240,8 @@ export const doctorService = {
    async getDoctorById(id: string): Promise<any> {
      const { data, error } = await supabase
        .from('doctors')
-       .select(`
+      .select(
+        `
          *,
          profiles (
            id,
@@ -183,7 +251,8 @@ export const doctorService = {
          doctor_services (
            service_id
          )
-       `)
+       `,
+      )
        .eq('id', id)
        .single();
  
@@ -205,27 +274,90 @@ export const doctorService = {
      fee: number;
      centerId: string;
      serviceIds: string[];
+    specialty?: string;
      status: 'active' | 'inactive';
      avatarBase64?: string | null;
      avatarMimeType?: string;
    }): Promise<Doctor> {
-     // 1. Create authentication/profile account
+    // 1. Try calling the atomic RPC first
+    const generatedPassword = payload.password || Math.random().toString(36).slice(-10) + 'A1!';
+    let atomicUserId: string | null = null;
+    let atomicRpcError: string | null = null;
+
+    try {
+      console.log('[doctorService] Attempting to create doctor via atomic RPC');
+      const { data: newUserId, error: rpcError } = await supabase.rpc('create_doctor_with_account', {
+        p_email: payload.email,
+        p_password: generatedPassword,
+        p_full_name: payload.name,
+        p_center_id: payload.centerId,
+        p_specialty: payload.specialty || 'General Physician',
+        p_qualification: payload.qualification,
+        p_experience_years: payload.experienceYears,
+        p_service_ids: payload.serviceIds,
+      });
+      atomicUserId = !rpcError && newUserId ? String(newUserId) : null;
+      atomicRpcError = rpcError?.message ?? null;
+    } catch (err) {
+      atomicRpcError = err instanceof Error ? err.message : String(err);
+    }
+
+    if (atomicUserId) {
+      console.log('[doctorService] Atomic RPC succeeded. Fetching doctor details.');
+      const { data: docData, error: fetchDoctorError } = await supabase.from('doctors').select('*').eq('profile_id', atomicUserId).single();
+      if (fetchDoctorError || !docData) {
+        throw new Error(fetchDoctorError?.message || 'Doctor account created, but doctor profile was not found.');
+      }
+
+      const photoUrl = payload.avatarBase64 ? await this.uploadPhoto(docData.id, payload.avatarBase64, payload.avatarMimeType) : docData.photo_url;
+
+      const updatedDoctor = await updateDoctorRow(docData.id, {
+        center_id: payload.centerId,
+        name: payload.name,
+        specialty: payload.specialty || 'General Physician',
+        qualification: payload.qualification,
+        experience_years: payload.experienceYears,
+        employee_code: payload.employeeCode,
+        license_number: payload.licenseNumber,
+        gender: payload.gender,
+        fee: payload.fee,
+        status: payload.status,
+        is_active: payload.status === 'active',
+        photo_url: photoUrl,
+      });
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          phone: payload.phone,
+          ...(photoUrl ? { avatar_url: photoUrl } : {}),
+        })
+        .eq('id', atomicUserId);
+      if (profileError) {
+        throw new Error(`Doctor created, but linked profile update failed: ${profileError.message}`);
+      }
+      return updatedDoctor as Doctor;
+    }
+
+    console.warn('[doctorService] Atomic RPC skipped or failed, falling back to multi-step creation:', atomicRpcError);
+
+    // Fallback: Multi-step creation with explicit checks to avoid silent/partial failures
      const managedAccount = await accountService.createManagedAccount({
        name: payload.name,
        email: payload.email,
        password: payload.password,
-       role: 'staff',
+      role: 'doctor',
        centerId: payload.centerId,
      });
  
      const userId = managedAccount.userId;
+    if (!userId) {
+      throw new Error('Failed to create managed account.');
+    }
  
      // 2. Update profile phone number
      try {
-       await supabase
-         .from('profiles')
-         .update({ phone: payload.phone })
-         .eq('id', userId);
+      await supabase.from('profiles').update({ phone: payload.phone }).eq('id', userId);
      } catch (profileError) {
        console.warn('Failed to update phone number in profiles:', profileError);
      }
@@ -236,7 +368,7 @@ export const doctorService = {
        .insert({
          center_id: payload.centerId,
          name: payload.name,
-         specialty: 'General Physician',
+        specialty: payload.specialty || 'General Physician',
          qualification: payload.qualification,
          experience_years: payload.experienceYears,
          bio: `${payload.name} is a qualified specialist with ${payload.experienceYears} years of experience.`,
@@ -252,31 +384,22 @@ export const doctorService = {
        .select()
        .single();
  
-     if (doctorError) throw new Error(doctorError.message);
-     if (!doctor) throw new Error('Doctor creation failed.');
+    if (doctorError) {
+      throw new Error(`Doctor account created, but doctor profile setup failed: ${doctorError.message}`);
+    }
+    if (!doctor) {
+      throw new Error('Doctor account created, but doctor profile setup failed (no doctor returned).');
+    }
  
      // 4. Handle avatar photo upload if provided
      if (payload.avatarBase64) {
-       try {
          const photoUrl = await this.uploadPhoto(doctor.id, payload.avatarBase64, payload.avatarMimeType);
          
-         const { data: updatedDoc, error: updateErr } = await supabase
-           .from('doctors')
-           .update({ photo_url: photoUrl })
-           .eq('id', doctor.id)
-           .select()
-           .single();
-           
-         if (!updateErr && updatedDoc) {
-           doctor = updatedDoc;
-         }
+      doctor = await updateDoctorRow(doctor.id, { photo_url: photoUrl });
  
-         await supabase
-           .from('profiles')
-           .update({ avatar_url: photoUrl })
-           .eq('id', userId);
-       } catch (uploadError) {
-         console.warn('Avatar photo upload failed:', uploadError);
+      const { error: avatarProfileError } = await supabase.from('profiles').update({ avatar_url: photoUrl }).eq('id', userId);
+      if (avatarProfileError) {
+        throw new Error(`Doctor photo saved, but profile avatar update failed: ${avatarProfileError.message}`);
        }
      }
  
@@ -286,25 +409,21 @@ export const doctorService = {
          doctor_id: doctor.id,
          service_id: sid,
        }));
-       const { error: mappingError } = await supabase
-         .from('doctor_services')
-         .insert(mappings);
+      const { error: mappingError } = await supabase.from('doctor_services').insert(mappings);
        if (mappingError) {
-         console.warn('Failed to insert doctor services mappings:', mappingError);
+        throw new Error(`Doctor account created, but service assignment failed: ${mappingError.message}`);
        }
      }
  
      // 6. Create default doctor queue settings
-     const { error: queueSettingsError } = await supabase
-       .from('doctor_queue_settings')
-       .insert({
+    const { error: queueSettingsError } = await supabase.from('doctor_queue_settings').insert({
          doctor_id: doctor.id,
          current_token: 0,
          average_consultation_time: 10.0,
          is_on_break: false,
        });
      if (queueSettingsError) {
-       console.warn('Failed to create doctor queue settings:', queueSettingsError);
+      throw new Error(`Doctor account created, but queue settings generation failed: ${queueSettingsError.message}`);
      }
  
      return doctor as Doctor;
@@ -320,6 +439,7 @@ export const doctorService = {
        qualification: string;
        experienceYears: number;
        licenseNumber: string;
+      employeeCode: string;
        fee: number;
        centerId: string;
        serviceIds: string[];
@@ -328,28 +448,25 @@ export const doctorService = {
        avatarMimeType?: string;
        profileId?: string | null;
        photoUrl?: string | null;
-     }
+    },
    ): Promise<Doctor> {
+    // Upload first so photo_url is part of the same doctors update payload.
+    const photoUrl = payload.avatarBase64 ? await this.uploadPhoto(doctorId, payload.avatarBase64, payload.avatarMimeType) : payload.photoUrl;
+
      // 1. Update doctor entry
-     let { data: doctor, error: doctorError } = await supabase
-       .from('doctors')
-       .update({
+    const doctor = await updateDoctorRow(doctorId, {
          center_id: payload.centerId,
          name: payload.name,
          qualification: payload.qualification,
          experience_years: payload.experienceYears,
          is_active: payload.status === 'active',
+      employee_code: payload.employeeCode,
          license_number: payload.licenseNumber,
          gender: payload.gender,
          fee: payload.fee,
          status: payload.status,
-       })
-       .eq('id', doctorId)
-       .select()
-       .single();
- 
-     if (doctorError) throw new Error(doctorError.message);
-     if (!doctor) throw new Error('Doctor not found.');
+      photo_url: photoUrl,
+    });
  
      // 2. Update profile phone & name if linked
      if (payload.profileId) {
@@ -366,38 +483,16 @@ export const doctorService = {
        }
      }
  
-     // 3. Handle avatar photo upload if provided
-     if (payload.avatarBase64) {
-       try {
-         const photoUrl = await this.uploadPhoto(doctor.id, payload.avatarBase64, payload.avatarMimeType);
-         
-         const { data: updatedDoc, error: updateErr } = await supabase
-           .from('doctors')
-           .update({ photo_url: photoUrl })
-           .eq('id', doctor.id)
-           .select()
-           .single();
-           
-         if (!updateErr && updatedDoc) {
-           doctor = updatedDoc;
-         }
- 
-         if (payload.profileId) {
-           await supabase
-             .from('profiles')
-             .update({ avatar_url: photoUrl })
-             .eq('id', payload.profileId);
-         }
-       } catch (uploadError) {
-         console.warn('Avatar photo upload failed:', uploadError);
+    // 3. Keep the linked profile avatar in sync with the doctor photo.
+    if (payload.profileId && payload.avatarBase64 && photoUrl) {
+      const { error: avatarProfileError } = await supabase.from('profiles').update({ avatar_url: photoUrl }).eq('id', payload.profileId);
+      if (avatarProfileError) {
+        throw new Error(`Doctor photo saved, but profile avatar update failed: ${avatarProfileError.message}`);
        }
      }
  
      // 4. Update service mappings (delete and recreate)
-     const { error: deleteError } = await supabase
-       .from('doctor_services')
-       .delete()
-       .eq('doctor_id', doctorId);
+    const { error: deleteError } = await supabase.from('doctor_services').delete().eq('doctor_id', doctorId);
  
      if (deleteError) {
        console.warn('Failed to delete old services mappings:', deleteError);
@@ -408,9 +503,7 @@ export const doctorService = {
          doctor_id: doctorId,
          service_id: sid,
        }));
-       const { error: mappingError } = await supabase
-         .from('doctor_services')
-         .insert(mappings);
+      const { error: mappingError } = await supabase.from('doctor_services').insert(mappings);
        if (mappingError) {
          console.warn('Failed to insert new doctor services mappings:', mappingError);
        }

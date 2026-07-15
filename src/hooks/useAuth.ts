@@ -10,8 +10,7 @@ import { firebasePhoneAuth } from '../services/firebasePhoneAuth';
 import { fcmService } from '../services/fcmService';
 import { useNotificationsStore } from '../stores/notificationStore';
 import { supabase } from '../lib/supabase';
-
-
+import { normalizeUserRole } from '../utils/roleMapping';
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -19,6 +18,18 @@ const toAuthError = (error: unknown, fallbackMessage: string) => {
   }
 
   return new Error(fallbackMessage);
+};
+
+const setAuthState = (payload: {
+  profile: any;
+  role: any;
+  doctorId: string | null;
+}) => {
+  useProfileStore.setState({ profile: payload.profile, isLoading: false, error: null });
+  useAuthStore.setState({
+    role: normalizeUserRole(payload.role),
+    doctorId: payload.doctorId,
+  });
 };
 
 // ROLE ARCHITECTURE SAFETY:
@@ -44,6 +55,8 @@ const fetchVerifiedProfileRole = async (
     console.log('GOOGLE_AVATAR:', avatar);
   }
 
+  let finalProfile = profile;
+
   if (profile) {
     // If profile already exists and full_name is empty/missing, update it
     if (isGoogle && (!profile.full_name || profile.full_name.trim() === '')) {
@@ -53,13 +66,9 @@ const fetchVerifiedProfileRole = async (
         auth_provider: 'google',
       } as any);
       if (updated) {
-        useProfileStore.setState({ profile: updated, isLoading: false, error: null });
-        return updated.role ?? 'client';
+        finalProfile = updated;
       }
     }
-    // Populate the store directly from this fetch — no second read needed.
-    useProfileStore.setState({ profile, isLoading: false, error: null });
-    return profile.role ?? 'client';
   } else {
     // Profile exists in auth but not in profiles table — create it.
     const createPayload: any = {
@@ -81,14 +90,34 @@ const fetchVerifiedProfileRole = async (
 
     const { data: created } = await profileService.createProfile(createPayload);
     if (created) {
-      useProfileStore.setState({ profile: created, isLoading: false, error: null });
-      return created.role ?? 'client';
+      finalProfile = created;
     }
   }
 
-  // Profile fetch or creation failed — fall back gracefully.
-  await useProfileStore.getState().fetchProfile(user.id);
-  return useProfileStore.getState().profile?.role ?? 'client';
+  if (!finalProfile) {
+    await useProfileStore.getState().fetchProfile(user.id);
+    finalProfile = useProfileStore.getState().profile;
+  }
+
+  const profileToUse = finalProfile || { id: user.id, role: 'client' };
+
+  let doctorId = null;
+  if (profileToUse.role === 'doctor' || profileToUse.role === 'staff' || profileToUse.role === 'admin') {
+    try {
+      const { data } = await supabase.rpc('get_my_staff_context');
+      doctorId = data?.[0]?.doctor_id ?? null;
+    } catch (err) {
+      if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
+    }
+  }
+
+  setAuthState({
+    profile: profileToUse,
+    role: profileToUse.role,
+    doctorId,
+  });
+
+  return profileToUse.role ?? 'client';
 };
 
 export const useAuth = () => {
@@ -96,6 +125,7 @@ export const useAuth = () => {
     session,
     user,
     role,
+    doctorId,
     isAuthenticated,
     isLoading,
     setSession,
@@ -137,6 +167,25 @@ export const useAuth = () => {
           const verifiedRole = await fetchVerifiedProfileRole(currentSession.user);
           setRole(verifiedRole);
           console.log('PROFILE_LOADED');
+
+          const profile = useProfileStore.getState().profile;
+          if (profile) {
+            let doctorId = null;
+            if (profile.role === 'doctor' || profile.role === 'staff' || profile.role === 'admin') {
+              try {
+                const { data } = await supabase.rpc('get_my_staff_context');
+                doctorId = data?.[0]?.doctor_id ?? null;
+              } catch (err) {
+                if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
+              }
+            }
+            setAuthState({
+              profile,
+              role: profile.role,
+              doctorId,
+            });
+          }
+
           console.log('ROLE_SET');
           if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
           if (__DEV__) console.log('[AUTH] restoreSession complete');
@@ -435,6 +484,7 @@ export const useAuth = () => {
     session,
     user,
     role,
+    doctorId,
     isAuthenticated,
     isLoading,
     restoreSession,

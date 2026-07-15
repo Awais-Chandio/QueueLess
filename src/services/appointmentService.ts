@@ -425,7 +425,9 @@ export const appointmentService = {
         error.code === '23505' ||
         error.message.toLowerCase().includes('duplicate')
       ) {
-        throw new Error('This slot is already booked.');
+        const err = new Error('Slot just taken');
+        (err as any).code = '23505';
+        throw err;
       }
 
       console.error('[DEBUG] Failed to create appointment:', error.message);
@@ -586,6 +588,34 @@ export const appointmentService = {
       status: data.status,
       checkedInAt: data.checked_in_at,
     });
+
+    const [appointment] = await enrichAppointments([data as AppointmentFull]);
+    return appointment;
+  },
+
+  async staffCheckInAppointment(appointmentId: string): Promise<AppointmentFull> {
+    const checkedInAt = new Date().toISOString();
+    console.log('[STAFF_CHECK_IN] Counter staff check-in:', { appointmentId });
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .update({
+        status: 'checked_in',
+        checked_in_at: checkedInAt,
+      })
+      .eq('id', appointmentId)
+      .eq('status', 'confirmed')
+      .select(appointmentSelect)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[STAFF_CHECK_IN] Database update failed:', error.message);
+      throw new Error(error.message);
+    }
+
+    if (!data) {
+      throw new Error('Appointment not found or not in confirmed state.');
+    }
 
     const [appointment] = await enrichAppointments([data as AppointmentFull]);
     return appointment;

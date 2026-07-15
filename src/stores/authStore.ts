@@ -11,6 +11,7 @@ interface AuthState {
   session: Session | null;
   user: User | null;
   role: AuthRole | null;
+  doctorId: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isPasswordRecovery: boolean;
@@ -25,6 +26,7 @@ export const useAuthStore = create<AuthState>(set => ({
   session: null,
   user: null,
   role: null,
+  doctorId: null,
   isAuthenticated: false,
   isLoading: true,
   isPasswordRecovery: false,
@@ -63,6 +65,7 @@ export const useAuthStore = create<AuthState>(set => ({
       session: null,
       user: null,
       role: null,
+      doctorId: null,
       isAuthenticated: false,
       isLoading: false,
       isPasswordRecovery: false,
