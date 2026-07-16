@@ -56,6 +56,7 @@ import {
   getAppointmentDateLabel,
   getAppointmentTimeLabel,
   getMinutesUntilAppointment,
+  getPakistanTodayDateString,
 } from '../utils/appointmentTime';
 
 type QueueStatusRouteProp = RouteProp<AppStackParamList, 'QueueStatus'>;
@@ -122,7 +123,7 @@ const QueueStatusScreen = () => {
       const { data: qData, error: qErr } = await supabase
         .rpc('get_doctor_queue_snapshot', {
           p_doctor_id: doctorId,
-          p_queue_date: new Date().toISOString().split('T')[0]
+          p_queue_date: getPakistanTodayDateString()
         });
       console.log(qData, qErr);
       if (qErr) throw qErr;

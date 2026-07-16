@@ -8,6 +8,7 @@ import {
   isPastAppointmentSlot,
   normalizeAppointmentTimeSlot,
   timeToMinutes,
+  getPakistanDayOfWeek,
 } from '../features/appointments/utils/appointmentTime';
 
 const appointmentFullSelect =
@@ -171,9 +172,20 @@ const fetchAppointmentFromTable = async (
   return appointment ?? null;
 };
 
+const minutesToSlotLabel = (mins: number): string => {
+  const hours = Math.floor(mins / 60);
+  const minutes = mins % 60;
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  const displayMin = `${minutes}`.padStart(2, '0');
+  const displayHrStr = `${displayHour}`.padStart(2, '0');
+  return `${displayHrStr}:${displayMin} ${period}`;
+};
+
 const getBookedSlotsByDate = async (
   appointmentDate: string,
   centerId?: string,
+  doctorId?: string,
 ) => {
   const start = getScheduledAtFromSlot(appointmentDate, '12:00 AM');
   const end = new Date(`${appointmentDate}T00:00:00`);
@@ -186,7 +198,9 @@ const getBookedSlotsByDate = async (
     .lt('scheduled_at', end.toISOString())
     .neq('status', 'cancelled');
 
-  if (centerId) {
+  if (doctorId) {
+    fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
+  } else if (centerId) {
     fallbackQuery = fallbackQuery.eq('center_id', centerId);
   }
 
@@ -223,18 +237,70 @@ export const appointmentService = {
   async getAvailableSlots(
     appointmentDate: string,
     centerId?: string,
+    doctorId?: string,
   ): Promise<string[]> {
     console.log('[SLOTS] Fetching available slots:', {
       appointmentDate,
       centerId: centerId ?? null,
+      doctorId: doctorId ?? null,
     });
 
     await appointmentService.triggerCleanup();
 
     let openMin = 0;
     let closeMin = 1440; // End of day
+    let doctorSlots: string[] | null = null;
 
-    if (centerId) {
+    if (doctorId) {
+      const dayOfWeek = getPakistanDayOfWeek(appointmentDate);
+      try {
+        const { data: doctorData, error: docErr } = await supabase
+          .from('doctors')
+          .select(`
+            id,
+            status,
+            is_active,
+            doctor_availability (
+              start_time,
+              end_time,
+              slot_duration,
+              is_available,
+              day_of_week
+            )
+          `)
+          .eq('id', doctorId)
+          .eq('status', 'active')
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (docErr) {
+          console.warn('[SLOTS] Failed to load doctor availability:', docErr);
+        } else if (doctorData) {
+          // Find the availability for the day of week
+          const availabilityList = (doctorData.doctor_availability || []) as any[];
+          const todayAvail = availabilityList.find(avail => avail.day_of_week === dayOfWeek);
+
+          if (todayAvail && todayAvail.is_available) {
+            const startMin = timeToMinutes(todayAvail.start_time);
+            const endMin = timeToMinutes(todayAvail.end_time);
+            const duration = todayAvail.slot_duration || 15;
+            
+            const generated: string[] = [];
+            for (let min = startMin; min <= endMin - duration; min += duration) {
+              generated.push(minutesToSlotLabel(min));
+            }
+            doctorSlots = generated;
+          } else {
+            console.log('[SLOTS] Doctor is not working today (day of week):', dayOfWeek);
+            return [];
+          }
+        }
+      } catch (err) {
+        console.warn('[SLOTS] Exception while loading doctor availability:', err);
+      }
+    }
+
+    if (centerId && !doctorSlots) {
       try {
         const { data: center } = await supabase
           .from('service_centers')
@@ -280,10 +346,13 @@ export const appointmentService = {
       }
     }
 
-    const bookedSlots = await getBookedSlotsByDate(appointmentDate, centerId);
-    const availableSlots = APPOINTMENT_SLOT_LABELS.filter(slot => {
+    const bookedSlots = await getBookedSlotsByDate(appointmentDate, centerId, doctorId);
+    
+    const slotsSource = doctorSlots ?? (APPOINTMENT_SLOT_LABELS as readonly string[]);
+
+    const availableSlots = slotsSource.filter(slot => {
       const slotMin = timeToMinutes(slot);
-      const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
+      const isWithinHours = doctorSlots ? true : (slotMin >= openMin && slotMin <= closeMin);
       return (
         isWithinHours &&
         !bookedSlots.has(slot) &&
