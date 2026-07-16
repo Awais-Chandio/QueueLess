@@ -225,6 +225,15 @@ const BookAppointmentScreen = () => {
   const date = watch('date');
   const selectedSlot = watch('slot');
 
+  const slotsToRender = useMemo(() => {
+    if (selectedDoctorId && selectedDoctorId !== 'any') {
+      const union = new Set(availableSlots);
+      if (selectedSlot) union.add(selectedSlot);
+      return Array.from(union).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+    }
+    return APPOINTMENT_SLOT_LABELS;
+  }, [selectedDoctorId, availableSlots, selectedSlot]);
+
   // Fetch active doctors when service selection changes
   useEffect(() => {
     if (!selectedServiceId) {
@@ -286,6 +295,7 @@ const BookAppointmentScreen = () => {
       const booked = await appointmentService.getAvailableSlots(
         appointmentDate,
         centerId,
+        selectedDoctorId === 'any' || !selectedDoctorId ? undefined : selectedDoctorId
       );
       setAvailableSlots(booked);
     } catch {
@@ -293,7 +303,7 @@ const BookAppointmentScreen = () => {
     } finally {
       setSlotsLoading(false);
     }
-  }, [centerId, appointmentDate, setValue]);
+  }, [centerId, appointmentDate, selectedDoctorId, setValue]);
 
   useEffect(() => {
     fetchSlots();
@@ -598,7 +608,7 @@ const BookAppointmentScreen = () => {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.slotRow}
                 >
-                  {APPOINTMENT_SLOT_LABELS.map(slot => {
+                  {slotsToRender.map(slot => {
                     const slotMin = timeToMinutes(slot);
                     const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
 
@@ -608,7 +618,9 @@ const BookAppointmentScreen = () => {
                     );
                     const booked = !availableSlots.includes(slot);
 
-                    const disabled = pastSlot || booked || !isWithinHours;
+                    const disabled = (selectedDoctorId && selectedDoctorId !== 'any')
+                      ? (!availableSlots.includes(slot) && selectedSlot !== slot) || pastSlot
+                      : (pastSlot || booked || !isWithinHours);
                     const selected = selectedSlot === slot;
 
                     return (
@@ -869,7 +881,7 @@ const BookAppointmentScreen = () => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.slotRow}
                   >
-                    {APPOINTMENT_SLOT_LABELS.map(slot => {
+                    {slotsToRender.map(slot => {
                       const slotMin = timeToMinutes(slot);
                       const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
 
@@ -879,7 +891,9 @@ const BookAppointmentScreen = () => {
                       );
                       const booked = !availableSlots.includes(slot);
 
-                      const disabled = pastSlot || booked || !isWithinHours;
+                      const disabled = (selectedDoctorId && selectedDoctorId !== 'any')
+                        ? (!availableSlots.includes(slot) && selectedSlot !== slot) || pastSlot
+                        : (pastSlot || booked || !isWithinHours);
                       const selected = selectedSlot === slot;
 
                       return (

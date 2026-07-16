@@ -3,7 +3,7 @@ import { View, StyleSheet } from "react-native";
 import AuthNavigator from "./AuthNavigator";
 import AdminNavigator from "./AdminNavigator";
 import PatientNavigator from "./PatientNavigator";
-import DoctorNavigator from "./DoctorNavigator";
+import DoctorNavigator from "../features/doctor/navigation/DoctorNavigator";
 import CounterStaffNavigator from "./CounterStaffNavigator";
 import { useAuthStore } from "../store/authStore";
 import { useProfileStore } from "../store/profileStore";

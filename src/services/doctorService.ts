@@ -425,9 +425,25 @@ export const doctorService = {
      if (queueSettingsError) {
       throw new Error(`Doctor account created, but queue settings generation failed: ${queueSettingsError.message}`);
      }
- 
-     return doctor as Doctor;
-   },
+
+     // 7. Create default weekly schedules (Monday to Saturday, day_of_week 1 to 6)
+      const defaultSchedules = [];
+      for (let day = 1; day <= 6; day++) {
+        defaultSchedules.push({
+          doctor_id: doctor.id,
+          day_of_week: day,
+          start_time: '09:00:00',
+          end_time: '17:00:00',
+          max_tokens_per_day: 40,
+        });
+      }
+      const { error: scheduleError } = await supabase.from('doctor_schedules').insert(defaultSchedules);
+      if (scheduleError) {
+        console.warn('[doctorService] Fallback setup: failed to insert default doctor schedules:', scheduleError);
+      }
+  
+      return doctor as Doctor;
+    },
  
    /** Update a doctor profile and linked services mapping */
    async updateDoctor(

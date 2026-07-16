@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import type { Doctor } from '../types/doctor';
+import { getPakistanDayOfWeek } from '../features/appointments/utils/appointmentTime';
 
 export function useDoctorsByService(centerId: string, serviceId: string) {
   return useQuery({
@@ -8,12 +9,22 @@ export function useDoctorsByService(centerId: string, serviceId: string) {
     queryFn: async () => {
       if (!centerId || !serviceId) return [];
       
+      const today = getPakistanDayOfWeek();
+      
       const { data, error } = await supabase
         .from('doctor_services')
-        .select('doctors!inner(*)')
+        .select(`
+          doctors!inner(
+            *,
+            doctor_availability!inner(*)
+          )
+        `)
         .eq('service_id', serviceId)
         .eq('doctors.center_id', centerId)
-        .eq('doctors.is_active', true);
+        .eq('doctors.is_active', true)
+        .eq('doctors.status', 'active')
+        .eq('doctors.doctor_availability.day_of_week', today)
+        .eq('doctors.doctor_availability.is_available', true);
         
       if (error) {
         console.error('Error fetching doctors by service:', error);
@@ -27,3 +38,4 @@ export function useDoctorsByService(centerId: string, serviceId: string) {
     enabled: !!centerId && !!serviceId,
   });
 }
+
