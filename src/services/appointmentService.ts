@@ -260,11 +260,9 @@ export const appointmentService = {
             id,
             status,
             is_active,
-            doctor_availability (
+            doctor_schedules (
               start_time,
               end_time,
-              slot_duration,
-              is_available,
               day_of_week
             )
           `)
@@ -277,13 +275,13 @@ export const appointmentService = {
           console.warn('[SLOTS] Failed to load doctor availability:', docErr);
         } else if (doctorData) {
           // Find the availability for the day of week
-          const availabilityList = (doctorData.doctor_availability || []) as any[];
+          const availabilityList = (doctorData.doctor_schedules || []) as any[];
           const todayAvail = availabilityList.find(avail => avail.day_of_week === dayOfWeek);
 
-          if (todayAvail && todayAvail.is_available) {
+          if (todayAvail) {
             const startMin = timeToMinutes(todayAvail.start_time);
             const endMin = timeToMinutes(todayAvail.end_time);
-            const duration = todayAvail.slot_duration || 15;
+            const duration = 15; // default 15 mins slot
             
             const generated: string[] = [];
             for (let min = startMin; min <= endMin - duration; min += duration) {

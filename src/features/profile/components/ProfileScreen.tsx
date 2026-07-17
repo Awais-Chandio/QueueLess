@@ -37,6 +37,7 @@ const ProfileScreen = () => {
   const { colors, spacing, typography } = useTheme();
   const { isDarkMode, toggleTheme } = useThemeStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [showMedicalHistory, setShowMedicalHistory] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -286,8 +287,48 @@ const ProfileScreen = () => {
         </Card>
       </AnimatedCard>
 
-      {/* Preferences Grouped Card */}
+      {/* Medical History Section */}
       <AnimatedCard delay={180}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+          Health Records
+        </Text>
+        <Card style={{ padding: 0, marginBottom: spacing.lg, overflow: 'hidden', borderRadius: 20 }}>
+          <SettingRow 
+            title="Medical History"
+            icon={FileText}
+            color={colors.primary}
+            onPress={() => setShowMedicalHistory(!showMedicalHistory)}
+            isLast={!showMedicalHistory}
+            rightElement={
+              <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                {showMedicalHistory ? 'Hide' : 'View'}
+              </Text>
+            }
+          />
+          {showMedicalHistory && (
+            <View style={{ padding: spacing.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border + '50' }}>
+              <Text style={{ color: colors.text, fontWeight: '800', fontSize: typography.sizes.sm, marginBottom: spacing.xs }}>
+                Previous Prescriptions
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: spacing.md, lineHeight: 16 }}>
+                • Amoxicillin 500mg (1 Capsule three times daily for 5 days){'\n'}
+                • Panadol 500mg (1 Tablet as needed for fever/pain)
+              </Text>
+
+              <Text style={{ color: colors.text, fontWeight: '800', fontSize: typography.sizes.sm, marginBottom: spacing.xs }}>
+                Doctor Notes
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, lineHeight: 16 }}>
+                • Patient is advised to monitor blood pressure daily.{'\n'}
+                • Follow-up consultation scheduled in 2 weeks.
+              </Text>
+            </View>
+          )}
+        </Card>
+      </AnimatedCard>
+
+      {/* Preferences Grouped Card */}
+      <AnimatedCard delay={240}>
         <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
           Preferences
         </Text>
@@ -316,7 +357,7 @@ const ProfileScreen = () => {
       </AnimatedCard>
 
       {/* Support & Legal Grouped Card */}
-      <AnimatedCard delay={240}>
+      <AnimatedCard delay={300}>
         <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
           Support & Legal
         </Text>
@@ -328,7 +369,7 @@ const ProfileScreen = () => {
       </AnimatedCard>
 
       {/* Logout button */}
-      <AnimatedCard delay={300}>
+      <AnimatedCard delay={360}>
         <AppButton 
           title="Logout" 
           variant="danger" 

@@ -236,29 +236,39 @@ export const doctorService = {
      })) as Doctor[];
    },
  
-   /** Fetch single doctor by ID with profiles join and doctor services */
-   async getDoctorById(id: string): Promise<any> {
-     const { data, error } = await supabase
-       .from('doctors')
-      .select(
-        `
-         *,
-         profiles (
-           id,
-           email,
-           phone
-         ),
-         doctor_services (
-           service_id
-         )
-       `,
-      )
-       .eq('id', id)
-       .single();
- 
-     if (error) throw new Error(error.message);
-     return data;
-   },
+    /** Fetch single doctor by ID with profiles join and doctor services */
+    async getDoctorById(id: string): Promise<any> {
+      const { data, error } = await supabase
+        .from('doctors')
+       .select(
+         `
+          *,
+          profiles (
+            id,
+            email,
+            phone
+          ),
+          service_centers (
+            id,
+            name,
+            city,
+            address
+          ),
+          doctor_services (
+            service_id,
+            services (
+              id,
+              name
+            )
+          )
+        `,
+       )
+        .eq('id', id)
+        .single();
+
+      if (error) throw new Error(error.message);
+      return data;
+    },
  
    /** Create a doctor profile and linked account */
    async createDoctor(payload: {

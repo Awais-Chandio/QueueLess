@@ -25,6 +25,19 @@ export interface Doctor {
   fee?: number | null;
   status?: string | null;
   updated_at?: string;
+  service_centers?: {
+    id: string;
+    name: string;
+    city?: string;
+    address?: string;
+  } | null;
+  doctor_services?: {
+    service_id: string;
+    services?: {
+      id: string;
+      name: string;
+    } | null;
+  }[] | null;
 }
 
 export interface DoctorAvailability {

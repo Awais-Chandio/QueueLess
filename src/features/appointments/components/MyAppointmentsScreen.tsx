@@ -25,14 +25,11 @@ import { SearchX } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
-type StatusFilter = 'all' | 'upcoming' | 'active' | 'completed' | 'cancelled';
+type StatusFilter = 'active_upcoming' | 'past_completed';
 
 const statusFilters = [
-  { key: 'all' as const, label: 'All', dotColor: '#0E7490' },
-  { key: 'upcoming' as const, label: 'Upcoming', dotColor: '#F59E0B' },
-  { key: 'active' as const, label: 'Active', dotColor: '#3B82F6' },
-  { key: 'completed' as const, label: 'Completed', dotColor: '#0E7490' },
-  { key: 'cancelled' as const, label: 'Cancelled', dotColor: '#EF4444' },
+  { key: 'active_upcoming' as const, label: 'Active / Upcoming', dotColor: '#3B82F6' },
+  { key: 'past_completed' as const, label: 'Past / Completed', dotColor: '#10B981' },
 ];
 
 const MyAppointmentsScreen = () => {
@@ -47,7 +44,7 @@ const MyAppointmentsScreen = () => {
     isRefetching,
     refetch,
   } = useAppointments();
-  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('active_upcoming');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useFocusEffect(
@@ -69,18 +66,11 @@ const MyAppointmentsScreen = () => {
 
   const filteredAppointments = appointments.filter(item => {
     const { resolvedStatus } = getAppointmentStatusState(item);
-    if (selectedStatus === 'all') return true;
-    if (selectedStatus === 'upcoming') {
-      return resolvedStatus === 'pending' || resolvedStatus === 'confirmed';
+    if (selectedStatus === 'active_upcoming') {
+      return ['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus);
     }
-    if (selectedStatus === 'active') {
-      return resolvedStatus === 'checked_in' || resolvedStatus === 'called' || resolvedStatus === 'in_progress';
-    }
-    if (selectedStatus === 'completed') {
-      return resolvedStatus === 'completed';
-    }
-    if (selectedStatus === 'cancelled') {
-      return resolvedStatus === 'cancelled' || resolvedStatus === 'expired' || resolvedStatus === 'no_show';
+    if (selectedStatus === 'past_completed') {
+      return ['completed', 'cancelled', 'expired', 'no_show'].includes(resolvedStatus);
     }
     return false;
   });

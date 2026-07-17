@@ -5,6 +5,8 @@ import {
   Text,
   FlatList,
   Pressable,
+  Image,
+  Alert,
 } from 'react-native';
 
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -37,6 +39,8 @@ import {
   Activity,
   User,
   Info,
+  Phone,
+  Hospital,
 } from 'lucide-react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
@@ -165,6 +169,8 @@ const CenterDetailsScreen = () => {
     );
   }
 
+  const mockPhone = '+92 (21) 111-222-333';
+
   return (
     <ScreenWrapper>
       <View style={styles.headerRow}>
@@ -186,38 +192,53 @@ const CenterDetailsScreen = () => {
         data={services}
         keyExtractor={item => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         ListHeaderComponent={
           <View style={{ marginBottom: spacing.lg }}>
+            {/* Clinic Image */}
+            {center.image_url ? (
+              <Image source={{ uri: center.image_url }} style={[styles.clinicImage, { borderRadius: radius.xl, marginBottom: spacing.md }]} />
+            ) : (
+              <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.xl, marginBottom: spacing.md }]}>
+                <Hospital size={48} color={colors.primary} />
+              </View>
+            )}
+
             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
               {center.name}
             </Text>
 
-            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.sm }]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
               {center.city}
             </Text>
 
             {!!center.category && (
-              <Badge label={center.category} variant="info" style={{ marginBottom: spacing.md }} />
+              <View style={{ flexDirection: 'row', marginBottom: spacing.md }}>
+                <Badge label={center.category} variant="info" />
+              </View>
             )}
 
-            <View style={styles.addressContainer}>
-              <MapPin size={16} color={colors.primary} style={{ marginRight: spacing.xs, marginTop: 2 }} />
-              <Text style={[styles.address, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+            {/* Address */}
+            <View style={styles.infoRow}>
+              <MapPin size={16} color={colors.primary} style={{ marginRight: spacing.sm, marginTop: 2 }} />
+              <Text style={[styles.infoText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
                 {center.address}
               </Text>
             </View>
 
-            {!!center.description && (
-              <Text style={[styles.description, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: spacing.md }]}>
-                {center.description}
+            {/* Phone */}
+            <View style={[styles.infoRow, { marginTop: spacing.sm }]}>
+              <Phone size={16} color={colors.primary} style={{ marginRight: spacing.sm }} />
+              <Text style={[styles.infoText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+                {mockPhone}
               </Text>
-            )}
+            </View>
 
+            {/* Timing Hours */}
             {openingTime && closingTime && (
               <Card
                 variant="flat"
-                style={[styles.timingCard, { marginTop: spacing.lg, padding: spacing.md }]}
+                style={[styles.timingCard, { marginTop: spacing.md, padding: spacing.md }]}
               >
                 <View style={styles.cardRow}>
                   <Clock size={16} color={colors.primary} style={{ marginRight: spacing.xs }} />
@@ -232,6 +253,7 @@ const CenterDetailsScreen = () => {
               </Card>
             )}
 
+            {/* Departments Section */}
             <View style={[styles.sectionTitleRow, { marginTop: spacing.lg, marginBottom: spacing.xs }]}>
               <Sparkles size={18} color={colors.primary} style={{ marginRight: spacing.xs }} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
@@ -239,7 +261,7 @@ const CenterDetailsScreen = () => {
               </Text>
             </View>
             <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: spacing.sm, fontStyle: 'italic' }}>
-              Tap a department to choose your doctor & view live queue
+              Select a department to choose your doctor & view live queue
             </Text>
           </View>
         }
@@ -309,6 +331,25 @@ const CenterDetailsScreen = () => {
           />
         }
       />
+
+      {/* Sticky Bottom View Doctors Button */}
+      <View style={[styles.stickyFooter, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+        <AppButton
+          title="View Doctors"
+          onPress={() => {
+            if (services.length > 0) {
+              navigation.navigate('DoctorList', {
+                centerId: center.id,
+                serviceId: services[0].id,
+                serviceName: services[0].name,
+              });
+            } else {
+              Alert.alert('No Doctors', 'There are no active doctors or services in this clinic.');
+            }
+          }}
+          variant="primary"
+        />
+      </View>
     </ScreenWrapper>
   );
 };
@@ -410,5 +451,33 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontWeight: '700',
+  },
+  clinicImage: {
+    width: '100%',
+    height: 160,
+  },
+  clinicImagePlaceholder: {
+    width: '100%',
+    height: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  infoText: {
+    flex: 1,
+    lineHeight: 18,
+  },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 24,
+    borderTopWidth: 1.2,
   },
 });

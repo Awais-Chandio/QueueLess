@@ -162,6 +162,10 @@ const QueueStatusScreen = () => {
           { event: '*', schema: 'public', table: 'doctors', filter: `id=eq.${doctorId}` },
           () => fetchDoctorQueueData()
         )
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'queue_updates' },
+          () => fetchDoctorQueueData()
+        )
         .subscribe();
 
       return () => {
@@ -719,17 +723,17 @@ const QueueStatusScreen = () => {
                       textTransform: 'uppercase',
                     }}
                   >
-                    Est. Wait
+                    Estimated Waiting
                   </Text>
                   <Text
                     style={{
                       color: colors.text,
-                      fontSize: typography.sizes.lg,
+                      fontSize: typography.sizes.md,
                       fontWeight: '800',
                       marginTop: 2,
                     }}
                   >
-                    {estimatedWaitLabel}
+                    {estimatedWaitLabel.includes('min') ? estimatedWaitLabel.replace('min', 'minutes') : estimatedWaitLabel}
                   </Text>
                 </View>
                 <View
@@ -743,17 +747,17 @@ const QueueStatusScreen = () => {
                       textTransform: 'uppercase',
                     }}
                   >
-                    Queue Position
+                    Patients Ahead
                   </Text>
                   <Text
                     style={{
                       color: colors.text,
-                      fontSize: typography.sizes.lg,
+                      fontSize: typography.sizes.md,
                       fontWeight: '800',
                       marginTop: 2,
                     }}
                   >
-                    {currentPositionLabel}
+                    {peopleAheadLabel}
                   </Text>
                 </View>
               </View>
@@ -805,7 +809,7 @@ const QueueStatusScreen = () => {
                   }}
                 >
                   {currentServingToken != null
-                    ? `#${currentServingToken}`
+                    ? `A-${currentServingToken}`
                     : '--'}
                 </Text>
               </Card>
@@ -839,7 +843,7 @@ const QueueStatusScreen = () => {
                   }}
                 >
                   {appointment.token_number != null
-                    ? `#${appointment.token_number}`
+                    ? `A-${appointment.token_number}`
                     : '--'}
                 </Text>
               </Card>
