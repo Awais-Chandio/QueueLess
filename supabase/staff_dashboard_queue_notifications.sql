@@ -23,12 +23,7 @@ CREATE POLICY "Staff can view profiles"
   TO authenticated
   USING (
     id = auth.uid()
-    OR EXISTS (
-      SELECT 1
-      FROM public.profiles staff_profile
-      WHERE staff_profile.id = auth.uid()
-        AND staff_profile.role IN ('staff', 'admin')
-    )
+    OR public.get_user_role() IN ('staff', 'admin')
   );
 
 ALTER TABLE public.appointments

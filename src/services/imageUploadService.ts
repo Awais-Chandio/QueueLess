@@ -27,7 +27,7 @@ const log = (message: string, data?: unknown) => {
   }
 };
 
-const base64ToArrayBuffer = (base64: string) => {
+export const base64ToArrayBuffer = (base64: string) => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
   const cleaned = base64.replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '');
   const bytes: number[] = [];

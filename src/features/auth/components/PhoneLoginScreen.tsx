@@ -16,7 +16,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { ArrowLeft, ChevronDown } from "lucide-react-native";
+import { ArrowLeft, ChevronDown, Search } from "lucide-react-native";
 import { LinearGradient } from "react-native-linear-gradient";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
@@ -24,7 +24,7 @@ import AppButton from "../../../components/ui/AppButton";
 import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
 import { toastService } from "../../../services/toastService";
-import MedicalLogo from "../../../components/ui/MedicalLogo";
+import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 
 type PhoneLoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "PhoneLogin">;
@@ -40,7 +40,7 @@ const COUNTRIES = [
 ];
 
 const PhoneLoginScreen = () => {
-    const { colors, typography, radius, spacing } = useTheme();
+    const { colors, typography, radius, spacing, isDarkMode } = useTheme();
     const navigation = useNavigation<PhoneLoginScreenNavigationProp>();
     const { sendPhoneOtp } = useAuth();
 
@@ -53,29 +53,30 @@ const PhoneLoginScreen = () => {
 
     // Mount animations
     const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(30)).current;
-    const logoScale = useRef(new Animated.Value(0.85)).current;
+    const slideAnim = useRef(new Animated.Value(40)).current;
+    const logoScale = useRef(new Animated.Value(0.8)).current;
 
     useEffect(() => {
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
-                duration: 500,
+                duration: 600,
                 useNativeDriver: true,
             }),
-            Animated.timing(slideAnim, {
+            Animated.spring(slideAnim, {
                 toValue: 0,
-                duration: 500,
+                friction: 8,
+                tension: 40,
                 useNativeDriver: true,
             }),
             Animated.spring(logoScale, {
                 toValue: 1,
-                friction: 6,
-                tension: 40,
+                friction: 5,
+                tension: 30,
                 useNativeDriver: true,
             })
         ]).start();
-    }, [fadeAnim, logoScale, slideAnim]);
+    }, []);
 
     const filteredCountries = COUNTRIES.filter(country => 
         country.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -134,24 +135,25 @@ const PhoneLoginScreen = () => {
                 <ScrollView
                     contentContainerStyle={styles.scrollContainer}
                     showsVerticalScrollIndicator={false}
+                    bounces={false}
                 >
                     {/* Upper Gradient Header */}
                     <LinearGradient
-                        colors={[colors.primary, '#14B8A6']}
+                        colors={colors.gradients.primary}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.headerGradient}
                     >
                         <Pressable 
-                            style={styles.backButton}
+                            style={[styles.backButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
                             onPress={() => navigation.goBack()}
                         >
-                            <ArrowLeft size={scaleFont(24)} color="#FFFFFF" />
+                            <ArrowLeft size={20} color="#FFFFFF" />
                         </Pressable>
 
                         <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <MedicalLogo size={scaleFont(48)} qColor="#FFFFFF" crossColor="#14B8A6" />
+                                <Floating3DLogo size={scaleFont(46)} qColor="#FFFFFF" crossColor="#14B8A6" />
                             </View>
                         </Animated.View>
 
@@ -168,8 +170,8 @@ const PhoneLoginScreen = () => {
                             styles.formContainer,
                             {
                                 backgroundColor: colors.background,
-                                borderTopLeftRadius: radius.xl,
-                                borderTopRightRadius: radius.xl,
+                                borderTopLeftRadius: radius.xxl,
+                                borderTopRightRadius: radius.xxl,
                                 opacity: fadeAnim,
                                 transform: [{ translateY: slideAnim }]
                             }
@@ -182,17 +184,32 @@ const PhoneLoginScreen = () => {
                             resizeMode="contain"
                         />
 
-                        <View style={[styles.formCard, { backgroundColor: colors.surface, borderRadius: radius.xl }]}>
-                            <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
+                        <View style={[
+                            styles.formCard, 
+                            { 
+                                backgroundColor: colors.surface, 
+                                borderRadius: radius.xl,
+                                shadowColor: isDarkMode ? '#000000' : colors.primary,
+                                shadowOffset: { width: 0, height: 8 },
+                                shadowOpacity: isDarkMode ? 0.3 : 0.05,
+                                shadowRadius: 20,
+                                elevation: 4,
+                                borderColor: colors.border + '60',
+                                borderWidth: 0.5
+                            }
+                        ]}>
+                            <Text style={[styles.formTitle, { color: colors.text, fontSize: typography.sizes.lg }]}>
                                 Login with Phone
                             </Text>
-                            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
+                            <Text style={[styles.formSubtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
                                 We will send you a one-time verification code via SMS.
                             </Text>
 
-                            {/* Beautiful Integrated Phone Input */}
+                            {/* Integrated Phone Input */}
                             <View style={styles.inputWrapper}>
-                                <Text style={[styles.inputLabel, { color: colors.text, fontSize: typography.sizes.xs, marginBottom: spacing.xs }]}>Phone Number</Text>
+                                <Text style={[styles.inputLabel, { color: colors.text, fontSize: typography.sizes.xs, marginBottom: spacing.xs }]}>
+                                    Phone Number
+                                </Text>
                                 <View style={[styles.phoneInputContainer, { borderColor: colors.border, backgroundColor: colors.surface, borderRadius: radius.xl }]}>
                                     <Pressable 
                                         style={styles.countryPickerButton}
@@ -213,7 +230,7 @@ const PhoneLoginScreen = () => {
                                             setPhone(cleaned);
                                             if (errorMessage) setErrorMessage('');
                                         }}
-                                        style={[styles.phoneInputField, { color: colors.text }]}
+                                        style={[styles.phoneInputField, { color: colors.text, fontSize: typography.body }]}
                                         editable={!isSending}
                                     />
                                 </View>
@@ -225,7 +242,7 @@ const PhoneLoginScreen = () => {
                                 title={isSending ? "Sending OTP..." : "Send OTP"}
                                 onPress={handleSendOTP}
                                 loading={isSending}
-                                style={styles.sendButton}
+                                containerStyle={styles.sendButton}
                             />
                         </View>
                     </Animated.View>
@@ -242,26 +259,33 @@ const PhoneLoginScreen = () => {
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalContent, { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.text }]}>Select Country</Text>
-                            <Pressable onPress={() => { setShowCountryModal(false); setSearchQuery(''); }}>
-                                <Text style={{ color: colors.primary, fontWeight: 'bold' }}>Close</Text>
+                            <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.md }]}>Select Country</Text>
+                            <Pressable 
+                                onPress={() => { setShowCountryModal(false); setSearchQuery(''); }}
+                                style={styles.modalCloseButton}
+                            >
+                                <Text style={{ color: colors.primary, fontWeight: '700' }}>Close</Text>
                             </Pressable>
                         </View>
                         
-                        <RNTextInput
-                            placeholder="Search country..."
-                            placeholderTextColor={colors.textTertiary}
-                            style={[styles.searchInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background, borderRadius: radius.md }]}
-                            value={searchQuery}
-                            onChangeText={setSearchQuery}
-                        />
+                        <View style={[styles.searchBarContainer, { backgroundColor: colors.background, borderRadius: radius.lg, borderColor: colors.border }]}>
+                            <Search size={18} color={colors.textSecondary} style={{ marginLeft: 12, marginRight: 8 }} />
+                            <RNTextInput
+                                placeholder="Search country..."
+                                placeholderTextColor={colors.textTertiary}
+                                style={[styles.searchInput, { color: colors.text }]}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                        </View>
                         
                         <FlatList
                             data={filteredCountries}
                             keyExtractor={(item) => item.code}
+                            contentContainerStyle={{ paddingBottom: hp(4) }}
                             renderItem={({ item }) => (
                                 <Pressable
-                                    style={[styles.countryItem, { borderBottomColor: colors.border }]}
+                                    style={[styles.countryItem, { borderBottomColor: colors.border + '50' }]}
                                     onPress={() => {
                                         setSelectedCountry(item);
                                         setShowCountryModal(false);
@@ -291,32 +315,32 @@ const styles = StyleSheet.create({
         width: '100%',
         height: hp(11),
         alignSelf: 'center',
-        marginBottom: hp(2),
-        marginTop: hp(1),
+        marginBottom: hp(1.5),
+        marginTop: hp(0.5),
     },
     scrollContainer: {
         flexGrow: 1,
     },
     headerGradient: {
-        height: SCREEN_HEIGHT * 0.23,
+        height: SCREEN_HEIGHT * 0.24,
         justifyContent: 'center',
         alignItems: 'center',
         paddingHorizontal: wp(6),
         paddingTop: hp(2),
-        position: 'relative',
     },
     backButton: {
         position: 'absolute',
+        top: hp(2),
         left: wp(4),
-        top: Platform.OS === 'ios' ? hp(6) : hp(3),
         padding: 8,
+        borderRadius: 999,
         zIndex: 10,
     },
     logoContainer: {
         marginBottom: hp(0.5),
     },
     logoOutline: {
-        padding: 6,
+        padding: 8,
         borderWidth: 1,
         borderRadius: 24,
         borderColor: 'rgba(255, 255, 255, 0.2)',
@@ -324,7 +348,7 @@ const styles = StyleSheet.create({
     },
     appTitle: {
         fontSize: scaleFont(26),
-        fontWeight: 'bold',
+        fontWeight: '900',
         color: '#FFFFFF',
         textAlign: 'center',
     },
@@ -339,37 +363,30 @@ const styles = StyleSheet.create({
         fontSize: scaleFont(11),
         color: 'rgba(255, 255, 255, 0.7)',
         textAlign: 'center',
-        marginTop: 6,
+        marginTop: 4,
         fontStyle: 'italic',
     },
     formContainer: {
         flex: 1,
-        marginTop: -20,
+        marginTop: -24,
         paddingHorizontal: wp(5),
-        paddingTop: hp(2.5),
-        paddingBottom: hp(2.5),
+        paddingTop: hp(2),
+        paddingBottom: hp(4),
     },
     formCard: {
         padding: wp(5),
-        elevation: 4,
-        shadowColor: '#000000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 16,
-        borderWidth: Platform.OS === 'ios' ? 0 : 1,
-        borderColor: '#E2E8F0',
     },
-    title: {
-        fontWeight: '700',
-        marginBottom: hp(0.5),
+    formTitle: {
+        fontWeight: '800',
+        textAlign: 'center',
     },
-    subtitle: {
-        marginBottom: hp(2),
+    formSubtitle: {
+        textAlign: 'center',
+        marginTop: 4,
         lineHeight: 18,
     },
     inputWrapper: {
-        width: '100%',
-        marginBottom: 15,
+        marginTop: hp(1),
     },
     inputLabel: {
         fontWeight: '600',
@@ -377,22 +394,22 @@ const styles = StyleSheet.create({
     phoneInputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderWidth: 1.5,
-        height: 54,
+        borderWidth: 1,
+        height: hp(5.6),
     },
     countryPickerButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
+        paddingHorizontal: wp(3.5),
         height: '100%',
     },
     flagText: {
-        fontSize: 20,
-        marginRight: 6,
+        fontSize: scaleFont(18),
+        marginRight: 4,
     },
     codeText: {
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: scaleFont(14),
+        fontWeight: '700',
     },
     verticalSeparator: {
         width: 1,
@@ -401,59 +418,74 @@ const styles = StyleSheet.create({
     phoneInputField: {
         flex: 1,
         height: '100%',
-        paddingHorizontal: 12,
-        fontSize: 16,
-    },
-    sendButton: {
-        marginTop: hp(1),
+        paddingHorizontal: wp(3.5),
+        fontWeight: '600',
     },
     errorMessage: {
         color: '#EF4444',
         textAlign: 'center',
-        marginBottom: hp(1.5),
+        marginTop: hp(1.5),
         fontSize: scaleFont(13),
+        fontWeight: '600',
+    },
+    sendButton: {
+        marginTop: hp(2),
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'flex-end',
     },
     modalContent: {
-        padding: 20,
-        maxHeight: '60%',
+        maxHeight: SCREEN_HEIGHT * 0.7,
+        paddingTop: hp(2),
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        paddingHorizontal: wp(5),
+        paddingBottom: hp(1.5),
     },
     modalTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '800',
+    },
+    modalCloseButton: {
+        padding: 4,
+    },
+    searchBarContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginHorizontal: wp(5),
+        marginBottom: hp(1.5),
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+        height: hp(5),
     },
     searchInput: {
-        height: 48,
-        borderWidth: 1.5,
-        paddingHorizontal: 15,
-        marginBottom: 15,
+        flex: 1,
+        height: '100%',
+        paddingRight: wp(3),
+        fontWeight: '600',
     },
     countryItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 15,
-        borderBottomWidth: 1,
+        paddingVertical: hp(1.8),
+        paddingHorizontal: wp(6),
+        borderBottomWidth: 0.5,
     },
     countryFlag: {
-        fontSize: 24,
-        marginRight: 15,
+        fontSize: scaleFont(20),
+        marginRight: wp(4),
     },
     countryName: {
         flex: 1,
-        fontSize: 16,
+        fontSize: scaleFont(14),
+        fontWeight: '600',
     },
     countryCode: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: scaleFont(14),
+        fontWeight: '700',
     },
 });

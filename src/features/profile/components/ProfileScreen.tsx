@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState } from "react";
-import { View, StyleSheet, Text, Pressable } from "react-native";
+import { View, StyleSheet, Text, Pressable, Switch, Alert } from "react-native";
 import { launchImageLibrary } from "react-native-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,13 +7,15 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useProfileStore } from "../../../store/profileStore";
 import { useDashboardStats } from "../../home/hooks/useDashboardStats";
 import { useTheme } from "../../../hooks/useTheme";
+import { useThemeStore } from "../../../store/themeStore";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
 import ProfileAvatar from "../../../components/ui/ProfileAvatar";
 import { ProfileCompletionBar } from "../../../components/ui/ProfileCompletionBar";
-import { CardFadeIn } from "../../../components/animations/CardFadeIn";
-import { Camera, Settings, Activity, Mail, Phone, Calendar, CheckCircle2 } from "lucide-react-native";
+import AnimatedCard from "../../../components/ui/AnimatedCard";
+import { Camera, Settings, Activity, Mail, Phone, Calendar, CheckCircle2, Moon, Shield, FileText, Info, ChevronRight, LogOut } from "lucide-react-native";
+import LinearGradient from "react-native-linear-gradient";
 import type { AppStackParamList } from "../../../navigation/types";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 import { toastService } from "../../../services/toastService";
@@ -21,20 +23,52 @@ import { toastService } from "../../../services/toastService";
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  admin: { label: 'Admin', color: '#7C3AED', bg: '#7C3AED18' },
-  staff: { label: 'Staff', color: '#0284C7', bg: '#0284C718' },
-  client: { label: 'Client', color: '#059669', bg: '#05966918' },
-  // Legacy alias
-  patient: { label: 'Patient', color: '#059669', bg: '#05966918' },
+  admin: { label: 'Admin', color: '#0E7490', bg: '#0E749018' },
+  staff: { label: 'Staff', color: '#0E7490', bg: '#0E749018' },
+  client: { label: 'Client', color: '#0E7490', bg: '#0E749018' },
+  patient: { label: 'Patient', color: '#0E7490', bg: '#0E749018' },
 };
 
 const ProfileScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  const { user, role: authRole } = useAuth();
+  const { user, role: authRole, logout } = useAuth();
   const { profile, fetchProfile, uploadAvatar, isUploadingAvatar, error } = useProfileStore();
   const { data: stats, refetch: refetchStats } = useDashboardStats();
   const { colors, spacing, typography } = useTheme();
+  const { isDarkMode, toggleTheme } = useThemeStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [showMedicalHistory, setShowMedicalHistory] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (logoutErr) {
+      Alert.alert('Logout Error', logoutErr instanceof Error ? logoutErr.message : 'Logout failed');
+    }
+  };
+
+  const SettingRow = ({ title, icon: Icon, rightElement, onPress, color, isLast }: any) => {
+    const iconColor = color || colors.primary;
+    return (
+      <Pressable onPress={onPress} disabled={!onPress} style={({ pressed }) => [
+        styles.settingRow, 
+        !isLast && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+        pressed && { backgroundColor: colors.background }
+      ]}>
+        <View style={styles.settingLeft}>
+          <View style={[styles.iconContainer, { backgroundColor: `${iconColor}15` }]}>
+            <Icon size={scaleFont(20)} color={iconColor} />
+          </View>
+          <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.md, fontWeight: '500' }}>
+            {title}
+          </Text>
+        </View>
+        <View style={styles.settingRight}>
+          {rightElement || <ChevronRight size={scaleFont(20)} color={colors.textSecondary} />}
+        </View>
+      </Pressable>
+    );
+  };
 
   const loadData = useCallback(async (force = false) => {
     setRefreshing(true);
@@ -91,15 +125,6 @@ const ProfileScreen = () => {
       return;
     }
 
-    if (__DEV__) {
-      console.log('[ProfileScreen.handleAvatarUpload] image asset:', {
-        uri: asset.uri,
-        fileName: asset.fileName,
-        mimeType: asset.type,
-        hasBase64: Boolean(asset.base64),
-      });
-    }
-
     await uploadAvatar(user.id, {
       uri: asset.uri,
       fileName: asset.fileName,
@@ -116,15 +141,9 @@ const ProfileScreen = () => {
     toastService.success('Profile image updated');
   };
 
-  // Role is read from the DB (via profileStore) — this is authoritative.
-  // authRole (from useAuth) is also DB-sourced (verified on login/restore).
-  // NOTE: Changing a user's role does NOT transfer their appointments.
-  //       Appointments always belong to the user_id that created them.
-  //       Staff and admin accounts should be separate accounts, never converted from client accounts.
   const userRole = profile?.role ?? authRole ?? 'client';
   const roleConfig = ROLE_LABELS[userRole] ?? ROLE_LABELS.client;
 
-  // Profile completion
   const hasName = !!profile?.full_name;
   const hasEmail = !!(profile?.email || user?.email);
   const hasPhone = !!profile?.phone;
@@ -132,34 +151,47 @@ const ProfileScreen = () => {
 
   const statItems = [
     { label: 'Total', value: stats?.total ?? 0, color: colors.primary, Icon: Calendar },
-    { label: 'Completed', value: stats?.completed ?? 0, color: colors.success, Icon: CheckCircle2 },
+    { label: 'Completed', value: stats?.completed ?? 0, color: colors.primary, Icon: CheckCircle2 },
     { label: 'Active', value: stats?.active ?? 0, color: colors.info, Icon: Activity },
   ];
 
   return (
     <ScreenWrapper scrollable onRefresh={() => loadData(true)} refreshing={refreshing}>
-      <View style={styles.header}>
-        <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: 'bold' }}>Profile</Text>
-        <Pressable
-          onPress={() => navigation.navigate("Settings")}
-          style={({ pressed }) => [
-            styles.settingsBtn,
-            { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
-            pressed && { opacity: 0.7 },
-          ]}
-        >
-          <Settings color={colors.textSecondary} size={scaleFont(20)} />
-        </Pressable>
+      <View style={[styles.header, { marginBottom: spacing.lg }]}>
+        <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800', letterSpacing: 0.3 }}>Profile</Text>
       </View>
 
       {/* Avatar + name section */}
-      <CardFadeIn delay={0}>
+      <AnimatedCard delay={0}>
         <View style={styles.profileHeader}>
-          {/* Avatar with colored ring */}
-          <Pressable onPress={handleAvatarUpload} style={[styles.avatarRingContainer, { borderColor: colors.primary + '60' }]}>
-            <ProfileAvatar uri={profile?.avatar_url} size={100} iconSize={50} />
+          {/* Avatar with gradient outline */}
+          <Pressable onPress={handleAvatarUpload} style={{ position: 'relative', marginBottom: spacing.sm }}>
+            <LinearGradient
+              colors={colors.gradients.primary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                width: scaleFont(108),
+                height: scaleFont(108),
+                borderRadius: scaleFont(54),
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: 3,
+              }}
+            >
+              <View style={{
+                backgroundColor: colors.background,
+                borderRadius: scaleFont(51),
+                width: scaleFont(102),
+                height: scaleFont(102),
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                <ProfileAvatar uri={profile?.avatar_url} size={scaleFont(96)} iconSize={scaleFont(48)} />
+              </View>
+            </LinearGradient>
             <View style={[styles.cameraIcon, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-              <Camera size={scaleFont(13)} color="#FFF" />
+              <Camera size={scaleFont(12)} color="#FFF" />
             </View>
           </Pressable>
 
@@ -169,7 +201,7 @@ const ProfileScreen = () => {
             </Text>
           ) : null}
 
-          <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '700', marginTop: spacing.md, textAlign: 'center' }}>
+          <Text style={{ color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800', marginTop: spacing.md, textAlign: 'center' }}>
             {profile?.full_name || 'Add your name'}
           </Text>
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: spacing.xs, textAlign: 'center' }}>
@@ -178,7 +210,7 @@ const ProfileScreen = () => {
 
           {/* Role badge */}
           <View style={[styles.roleBadge, { backgroundColor: roleConfig.bg, borderColor: roleConfig.color + '40', borderWidth: 1, marginTop: spacing.sm }]}>
-            <Text style={{ color: roleConfig.color, fontSize: scaleFont(12), fontWeight: '700' }}>
+            <Text style={{ color: roleConfig.color, fontSize: scaleFont(11), fontWeight: '800', textTransform: 'uppercase' }}>
               {roleConfig.label}
             </Text>
           </View>
@@ -193,41 +225,41 @@ const ProfileScreen = () => {
             />
           </View>
         </View>
-      </CardFadeIn>
+      </AnimatedCard>
 
       {/* Profile Preview card */}
-      <CardFadeIn delay={60}>
-        <Card style={{ marginBottom: spacing.lg }}>
-          <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '600', marginBottom: spacing.md }}>
+      <AnimatedCard delay={60}>
+        <Card style={{ marginBottom: spacing.lg, padding: spacing.md, borderRadius: 20 }}>
+          <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800', marginBottom: spacing.md }}>
             Contact Info
           </Text>
           <View style={styles.previewRow}>
             <View style={[styles.infoIconPill, { backgroundColor: `${colors.primary}12` }]}>
               <Mail color={colors.primary} size={scaleFont(16)} />
             </View>
-            <Text style={{ color: colors.text, fontSize: typography.sizes.md, flex: 1 }}>
+            <Text style={{ color: colors.text, fontSize: typography.sizes.md, flex: 1, fontWeight: '600' }}>
               {profile?.email || user?.email || 'No email'}
             </Text>
           </View>
           <View style={[styles.previewRow, { marginTop: spacing.md }]}>
-            <View style={[styles.infoIconPill, { backgroundColor: `${colors.success}12` }]}>
-              <Phone color={colors.success} size={scaleFont(16)} />
+            <View style={[styles.infoIconPill, { backgroundColor: `${colors.primary}12` }]}>
+              <Phone color={colors.primary} size={scaleFont(16)} />
             </View>
-            <Text style={{ color: profile?.phone ? colors.text : colors.textSecondary, fontSize: typography.sizes.md, flex: 1 }}>
+            <Text style={{ color: profile?.phone ? colors.text : colors.textSecondary, fontSize: typography.sizes.md, flex: 1, fontWeight: '600' }}>
               {profile?.phone || 'No phone number'}
             </Text>
           </View>
         </Card>
-      </CardFadeIn>
+      </AnimatedCard>
 
       {/* Stats card */}
-      <CardFadeIn delay={120}>
-        <Card style={{ marginBottom: spacing.lg }}>
+      <AnimatedCard delay={120}>
+        <Card style={{ marginBottom: spacing.lg, padding: spacing.md, borderRadius: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
             <View style={[styles.infoIconPill, { backgroundColor: `${colors.primary}12` }]}>
               <Activity color={colors.primary} size={scaleFont(16)} />
             </View>
-            <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '600', marginLeft: spacing.sm }}>
+            <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800', marginLeft: spacing.sm }}>
               Account Statistics
             </Text>
           </View>
@@ -238,13 +270,13 @@ const ProfileScreen = () => {
                 <React.Fragment key={item.label}>
                   {idx > 0 && <View style={[styles.statDivider, { backgroundColor: colors.border }]} />}
                   <View style={styles.statItem}>
-                    <View style={[styles.statIconPill, { backgroundColor: item.color + '15' }]}>
+                    <View style={[styles.statIconPill, { backgroundColor: item.color + '12' }]}>
                       <Icon size={scaleFont(16)} color={item.color} />
                     </View>
-                    <Text style={{ color: item.color, fontSize: typography.sizes.xxl, fontWeight: '700', marginTop: scaleFont(4) }}>
+                    <Text style={{ color: item.color, fontSize: typography.sizes.xxl, fontWeight: '800', marginTop: scaleFont(4) }}>
                       {item.value}
                     </Text>
-                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: scaleFont(2) }}>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: scaleFont(2), fontWeight: '700' }}>
                       {item.label}
                     </Text>
                   </View>
@@ -253,30 +285,103 @@ const ProfileScreen = () => {
             })}
           </View>
         </Card>
-      </CardFadeIn>
+      </AnimatedCard>
 
-      <CardFadeIn delay={180}>
-        <Pressable
-          onPress={() => navigation.navigate("EditProfile")}
-          style={({ pressed }) => pressed ? { opacity: 0.85 } : {}}
-        >
-          <Card style={{ marginBottom: spacing.lg, flexDirection: 'row', alignItems: 'center', padding: spacing.md }}>
-            <View style={[styles.infoIconPill, { backgroundColor: `${colors.primary}12`, width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(22) }]}>
-              <Settings color={colors.primary} size={scaleFont(20)} />
-            </View>
-            <View style={{ flex: 1, marginLeft: spacing.md }}>
-              <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
-                Profile Settings
+      {/* Medical History Section */}
+      <AnimatedCard delay={180}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+          Health Records
+        </Text>
+        <Card style={{ padding: 0, marginBottom: spacing.lg, overflow: 'hidden', borderRadius: 20 }}>
+          <SettingRow 
+            title="Medical History"
+            icon={FileText}
+            color={colors.primary}
+            onPress={() => setShowMedicalHistory(!showMedicalHistory)}
+            isLast={!showMedicalHistory}
+            rightElement={
+              <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                {showMedicalHistory ? 'Hide' : 'View'}
               </Text>
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: 2 }}>
-                Update your personal information
+            }
+          />
+          {showMedicalHistory && (
+            <View style={{ padding: spacing.md, backgroundColor: colors.surface, borderTopWidth: 1, borderTopColor: colors.border + '50' }}>
+              <Text style={{ color: colors.text, fontWeight: '800', fontSize: typography.sizes.sm, marginBottom: spacing.xs }}>
+                Previous Prescriptions
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: spacing.md, lineHeight: 16 }}>
+                • Amoxicillin 500mg (1 Capsule three times daily for 5 days){'\n'}
+                • Panadol 500mg (1 Tablet as needed for fever/pain)
+              </Text>
+
+              <Text style={{ color: colors.text, fontWeight: '800', fontSize: typography.sizes.sm, marginBottom: spacing.xs }}>
+                Doctor Notes
+              </Text>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, lineHeight: 16 }}>
+                • Patient is advised to monitor blood pressure daily.{'\n'}
+                • Follow-up consultation scheduled in 2 weeks.
               </Text>
             </View>
-          </Card>
-        </Pressable>
-      </CardFadeIn>
+          )}
+        </Card>
+      </AnimatedCard>
+
+      {/* Preferences Grouped Card */}
+      <AnimatedCard delay={240}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+          Preferences
+        </Text>
+        <Card style={{ padding: 0, marginBottom: spacing.lg, overflow: 'hidden', borderRadius: 20 }}>
+          <SettingRow 
+            title="Edit Profile"
+            icon={Settings}
+            color={colors.primary}
+            onPress={() => navigation.navigate("EditProfile")}
+          />
+          <SettingRow 
+            title="Dark Mode" 
+            icon={Moon} 
+            color={colors.info}
+            isLast
+            rightElement={
+              <Switch 
+                value={isDarkMode} 
+                onValueChange={toggleTheme} 
+                trackColor={{ false: colors.border, true: colors.primary }} 
+                thumbColor={isDarkMode ? colors.card : '#f4f3f4'}
+              />
+            } 
+          />
+        </Card>
+      </AnimatedCard>
+
+      {/* Support & Legal Grouped Card */}
+      <AnimatedCard delay={300}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+          Support & Legal
+        </Text>
+        <Card style={{ padding: 0, marginBottom: spacing.xl, overflow: 'hidden', borderRadius: 20 }}>
+          <SettingRow title="Privacy Policy" icon={Shield} color={colors.success} onPress={() => navigation.navigate("PrivacyPolicy")} />
+          <SettingRow title="Terms & Conditions" icon={FileText} color={colors.primary} onPress={() => navigation.navigate("Terms")} />
+          <SettingRow title="About QueueLess" icon={Info} color={colors.textSecondary} isLast onPress={() => navigation.navigate("About")} />
+        </Card>
+      </AnimatedCard>
+
+      {/* Logout button */}
+      <AnimatedCard delay={360}>
+        <AppButton 
+          title="Logout" 
+          variant="danger" 
+          onPress={handleLogout} 
+          style={{ borderRadius: 12 }}
+          containerStyle={{ marginBottom: spacing.xl }}
+          leftIcon={<LogOut size={16} color="#FFF" />}
+        />
+      </AnimatedCard>
+
       {error ? (
-        <Text style={{ color: colors.error, fontSize: typography.sizes.sm, marginTop: spacing.sm, textAlign: 'center' }}>
+        <Text style={{ color: colors.error, fontSize: typography.sizes.sm, marginTop: spacing.sm, textAlign: 'center', fontWeight: '600' }}>
           {error}
         </Text>
       ) : null}
@@ -305,7 +410,7 @@ const styles = StyleSheet.create({
     marginBottom: hp(3),
   },
   avatarRingContainer: {
-    borderWidth: 3,
+    borderWidth: 2,
     borderRadius: scaleFont(60),
     padding: 3,
     position: 'relative',
@@ -334,7 +439,7 @@ const styles = StyleSheet.create({
   infoIconPill: {
     width: scaleFont(34),
     height: scaleFont(34),
-    borderRadius: scaleFont(17),
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -350,12 +455,34 @@ const styles = StyleSheet.create({
   statIconPill: {
     width: scaleFont(36),
     height: scaleFont(36),
-    borderRadius: scaleFont(18),
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statDivider: {
     width: StyleSheet.hairlineWidth,
     height: '80%',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: wp(4),
+    paddingVertical: hp(1.8),
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  iconContainer: {
+    width: scaleFont(36),
+    height: scaleFont(36),
+    borderRadius: scaleFont(18),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingRight: {
+    alignItems: 'flex-end',
   },
 });

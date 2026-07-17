@@ -90,19 +90,19 @@ $androidRes = "d:\QueueLess\android\app\src\main\res"
 
 # Generate Android launcher icons (White background, blue Q, teal cross)
 Write-Host "Generating Android Launcher Icons..."
-Draw-Logo -Size 48   -OutputPath "$androidRes\mipmap-mdpi\ic_launcher.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 72   -OutputPath "$androidRes\mipmap-hdpi\ic_launcher.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 96   -OutputPath "$androidRes\mipmap-xhdpi\ic_launcher.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 144  -OutputPath "$androidRes\mipmap-xxhdpi\ic_launcher.png"        -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 192  -OutputPath "$androidRes\mipmap-xxxhdpi\ic_launcher.png"       -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
+Draw-Logo -Size 48   -OutputPath "$androidRes\mipmap-mdpi\ic_launcher.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 72   -OutputPath "$androidRes\mipmap-hdpi\ic_launcher.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 96   -OutputPath "$androidRes\mipmap-xhdpi\ic_launcher.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 144  -OutputPath "$androidRes\mipmap-xxhdpi\ic_launcher.png"        -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 192  -OutputPath "$androidRes\mipmap-xxxhdpi\ic_launcher.png"       -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
 
 # Generate Android launcher round icons (White background, blue Q, teal cross, circular background shape)
 Write-Host "Generating Android Round Launcher Icons..."
-Draw-Logo -Size 48   -OutputPath "$androidRes\mipmap-mdpi\ic_launcher_round.png"   -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6" -IsRound $true
-Draw-Logo -Size 72   -OutputPath "$androidRes\mipmap-hdpi\ic_launcher_round.png"   -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6" -IsRound $true
-Draw-Logo -Size 96   -OutputPath "$androidRes\mipmap-xhdpi\ic_launcher_round.png"   -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6" -IsRound $true
-Draw-Logo -Size 144  -OutputPath "$androidRes\mipmap-xxhdpi\ic_launcher_round.png"  -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6" -IsRound $true
-Draw-Logo -Size 192  -OutputPath "$androidRes\mipmap-xxxhdpi\ic_launcher_round.png" -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6" -IsRound $true
+Draw-Logo -Size 48   -OutputPath "$androidRes\mipmap-mdpi\ic_launcher_round.png"   -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6" -IsRound $true
+Draw-Logo -Size 72   -OutputPath "$androidRes\mipmap-hdpi\ic_launcher_round.png"   -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6" -IsRound $true
+Draw-Logo -Size 96   -OutputPath "$androidRes\mipmap-xhdpi\ic_launcher_round.png"   -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6" -IsRound $true
+Draw-Logo -Size 144  -OutputPath "$androidRes\mipmap-xxhdpi\ic_launcher_round.png"  -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6" -IsRound $true
+Draw-Logo -Size 192  -OutputPath "$androidRes\mipmap-xxxhdpi\ic_launcher_round.png" -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6" -IsRound $true
 
 # Generate Android adaptive icon foreground (Transparent background, blue Q, teal cross)
 Write-Host "Generating Android Adaptive Icon Foregrounds..."
@@ -184,11 +184,11 @@ function Draw-Logo-With-Padding {
 }
 
 # Android Adaptive icon foreground dimensions: 108dp x 108dp. Safe zone is center 72dp (~16.6% padding)
-Draw-Logo-With-Padding -Size 108  -OutputPath "$androidRes\mipmap-mdpi\ic_launcher_foreground.png"    -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#14B8A6" -PaddingPercent 0.22
-Draw-Logo-With-Padding -Size 162  -OutputPath "$androidRes\mipmap-hdpi\ic_launcher_foreground.png"    -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#14B8A6" -PaddingPercent 0.22
-Draw-Logo-With-Padding -Size 216  -OutputPath "$androidRes\mipmap-xhdpi\ic_launcher_foreground.png"   -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#14B8A6" -PaddingPercent 0.22
-Draw-Logo-With-Padding -Size 324  -OutputPath "$androidRes\mipmap-xxhdpi\ic_launcher_foreground.png"  -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#14B8A6" -PaddingPercent 0.22
-Draw-Logo-With-Padding -Size 432  -OutputPath "$androidRes\mipmap-xxxhdpi\ic_launcher_foreground.png" -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#14B8A6" -PaddingPercent 0.22
+Draw-Logo-With-Padding -Size 108  -OutputPath "$androidRes\mipmap-mdpi\ic_launcher_foreground.png"    -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#3B82F6" -PaddingPercent 0.22
+Draw-Logo-With-Padding -Size 162  -OutputPath "$androidRes\mipmap-hdpi\ic_launcher_foreground.png"    -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#3B82F6" -PaddingPercent 0.22
+Draw-Logo-With-Padding -Size 216  -OutputPath "$androidRes\mipmap-xhdpi\ic_launcher_foreground.png"   -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#3B82F6" -PaddingPercent 0.22
+Draw-Logo-With-Padding -Size 324  -OutputPath "$androidRes\mipmap-xxhdpi\ic_launcher_foreground.png"  -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#3B82F6" -PaddingPercent 0.22
+Draw-Logo-With-Padding -Size 432  -OutputPath "$androidRes\mipmap-xxxhdpi\ic_launcher_foreground.png" -BackgroundColor "Transparent" -QColor "#2563EB" -CrossColor "#3B82F6" -PaddingPercent 0.22
 
 # Generate Android Native Splash Logo (Transparent background, Solid White logo)
 Write-Host "Generating Android Native Splash Logo..."
@@ -197,15 +197,15 @@ Draw-Logo-With-Padding -Size 288  -OutputPath "$androidRes\drawable-nodpi\splash
 # Generate iOS App Icons (White background, blue Q, teal cross)
 Write-Host "Generating iOS App Icons..."
 $iosAppIconDir = "d:\QueueLess\ios\QueueLess\Images.xcassets\AppIcon.appiconset"
-Draw-Logo -Size 40   -OutputPath "$iosAppIconDir\Icon-20@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 60   -OutputPath "$iosAppIconDir\Icon-20@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 58   -OutputPath "$iosAppIconDir\Icon-29@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 87   -OutputPath "$iosAppIconDir\Icon-29@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 80   -OutputPath "$iosAppIconDir\Icon-40@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 120  -OutputPath "$iosAppIconDir\Icon-40@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 120  -OutputPath "$iosAppIconDir\Icon-60@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 180  -OutputPath "$iosAppIconDir\Icon-60@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
-Draw-Logo -Size 1024 -OutputPath "$iosAppIconDir\QueueLess-AppIcon-1024.png" -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#14B8A6"
+Draw-Logo -Size 40   -OutputPath "$iosAppIconDir\Icon-20@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 60   -OutputPath "$iosAppIconDir\Icon-20@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 58   -OutputPath "$iosAppIconDir\Icon-29@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 87   -OutputPath "$iosAppIconDir\Icon-29@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 80   -OutputPath "$iosAppIconDir\Icon-40@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 120  -OutputPath "$iosAppIconDir\Icon-40@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 120  -OutputPath "$iosAppIconDir\Icon-60@2x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 180  -OutputPath "$iosAppIconDir\Icon-60@3x.png"         -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
+Draw-Logo -Size 1024 -OutputPath "$iosAppIconDir\QueueLess-AppIcon-1024.png" -BackgroundColor "#FFFFFF" -QColor "#2563EB" -CrossColor "#3B82F6"
 
 # Generate iOS Launch Screen Logos (Transparent background, Solid White logo)
 Write-Host "Generating iOS Launch Screen Logos..."

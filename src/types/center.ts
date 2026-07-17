@@ -18,5 +18,6 @@ export interface CenterService {
   description: string | null;
   duration_minutes: number;
   price: number;
+  on_duty_note?: string | null;
   created_at: string;
 }

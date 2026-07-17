@@ -3,13 +3,18 @@ import { View, StyleSheet } from "react-native";
 import AuthNavigator from "./AuthNavigator";
 import AdminNavigator from "./AdminNavigator";
 import PatientNavigator from "./PatientNavigator";
-import StaffNavigator from "./StaffNavigator";
-import { useAuthStore } from "../store/authStore";
-import { useProfileStore } from "../store/profileStore";
+import DoctorNavigator from "./DoctorNavigator";
+import CounterStaffNavigator from "./CounterStaffNavigator";
+import { useAuthStore } from "../stores/authStore";
+import { useProfileStore } from "../stores/profileStore";
 import { getUserRoute } from "../utils/roleMapping";
 import SplashScreen from "../features/auth/components/SplashScreen";
+import { useNotifications } from "../hooks/useNotifications";
+import { useTheme } from "../hooks/useTheme";
 
 const RootNavigator = () => {
+  useNotifications();
+  const { isDarkMode } = useTheme();
   const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
   const { profile } = useProfileStore();
   const [isSplashFinished, setIsSplashFinished] = useState(false);
@@ -40,25 +45,9 @@ const RootNavigator = () => {
   }, [isReady, isSplashFinished, user, role]);
 
   const renderContent = () => {
-    if (loading === false && role === 'client' && !isPasswordRecovery) {
-      return <PatientNavigator />;
-    }
-
-    // Navigate immediately if session and role/profile exists
-    if (user && role && !isPasswordRecovery) {
-      const targetRoute = getUserRoute(role);
-      if (targetRoute === "AdminNavigator") {
-        return <AdminNavigator />;
-      }
-      if (targetRoute === "StaffNavigator") {
-        return <StaffNavigator />;
-      }
-      return <PatientNavigator />;
-    }
-
     // Return a dark background placeholder while auth is loading initially during boot
     if (isLoading && !isSplashFinished) {
-      return <View style={styles.placeholder} />;
+      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
     }
 
     if (!user || isPasswordRecovery) {
@@ -66,18 +55,13 @@ const RootNavigator = () => {
     }
 
     if (!role) {
-      return <View style={styles.placeholder} />;
+      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
     }
 
-    const targetRoute = getUserRoute(role);
-
-    if (targetRoute === "AdminNavigator") {
-      return <AdminNavigator />;
-    }
-
-    if (targetRoute === "StaffNavigator") {
-      return <StaffNavigator />;
-    }
+    if (role === 'admin') return <AdminNavigator />;
+    if (role === 'doctor') return <DoctorNavigator />;
+    if (role === 'staff') return <CounterStaffNavigator />;
+    if (role === 'client') return <PatientNavigator />;
 
     return <PatientNavigator />;
   };
@@ -118,6 +102,6 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     flex: 1,
-    backgroundColor: "#0F172A", // Dark blue placeholder matching the gradient splash theme
+    backgroundColor: "#061A1A", // Dark clinical placeholder matching the gradient splash theme
   },
 });

@@ -43,24 +43,49 @@ export type SystemOverviewData = {
   dbConnected: boolean;
 };
 
+export type BusiestServiceItem = {
+  service_name: string;
+  count: number;
+};
+
+export type BusiestCenterItem = {
+  center_name: string;
+  count: number;
+};
+
+export type StaffPerformanceItem = {
+  staff_name: string;
+  completed_count: number;
+  avg_time_minutes: number;
+};
+
+export type BookingsTrendItem = {
+  booking_date: string;
+  count: number;
+};
+
 export type AdminDashboardAnalytics = DashboardStats & {
   weeklyStats: WeeklyAppointmentStat[];
   statusDistribution: StatusDistributionStat[];
   recentActivity: RecentActivityItem[];
   systemOverview: SystemOverviewData;
+  busiestServices: BusiestServiceItem[];
+  busiestCenters: BusiestCenterItem[];
+  staffPerformance: StaffPerformanceItem[];
+  bookingsTrend: BookingsTrendItem[];
 };
 
 const statusColors: Record<AppointmentStatus, string> = {
   pending: '#F59E0B',
-  confirmed: '#2E7DFF',
+  confirmed: '#0F766E',
   checked_in: '#10B981',
-  called: '#8B5CF6',
+  called: '#3B82F6',
   in_progress: '#3B82F6',
   completed: '#22C55E',
   cancelled: '#EF4444',
   expired: '#6B7280',
-  no_show: '#EC4899',
-  skipped: '#F97316',
+  no_show: '#EF4444',
+  skipped: '#EF4444',
 };
 
 const toDateKey = (date: Date) => {
@@ -349,6 +374,10 @@ export const analyticsService = {
       weeklyStats,
       recentActivity,
       systemOverview,
+      busiestServicesRes,
+      busiestCentersRes,
+      staffPerformanceRes,
+      bookingsTrendRes,
     ] = await Promise.all([
       getAppointmentCount({ startDate }),
       getAppointmentCount({ status: 'pending', startDate }),
@@ -361,6 +390,10 @@ export const analyticsService = {
       getWeeklyStats(),
       getRecentActivity(),
       getSystemOverview(),
+      supabase.rpc('busiest_services', { p_range: dateRange }),
+      supabase.rpc('busiest_centers', { p_range: dateRange }),
+      supabase.rpc('staff_performance', { p_range: dateRange }),
+      supabase.rpc('bookings_per_day', { p_range: dateRange }),
     ]);
 
     return {
@@ -375,6 +408,10 @@ export const analyticsService = {
       weeklyStats,
       recentActivity,
       systemOverview,
+      busiestServices: busiestServicesRes.data || [],
+      busiestCenters: busiestCentersRes.data || [],
+      staffPerformance: staffPerformanceRes.data || [],
+      bookingsTrend: bookingsTrendRes.data || [],
       statusDistribution: [
         {
           name: 'Pending',

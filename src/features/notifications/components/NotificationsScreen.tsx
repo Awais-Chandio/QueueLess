@@ -15,13 +15,13 @@ import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useTheme } from '../../../hooks/useTheme';
-import { useAuthStore } from '../../../store/authStore';
-import { useNotificationsStore } from '../../../store/notificationsStore';
+import { useAuthStore } from '../../../stores/authStore';
+import { useNotificationsStore } from '../../../stores/notificationStore';
 import { toastService } from '../../../services/toastService';
 import type { Notification } from '../../../types/notification';
 import { scaleFont } from '../../../utils/responsive';
-import { notificationsService } from '../api/notificationsService';
-import { CardFadeIn } from '../../../components/animations/CardFadeIn';
+import { notificationService } from '../../../services/notificationService';
+import AnimatedCard from '../../../components/ui/AnimatedCard';
 
 // Category metadata per notification type
 type NotifMeta = { icon: any; color: string; category: string };
@@ -33,24 +33,24 @@ const getNotifMeta = (
     case 'appointment_booked':
       return { icon: CalendarClock, color: colors.primary, category: 'Appointment' };
     case 'appointment_confirmed':
-      return { icon: CheckCircle, color: colors.success, category: 'Appointment' };
+      return { icon: CheckCircle, color: colors.primary, category: 'Appointment' };
     case 'token_called':
-      return { icon: BellRing, color: '#8B5CF6', category: 'Queue' };
+      return { icon: BellRing, color: colors.info, category: 'Queue' };
     case 'appointment_completed':
-      return { icon: CheckCheck, color: colors.success, category: 'Appointment' };
+      return { icon: CheckCircle, color: colors.primary, category: 'Appointment' };
     case 'appointment_cancelled':
       return { icon: XCircle, color: colors.error, category: 'Appointment' };
     case 'system':
       return { icon: Stethoscope, color: colors.info, category: 'System' };
     case 'info':
-      return { icon: Info, color: colors.info || '#0EA5E9', category: 'Info' };
+      return { icon: Info, color: colors.info || '#3B82F6', category: 'Info' };
     default:
       return { icon: Bell, color: colors.primary, category: 'General' };
   }
 };
 
 const NotificationsScreen = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const userId = useAuthStore(state => state.user?.id);
   const storeNotifications = useNotificationsStore(state => state.notifications);
   const loading = useNotificationsStore(state => state.loading);
@@ -91,7 +91,7 @@ const NotificationsScreen = () => {
   const handleMarkAsRead = useCallback(
     async (notificationId: string) => {
       try {
-        await notificationsService.markAsRead(notificationId);
+        await notificationService.markAsRead(notificationId);
         const nextNotifications = storeNotifications.map(notification =>
           notification.id === notificationId
             ? { ...notification, is_read: true }
@@ -115,7 +115,7 @@ const NotificationsScreen = () => {
     }
 
     try {
-      await notificationsService.markAllAsRead(userId);
+      await notificationService.markAllAsRead(userId);
       const nextNotifications = storeNotifications.map(notification => ({
         ...notification,
         is_read: true,
@@ -133,113 +133,109 @@ const NotificationsScreen = () => {
 
   const renderNotification = (item: Notification) => {
     const notificationType = item?.type ?? 'info';
-    const notificationData = item?.data ?? {};
     const { icon: NotifIcon, color, category } = getNotifMeta(notificationType, colors);
     const activeColor = item?.is_read ? colors.textSecondary : color;
 
     return (
-      <CardFadeIn delay={100} key={item.id}>
-        <Pressable
+      <AnimatedCard delay={100} key={item.id}>
+        <Card
           onPress={() => {
             if (!item.is_read) {
               handleMarkAsRead(item.id);
             }
           }}
-          style={({ pressed }) => pressed ? { opacity: 0.85 } : {}}
+          containerStyle={{ marginBottom: spacing.md }}
+          style={[
+            styles.notificationCard,
+            {
+              backgroundColor: item.is_read ? colors.surface : colors.primary + '06',
+              borderLeftWidth: 3,
+              borderLeftColor: activeColor + (item.is_read ? '40' : 'CC'),
+              padding: spacing.md,
+              borderRadius: 20,
+            },
+          ]}
         >
-          <Card
-            style={[
-              styles.notificationCard,
-              {
-                marginBottom: spacing.md,
-                backgroundColor: item.is_read ? colors.surface : colors.primary + '06',
-                borderLeftWidth: 3,
-                borderLeftColor: activeColor + (item.is_read ? '40' : 'CC'),
-                overflow: 'hidden',
-              },
-            ]}
-          >
-            <View style={[styles.notificationRow, { gap: spacing.md }]}>
-              {/* Icon in circle pill */}
-              <View
+          <View style={[styles.notificationRow, { gap: spacing.md }]}>
+            {/* Icon in circle pill */}
+            <View
+              style={[
+                styles.iconPill,
+                {
+                  backgroundColor: activeColor + '12',
+                  width: scaleFont(40),
+                  height: scaleFont(40),
+                  borderRadius: radius.md,
+                },
+              ]}
+            >
+              <NotifIcon size={scaleFont(18)} color={activeColor} />
+            </View>
+
+            <View style={styles.notificationBody}>
+              {/* Category chip */}
+              <View style={[styles.categoryChip, { backgroundColor: activeColor + '10', borderColor: activeColor + '30', marginBottom: scaleFont(4) }]}>
+                <Text style={{ color: activeColor, fontSize: scaleFont(10), fontWeight: '700' }}>
+                  {category}
+                </Text>
+              </View>
+
+              <Text
                 style={[
-                  styles.iconPill,
+                  styles.notificationTitle,
                   {
-                    backgroundColor: activeColor + '18',
-                    width: scaleFont(40),
-                    height: scaleFont(40),
-                    borderRadius: scaleFont(20),
+                    color: colors.text,
+                    fontSize: typography.sizes.md,
+                  },
+                  item.is_read
+                    ? styles.readNotificationTitle
+                    : styles.unreadNotificationTitle,
+                ]}
+              >
+                {item.title}
+              </Text>
+              <Text
+                style={[
+                  styles.notificationMessage,
+                  {
+                    color: colors.textSecondary,
+                    fontSize: typography.sizes.sm,
+                    marginTop: spacing.xs,
                   },
                 ]}
               >
-                <NotifIcon size={scaleFont(19)} color={activeColor} />
-              </View>
-
-              <View style={styles.notificationBody}>
-                {/* Category chip */}
-                <View style={[styles.categoryChip, { backgroundColor: activeColor + '14', borderColor: activeColor + '30', marginBottom: scaleFont(4) }]}>
-                  <Text style={{ color: activeColor, fontSize: scaleFont(10), fontWeight: '600' }}>
-                    {category}
-                  </Text>
-                </View>
-
-                <Text
-                  style={[
-                    styles.notificationTitle,
-                    {
-                      color: colors.text,
-                      fontSize: typography.sizes.md,
-                    },
-                    item.is_read
-                      ? styles.readNotificationTitle
-                      : styles.unreadNotificationTitle,
-                  ]}
-                >
-                  {item.title}
-                </Text>
-                <Text
-                  style={[
-                    styles.notificationMessage,
-                    {
-                      color: colors.textSecondary,
-                      fontSize: typography.sizes.sm,
-                      marginTop: spacing.xs,
-                    },
-                  ]}
-                >
-                  {item.message}
-                </Text>
-                <Text
-                  style={[
-                    styles.notificationTime,
-                    {
-                      color: colors.textTertiary,
-                      fontSize: typography.sizes.xs,
-                      marginTop: spacing.sm,
-                    },
-                  ]}
-                >
-                  {new Date(item.created_at).toLocaleString()}
-                </Text>
-              </View>
-
-              {/* Unread indicator bar */}
-              {!item.is_read && (
-                <View
-                  style={{
-                    width: scaleFont(6),
-                    height: scaleFont(6),
-                    borderRadius: scaleFont(3),
-                    backgroundColor: color,
-                    alignSelf: 'flex-start',
-                    marginTop: scaleFont(4),
-                  }}
-                />
-              )}
+                {item.message}
+              </Text>
+              <Text
+                style={[
+                  styles.notificationTime,
+                  {
+                    color: colors.textTertiary,
+                    fontSize: typography.sizes.xs,
+                    marginTop: spacing.sm,
+                  },
+                ]}
+              >
+                {new Date(item.created_at).toLocaleString()}
+              </Text>
             </View>
-          </Card>
-        </Pressable>
-      </CardFadeIn>
+
+            {/* Unread indicator dot */}
+            {!item.is_read && (
+              <View
+                style={{
+                  width: scaleFont(6),
+                  height: scaleFont(6),
+                  borderRadius: scaleFont(3),
+                  backgroundColor: color,
+                  alignSelf: 'flex-start',
+                  marginTop: scaleFont(4),
+                }}
+              />
+            )}
+          </View>
+        </Card>
+      </AnimatedCard>
     );
   };
 
@@ -306,7 +302,7 @@ const NotificationsScreen = () => {
       </View>
 
       {loading && storeNotifications.length === 0 ? (
-        <View style={{ gap: spacing.md }}>
+        <View style={{ gap: spacing.md, paddingHorizontal: spacing.xs }}>
           <Skeleton height={100} />
           <Skeleton height={100} />
           <Skeleton height={100} />
@@ -361,7 +357,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   markAllText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   notificationBody: {
     flex: 1,
@@ -377,13 +373,14 @@ const styles = StyleSheet.create({
   notificationTime: {},
   notificationTitle: {},
   readNotificationTitle: {
-    fontWeight: '500',
+    fontWeight: '600',
   },
   title: {
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   unreadNotificationTitle: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   iconPill: {
     alignItems: 'center',
@@ -392,7 +389,7 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     alignSelf: 'flex-start',
-    borderRadius: scaleFont(4),
+    borderRadius: scaleFont(6),
     borderWidth: 1,
     paddingHorizontal: scaleFont(6),
     paddingVertical: scaleFont(2),

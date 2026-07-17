@@ -1,7 +1,6 @@
 import React from 'react';
 import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../hooks/useTheme';
 import { hp } from '../utils/responsive';
 
@@ -40,12 +39,6 @@ const ManageTabIcon = ({ color, size }: TabIconProps) => (
 
 const AdminTabs = () => {
   const { colors, spacing, typography } = useTheme();
-  const insets = useSafeAreaInsets();
-
-  const bottomInset = Math.max(
-    insets.bottom,
-    Platform.OS === 'android' ? spacing.xl : spacing.sm,
-  );
 
   return (
     <Tab.Navigator
@@ -54,11 +47,23 @@ const AdminTabs = () => {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
+          position: 'absolute',
+          bottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+          left: spacing.md,
+          right: spacing.md,
           backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          height: hp(8) + bottomInset,
-          paddingBottom: bottomInset,
+          borderRadius: 24,
+          borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: colors.border + '40',
+          height: hp(7.8),
+          paddingBottom: Platform.OS === 'ios' ? spacing.xs : spacing.sm,
           paddingTop: spacing.sm,
+          shadowColor: '#000000',
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: 0.08,
+          shadowRadius: 16,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: typography.sizes.xs,

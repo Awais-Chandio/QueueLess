@@ -40,12 +40,13 @@ const AdminAnalyticsScreen = () => {
   const { logout, user } = useAuth();
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
+  const profileId = profile?.id;
 
   useEffect(() => {
-    if (user?.id && (!profile || profile.id !== user.id)) {
+    if (user?.id && profileId !== user.id) {
       fetchProfile(user.id);
     }
-  }, [user?.id, profile?.id, fetchProfile]);
+  }, [user?.id, profileId, fetchProfile]);
 
   const adminName = useMemo(() => {
     return getDisplayName(profile);
@@ -122,18 +123,18 @@ const AdminAnalyticsScreen = () => {
       {
         label: 'Expired',
         value: analytics?.expiredCount ?? 0,
-        color: '#DC2626',
+        color: colors.error,
         icon: XCircle,
         progress: (analytics?.expiredCount ?? 0) / totalForProgress,
-        accentColor: '#DC2626',
+        accentColor: colors.error,
       },
       {
         label: 'No Show',
         value: analytics?.noShowCount ?? 0,
-        color: '#B91C1C',
+        color: colors.error,
         icon: XCircle,
         progress: (analytics?.noShowCount ?? 0) / totalForProgress,
-        accentColor: '#B91C1C',
+        accentColor: colors.error,
       },
       {
         label: 'Today',
@@ -147,17 +148,20 @@ const AdminAnalyticsScreen = () => {
     [analytics, colors, totalForProgress],
   );
 
-  const weeklyChartData = useMemo(
-    () => ({
-      labels: analytics?.weeklyStats.map(item => item.label) ?? [],
+  const bookingsTrendChartData = useMemo(() => {
+    const trend = analytics?.bookingsTrend || [];
+    return {
+      labels: trend.map(item => {
+        const d = new Date(item.booking_date);
+        return `${d.getMonth() + 1}/${d.getDate()}`;
+      }) ?? [],
       datasets: [
         {
-          data: analytics?.weeklyStats.map(item => item.count) ?? [],
+          data: trend.map(item => Number(item.count)) ?? [],
         },
       ],
-    }),
-    [analytics?.weeklyStats],
-  );
+    };
+  }, [analytics?.bookingsTrend]);
 
   const statusDistributionData = useMemo(
     () =>
@@ -172,18 +176,18 @@ const AdminAnalyticsScreen = () => {
 
   const chartConfig = useMemo(
     () => ({
-      backgroundColor: colors.card,
-      backgroundGradientFrom: colors.card,
-      backgroundGradientTo: colors.card,
+      backgroundColor: colors.surface,
+      backgroundGradientFrom: colors.surface,
+      backgroundGradientTo: colors.surface,
       backgroundGradientFromOpacity: 1,
       backgroundGradientToOpacity: 1,
       decimalPlaces: 0,
-      color: (opacity = 1) => `rgba(46, 125, 255, ${opacity})`,
+      color: (opacity = 1) => `rgba(15, 118, 110, ${opacity})`,
       labelColor: () => colors.textSecondary,
       barPercentage: 0.58,
       barRadius: 6,
       propsForBackgroundLines: {
-        stroke: colors.border + '50',
+        stroke: colors.border + '30',
       },
       propsForLabels: {
         fontSize: scaleFont(9),
@@ -198,9 +202,9 @@ const AdminAnalyticsScreen = () => {
 
   if (isLoading) {
     return (
-      <ScreenWrapper scrollable>
+      <ScreenWrapper>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
             Analytics
           </Text>
         </View>
@@ -215,7 +219,7 @@ const AdminAnalyticsScreen = () => {
 
   if (isError) {
     return (
-      <ScreenWrapper scrollable>
+      <ScreenWrapper>
         <ErrorState
           title="Analytics Data Unavailable"
           message={error instanceof Error ? error.message : 'Please try again.'}
@@ -235,10 +239,10 @@ const AdminAnalyticsScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800', letterSpacing: 0.3 }]}>
             Welcome, {adminName}
           </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }]}>
+          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600' }]}>
             Overview & Queue Performance
           </Text>
         </View>
@@ -264,7 +268,7 @@ const AdminAnalyticsScreen = () => {
       {/* Timeframe Selector */}
       <CardFadeIn delay={20}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <Card variant="elevated" style={[styles.cardContent, { padding: spacing.sm, borderRadius: radius.lg }]}>
+          <Card style={[styles.cardContent, { padding: spacing.sm, borderRadius: radius.xl }]}>
             <View style={styles.timeframeContainer}>
               <View style={styles.timeframeLabelRow}>
                 <TrendingUp color={colors.primary} size={16} />
@@ -286,13 +290,13 @@ const AdminAnalyticsScreen = () => {
                       styles.timeframeButton,
                       {
                         borderColor: dateRange === item.key ? colors.primary : colors.border,
-                        backgroundColor: dateRange === item.key ? `${colors.primary}10` : 'transparent',
+                        backgroundColor: dateRange === item.key ? `${colors.primary}12` : 'transparent',
                         borderRadius: radius.md,
-                        borderWidth: 1.5,
+                        borderWidth: 1.2,
                       }
                     ]}
                   >
-                    <Text style={{ color: dateRange === item.key ? colors.primary : colors.text, fontSize: 11, fontWeight: '700' }}>
+                    <Text style={{ color: dateRange === item.key ? colors.primary : colors.text, fontSize: 11, fontWeight: '800' }}>
                       {item.label}
                     </Text>
                   </Pressable>
@@ -306,7 +310,7 @@ const AdminAnalyticsScreen = () => {
       {/* Grid: Statistics */}
       <CardFadeIn delay={40}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <Card variant="elevated" style={styles.cardContent}>
+          <Card style={[styles.cardContent, { padding: spacing.md }]}>
             <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.md }]}>
               Statistics Grid
             </Text>
@@ -319,16 +323,16 @@ const AdminAnalyticsScreen = () => {
                     style={[
                       styles.statMetricItem,
                       {
-                        borderColor: colors.border,
+                        borderColor: colors.border + '50',
                         borderRadius: radius.lg,
                         backgroundColor: colors.surface,
-                        borderTopWidth: 3.5,
+                        borderTopWidth: 3,
                         borderTopColor: item.accentColor,
                       },
                     ]}
                   >
                     <View style={styles.statHeader}>
-                      <View style={[styles.statIconPill, { backgroundColor: item.color + '10' }]}>
+                      <View style={[styles.statIconPill, { backgroundColor: item.color + '12' }]}>
                         <Icon color={item.color} size={scaleFont(12)} />
                       </View>
                       <Text style={[styles.statValue, { color: item.color, fontSize: typography.sizes.md, fontWeight: '800' }]}>
@@ -338,7 +342,7 @@ const AdminAnalyticsScreen = () => {
                     <Text
                       style={[
                         styles.statLabel,
-                        { color: colors.textSecondary, fontSize: typography.caption },
+                        { color: colors.textSecondary, fontSize: typography.caption, fontWeight: '700' },
                       ]}
                       numberOfLines={1}
                     >
@@ -349,7 +353,7 @@ const AdminAnalyticsScreen = () => {
                         progress={Math.min(1, item.progress)}
                         color={item.accentColor}
                         height={scaleFont(3)}
-                        trackColor={item.accentColor + '10'}
+                        trackColor={item.accentColor + '12'}
                       />
                     </View>
                   </View>
@@ -360,38 +364,46 @@ const AdminAnalyticsScreen = () => {
         </View>
       </CardFadeIn>
 
-      {/* Chart 1: Weekly Appointments */}
+      {/* Chart 1: Bookings Trend */}
       <CardFadeIn delay={80}>
         <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <Card variant="elevated" style={styles.cardContent}>
+          <Card style={[styles.cardContent, { padding: spacing.md }]}>
             <View style={styles.chartHeaderRow}>
               <BarChart3 color={colors.primary} size={18} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
-                Weekly Appointment Load
+                Bookings Trend
               </Text>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <BarChart
-                data={weeklyChartData}
-                width={chartWidth}
-                height={chartHeight}
-                yAxisLabel=""
-                yAxisSuffix=""
-                chartConfig={chartConfig}
-                fromZero
-                segments={4}
-                showValuesOnTopOfBars
-                style={styles.chart}
-              />
-            </ScrollView>
+            {bookingsTrendChartData.labels.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                <BarChart
+                  data={bookingsTrendChartData}
+                  width={chartWidth}
+                  height={chartHeight}
+                  yAxisLabel=""
+                  yAxisSuffix=""
+                  chartConfig={chartConfig}
+                  fromZero
+                  segments={4}
+                  showValuesOnTopOfBars
+                  style={styles.chart}
+                />
+              </ScrollView>
+            ) : (
+              <View style={[styles.emptyChart, { height: chartHeight }]}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600' }}>
+                  No bookings trend data available for this timeframe.
+                </Text>
+              </View>
+            )}
           </Card>
         </View>
       </CardFadeIn>
 
       {/* Chart 2: Status Distribution */}
       <CardFadeIn delay={120}>
-        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.lg }}>
-          <Card variant="elevated" style={styles.cardContent}>
+        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
+          <Card style={[styles.cardContent, { padding: spacing.md }]}>
             <View style={styles.chartHeaderRow}>
               <PieIcon color={colors.primary} size={18} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
@@ -413,8 +425,114 @@ const AdminAnalyticsScreen = () => {
               />
             ) : (
               <View style={[styles.emptyChart, { height: chartHeight }]}>
-                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600' }}>
                   No status distribution data available for this timeframe.
+                </Text>
+              </View>
+            )}
+          </Card>
+        </View>
+      </CardFadeIn>
+
+      {/* List 1: Busiest Services */}
+      <CardFadeIn delay={160}>
+        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.md }}>
+          <Card style={[styles.cardContent, { padding: spacing.md }]}>
+            <View style={styles.chartHeaderRow}>
+              <ClipboardList color={colors.primary} size={18} />
+              <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
+                Busiest Services
+              </Text>
+            </View>
+            {analytics?.busiestServices && analytics.busiestServices.length > 0 ? (
+              <View style={{ gap: spacing.md, marginTop: spacing.xs }}>
+                {analytics.busiestServices.map((item, index) => {
+                  const maxCount = Number(analytics.busiestServices[0]?.count) || 1;
+                  const ratio = Number(item.count) / maxCount;
+                  return (
+                    <View key={item.service_name} style={styles.rankedItem}>
+                      <View style={styles.rankedItemHeader}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[styles.rankedRank, { color: colors.primary, fontSize: typography.sizes.sm, fontWeight: '800' }]}>
+                            #{index + 1}
+                          </Text>
+                          <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700' }}>
+                            {item.service_name}
+                          </Text>
+                        </View>
+                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, fontWeight: '600' }}>
+                          {item.count} bookings
+                        </Text>
+                      </View>
+                      <View style={{ marginTop: 6 }}>
+                        <ProgressBar progress={ratio} color={colors.primary} height={5} />
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              <View style={styles.emptyChart}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', paddingVertical: spacing.md }}>
+                  No services data available.
+                </Text>
+              </View>
+            )}
+          </Card>
+        </View>
+      </CardFadeIn>
+
+      {/* List 2: Staff Performance */}
+      <CardFadeIn delay={200}>
+        <View style={{ marginHorizontal: spacing.md, marginBottom: spacing.lg }}>
+          <Card style={[styles.cardContent, { padding: spacing.md }]}>
+            <View style={styles.chartHeaderRow}>
+              <Stethoscope color={colors.primary} size={18} />
+              <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
+                Staff Performance
+              </Text>
+            </View>
+            {analytics?.staffPerformance && analytics.staffPerformance.length > 0 ? (
+              <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+                {analytics.staffPerformance.map((item, index) => (
+                  <View
+                    key={item.staff_name}
+                    style={[
+                      styles.staffItem,
+                      {
+                        borderColor: colors.border + '30',
+                        borderRadius: radius.md,
+                        backgroundColor: colors.surface,
+                        borderWidth: 1,
+                        padding: spacing.sm,
+                      },
+                    ]}
+                  >
+                    <View style={styles.staffItemHeader}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={{ color: colors.primary, fontSize: typography.sizes.sm, fontWeight: '800' }}>
+                          #{index + 1}
+                        </Text>
+                        <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700' }}>
+                          {item.staff_name}
+                        </Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                          {item.completed_count} completed
+                        </Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 10, fontWeight: '600' }}>
+                          Avg. Time: {item.avg_time_minutes} mins
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyChart}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', paddingVertical: spacing.md }}>
+                  No staff performance data available.
                 </Text>
               </View>
             )}
@@ -446,15 +564,13 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1.5,
+    borderWidth: 1.2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardContent: {
-    padding: wp(4.5),
-  },
+  cardContent: {},
   sectionTitle: {
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: -0.3,
   },
   timeframeContainer: {
@@ -470,7 +586,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   timeframeLabel: {
-    fontWeight: '700',
+    fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -494,7 +610,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: wp(3),
     paddingVertical: hp(1.2),
-    borderWidth: 1.5,
+    borderWidth: 0.5,
     marginBottom: hp(0.8),
   },
   statHeader: {
@@ -505,14 +621,12 @@ const styles = StyleSheet.create({
   statIconPill: {
     width: scaleFont(24),
     height: scaleFont(24),
-    borderRadius: 999,
+    borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statValue: {
-  },
+  statValue: {},
   statLabel: {
-    fontWeight: '700',
     marginTop: hp(0.5),
   },
   chartHeaderRow: {
@@ -528,5 +642,27 @@ const styles = StyleSheet.create({
   emptyChart: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rankedItem: {
+    marginBottom: hp(0.5),
+  },
+  rankedItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  rankedRank: {
+    fontWeight: '800',
+  },
+  staffItem: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: hp(0.5),
+  },
+  staffItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 });

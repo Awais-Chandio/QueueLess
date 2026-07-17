@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 
 import {
   Alert,
@@ -8,8 +8,78 @@ import {
   StyleSheet,
   Text,
   View,
-  Platform,
 } from 'react-native';
+
+const AnimatedSlotChip = ({
+  slot,
+  selected,
+  disabled,
+  onPress,
+  colors,
+  radius,
+  spacing,
+  typography,
+  styles,
+}: {
+  slot: string;
+  selected: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  colors: any;
+  radius: any;
+  spacing: any;
+  typography: any;
+  styles: any;
+}) => {
+  return (
+    <Pressable
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        { marginRight: spacing.sm },
+        !disabled && pressed && { transform: [{ scale: 0.92 }] },
+      ]}
+    >
+      <View
+        style={[
+          styles.slotChip,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: radius.full,
+            borderWidth: 1.2,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.sm,
+          },
+          selected && {
+            backgroundColor: colors.primary,
+            borderColor: colors.primary,
+          },
+          disabled && {
+            backgroundColor: colors.border + '30',
+            borderColor: colors.border + '20',
+            opacity: 0.4,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            styles.slotText,
+            {
+              color: colors.text,
+              fontSize: typography.sizes.xs,
+              fontWeight: '700',
+            },
+            selected && { color: '#FFF' },
+            disabled && { color: colors.textSecondary },
+          ]}
+        >
+          {slot}
+        </Text>
+      </View>
+    </Pressable>
+  );
+};
 
 import {
   useNavigation,
@@ -20,9 +90,9 @@ import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { ChevronLeft, Calendar as CalendarIcon, Clock, Hourglass, ShieldAlert } from 'lucide-react-native';
+import { ChevronLeft, Calendar as CalendarIcon, Hourglass, ShieldAlert, Stethoscope, UserCheck, Users, MapPin } from 'lucide-react-native';
 
-import { useForm, Controller } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { bookingSchema, BookingFormData } from '../../../validations/bookingSchema';
 
@@ -31,16 +101,17 @@ import EmptyState from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
 import Loader from '../../../components/ui/Loader';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import Card from '../../../components/ui/Card';
 
 import { useTheme } from '../../../hooks/useTheme';
 
 import type { AppStackParamList } from '../../../navigation/types';
 
 import { useAuthStore } from '../../../store/authStore';
-import { useAppointmentsStore } from '../../../store/appointmentsStore';
-import { useCentersStore } from '../../../store/centersStore';
+import { useAppointmentsStore } from '../../../store/appointmentStore';
+import { useCentersStore } from '../../../store/queueStore';
 import { toastService } from '../../../services/toastService';
-import { appointmentsService } from '../api/appointmentsService';
+import { appointmentService } from '../../../services/appointmentService';
 import {
   APPOINTMENT_SLOT_LABELS,
   formatAppointmentDateInput,
@@ -48,9 +119,12 @@ import {
   isPastAppointmentSlot,
   timeToMinutes,
 } from '../utils/appointmentTime';
+import { hp } from '../../../utils/responsive';
 
 import type { AppointmentFull } from '../../../types/appointment';
 import type { CenterService } from '../../../types/center';
+import { doctorService } from '../../../services/doctorService';
+import type { Doctor } from '../../../services/doctorService';
 
 type BookAppointmentRouteProp = RouteProp<
   AppStackParamList,
@@ -77,7 +151,7 @@ const BookAppointmentScreen = () => {
 
   const centerServices = useCentersStore(state => state.centerServices);
   const selectedCenter = useCentersStore(state => state.selectedCenter);
-  
+
   const fetchCenterServices = useCentersStore(state => state.fetchCenterServices);
   const fetchCenterById = useCentersStore(state => state.fetchCenterById);
   const loading = useCentersStore(state => state.loading);
@@ -89,6 +163,11 @@ const BookAppointmentScreen = () => {
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState<string | null>(null);
+
+  // Doctor selection state
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null | 'any'>(route.params?.doctorId || 'any');
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
 
   const [lockTimeLeft, setLockTimeLeft] = useState<number | null>(null);
   const timerRef = useRef<any>(null);
@@ -103,8 +182,8 @@ const BookAppointmentScreen = () => {
     if (!centerId) return;
     try {
       setValue('slot', slot, { shouldValidate: true });
-      await appointmentsService.lockSlot(centerId, appointmentDate, slot);
-      
+      await appointmentService.lockSlot(centerId, appointmentDate, slot);
+
       // Reset and start countdown timer (10 mins = 600 secs)
       if (timerRef.current) clearInterval(timerRef.current);
       setLockTimeLeft(600);
@@ -114,32 +193,21 @@ const BookAppointmentScreen = () => {
           if (prev === null || prev <= 1) {
             if (timerRef.current) clearInterval(timerRef.current);
             setValue('slot', '');
-            appointmentsService.unlockSlot().catch(console.warn);
+            appointmentService.unlockSlot().catch(console.warn);
             Alert.alert('Lock Expired', 'Your time-slot lock has expired. Please select a slot again to book.');
             return null;
           }
           return prev - 1;
         });
       }, 1000);
-    } catch (err: any) {
-      toastService.error(err.message || 'Failed to lock slot');
+
+    } catch {
       setValue('slot', '');
+      toastService.error('This slot was recently locked or booked by another patient. Please choose another slot.');
     }
   };
 
-  // Cleanup timer and slot lock on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      appointmentsService.unlockSlot().catch(console.warn);
-    };
-  }, []);
-
-  // Initialize React Hook Form with Zod validation
   const {
-    control,
     handleSubmit,
     setValue,
     watch,
@@ -147,7 +215,7 @@ const BookAppointmentScreen = () => {
   } = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
     defaultValues: {
-      serviceId: initialServiceId ?? '',
+      serviceId: initialServiceId || '',
       date: new Date(),
       slot: '',
     },
@@ -157,78 +225,93 @@ const BookAppointmentScreen = () => {
   const date = watch('date');
   const selectedSlot = watch('slot');
 
-  const appointmentDate = formatAppointmentDateInput(date);
+  const slotsToRender = useMemo(() => {
+    if (selectedDoctorId && selectedDoctorId !== 'any') {
+      const union = new Set(availableSlots);
+      if (selectedSlot) union.add(selectedSlot);
+      return Array.from(union).sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+    }
+    return APPOINTMENT_SLOT_LABELS;
+  }, [selectedDoctorId, availableSlots, selectedSlot]);
 
-  // Load center details and services on mount
+  // Fetch active doctors when service selection changes
+  useEffect(() => {
+    if (!selectedServiceId) {
+      setDoctors([]);
+      setSelectedDoctorId('any');
+      return;
+    }
+    let cancelled = false;
+    setDoctorsLoading(true);
+    doctorService
+      .getByServiceId(selectedServiceId)
+      .then(data => {
+        if (cancelled) return;
+        setDoctors(data);
+        
+        // If an initial doctor ID was passed and matches one of the doctors for this service,
+        // select it. Otherwise default to 'any'.
+        const initialDoctorId = route.params?.doctorId;
+        if (initialDoctorId && data.some(d => d.id === initialDoctorId)) {
+          setSelectedDoctorId(initialDoctorId);
+        } else {
+          setSelectedDoctorId('any');
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load doctors:', err);
+        setSelectedDoctorId('any');
+      })
+      .finally(() => {
+        if (!cancelled) setDoctorsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedServiceId, route.params?.doctorId]);
+
+  const appointmentDate = useMemo(() => {
+    return formatAppointmentDateInput(date);
+  }, [date]);
+
   useEffect(() => {
     if (centerId) {
       fetchCenterServices(centerId);
       fetchCenterById(centerId);
     }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      appointmentService.unlockSlot().catch(console.warn);
+    };
   }, [centerId, fetchCenterServices, fetchCenterById]);
 
-  // Set default initial service if navigation params passed it
-  useEffect(() => {
-    if (initialServiceId) {
-      setValue('serviceId', initialServiceId, { shouldValidate: true });
-    }
-  }, [initialServiceId, setValue]);
-
-  // Fetch available slots from backend whenever date or service changes
-  useEffect(() => {
+  // Fetch available slots from backend
+  const fetchSlots = useCallback(async () => {
     if (!centerId) return;
+    try {
+      setSlotsLoading(true);
+      setSlotsError(null);
+      setValue('slot', ''); // clear selected slot on date change
+      const booked = await appointmentService.getAvailableSlots(
+        appointmentDate,
+        centerId,
+        selectedDoctorId === 'any' || !selectedDoctorId ? undefined : selectedDoctorId
+      );
+      setAvailableSlots(booked);
+    } catch {
+      setSlotsError('Failed to load available slots. Please try changing the date.');
+    } finally {
+      setSlotsLoading(false);
+    }
+  }, [centerId, appointmentDate, selectedDoctorId, setValue]);
 
-    let cancelled = false;
+  useEffect(() => {
+    fetchSlots();
+  }, [fetchSlots]);
 
-    const loadSlots = async () => {
-      try {
-        setSlotsLoading(true);
-        setSlotsError(null);
-
-        const slots = await appointmentsService.getAvailableSlots(
-          appointmentDate,
-          centerId,
-        );
-
-        if (cancelled) return;
-
-        setAvailableSlots(slots);
-        
-        // Reset selected slot if it is no longer available in the newly loaded slots
-        if (selectedSlot && !slots.includes(selectedSlot)) {
-          setValue('slot', '');
-        }
-      } catch (slotError) {
-        if (cancelled) return;
-
-        const message =
-          slotError instanceof Error ? slotError.message : 'Failed to load slots.';
-
-        console.error('[SLOTS] Failed to load booking slots:', {
-          appointmentDate,
-          centerId,
-          message,
-        });
-        setSlotsError(message);
-        setAvailableSlots([]);
-        setValue('slot', '');
-      } finally {
-        if (!cancelled) {
-          setSlotsLoading(false);
-        }
-      }
-    };
-
-    loadSlots();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [appointmentDate, centerId, setValue, selectedSlot]);
-
-  // Submit appointment booking
-  const onSubmit = async (formData: BookingFormData) => {
-    if (!centerId || !user?.id) {
+  const onBook = async (formData: BookingFormData) => {
+    if (!user || !centerId) {
+      toastService.error('You must be logged in to book slots');
       return;
     }
 
@@ -238,70 +321,40 @@ const BookAppointmentScreen = () => {
         formData.slot,
       );
 
-      console.log('[DEBUG] BookAppointmentScreen: Creating appointment with slot:', {
-        appointmentDate,
-        appointmentTime: formData.slot,
-        scheduledAt,
-      });
-
-      const appointment = await createAppointment({
+      const payload = {
         user_id: user.id,
         center_id: centerId,
         service_id: formData.serviceId,
+        // null = "Any Available Doctor" (default behavior preserved)
+        doctor_id: selectedDoctorId === 'any' || !selectedDoctorId ? null : selectedDoctorId,
         scheduled_at: scheduledAt,
         appointment_date: appointmentDate,
         appointment_time: formData.slot,
-      });
+      };
 
-      queryClient.setQueryData<AppointmentFull[]>(
-        ['appointments', user.id],
-        currentAppointments => {
-          const nextAppointment: AppointmentFull = {
-            ...appointment,
-          };
+      const result = await createAppointment(payload);
+      if (result) {
+        if (timerRef.current) clearInterval(timerRef.current);
+        await queryClient.refetchQueries({ queryKey: ['appointments'] });
+        await queryClient.refetchQueries({ queryKey: ['dashboard-stats'] });
 
-          const appointments = currentAppointments ?? [];
-          return [
-            nextAppointment,
-            ...appointments.filter(item => item.id !== appointment.id),
-          ].sort(
-            (a, b) =>
-              new Date(a.scheduled_at).getTime() -
-              new Date(b.scheduled_at).getTime(),
-          );
-        },
-      );
+        toastService.success('Appointment booked successfully!');
 
-      // Navigate immediately to QueueStatus to ensure an instant, fluid transition
-      toastService.success('Appointment booked successfully');
-      navigation.navigate('QueueStatus', {
-        appointmentId: appointment.id,
-      });
-
-      // Perform invalidations and available slot refreshes in the background (no awaiting!)
-      queryClient.invalidateQueries({
-        queryKey: ['appointments', user.id],
-        refetchType: 'all',
-      }).catch(err => console.warn('[Appt Invalidation] Error:', err));
-
-      queryClient.invalidateQueries({
-        queryKey: ['staff-dashboard'],
-      }).catch(err => console.warn('[Staff Invalidation] Error:', err));
-
-      appointmentsService.getAvailableSlots(
-        appointmentDate,
-        centerId,
-      ).then(slots => {
-        setAvailableSlots(slots);
-        setValue('slot', '');
-      }).catch(err => console.warn('[Slots Reload] Error:', err));
-    } catch (createError) {
-      console.error('[DEBUG] BookAppointmentScreen: Failed to create appointment:', createError);
-      toastService.error(
-        createError instanceof Error
-          ? `Failed to book appointment: ${createError.message}`
-          : 'Failed to book appointment. Please try again.',
-      );
+        navigation.replace('AppointmentDetails', {
+          appointmentId: (result as AppointmentFull).id,
+        });
+      }
+    } catch (createError: any) {
+      if (createError.code === '23505' || createError.message?.includes('23505')) {
+        Alert.alert('Slot just taken', 'Someone else booked this slot a moment ago — please pick another.');
+        fetchSlots();
+      } else {
+        toastService.error(
+          createError instanceof Error
+            ? `Failed to book appointment: ${createError.message}`
+            : 'Failed to book appointment. Please try again.',
+        );
+      }
     }
   };
 
@@ -309,29 +362,23 @@ const BookAppointmentScreen = () => {
     const selected = selectedServiceId === item.id;
 
     return (
-      <Pressable
-        style={({ pressed }) => [
-          styles.serviceCard,
-          {
-            backgroundColor: colors.surface,
-            borderColor: selected ? colors.primary : colors.border,
-            borderWidth: selected ? 2 : 1,
-            borderRadius: radius.lg,
-            padding: spacing.md,
-            marginBottom: spacing.md,
-            shadowColor: colors.text,
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: selected ? 0.04 : 0.01,
-            shadowRadius: 6,
-          },
-          pressed && { opacity: 0.95 }
-        ]}
+      <Card
         onPress={() => {
           setValue('serviceId', item.id, { shouldValidate: true });
           setValue('slot', '');
         }}
-        accessibilityRole="button"
-        accessibilityState={{ selected }}>
+        variant={selected ? 'flat' : 'elevated'}
+        style={[
+          styles.serviceCard,
+          {
+            borderColor: selected ? colors.primary : colors.border + '30',
+            borderWidth: selected ? 2 : 0.5,
+            padding: spacing.md,
+            backgroundColor: selected ? colors.primary + '06' : colors.surface,
+          },
+        ]}
+        containerStyle={{ marginBottom: spacing.md }}
+      >
         <View style={styles.serviceHeader}>
           <Text style={[styles.serviceName, { color: colors.text, fontSize: typography.sizes.md }]}>
             {item.name}
@@ -348,13 +395,13 @@ const BookAppointmentScreen = () => {
           </Text>
         )}
 
-        <View style={[styles.metaContainer, { backgroundColor: colors.border + '15', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs / 2 }]}>
+        <View style={[styles.metaContainer, { backgroundColor: colors.border + '20', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs / 2 }]}>
           <Hourglass size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
           <Text style={[styles.meta, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
             {item.duration_minutes} min
           </Text>
         </View>
-      </Pressable>
+      </Card>
     );
   };
 
@@ -362,8 +409,8 @@ const BookAppointmentScreen = () => {
     return (
       <ScreenWrapper>
         <EmptyState
-          title="Center Missing"
-          subtitle="Please select a center before booking an appointment."
+          title="Clinic Missing"
+          subtitle="Please select a clinic before booking a consultation."
           buttonTitle="Go Back"
           onButtonPress={navigation.goBack}
         />
@@ -383,7 +430,7 @@ const BookAppointmentScreen = () => {
     return (
       <ScreenWrapper>
         <ErrorState
-          title="Failed To Load Services"
+          title="Failed To Load Departments"
           message={error}
           buttonTitle="Retry"
           onRetry={() => fetchCenterServices(centerId)}
@@ -395,6 +442,259 @@ const BookAppointmentScreen = () => {
   // Calculate center's opening & closing hours in 24h minutes
   const openMin = selectedCenter?.open_time ? timeToMinutes(selectedCenter.open_time) : 0;
   const closeMin = selectedCenter?.close_time ? timeToMinutes(selectedCenter.close_time) : 1440;
+
+  if (initialServiceId) {
+    const selectedService = centerServices.find(s => s.id === selectedServiceId);
+    const selectedDoctor = doctors.find(d => d.id === selectedDoctorId);
+
+    return (
+      <ScreenWrapper>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && { opacity: 0.7 }
+              ]}
+            >
+              <ChevronLeft size={24} color={colors.primary} />
+              <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>Back</Text>
+            </Pressable>
+
+            <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
+              Book a Consultation
+            </Text>
+
+            <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
+              Confirm details and select a slot.
+            </Text>
+          </View>
+
+          {/* Consultation Details Card */}
+          <Card
+            variant="elevated"
+            style={{
+              padding: spacing.md,
+              backgroundColor: colors.surface,
+              borderRadius: radius.xl,
+              marginBottom: spacing.lg,
+              borderWidth: 1,
+              borderColor: colors.border + '30',
+            }}
+          >
+            <Text style={{ fontSize: typography.sizes.xs, fontWeight: '800', color: colors.textSecondary, marginBottom: spacing.md, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Consultation Details
+            </Text>
+            
+            {/* Clinic */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                <MapPin size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: typography.sizes.xs - 2, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase' }}>
+                  Clinic / Center
+                </Text>
+                <Text style={{ fontSize: typography.sizes.sm, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                  {selectedCenter?.name || 'Loading Clinic...'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Department / Service */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                <Stethoscope size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: typography.sizes.xs - 2, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase' }}>
+                  Department / Service
+                </Text>
+                <Text style={{ fontSize: typography.sizes.sm, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                  {selectedService?.name || 'Loading Service...'}
+                </Text>
+                {selectedService && (
+                  <Text style={{ fontSize: typography.sizes.xs, color: colors.textSecondary, marginTop: 2, fontWeight: '600' }}>
+                    Rs. {selectedService.price} • {selectedService.duration_minutes} mins
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {/* Consulting Doctor */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.primary + '12', alignItems: 'center', justifyContent: 'center', marginRight: spacing.sm }}>
+                {selectedDoctorId === 'any' ? (
+                  <Users size={18} color={colors.primary} />
+                ) : (
+                  <UserCheck size={18} color={colors.primary} />
+                )}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: typography.sizes.xs - 2, color: colors.textSecondary, fontWeight: '700', textTransform: 'uppercase' }}>
+                  Consulting Doctor
+                </Text>
+                <Text style={{ fontSize: typography.sizes.sm, color: colors.text, fontWeight: '700', marginTop: 2 }}>
+                  {selectedDoctorId === 'any' ? 'Any Available Doctor' : selectedDoctor?.name || 'Loading Doctor...'}
+                </Text>
+                {selectedDoctorId !== 'any' && (selectedDoctor?.specialty || selectedDoctor?.specialization) && (
+                  <Text style={{ fontSize: typography.sizes.xs, color: colors.textSecondary, marginTop: 2, fontWeight: '600' }}>
+                    {selectedDoctor.specialty || selectedDoctor.specialization}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </Card>
+
+          {/* Date & Time Slot selection */}
+          <View style={styles.dateContainer}>
+            <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
+              Selected Date
+            </Text>
+
+            <Pressable
+              style={({ pressed }) => [
+                styles.dateButton,
+                {
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderWidth: 1.2,
+                  borderRadius: radius.xl,
+                  padding: spacing.md,
+                  marginBottom: spacing.md,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                },
+                pressed && { opacity: 0.85 }
+              ]}
+              onPress={() => setShowDatePicker(true)}>
+              <CalendarIcon size={18} color={colors.primary} style={{ marginRight: spacing.sm }} />
+              <Text style={[styles.dateText, { color: colors.text, fontSize: typography.sizes.md }]}>
+                {date.toDateString()}
+              </Text>
+            </Pressable>
+
+            {errors.date && (
+              <Text style={[styles.slotError, { color: colors.error }]}>{errors.date.message}</Text>
+            )}
+
+            <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.xs }]}>
+              Available Slots
+            </Text>
+
+            {selectedCenter && (
+              <Text style={[styles.slotHint, { color: colors.textSecondary, fontSize: typography.sizes.xs, fontStyle: 'italic', marginBottom: spacing.sm }]}>
+                Operating Hours: {selectedCenter.open_time || 'N/A'} - {selectedCenter.close_time || 'N/A'}
+              </Text>
+            )}
+
+            {slotsLoading ? (
+              <Text style={[styles.slotHint, { color: colors.textSecondary }]}>
+                Loading slots...
+              </Text>
+            ) : slotsError ? (
+              <Text style={[styles.slotError, { color: colors.error }]}>
+                {slotsError}
+              </Text>
+            ) : (
+              <View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.slotRow}
+                >
+                  {slotsToRender.map(slot => {
+                    const slotMin = timeToMinutes(slot);
+                    const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
+
+                    const pastSlot = isPastAppointmentSlot(
+                      appointmentDate,
+                      slot,
+                    );
+                    const booked = !availableSlots.includes(slot);
+
+                    const disabled = (selectedDoctorId && selectedDoctorId !== 'any')
+                      ? (!availableSlots.includes(slot) && selectedSlot !== slot) || pastSlot
+                      : (pastSlot || booked || !isWithinHours);
+                    const selected = selectedSlot === slot;
+
+                    return (
+                      <AnimatedSlotChip
+                        key={slot}
+                        slot={slot}
+                        selected={selected}
+                        disabled={disabled}
+                        onPress={() => handleSelectSlot(slot)}
+                        colors={colors}
+                        radius={radius}
+                        spacing={spacing}
+                        typography={typography}
+                        styles={styles}
+                      />
+                    );
+                  })}
+                </ScrollView>
+
+                {lockTimeLeft !== null && selectedSlot !== '' && (
+                  <View style={[styles.timerContainer, { backgroundColor: `${colors.warning}10`, borderColor: `${colors.warning}30`, borderWidth: 1, borderRadius: radius.lg, padding: spacing.sm, marginTop: spacing.md }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      <ShieldAlert size={16} color={colors.warning} />
+                      <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs, fontWeight: '700' }]}>
+                        Slot locked for {formatTimeLeft(lockTimeLeft)}. Book now!
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {errors.slot && (
+                  <Text style={[styles.slotError, { color: colors.error, marginTop: spacing.xs }]}>
+                    {errors.slot.message}
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                minimumDate={new Date()}
+                onChange={(
+                  _event,
+                  selectedDate,
+                ) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setValue('date', selectedDate, { shouldValidate: true });
+                    setValue('slot', '');
+                  }
+                }}
+              />
+            )}
+          </View>
+
+          {!slotsLoading && !slotsError && availableSlots.length === 0 && (
+            <Text style={[styles.slotHint, { color: colors.textSecondary, marginTop: spacing.sm }]}>
+              No available slots for this center on the selected date.
+            </Text>
+          )}
+
+          <AppButton
+            title="Confirm Booking"
+            loading={appointmentLoading}
+            disabled={appointmentLoading || selectedSlot === '' || slotsLoading}
+            onPress={handleSubmit(onBook)}
+            style={{ marginTop: spacing.lg }}
+          />
+        </ScrollView>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper>
@@ -416,17 +716,17 @@ const BookAppointmentScreen = () => {
               <ChevronLeft size={24} color={colors.primary} />
               <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>Back</Text>
             </Pressable>
-            
+
             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
-              Book Appointment
+              Book a Consultation
             </Text>
 
             <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md }]}>
-              Select a service to continue.
+              Select a department to continue.
             </Text>
-            
+
             {errors.serviceId && (
-              <Text style={[styles.slotError, { color: colors.error, fontSize: typography.sizes.xs }]}>
+              <Text style={[styles.slotError, { color: colors.error, fontSize: typography.sizes.xs, marginBottom: spacing.sm }]}>
                 {errors.serviceId.message}
               </Text>
             )}
@@ -434,12 +734,97 @@ const BookAppointmentScreen = () => {
         }
         ListEmptyComponent={
           <EmptyState
-            title="No Services"
-            subtitle="No services available for this center."
+            title="No Departments"
+            subtitle="No departments available for this clinic."
           />
         }
         ListFooterComponent={
           <View style={{ marginTop: spacing.md }}>
+
+            {/* ─── Doctor Selection (Phase B) ────────────────────────────── */}
+            {selectedServiceId !== '' && !doctorsLoading && doctors.length > 0 && (
+              <View style={{ marginBottom: spacing.lg }}>
+                <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
+                  Choose a Doctor
+                </Text>
+
+                {/* Any Available Doctor card */}
+                <Pressable
+                  onPress={() => setSelectedDoctorId('any')}
+                  style={({ pressed }) => [
+                    styles.doctorCard,
+                    {
+                      backgroundColor: selectedDoctorId === 'any' ? colors.primary + '08' : colors.surface,
+                      borderColor: selectedDoctorId === 'any' ? colors.primary : colors.border + '40',
+                      borderRadius: radius.xl,
+                      borderWidth: selectedDoctorId === 'any' ? 2 : 1,
+                      padding: spacing.md,
+                      marginBottom: spacing.sm,
+                    },
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <View style={[styles.doctorAvatarCircle, { backgroundColor: colors.primary + '12' }]}>
+                    <Users size={18} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[styles.doctorName, { color: colors.text, fontSize: typography.sizes.md }]}>
+                        Any Available Doctor
+                      </Text>
+                      <View style={[styles.recommendedBadge, { backgroundColor: colors.success + '15', borderColor: colors.success + '30' }]}>
+                        <Text style={{ color: colors.success, fontSize: typography.sizes.xs - 1, fontWeight: '700' }}>Fastest</Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.doctorSpec, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                      Assigned by the clinic on arrival
+                    </Text>
+                  </View>
+                  {selectedDoctorId === 'any' && (
+                    <UserCheck size={18} color={colors.primary} />
+                  )}
+                </Pressable>
+
+                {/* Individual doctor cards */}
+                {doctors.map(doc => (
+                  <Pressable
+                    key={doc.id}
+                    onPress={() => setSelectedDoctorId(doc.id)}
+                    style={({ pressed }) => [
+                      styles.doctorCard,
+                      {
+                        backgroundColor: selectedDoctorId === doc.id ? colors.primary + '08' : colors.surface,
+                        borderColor: selectedDoctorId === doc.id ? colors.primary : colors.border + '40',
+                        borderRadius: radius.xl,
+                        borderWidth: selectedDoctorId === doc.id ? 2 : 1,
+                        padding: spacing.md,
+                        marginBottom: spacing.sm,
+                      },
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <View style={[styles.doctorAvatarCircle, { backgroundColor: colors.primary + '12' }]}>
+                      <Stethoscope size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                      <Text style={[styles.doctorName, { color: colors.text, fontSize: typography.sizes.md }]}>
+                        {doc.name}
+                      </Text>
+                      {!!(doc.specialty || doc.specialization) && (
+                        <Text style={[styles.doctorSpec, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                          {doc.specialty || doc.specialization}
+                        </Text>
+                      )}
+                    </View>
+                    {selectedDoctorId === doc.id && (
+                      <UserCheck size={18} color={colors.primary} />
+                    )}
+                  </Pressable>
+                ))}
+              </View>
+            )}
+            {/* ───────────────────────────────────────────────────────────── */}
+
             <View style={styles.dateContainer}>
               <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.sm }]}>
                 Selected Date
@@ -451,7 +836,7 @@ const BookAppointmentScreen = () => {
                   {
                     backgroundColor: colors.surface,
                     borderColor: colors.border,
-                    borderWidth: 1.5,
+                    borderWidth: 1.2,
                     borderRadius: radius.xl,
                     padding: spacing.md,
                     marginBottom: spacing.md,
@@ -474,7 +859,7 @@ const BookAppointmentScreen = () => {
               <Text style={[styles.label, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.xs }]}>
                 Available Slots
               </Text>
-              
+
               {selectedCenter && (
                 <Text style={[styles.slotHint, { color: colors.textSecondary, fontSize: typography.sizes.xs, fontStyle: 'italic', marginBottom: spacing.sm }]}>
                   Operating Hours: {selectedCenter.open_time || 'N/A'} - {selectedCenter.close_time || 'N/A'}
@@ -496,70 +881,43 @@ const BookAppointmentScreen = () => {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.slotRow}
                   >
-                    {APPOINTMENT_SLOT_LABELS.map(slot => {
+                    {slotsToRender.map(slot => {
                       const slotMin = timeToMinutes(slot);
                       const isWithinHours = slotMin >= openMin && slotMin <= closeMin;
-                      
+
                       const pastSlot = isPastAppointmentSlot(
                         appointmentDate,
                         slot,
                       );
                       const booked = !availableSlots.includes(slot);
-                      
-                      const disabled = pastSlot || booked || !isWithinHours;
+
+                      const disabled = (selectedDoctorId && selectedDoctorId !== 'any')
+                        ? (!availableSlots.includes(slot) && selectedSlot !== slot) || pastSlot
+                        : (pastSlot || booked || !isWithinHours);
                       const selected = selectedSlot === slot;
 
                       return (
-                        <Pressable
+                        <AnimatedSlotChip
                           key={slot}
+                          slot={slot}
+                          selected={selected}
                           disabled={disabled}
                           onPress={() => handleSelectSlot(slot)}
-                          style={[
-                            styles.slotChip,
-                            {
-                              backgroundColor: colors.surface,
-                              borderColor: colors.border,
-                              borderRadius: radius.full,
-                              borderWidth: 1.5,
-                              paddingHorizontal: spacing.lg,
-                              paddingVertical: spacing.sm,
-                              marginRight: spacing.sm,
-                            },
-                            selected && {
-                              backgroundColor: colors.primary,
-                              borderColor: colors.primary,
-                            },
-                            disabled && {
-                              backgroundColor: colors.border + '50',
-                              borderColor: colors.border + '30',
-                              opacity: 0.5,
-                            },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.slotText,
-                              {
-                                color: colors.text,
-                                fontSize: typography.sizes.xs,
-                                fontWeight: '700',
-                              },
-                              selected && { color: '#FFF' },
-                              disabled && { color: colors.textSecondary },
-                            ]}
-                          >
-                            {slot}
-                          </Text>
-                        </Pressable>
+                          colors={colors}
+                          radius={radius}
+                          spacing={spacing}
+                          typography={typography}
+                          styles={styles}
+                        />
                       );
                     })}
                   </ScrollView>
-                  
+
                   {lockTimeLeft !== null && selectedSlot !== '' && (
-                    <View style={[styles.timerContainer, { backgroundColor: `${colors.warning}08`, borderColor: `${colors.warning}20`, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.md }]}>
+                    <View style={[styles.timerContainer, { backgroundColor: `${colors.warning}10`, borderColor: `${colors.warning}30`, borderWidth: 1, borderRadius: radius.lg, padding: spacing.sm, marginTop: spacing.md }]}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <ShieldAlert size={16} color={colors.warning} />
-                        <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs }]}>
+                        <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs, fontWeight: '700' }]}>
                           Slot locked for {formatTimeLeft(lockTimeLeft)}. Book now!
                         </Text>
                       </View>
@@ -579,7 +937,7 @@ const BookAppointmentScreen = () => {
                   value={date}
                   mode="date"
                   minimumDate={new Date()}
-                  onValueChange={(
+                  onChange={(
                     _event,
                     selectedDate,
                   ) => {
@@ -589,7 +947,6 @@ const BookAppointmentScreen = () => {
                       setValue('slot', '');
                     }
                   }}
-                  onDismiss={() => setShowDatePicker(false)}
                 />
               )}
             </View>
@@ -601,19 +958,11 @@ const BookAppointmentScreen = () => {
             )}
 
             <AppButton
-              title={
-                appointmentLoading
-                  ? 'Scheduling...'
-                  : 'Confirm Appointment'
-              }
+              title="Confirm Booking"
               loading={appointmentLoading}
-              disabled={
-                appointmentLoading ||
-                slotsLoading ||
-                centerServices.length === 0
-              }
+              disabled={appointmentLoading || selectedSlot === '' || slotsLoading}
+              onPress={handleSubmit(onBook)}
               style={{ marginTop: spacing.lg }}
-              onPress={handleSubmit(onSubmit)}
             />
           </View>
         }
@@ -626,7 +975,16 @@ export default BookAppointmentScreen;
 
 const styles = StyleSheet.create({
   header: {
+    marginBottom: hp(1),
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
     marginBottom: 8,
+  },
+  backButtonText: {
+    fontWeight: '700',
   },
   title: {
     fontWeight: '800',
@@ -636,21 +994,19 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     flexDirection: 'column',
-    alignItems: 'flex-start',
   },
   serviceHeader: {
-    alignItems: 'flex-start',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
+    alignItems: 'center',
   },
   serviceName: {
+    fontWeight: '800',
     flex: 1,
-    fontWeight: '700',
+    paddingRight: 10,
   },
   price: {
     fontWeight: '800',
-    flexShrink: 0,
   },
   description: {
     marginTop: 4,
@@ -659,16 +1015,17 @@ const styles = StyleSheet.create({
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
     marginTop: 8,
   },
   meta: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   dateContainer: {
-    marginTop: 8,
+    marginTop: hp(1),
   },
   label: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
   dateButton: {
     elevation: 1,
@@ -678,19 +1035,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   dateText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
   slotRow: {
     paddingVertical: 4,
   },
   slotChip: {
-    alignItems: 'center',
     justifyContent: 'center',
-    elevation: 1,
+    alignItems: 'center',
     shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
-    shadowRadius: 2,
+    shadowRadius: 4,
+    elevation: 1,
   },
   slotText: {
     textAlign: 'center',
@@ -701,21 +1058,35 @@ const styles = StyleSheet.create({
   slotError: {
     fontWeight: '600',
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  backButtonText: {
-    fontWeight: '600',
-  },
   timerContainer: {
-    // flat warning card style
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timerText: {
-    fontWeight: '700',
     textAlign: 'center',
+  },
+  doctorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  doctorAvatarCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doctorName: {
+    fontWeight: '800',
+  },
+  doctorSpec: {
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  recommendedBadge: {
+    borderWidth: 1,
+    borderRadius: 99,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
 });
