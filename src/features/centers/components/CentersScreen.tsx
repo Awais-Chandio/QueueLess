@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   FlatList,
+  Image,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
@@ -15,7 +16,7 @@ import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
 import Badge from '../../../components/ui/Badge';
 import Card from '../../../components/ui/Card';
-import { Hospital, MapPin } from 'lucide-react-native';
+import { Hospital, MapPin, Star } from 'lucide-react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
 
@@ -105,32 +106,39 @@ const CentersScreen = () => {
               ]}
               containerStyle={{ marginBottom: spacing.md }}
             >
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconContainer, { backgroundColor: colors.primary + '12', borderRadius: radius.md }]}>
-                  <Hospital size={22} color={colors.primary} />
+              {item.image_url ? (
+                <Image source={{ uri: item.image_url }} style={[styles.clinicImage, { borderRadius: radius.lg }]} />
+              ) : (
+                <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.lg }]}>
+                  <Hospital size={36} color={colors.primary} />
                 </View>
-                <View style={[styles.titleContainer, { marginLeft: spacing.md }]}>
+              )}
+
+              <View style={[styles.infoContainer, { marginTop: spacing.sm }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={[styles.name, { color: colors.text, fontSize: typography.sizes.md }]}>
                     {item.name}
                   </Text>
-                  <Text style={[styles.city, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-                    {item.city}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Star size={12} color="#FBBF24" fill="#FBBF24" />
+                    <Text style={{ fontSize: typography.sizes.xs, color: colors.text, fontWeight: '700' }}>4.8</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.addressContainer, { marginTop: spacing.xs }]}>
+                  <MapPin size={14} color={colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                  <Text style={[styles.address, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                    {item.address}, {item.city}
                   </Text>
                 </View>
-              </View>
 
-              <View style={[styles.addressContainer, { marginTop: spacing.md }]}>
-                <MapPin size={14} color={colors.textSecondary} style={{ marginRight: spacing.xs }} />
-                <Text style={[styles.address, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                  {item.address}
-                </Text>
-              </View>
-
-              {!!item.category && (
-                <View style={[styles.badgeContainer, { marginTop: spacing.sm }]}>
-                  <Badge label={item.category} variant="info" />
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: spacing.sm, flexWrap: 'wrap' }}>
+                  {!!item.category && <Badge label={item.category} variant="info" />}
+                  {!!item.open_time && !!item.close_time && (
+                    <Badge label={`${item.open_time} - ${item.close_time}`} variant="success" />
+                  )}
                 </View>
-              )}
+              </View>
             </Card>
           )}
         />
@@ -152,25 +160,21 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'column',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  clinicImage: {
+    width: '100%',
+    height: 140,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
+  clinicImagePlaceholder: {
+    width: '100%',
+    height: 140,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleContainer: {
-    flex: 1,
+  infoContainer: {
+    flexDirection: 'column',
   },
   name: {
     fontWeight: '800',
-  },
-  city: {
-    fontWeight: '600',
-    marginTop: 2,
   },
   addressContainer: {
     flexDirection: 'row',
@@ -178,8 +182,5 @@ const styles = StyleSheet.create({
   },
   address: {
     fontWeight: '500',
-  },
-  badgeContainer: {
-    flexDirection: 'row',
   },
 });

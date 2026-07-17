@@ -16,15 +16,14 @@ export function useDoctorsByService(centerId: string, serviceId: string) {
         .select(`
           doctors!inner(
             *,
-            doctor_availability!inner(*)
+            doctor_schedules!inner(*)
           )
         `)
         .eq('service_id', serviceId)
         .eq('doctors.center_id', centerId)
         .eq('doctors.is_active', true)
         .eq('doctors.status', 'active')
-        .eq('doctors.doctor_availability.day_of_week', today)
-        .eq('doctors.doctor_availability.is_available', true);
+        .eq('doctors.doctor_schedules.day_of_week', today);
         
       if (error) {
         console.error('Error fetching doctors by service:', error);

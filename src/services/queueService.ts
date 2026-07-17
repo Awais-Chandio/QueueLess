@@ -479,6 +479,37 @@ const getBackendQueueSnapshot = async (
     return null;
   }
 
+  // 1. Try to fetch directly from queue_updates table first
+  try {
+    const { data: qUpdate, error: qError } = await supabase
+      .from('queue_updates')
+      .select('*')
+      .eq('appointment_id', appointmentId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!qError && qUpdate) {
+      console.log('[QUEUE] Loaded directly from queue_updates table:', qUpdate);
+      return {
+        currentToken: qUpdate.current_serving_token ?? 0,
+        nextToken: null,
+        yourToken: null,
+        peopleAhead: qUpdate.people_ahead,
+        estimatedWaitMins: qUpdate.estimated_wait_mins,
+        currentPosition: qUpdate.current_position,
+        averageConsultationTime: null,
+        isOnBreak: false,
+        breakStart: null,
+        breakEnd: null,
+        queueStatus: qUpdate.status,
+      };
+    }
+  } catch (err) {
+    console.warn('[QUEUE] Direct queue_updates query error:', err);
+  }
+
+  // 2. Fallback to RPC
   console.log("RPC: get_appointment_queue_snapshot");
   console.log("RPC:", appointmentId);
   const { data, error } = await supabase.rpc('get_appointment_queue_snapshot', {
@@ -659,6 +690,18 @@ export const subscribeToAppointments = ({
       },
       payload => {
         console.log('[QUEUE APPOINTMENT UPDATE]', payload.new?.id);
+        onChange();
+      },
+    )
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'queue_updates',
+      },
+      payload => {
+        console.log('[QUEUE QUEUE_UPDATES EVENT]', (payload.new as any)?.id);
         onChange();
       },
     )

@@ -55,6 +55,8 @@ const ManageCentersScreen = () => {
   const [centerOpenTime, setCenterOpenTime] = useState('09:00 AM');
   const [centerCloseTime, setCenterCloseTime] = useState('05:00 PM');
   const [centerCategory, setCenterCategory] = useState('General');
+  const [centerLatitude, setCenterLatitude] = useState('');
+  const [centerLongitude, setCenterLongitude] = useState('');
 
   // Service form fields
   const [serviceName, setServiceName] = useState('');
@@ -114,6 +116,8 @@ const ManageCentersScreen = () => {
       setCenterOpenTime('09:00 AM');
       setCenterCloseTime('05:00 PM');
       setCenterCategory('General');
+      setCenterLatitude('');
+      setCenterLongitude('');
     } else {
       setServiceName('');
       setServiceAvgDuration('30');
@@ -132,6 +136,8 @@ const ManageCentersScreen = () => {
       setCenterOpenTime(item.open_time || '09:00 AM');
       setCenterCloseTime(item.close_time || '05:00 PM');
       setCenterCategory(item.category || 'General');
+      setCenterLatitude(item.latitude != null ? String(item.latitude) : '');
+      setCenterLongitude(item.longitude != null ? String(item.longitude) : '');
     } else {
       setServiceName(item.name || '');
       setServiceAvgDuration(String(item.avg_duration_mins || 30));
@@ -253,6 +259,8 @@ const ManageCentersScreen = () => {
         open_time: centerOpenTime.trim(),
         close_time: centerCloseTime.trim(),
         category: centerCategory.trim(),
+        latitude: centerLatitude.trim() ? parseFloat(centerLatitude.trim()) : null,
+        longitude: centerLongitude.trim() ? parseFloat(centerLongitude.trim()) : null,
       };
 
       try {
@@ -519,6 +527,20 @@ const ManageCentersScreen = () => {
                       placeholder="e.g. General, Dental"
                       value={centerCategory}
                       onChangeText={setCenterCategory}
+                    />
+                    <AppInput
+                      label="Latitude"
+                      placeholder="e.g. 24.8607"
+                      value={centerLatitude}
+                      onChangeText={setCenterLatitude}
+                      keyboardType="numeric"
+                    />
+                    <AppInput
+                      label="Longitude"
+                      placeholder="e.g. 67.0011"
+                      value={centerLongitude}
+                      onChangeText={setCenterLongitude}
+                      keyboardType="numeric"
                     />
                   </>
                 ) : (

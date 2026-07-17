@@ -107,7 +107,7 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
               </View>
               <View>
                 <Text style={styles.detailLabel}>Token</Text>
-                <Text style={[styles.detailValue, { color: colors.primary, fontWeight: '800' }]}>#{item.token_number}</Text>
+                <Text style={[styles.detailValue, { color: colors.primary, fontWeight: '800' }]}>A-{item.token_number}</Text>
               </View>
             </View>
           )}
@@ -115,7 +115,7 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
 
         {onPressQueue && ['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus) && !isExpired && !isNoShow && (
           <AppButton
-            title="View Live Queue"
+            title="Track Queue"
             variant="outline"
             onPress={onPressQueue}
             style={{ marginTop: spacing.md }}

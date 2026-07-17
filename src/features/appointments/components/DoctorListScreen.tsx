@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, FlatList, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Stethoscope } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
 
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import Loader from '../../../components/ui/Loader';
@@ -13,6 +13,7 @@ import DoctorCard from '../../../components/DoctorCard';
 import { useTheme } from '../../../hooks/useTheme';
 import { useDoctorsByService } from '../../../hooks/useDoctorsByService';
 import type { AppStackParamList } from '../../../navigation/types';
+import { supabase } from '../../../lib/supabase';
 
 type DoctorListRouteProp = RouteProp<AppStackParamList, 'DoctorList'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'DoctorList'>;
@@ -26,13 +27,48 @@ export const DoctorListScreen = () => {
 
   const { data: doctors, isLoading, error, refetch } = useDoctorsByService(centerId, serviceId);
 
+  const [availabilityMap, setAvailabilityMap] = useState<Record<string, any>>({});
+  const [availabilityLoading, setAvailabilityLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchBatchAvailability = async () => {
+      if (!doctors || doctors.length === 0) return;
+      try {
+        setAvailabilityLoading(true);
+        const doctorIds = doctors.map(d => d.id);
+        const { data, error: rpcErr } = await supabase.rpc('get_doctors_availability_batch', {
+          p_doctor_ids: doctorIds,
+        });
+
+        if (rpcErr) throw rpcErr;
+
+        const mapping: Record<string, any> = {};
+        if (data) {
+          data.forEach((item: any) => {
+            mapping[item.doctor_id] = item;
+          });
+        }
+        setAvailabilityMap(mapping);
+      } catch (err) {
+        console.warn('[DoctorList] Error fetching batch availability:', err);
+      } finally {
+        setAvailabilityLoading(false);
+      }
+    };
+
+    fetchBatchAvailability();
+  }, [doctors]);
+
   const handleSelectDoctor = (doctorId: string) => {
-    // Navigate to QueueStatus (which acts as the live queue preview screen before booking)
-    navigation.navigate('QueueStatus', {
+    navigation.navigate('PublicDoctorProfile', {
       centerId,
       serviceId,
       doctorId,
     });
+  };
+
+  const handleRefresh = async () => {
+    await refetch();
   };
 
   if (isLoading) {
@@ -50,7 +86,7 @@ export const DoctorListScreen = () => {
           title="Error Loading Doctors"
           message={error instanceof Error ? error.message : 'Unable to fetch doctors'}
           buttonTitle="Retry"
-          onRetry={refetch}
+          onRetry={handleRefresh}
         />
       </ScreenWrapper>
     );
@@ -85,9 +121,12 @@ export const DoctorListScreen = () => {
       <FlatList
         data={doctors}
         keyExtractor={item => item.id}
+        refreshing={isLoading || availabilityLoading}
+        onRefresh={handleRefresh}
         renderItem={({ item }) => (
           <DoctorCard
             doctor={item}
+            availability={availabilityMap[item.id] || null}
             onPress={() => handleSelectDoctor(item.id)}
           />
         )}

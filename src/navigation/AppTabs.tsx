@@ -2,8 +2,7 @@ import React, { useEffect } from "react";
 import { Platform, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useQueryClient } from "@tanstack/react-query";
-import HomeScreen from "../features/home/components/HomeScreen";
-import CentersScreen from "../features/centers/components/CentersScreen";
+import HomeScreen from "../screens/patient/HomeScreen";
 import MyAppointmentsScreen from "../features/appointments/components/MyAppointmentsScreen";
 import NotificationsScreen from "../features/notifications/components/NotificationsScreen";
 import ProfileScreen from "../features/profile/components/ProfileScreen";
@@ -261,16 +260,11 @@ const AppTabs = () => {
                 component={HomeScreen} 
                 options={{ tabBarIcon: HomeTabIcon }}
             />
-            <Tab.Screen 
-                name="Centers" 
-                component={CentersScreen} 
-                options={{ tabBarIcon: CentersTabIcon }}
-            />
             <Tab.Screen
                 name="MyAppointments"
                 component={MyAppointmentsScreen}
                 options={{ 
-                    title: "Appts",
+                    title: "Appointments",
                     tabBarIcon: AppointmentsTabIcon,
                 }}
             />
@@ -278,7 +272,7 @@ const AppTabs = () => {
                 name="Notifications" 
                 component={NotificationsScreen} 
                 options={{
-                    title: "Alerts",
+                    title: "Notifications",
                     tabBarIcon: AlertsTabIcon,
                     tabBarBadge:
                         unreadCount > 0
