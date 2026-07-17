@@ -9,7 +9,7 @@ export const firebasePhoneAuth = {
                 console.log('[firebasePhoneAuth] sendOTP started for:', phoneNumber);
             }
             const confirmation = await signInWithPhoneNumber(getAuth(), phoneNumber);
-            confirmationResult = confirmation;
+            confirmationResult = confirmation as any;
             return true;
         } catch (error: any) {
             if (__DEV__) {

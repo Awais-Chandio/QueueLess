@@ -233,3 +233,43 @@ export const getAppointmentTimeLabel = (
     minute: '2-digit',
   });
 };
+
+export const getPakistanDayOfWeek = (dateStr?: string): number => {
+  let date: Date;
+  if (dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  } else {
+    date = new Date();
+  }
+  const dayStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    weekday: 'short',
+  }).format(date);
+
+  const mapping: Record<string, number> = {
+    'Sun': 0,
+    'Mon': 1,
+    'Tue': 2,
+    'Wed': 3,
+    'Thu': 4,
+    'Fri': 5,
+    'Sat': 6,
+  };
+  return mapping[dayStr];
+};
+
+export const getPakistanTodayDateString = (): string => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+};
+

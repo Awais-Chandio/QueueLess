@@ -1,5 +1,6 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack"
+import OnboardingScreen from "../features/auth/components/OnboardingScreen";
 import LoginScreen from "../features/auth/components/LoginScreen";
 import SignupScreen from "../features/auth/components/SignupScreen";
 import ForgotPasswordScreen from "../features/auth/components/ForgotPasswordScreen";
@@ -9,6 +10,7 @@ import OTPVerificationScreen from "../features/auth/components/OTPVerificationSc
 import { useAuthStore } from "../store/authStore";
 
 export type AuthStackParamList = {
+    Onboarding: undefined;
     Login: undefined;
     Signup: undefined;
     ForgotPassword: undefined;
@@ -23,8 +25,9 @@ const AuthNavigator = () => {
 
     return (
         <Stack.Navigator
-            initialRouteName={isPasswordRecovery ? "ResetPassword" : "Login"}
+            initialRouteName={isPasswordRecovery ? "ResetPassword" : "Onboarding"}
             screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

@@ -4,7 +4,7 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  Pressable,
+  Image,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
@@ -12,10 +12,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import Loader from '../../../components/ui/Loader';
-import EmptyState from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
+import EmptyState from '../../../components/ui/EmptyState';
 import Badge from '../../../components/ui/Badge';
-import { MapPin, ChevronRight, Building2 } from 'lucide-react-native';
+import Card from '../../../components/ui/Card';
+import { Hospital, MapPin, Star } from 'lucide-react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
 
@@ -23,10 +24,7 @@ import type { AppStackParamList } from '../../../navigation/types';
 
 import { useCentersStore } from '../../../store/centersStore';
 
-type NavigationProp = NativeStackNavigationProp<
-  AppStackParamList,
-  'CenterDetails'
->;
+type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const CentersScreen = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -55,7 +53,7 @@ const CentersScreen = () => {
     return (
       <ScreenWrapper>
         <ErrorState
-          title="Failed To Load Centers"
+          title="Failed To Load Clinics"
           message={error}
           buttonTitle="Retry"
           onRetry={fetchCenters}
@@ -68,8 +66,8 @@ const CentersScreen = () => {
     return (
       <ScreenWrapper>
         <EmptyState
-          title="No Centers Found"
-          subtitle="No centers available right now"
+          title="No Clinics Found"
+          subtitle="No clinics available right now"
           buttonTitle="Reload"
           onButtonPress={fetchCenters}
         />
@@ -81,7 +79,7 @@ const CentersScreen = () => {
     <ScreenWrapper>
       <View style={styles.container}>
         <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.lg }]}>
-          Service Centers
+          Clinics
         </Text>
 
         <FlatList
@@ -90,24 +88,7 @@ const CentersScreen = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: spacing.xl }}
           renderItem={({ item }) => (
-            <Pressable
-              style={({ pressed }) => [
-                styles.card,
-                {
-                  backgroundColor: colors.surface,
-                  borderRadius: radius.lg,
-                  borderColor: colors.border,
-                  borderWidth: 1,
-                  padding: spacing.lg,
-                  marginBottom: spacing.md,
-                  shadowColor: colors.text,
-                  shadowOffset: { width: 0, height: 4 },
-                  shadowOpacity: pressed ? 0.02 : 0.04,
-                  shadowRadius: 12,
-                  elevation: 2,
-                },
-                pressed && { opacity: 0.95 }
-              ]}
+            <Card
               onPress={() =>
                 navigation.navigate(
                   'CenterDetails',
@@ -115,36 +96,50 @@ const CentersScreen = () => {
                     centerId: item.id,
                   },
                 )
-              }>
-              <View style={styles.cardHeader}>
-                <View style={[styles.iconContainer, { backgroundColor: colors.primary + '10' }]}>
-                  <Building2 size={20} color={colors.primary} />
+              }
+              variant="elevated"
+              style={[
+                styles.card,
+                {
+                  padding: spacing.md,
+                },
+              ]}
+              containerStyle={{ marginBottom: spacing.md }}
+            >
+              {item.image_url ? (
+                <Image source={{ uri: item.image_url }} style={[styles.clinicImage, { borderRadius: radius.lg }]} />
+              ) : (
+                <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.lg }]}>
+                  <Hospital size={36} color={colors.primary} />
                 </View>
-                <View style={styles.headerDetails}>
+              )}
+
+              <View style={[styles.infoContainer, { marginTop: spacing.sm }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Text style={[styles.name, { color: colors.text, fontSize: typography.sizes.md }]}>
                     {item.name}
                   </Text>
-                  {!!item.category && (
-                    <Badge label={item.category} variant="info" style={{ marginTop: spacing.xs }} />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Star size={12} color="#FBBF24" fill="#FBBF24" />
+                    <Text style={{ fontSize: typography.sizes.xs, color: colors.text, fontWeight: '700' }}>4.8</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.addressContainer, { marginTop: spacing.xs }]}>
+                  <MapPin size={14} color={colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                  <Text style={[styles.address, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                    {item.address}, {item.city}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: spacing.sm, flexWrap: 'wrap' }}>
+                  {!!item.category && <Badge label={item.category} variant="info" />}
+                  {!!item.open_time && !!item.close_time && (
+                    <Badge label={`${item.open_time} - ${item.close_time}`} variant="success" />
                   )}
                 </View>
-                <ChevronRight size={20} color={colors.textSecondary} />
               </View>
-
-              <View style={[styles.separator, { backgroundColor: colors.border + '50', marginVertical: spacing.md }]} />
-
-              <View style={styles.locationContainer}>
-                <MapPin size={16} color={colors.primary} style={{ marginRight: spacing.xs }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cityText, { color: colors.text, fontSize: typography.sizes.sm }]}>
-                    {item.city}
-                  </Text>
-                  <Text style={[styles.addressText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                    {item.address}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
+            </Card>
           )}
         />
       </View>
@@ -160,42 +155,32 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '800',
+    letterSpacing: 0.3,
   },
   card: {
     flexDirection: 'column',
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  clinicImage: {
+    width: '100%',
+    height: 140,
   },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  clinicImagePlaceholder: {
+    width: '100%',
+    height: 140,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerDetails: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center',
+  infoContainer: {
+    flexDirection: 'column',
   },
   name: {
-    fontWeight: '700',
+    fontWeight: '800',
   },
-  separator: {
-    height: 1,
-    width: '100%',
-  },
-  locationContainer: {
+  addressContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
   },
-  cityText: {
-    fontWeight: '600',
-  },
-  addressText: {
-    marginTop: 2,
-    lineHeight: 16,
+  address: {
+    fontWeight: '500',
   },
 });

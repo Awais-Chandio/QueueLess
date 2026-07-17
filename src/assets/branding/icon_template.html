@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>QueueLess Premium App Icon</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #F1F5F9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .icon-container {
+      width: 512px;
+      height: 512px;
+      background: linear-gradient(135deg, #0A3D91 0%, #1565FF 52%, #3B82F6 100%);
+      border-radius: 110px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.45);
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    .icon-container::before {
+      content: '';
+      position: absolute;
+      width: 450px;
+      height: 450px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(94, 234, 212, 0.22) 0%, rgba(20, 184, 166, 0) 70%);
+      pointer-events: none;
+    }
+    .logo-svg {
+      width: 325px;
+      height: 325px;
+      filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.35));
+    }
+  </style>
+</head>
+<body>
+  <div class="icon-container">
+    <svg class="logo-svg" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M256 70C336 70 400 135 400 215C400 311 256 425 256 425C256 425 112 311 112 215C112 135 176 70 256 70Z"
+        stroke="#FFFFFF"
+        stroke-width="30"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      
+      <path
+        d="M339 332C367 359 393 389 428 409"
+        stroke="#FFFFFF"
+        stroke-width="30"
+        stroke-linecap="round"
+      />
+      
+      <circle cx="256" cy="213" r="82" stroke="#FFFFFF" stroke-width="19" opacity="0.42" />
+      <path
+        d="M256 156V270M199 213H313"
+        stroke="#93C5FD"
+        stroke-width="29"
+        stroke-linecap="round"
+      />
+      <path
+        d="M159 304H204L224 263L256 358L287 226L312 304H353"
+        stroke="#93C5FD"
+        stroke-width="24"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <circle cx="159" cy="304" r="13" fill="#93C5FD" />
+      <circle cx="353" cy="304" r="13" fill="#93C5FD" />
+    </svg>
+  </div>
+</body>
+</html>

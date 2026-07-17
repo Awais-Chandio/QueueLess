@@ -17,7 +17,7 @@ export const accountService = {
           data: {
             full_name: payload.name,
             role: payload.role,
-            center_id: payload.role === 'staff' ? payload.centerId : undefined,
+            center_id: (payload.role === 'staff' || payload.role === 'doctor') ? payload.centerId : undefined,
           },
         },
       });
@@ -40,7 +40,7 @@ export const accountService = {
           full_name: payload.name,
           email: payload.email,
           role: payload.role,
-          center_id: payload.role === 'staff' ? (payload.centerId || null) : null,
+          center_id: (payload.role === 'staff' || payload.role === 'doctor') ? (payload.centerId || null) : null,
         });
 
       if (profileError) {

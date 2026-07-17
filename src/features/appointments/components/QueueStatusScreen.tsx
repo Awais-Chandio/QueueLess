@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Alert, Pressable, Platform } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+  withSequence,
+} from 'react-native-reanimated';
 import {
   useRoute,
   useIsFocused,
@@ -7,6 +14,7 @@ import {
 } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import AppButton from '../../../components/ui/AppButton';
+import Loader from '../../../components/ui/Loader';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import { Card } from '../../../components/ui/Card';
@@ -14,11 +22,11 @@ import { StatusChip } from '../../../components/ui/StatusChip';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { CircularProgress } from '../../../components/ui/CircularProgress';
-import { CardFadeIn } from '../../../components/animations/CardFadeIn';
+import AnimatedCard from '../../../components/ui/AnimatedCard';
 import { useTheme } from '../../../hooks/useTheme';
-import { appointmentsService } from '../api/appointmentsService';
-import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue';
-import { useAppointmentsStore } from '../../../store/appointmentsStore';
+import { appointmentService } from '../../../services/appointmentService';
+import { useQueue } from '../../../hooks/useQueue';
+import { useAppointmentsStore } from '../../../store/appointmentStore';
 import type { AppStackParamList } from '../../../navigation/types';
 import type { AppointmentFull } from '../../../types/appointment';
 import {
@@ -29,15 +37,18 @@ import {
   BellRing,
   Calendar,
   CircleDot,
-  Clock,
   Info,
   MapPin,
-  Users,
   Hash,
   CheckCircle2,
   ChevronLeft,
+  Stethoscope,
+  Hourglass,
 } from 'lucide-react-native';
-import { scaleFont } from '../../../utils/responsive';
+import { Image } from 'react-native';
+import { supabase } from '../../../lib/supabase';
+import type { DoctorAvailabilityStatus } from '../../../types/doctor';
+import { scaleFont, wp } from '../../../utils/responsive';
 import { toastService } from '../../../services/toastService';
 import {
   formatWaitDuration,
@@ -45,19 +56,124 @@ import {
   getAppointmentDateLabel,
   getAppointmentTimeLabel,
   getMinutesUntilAppointment,
+  getPakistanTodayDateString,
 } from '../utils/appointmentTime';
 
 type QueueStatusRouteProp = RouteProp<AppStackParamList, 'QueueStatus'>;
 
 const QueueStatusScreen = () => {
   const route = useRoute<QueueStatusRouteProp>();
-  const navigation = useNavigation();
-  const { appointmentId } = route.params;
+  const navigation = useNavigation<any>();
+  const appointmentId = route.params?.appointmentId;
+  const doctorId = route.params?.doctorId;
+  const centerId = route.params?.centerId;
+  const serviceId = route.params?.serviceId;
+
   const { colors, spacing, typography, radius } = useTheme();
   const isFocused = useIsFocused();
+  const pulseVal = useSharedValue(1);
+
+  useEffect(() => {
+    pulseVal.value = withRepeat(
+      withSequence(
+        withTiming(1.25, { duration: 1000 }),
+        withTiming(1, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
+  }, [pulseVal]);
+
+  const pulseStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: pulseVal.value }],
+      opacity: 0.35 * (1.25 - pulseVal.value) / 0.25,
+    };
+  });
 
   const [appointment, setAppointment] = useState<AppointmentFull | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!doctorId);
+
+  // Doctor preview queue state
+  const [doctor, setDoctor] = useState<any>(null);
+  const [doctorQueue, setDoctorQueue] = useState<any>(null);
+  const [doctorAvailability, setDoctorAvailability] = useState<any>(null);
+  const [doctorLoading, setDoctorLoading] = useState(!!doctorId);
+
+  const fetchDoctorQueueData = useCallback(async () => {
+    const isUuid = typeof doctorId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doctorId);
+    if (!isUuid) {
+      console.warn("fetchDoctorQueueData skipped: doctorId is not a valid UUID:", doctorId);
+      return;
+    }
+    try {
+      setDoctorLoading(true);
+      // Fetch Doctor Details
+      const { data: docData, error: docErr } = await supabase
+        .from('doctors')
+        .select('*')
+        .eq('id', doctorId)
+        .single();
+      if (docErr) throw docErr;
+      setDoctor(docData);
+
+      // Fetch Doctor Queue Snapshot
+      console.log("RPC: get_doctor_queue_snapshot");
+      console.log("RPC:", doctorId);
+      const { data: qData, error: qErr } = await supabase
+        .rpc('get_doctor_queue_snapshot', {
+          p_doctor_id: doctorId,
+          p_queue_date: getPakistanTodayDateString()
+        });
+      console.log(qData, qErr);
+      if (qErr) throw qErr;
+      setDoctorQueue(qData);
+
+      // Fetch Doctor Availability
+      console.log("RPC: get_doctor_availability");
+      console.log("RPC:", doctorId);
+      const { data: availData, error: availErr } = await supabase
+        .rpc('get_doctor_availability', {
+          p_doctor_id: doctorId
+        });
+      console.log(availData, availErr);
+      if (availErr) throw availErr;
+      setDoctorAvailability(availData && availData.length > 0 ? availData[0] : null);
+
+    } catch (err) {
+      console.error('Failed to fetch doctor queue preview:', err);
+    } finally {
+      setDoctorLoading(false);
+    }
+  }, [doctorId]);
+
+  useEffect(() => {
+    if (doctorId && isFocused) {
+      fetchDoctorQueueData();
+
+      // Realtime subscription on appointments for this doctor to auto-refresh queue
+      const channel = supabase
+        .channel(`doctor-queue-realtime-${doctorId}`)
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'appointments', filter: `doctor_id=eq.${doctorId}` },
+          () => fetchDoctorQueueData()
+        )
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'doctors', filter: `id=eq.${doctorId}` },
+          () => fetchDoctorQueueData()
+        )
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'queue_updates' },
+          () => fetchDoctorQueueData()
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [doctorId, isFocused, fetchDoctorQueueData]);
+
   const checkInAppointment = useAppointmentsStore(
     state => state.checkInAppointment,
   );
@@ -68,8 +184,9 @@ const QueueStatusScreen = () => {
   const cancellingId = useAppointmentsStore(state => state.cancellingId);
 
   const fetchAppointment = useCallback(async () => {
+    if (!appointmentId) return;
     try {
-      const data = await appointmentsService.fetchAppointmentById(
+      const data = await appointmentService.fetchAppointmentById(
         appointmentId,
       );
       setAppointment(data);
@@ -80,15 +197,15 @@ const QueueStatusScreen = () => {
   }, [appointmentId]);
 
   useEffect(() => {
-    fetchAppointment();
-  }, [fetchAppointment]);
+    if (appointmentId) {
+      fetchAppointment();
+    }
+  }, [appointmentId, fetchAppointment]);
 
   const {
     queueData,
-    loading: queueLoading,
-    error: queueError,
     refresh: refreshQueue,
-  } = useRealtimeQueue(
+  } = useQueue(
     appointment?.token_number ?? null,
     fetchAppointment,
     {
@@ -96,13 +213,221 @@ const QueueStatusScreen = () => {
       centerId: appointment?.center_id,
       scheduledAt: appointment?.scheduled_at,
     },
-    isFocused,
+    isFocused && !doctorId,
   );
 
+  // If viewing doctor queue preview
+  if (doctorId) {
+    if (doctorLoading) {
+      return (
+        <ScreenWrapper>
+          <Loader message="Loading live doctor queue..." />
+        </ScreenWrapper>
+      );
+    }
+
+    if (!doctor || !doctorQueue) {
+      return (
+        <ScreenWrapper>
+          <EmptyState
+            title="Queue Preview Unavailable"
+            subtitle="Unable to load this doctor's live queue details."
+            buttonTitle="Go Back"
+            onButtonPress={() => navigation.goBack()}
+          />
+        </ScreenWrapper>
+      );
+    }
+
+    const isDoctorOnBreak = doctorQueue.is_on_break;
+    const currentServingToken = doctorQueue.current_token;
+    const nextToken = doctorQueue.next_token;
+    const averageConsultationTime = doctorQueue.average_consultation_time;
+    const status = (doctorAvailability?.status || 'available') as DoctorAvailabilityStatus;
+    const waitMins = doctorAvailability?.estimated_wait_minutes || 0;
+
+    const statusLabel =
+      status === 'available' ? 'Available' :
+      status === 'busy' ? 'Busy' :
+      status === 'on_break' ? 'On Break' :
+      status === 'on_leave' ? 'On Leave' :
+      status === 'not_working' ? 'Not Working' :
+      status === 'fully_booked' ? 'Fully Booked' : 'Offline';
+
+    const statusChipStatus: any =
+      isDoctorOnBreak ? 'doctor_on_break' :
+      status === 'available' ? 'confirmed' :
+      status === 'busy' ? 'warning' :
+      status === 'on_break' ? 'doctor_on_break' :
+      status === 'on_leave' ? 'cancelled' :
+      status === 'not_working' ? 'pending' :
+      status === 'fully_booked' ? 'error' : 'default';
+
+    const queueHelperText =
+      isDoctorOnBreak ? `Dr. ${doctor.name} is currently on break. You can still book, but consultations will resume after the break.` :
+      status === 'on_leave' ? `Dr. ${doctor.name} is on leave today.` :
+      status === 'not_working' ? `Dr. ${doctor.name} is not working today.` :
+      status === 'fully_booked' ? `Dr. ${doctor.name} is fully booked for today.` :
+      status === 'busy' ? 'High volume of tokens. Expect longer wait times.' :
+      `You can book token #${nextToken} now. Expected wait is about ${waitMins} minutes.`;
+
+    const canBook = status !== 'fully_booked' && status !== 'on_leave' && status !== 'not_working';
+
+    return (
+      <ScreenWrapper scrollable>
+        <View style={[styles.container, { paddingHorizontal: wp(1) }]}>
+          {/* Header row */}
+          <AnimatedCard delay={0}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <ChevronLeft size={24} color={colors.primary} />
+              <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+                Back
+              </Text>
+            </Pressable>
+
+            <View style={{ marginBottom: spacing.lg, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm }}>
+              <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl }]}>
+                Live Queue
+              </Text>
+              <StatusChip status={statusChipStatus} label={statusLabel} />
+            </View>
+          </AnimatedCard>
+
+          {/* Doctor Info Card */}
+          <AnimatedCard delay={60}>
+            <Card style={{ marginBottom: spacing.md, padding: spacing.md, borderRadius: 16 }}>
+              <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                {doctor.photo_url ? (
+                  <Image source={{ uri: doctor.photo_url }} style={{ width: 50, height: 50, borderRadius: radius.md }} />
+                ) : (
+                  <View style={{ width: 50, height: 50, backgroundColor: colors.primaryLight, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' }}>
+                    <Stethoscope size={20} color={colors.primary} />
+                  </View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }}>
+                    {doctor.name}
+                  </Text>
+                  <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>
+                    {doctor.specialty}
+                  </Text>
+                  {doctor.qualification && (
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+                      {doctor.qualification}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </Card>
+          </AnimatedCard>
+
+          {/* Live Queue status Card */}
+          <AnimatedCard delay={120}>
+            <Card style={{ marginBottom: spacing.lg, padding: spacing.md, borderRadius: 20 }}>
+              {isDoctorOnBreak && (
+                <View style={[styles.breakBanner, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}30`, borderWidth: 1, padding: spacing.sm, borderRadius: radius.md, marginBottom: spacing.md }]}>
+                  <Text style={{ color: colors.warning, fontWeight: '700', fontSize: typography.sizes.xs }}>
+                    Dr. {doctor.name} is on a break
+                  </Text>
+                </View>
+              )}
+
+              <View style={{ alignItems: 'center', justifyContent: 'center', marginVertical: spacing.md }}>
+                <CircularProgress
+                  progress={0}
+                  size={scaleFont(110)}
+                  strokeWidth={scaleFont(8)}
+                  color={colors.primary}
+                  trackColor={colors.border + '30'}
+                  centerLabel={currentServingToken ? `#${currentServingToken}` : '--'}
+                  centerCaption="Serving"
+                  centerLabelColor={colors.text}
+                  centerCaptionColor={colors.textSecondary}
+                />
+              </View>
+
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, textAlign: 'center', marginHorizontal: spacing.md, lineHeight: 16 }}>
+                {queueHelperText}
+              </Text>
+
+              {/* Token boxes */}
+              <View style={[styles.tokenSummary, { marginTop: spacing.lg }]}>
+                <Card variant="flat" style={[styles.tokenBox, { backgroundColor: colors.border + '30' }]}>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs - 1, fontWeight: '700', textTransform: 'uppercase' }}>
+                    Currently Serving
+                  </Text>
+                  <Text style={{ color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800', marginTop: scaleFont(4) }}>
+                    {currentServingToken != null ? `#${currentServingToken}` : '--'}
+                  </Text>
+                </Card>
+                <Card variant="flat" style={[styles.tokenBox, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30', borderWidth: 1 }]}>
+                  <Text style={{ color: colors.primary, fontSize: typography.sizes.xs - 1, fontWeight: '700', textTransform: 'uppercase' }}>
+                    Next Token
+                  </Text>
+                  <Text style={{ color: colors.primary, fontSize: typography.sizes.xxl, fontWeight: '800', marginTop: scaleFont(4) }}>
+                    {nextToken != null ? `#${nextToken}` : '--'}
+                  </Text>
+                </Card>
+              </View>
+
+              {/* Queue metric rows */}
+              <View style={[styles.queueCardRows, { marginTop: spacing.xl }]}>
+                <View style={[styles.queueCardRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
+                  <View style={[styles.metricIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                    <CircleDot color={colors.primary} size={scaleFont(16)} />
+                  </View>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, flex: 1, fontWeight: '600' }}>
+                    Consultation Avg
+                  </Text>
+                  <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }}>
+                    {averageConsultationTime ? `${Math.round(averageConsultationTime)} min` : '10 min'}
+                  </Text>
+                </View>
+
+                <View style={styles.queueCardRow}>
+                  <View style={[styles.metricIconPill, { backgroundColor: `${colors.primary}12` }]}>
+                    <Hourglass color={colors.primary} size={scaleFont(16)} />
+                  </View>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, flex: 1, fontWeight: '600' }}>
+                    Est. Wait Time
+                  </Text>
+                  <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }}>
+                    {waitMins} mins
+                  </Text>
+                </View>
+              </View>
+
+              {/* Book Token Button */}
+              <AppButton
+                title={canBook ? "Book Token" : "Booking Unavailable"}
+                disabled={!canBook}
+                onPress={() => {
+                  navigation.navigate('BookAppointment', {
+                    centerId,
+                    serviceId,
+                    doctorId,
+                  });
+                }}
+                style={{ marginTop: spacing.lg }}
+              />
+            </Card>
+          </AnimatedCard>
+        </View>
+      </ScreenWrapper>
+    );
+  }
+
+  // Normal appointment mode logic starts here:
   if (loading) {
     return (
       <ScreenWrapper>
-        <View style={{ gap: spacing.md }}>
+        <View style={{ gap: spacing.md, padding: spacing.md }}>
           <Skeleton height={200} borderRadius={radius.lg} />
           <Skeleton height={150} borderRadius={radius.lg} />
           <Skeleton height={140} borderRadius={radius.lg} />
@@ -148,24 +473,24 @@ const QueueStatusScreen = () => {
     appointmentDateTime.getTime() < now.getTime();
   const showQueueMetrics =
     appointmentStarted &&
-    !appointmentTimePassed &&
+    -appointmentTimePassed &&
     status !== 'cancelled' &&
     status !== 'completed' &&
     !isExpired &&
     !isNoShow;
   const queueStatusLabel = isDoctorOnBreak
-    ? 'Service on Break'
+    ? 'Department on Break'
     : status === 'called' || status === 'in_progress'
-    ? 'Called'
-    : status === 'checked_in'
-    ? 'Arrived'
-    : status === 'completed'
-    ? 'Completed'
-    : status === 'cancelled'
-    ? 'Cancelled'
-    : appointmentTimePassed
-    ? 'Time Passed'
-    : 'Scheduled';
+      ? 'Called'
+      : status === 'checked_in'
+        ? 'Arrived'
+        : status === 'completed'
+          ? 'Completed'
+          : status === 'cancelled'
+            ? 'Cancelled'
+            : appointmentTimePassed
+              ? 'Time Passed'
+              : 'Scheduled';
   const hasQueueMetrics = queueData != null;
   const canCheckIn = appointment.status === 'confirmed';
   const checkingIn = checkingInId === appointmentId;
@@ -175,7 +500,7 @@ const QueueStatusScreen = () => {
 
   const handleCheckIn = async () => {
     try {
-      const updatedAppointment = await checkInAppointment(appointmentId);
+      const updatedAppointment = await checkInAppointment(appointment.id);
       await refreshQueue();
       setAppointment(updatedAppointment);
       toastService.success('Successfully checked in.');
@@ -200,7 +525,7 @@ const QueueStatusScreen = () => {
           onPress: async () => {
             try {
               const updatedAppointment = await cancelAppointment(
-                appointmentId,
+                appointment.id,
                 'Patient Requested',
               );
               setAppointment(updatedAppointment);
@@ -223,10 +548,10 @@ const QueueStatusScreen = () => {
   const estimatedWaitLabel = appointmentTimePassed
     ? '--'
     : showQueueMetrics
-    ? waitMins != null
-      ? `${waitMins} min`
-      : '--'
-    : formatWaitDuration(minutesUntilAppointment);
+      ? waitMins != null
+        ? `${waitMins} min`
+        : '--'
+      : formatWaitDuration(minutesUntilAppointment);
   const peopleAheadLabel = showQueueMetrics ? `${peopleAhead}` : '--';
   const currentPositionLabel = showQueueMetrics
     ? `${currentPosition ?? '--'}`
@@ -251,26 +576,26 @@ const QueueStatusScreen = () => {
   const queueHelperText = isNoShow
     ? 'You missed your 15-minute check-in grace period. The appointment is marked as No-Show.'
     : isExpired
-    ? 'This appointment slot has expired.'
-    : appointmentTimePassed
-    ? 'This appointment time has passed. Please contact the clinic.'
-    : !showQueueMetrics
-    ? `Appointment starts at ${getAppointmentTimeLabel(appointment)}.`
-    : !hasQueueMetrics
-    ? 'Waiting for live queue data...'
-    : isDoctorOnBreak
-    ? 'Service is on break. Your position is saved and ETA will resume after the break.'
-    : status === 'called' || status === 'in_progress'
-    ? 'Your token has been called. Please proceed to the counter.'
-    : peopleAhead === 0
-    ? "You're next!"
-    : `${peopleAhead} ${peopleAhead === 1 ? 'person' : 'people'} ahead of you`;
+      ? 'This appointment slot has expired.'
+      : appointmentTimePassed
+        ? 'This appointment time has passed. Please contact the clinic.'
+        : !showQueueMetrics
+          ? `Appointment starts at ${getAppointmentTimeLabel(appointment)}.`
+          : !hasQueueMetrics
+            ? 'Waiting for live queue data...'
+            : isDoctorOnBreak
+              ? 'Service is on break. Your position is saved and ETA will resume after the break.'
+              : status === 'called' || status === 'in_progress'
+                ? 'Your token has been called. Please proceed to the counter.'
+                : peopleAhead === 0
+                  ? "You're next!"
+                  : `${peopleAhead} ${peopleAhead === 1 ? 'person' : 'people'} ahead of you`;
 
   return (
     <ScreenWrapper scrollable>
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingHorizontal: wp(1) }]}>
         {/* Header row */}
-        <CardFadeIn delay={0}>
+        <AnimatedCard delay={0}>
           <Pressable
             onPress={() => navigation.goBack()}
             style={({ pressed }) => [
@@ -313,17 +638,17 @@ const QueueStatusScreen = () => {
             </Text>
             <StatusChip status={status} label={statusLabel} />
           </View>
-        </CardFadeIn>
+        </AnimatedCard>
 
         {/* Circular Progress Card */}
-        <CardFadeIn delay={60}>
-          <Card style={{ marginBottom: spacing.lg }}>
+        <AnimatedCard delay={60}>
+          <Card style={{ marginBottom: spacing.lg, padding: spacing.md, borderRadius: 20 }}>
             {isDoctorOnBreak && (
               <View
                 style={[
                   styles.breakBanner,
                   {
-                    backgroundColor: `${colors.warning}10`,
+                    backgroundColor: `${colors.warning}12`,
                     borderColor: `${colors.warning}30`,
                     marginBottom: spacing.md,
                     borderRadius: radius.md,
@@ -339,7 +664,7 @@ const QueueStatusScreen = () => {
                       fontWeight: '800',
                     }}
                   >
-                    Service on Break
+                    Department on Break
                   </Text>
                   <Text
                     style={{
@@ -355,68 +680,84 @@ const QueueStatusScreen = () => {
             )}
 
             <View style={styles.circularSection}>
-              <CircularProgress
-                progress={circularProgress}
-                size={scaleFont(120)}
-                strokeWidth={scaleFont(8)}
-                color={
-                  status === 'called' || status === 'in_progress'
-                    ? colors.warning
-                    : status === 'checked_in'
-                    ? colors.success
-                    : colors.primary
-                }
-                trackColor={colors.border + '50'}
-                centerLabel={showQueueMetrics ? peopleAheadLabel : '--'}
-                centerCaption="Ahead"
-                centerLabelColor={colors.text}
-                centerCaptionColor={colors.textSecondary}
-              />
+              <View style={{ alignItems: 'center', justifyContent: 'center', position: 'relative', width: scaleFont(120), height: scaleFont(120) }}>
+                {(status === 'called' || status === 'in_progress') && (
+                  <Animated.View
+                    style={[
+                      {
+                        position: 'absolute',
+                        width: scaleFont(112),
+                        height: scaleFont(112),
+                        borderRadius: scaleFont(56),
+                        backgroundColor: colors.warning,
+                      },
+                      pulseStyle,
+                    ]}
+                  />
+                )}
+                <CircularProgress
+                  progress={circularProgress}
+                  size={scaleFont(110)}
+                  strokeWidth={scaleFont(8)}
+                  color={
+                    status === 'called' || status === 'in_progress'
+                      ? colors.warning
+                      : status === 'checked_in'
+                        ? colors.primary
+                        : colors.primary
+                  }
+                  trackColor={colors.border + '30'}
+                  centerLabel={showQueueMetrics ? peopleAheadLabel : '--'}
+                  centerCaption="Ahead"
+                  centerLabelColor={colors.text}
+                  centerCaptionColor={colors.textSecondary}
+                />
+              </View>
               <View style={styles.circularMeta}>
-                <View style={[styles.metaDataRow, { backgroundColor: colors.border + '12', borderRadius: radius.md, padding: spacing.sm }]}>
+                <View style={[styles.metaDataRow, { backgroundColor: colors.border + '15', borderRadius: radius.md, padding: spacing.sm }]}>
                   <Text
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs - 1,
-                      fontWeight: '600',
+                      fontWeight: '700',
                       textTransform: 'uppercase',
                     }}
                   >
-                    Est. Wait
+                    Estimated Waiting
                   </Text>
                   <Text
                     style={{
                       color: colors.text,
-                      fontSize: typography.sizes.lg,
+                      fontSize: typography.sizes.md,
                       fontWeight: '800',
                       marginTop: 2,
                     }}
                   >
-                    {estimatedWaitLabel}
+                    {estimatedWaitLabel.includes('min') ? estimatedWaitLabel.replace('min', 'minutes') : estimatedWaitLabel}
                   </Text>
                 </View>
                 <View
-                  style={[styles.metaDataRow, { backgroundColor: colors.border + '12', borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.xs }]}
+                  style={[styles.metaDataRow, { backgroundColor: colors.border + '15', borderRadius: radius.md, padding: spacing.sm, marginTop: spacing.xs }]}
                 >
                   <Text
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs - 1,
-                      fontWeight: '600',
+                      fontWeight: '700',
                       textTransform: 'uppercase',
                     }}
                   >
-                    Queue Position
+                    Patients Ahead
                   </Text>
                   <Text
                     style={{
                       color: colors.text,
-                      fontSize: typography.sizes.lg,
+                      fontSize: typography.sizes.md,
                       fontWeight: '800',
                       marginTop: 2,
                     }}
                   >
-                    {currentPositionLabel}
+                    {peopleAheadLabel}
                   </Text>
                 </View>
               </View>
@@ -432,34 +773,28 @@ const QueueStatusScreen = () => {
                 fontSize: typography.sizes.xs,
                 marginTop: spacing.md,
                 textAlign: 'center',
-                fontWeight: '500',
+                fontWeight: '600',
               }}
             >
               {queueHelperText}
             </Text>
           </Card>
-        </CardFadeIn>
+        </AnimatedCard>
 
         {/* Token + Queue Metrics Card */}
-        <CardFadeIn delay={120}>
-          <Card style={{ marginBottom: spacing.lg }}>
+        <AnimatedCard delay={120}>
+          <Card style={{ marginBottom: spacing.lg, padding: spacing.md, borderRadius: 20 }}>
             {/* Token boxes */}
             <View style={styles.tokenSummary}>
-              <View
-                style={[
-                  styles.tokenBox,
-                  {
-                    backgroundColor: colors.border + '15',
-                    borderColor: colors.border,
-                    borderRadius: radius.xl,
-                  },
-                ]}
+              <Card
+                variant="flat"
+                style={styles.tokenBox}
               >
                 <Text
                   style={{
                     color: colors.textSecondary,
                     fontSize: typography.sizes.xs - 1,
-                    fontWeight: '600',
+                    fontWeight: '700',
                     textTransform: 'uppercase',
                   }}
                 >
@@ -474,17 +809,18 @@ const QueueStatusScreen = () => {
                   }}
                 >
                   {currentServingToken != null
-                    ? `#${currentServingToken}`
+                    ? `A-${currentServingToken}`
                     : '--'}
                 </Text>
-              </View>
-              <View
+              </Card>
+              <Card
+                variant="flat"
                 style={[
                   styles.tokenBox,
                   {
-                    backgroundColor: colors.primary + '10',
+                    backgroundColor: colors.primary + '12',
                     borderColor: colors.primary + '30',
-                    borderRadius: radius.xl,
+                    borderWidth: 1,
                   },
                 ]}
               >
@@ -492,7 +828,7 @@ const QueueStatusScreen = () => {
                   style={{
                     color: colors.primary,
                     fontSize: typography.sizes.xs - 1,
-                    fontWeight: '600',
+                    fontWeight: '700',
                     textTransform: 'uppercase',
                   }}
                 >
@@ -507,79 +843,20 @@ const QueueStatusScreen = () => {
                   }}
                 >
                   {appointment.token_number != null
-                    ? `#${appointment.token_number}`
+                    ? `A-${appointment.token_number}`
                     : '--'}
                 </Text>
-              </View>
+              </Card>
             </View>
 
             {/* Queue metric rows */}
             <View style={[styles.queueCardRows, { marginTop: spacing.xl }]}>
-              <View style={[styles.queueCardRow, { borderBottomWidth: 1, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
-                <View
-                  style={[
-                    styles.metricIconPill,
-                    { backgroundColor: `${colors.warning}10` },
-                  ]}
-                >
-                  <Users color={colors.warning} size={scaleFont(16)} />
-                </View>
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontSize: typography.sizes.sm,
-                    flex: 1,
-                    fontWeight: '500',
-                  }}
-                >
-                  People Ahead
-                </Text>
-                <Text
-                  style={{
-                    color: colors.text,
-                    fontSize: typography.sizes.md,
-                    fontWeight: '700',
-                  }}
-                >
-                  {peopleAheadLabel}
-                </Text>
-              </View>
 
-              <View style={[styles.queueCardRow, { borderBottomWidth: 1, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
+              <View style={[styles.queueCardRow, { borderBottomWidth: 0.5, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
                 <View
                   style={[
                     styles.metricIconPill,
-                    { backgroundColor: `${colors.info}10` },
-                  ]}
-                >
-                  <Clock color={colors.info} size={scaleFont(16)} />
-                </View>
-                <Text
-                  style={{
-                    color: colors.textSecondary,
-                    fontSize: typography.sizes.sm,
-                    flex: 1,
-                    fontWeight: '500',
-                  }}
-                >
-                  Estimated Wait
-                </Text>
-                <Text
-                  style={{
-                    color: colors.text,
-                    fontSize: typography.sizes.md,
-                    fontWeight: '700',
-                  }}
-                >
-                  {estimatedWaitLabel}
-                </Text>
-              </View>
-
-              <View style={[styles.queueCardRow, { borderBottomWidth: 1, borderBottomColor: colors.border + '50', paddingBottom: spacing.sm }]}>
-                <View
-                  style={[
-                    styles.metricIconPill,
-                    { backgroundColor: `${colors.primary}10` },
+                    { backgroundColor: `${colors.primary}12` },
                   ]}
                 >
                   <CircleDot color={colors.primary} size={scaleFont(16)} />
@@ -589,7 +866,7 @@ const QueueStatusScreen = () => {
                     color: colors.textSecondary,
                     fontSize: typography.sizes.sm,
                     flex: 1,
-                    fontWeight: '500',
+                    fontWeight: '600',
                   }}
                 >
                   Service Avg. Time
@@ -598,7 +875,7 @@ const QueueStatusScreen = () => {
                   style={{
                     color: colors.text,
                     fontSize: typography.sizes.md,
-                    fontWeight: '700',
+                    fontWeight: '800',
                   }}
                 >
                   {doctorAverageTime != null
@@ -614,22 +891,22 @@ const QueueStatusScreen = () => {
                     {
                       backgroundColor:
                         queueStatusLabel === 'Called' ||
-                        queueStatusLabel === 'Service on Break'
-                          ? `${colors.warning}10`
+                          queueStatusLabel === 'Department on Break'
+                          ? `${colors.warning}12`
                           : queueStatusLabel === 'Arrived'
-                          ? `${colors.success}10`
-                          : `${colors.primary}10`,
+                            ? `${colors.primary}12`
+                            : `${colors.primary}12`,
                     },
                   ]}
                 >
                   <BellRing
                     color={
                       queueStatusLabel === 'Called' ||
-                      queueStatusLabel === 'Service on Break'
+                        queueStatusLabel === 'Department on Break'
                         ? colors.warning
                         : queueStatusLabel === 'Arrived'
-                        ? colors.success
-                        : colors.primary
+                          ? colors.primary
+                          : colors.primary
                     }
                     size={scaleFont(16)}
                   />
@@ -639,7 +916,7 @@ const QueueStatusScreen = () => {
                     color: colors.textSecondary,
                     fontSize: typography.sizes.sm,
                     flex: 1,
-                    fontWeight: '500',
+                    fontWeight: '600',
                   }}
                 >
                   Status
@@ -648,13 +925,13 @@ const QueueStatusScreen = () => {
                   style={{
                     color:
                       queueStatusLabel === 'Called' ||
-                      queueStatusLabel === 'Service on Break'
+                        queueStatusLabel === 'Department on Break'
                         ? colors.warning
                         : queueStatusLabel === 'Arrived'
-                        ? colors.success
-                        : colors.text,
+                          ? colors.primary
+                          : colors.text,
                     fontSize: typography.sizes.md,
-                    fontWeight: '700',
+                    fontWeight: '800',
                   }}
                 >
                   {queueStatusLabel}
@@ -688,68 +965,39 @@ const QueueStatusScreen = () => {
                   styles.checkedInRow,
                   {
                     marginTop: spacing.lg,
-                    backgroundColor: `${colors.success}08`,
+                    backgroundColor: `${colors.primary}08`,
                     borderRadius: radius.md,
                     padding: spacing.md,
                     borderWidth: 1,
-                    borderColor: `${colors.success}20`,
+                    borderColor: `${colors.primary}20`,
                   },
                 ]}
               >
-                <CheckCircle2 color={colors.success} size={scaleFont(18)} />
+                <CheckCircle2 color={colors.primary} size={scaleFont(18)} />
                 <Text
                   style={{
-                    color: colors.success,
+                    color: colors.primary,
                     fontSize: typography.sizes.sm,
-                    fontWeight: '600',
+                    fontWeight: '700',
                     flex: 1,
                     lineHeight: 18,
                   }}
                 >
-                  Checked in successfully. Keep this screen open for live
-                  updates.
+                  Checked in successfully. Keep this screen open for live updates.
                 </Text>
               </View>
             )}
           </Card>
-        </CardFadeIn>
-
-        {!!queueError && (
-          <Text
-            style={{
-              color: colors.error,
-              fontSize: typography.sizes.sm,
-              marginBottom: spacing.md,
-              textAlign: 'center',
-              fontWeight: '500',
-            }}
-          >
-            Live updates are temporarily unavailable: {queueError}
-          </Text>
-        )}
-
-        {queueLoading && (
-          <Text
-            style={{
-              color: colors.textSecondary,
-              fontSize: typography.sizes.sm,
-              marginBottom: spacing.md,
-              textAlign: 'center',
-              fontWeight: '500',
-            }}
-          >
-            Connecting to live queue…
-          </Text>
-        )}
+        </AnimatedCard>
 
         {/* Details Card */}
-        <CardFadeIn delay={180}>
-          <Card style={{ marginBottom: spacing.xl }}>
+        <AnimatedCard delay={180}>
+          <Card style={{ marginBottom: spacing.xl, padding: spacing.md, borderRadius: 20 }}>
             <Text
               style={{
                 color: colors.text,
                 fontSize: typography.sizes.md,
-                fontWeight: '700',
+                fontWeight: '800',
                 marginBottom: spacing.md,
               }}
             >
@@ -760,7 +1008,7 @@ const QueueStatusScreen = () => {
                 <View
                   style={[
                     styles.detailIconPill,
-                    { backgroundColor: `${colors.primary}10` },
+                    { backgroundColor: `${colors.primary}12` },
                   ]}
                 >
                   <Hash color={colors.primary} size={scaleFont(16)} />
@@ -770,7 +1018,7 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs,
-                      fontWeight: '500',
+                      fontWeight: '600',
                     }}
                   >
                     Token Number
@@ -779,7 +1027,7 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.text,
                       fontSize: typography.sizes.md,
-                      fontWeight: '600',
+                      fontWeight: '700',
                       marginTop: 2,
                     }}
                   >
@@ -791,7 +1039,7 @@ const QueueStatusScreen = () => {
                 <View
                   style={[
                     styles.detailIconPill,
-                    { backgroundColor: `${colors.primary}10` },
+                    { backgroundColor: `${colors.primary}12` },
                   ]}
                 >
                   <Calendar color={colors.primary} size={scaleFont(16)} />
@@ -801,7 +1049,7 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs,
-                      fontWeight: '500',
+                      fontWeight: '600',
                     }}
                   >
                     Date & Time
@@ -810,7 +1058,7 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.text,
                       fontSize: typography.sizes.md,
-                      fontWeight: '600',
+                      fontWeight: '700',
                       marginTop: 2,
                     }}
                   >
@@ -823,7 +1071,7 @@ const QueueStatusScreen = () => {
                 <View
                   style={[
                     styles.detailIconPill,
-                    { backgroundColor: `${colors.primary}10` },
+                    { backgroundColor: `${colors.primary}12` },
                   ]}
                 >
                   <MapPin color={colors.primary} size={scaleFont(16)} />
@@ -833,16 +1081,16 @@ const QueueStatusScreen = () => {
                     style={{
                       color: colors.textSecondary,
                       fontSize: typography.sizes.xs,
-                      fontWeight: '500',
+                      fontWeight: '600',
                     }}
                   >
-                    Center
+                    Clinic
                   </Text>
                   <Text
                     style={{
                       color: colors.text,
                       fontSize: typography.sizes.md,
-                      fontWeight: '600',
+                      fontWeight: '700',
                       marginTop: 2,
                     }}
                   >
@@ -850,12 +1098,45 @@ const QueueStatusScreen = () => {
                   </Text>
                 </View>
               </View>
+              {!!appointment.doctor_name && (
+                <View style={styles.detailRow}>
+                  <View
+                    style={[
+                      styles.detailIconPill,
+                      { backgroundColor: `${colors.info}12` },
+                    ]}
+                  >
+                    <Stethoscope color={colors.info} size={scaleFont(16)} />
+                  </View>
+                  <View style={styles.detailText}>
+                    <Text
+                      style={{
+                        color: colors.textSecondary,
+                        fontSize: typography.sizes.xs,
+                        fontWeight: '600',
+                      }}
+                    >
+                      Doctor
+                    </Text>
+                    <Text
+                      style={{
+                        color: colors.text,
+                        fontSize: typography.sizes.md,
+                        fontWeight: '700',
+                        marginTop: 2,
+                      }}
+                    >
+                      {appointment.doctor_name}
+                    </Text>
+                  </View>
+                </View>
+              )}
               {status === 'cancelled' && appointment.cancel_reason && (
                 <View style={styles.detailRow}>
                   <View
                     style={[
                       styles.detailIconPill,
-                      { backgroundColor: `${colors.error}10` },
+                      { backgroundColor: `${colors.error}12` },
                     ]}
                   >
                     <Info color={colors.error} size={scaleFont(16)} />
@@ -865,7 +1146,7 @@ const QueueStatusScreen = () => {
                       style={{
                         color: colors.textSecondary,
                         fontSize: typography.sizes.xs,
-                        fontWeight: '500',
+                        fontWeight: '600',
                       }}
                     >
                       Cancellation Reason
@@ -874,7 +1155,7 @@ const QueueStatusScreen = () => {
                       style={{
                         color: colors.error,
                         fontSize: typography.sizes.md,
-                        fontWeight: '600',
+                        fontWeight: '700',
                         marginTop: 2,
                       }}
                     >
@@ -885,7 +1166,7 @@ const QueueStatusScreen = () => {
               )}
             </View>
           </Card>
-        </CardFadeIn>
+        </AnimatedCard>
       </View>
     </ScreenWrapper>
   );
@@ -899,6 +1180,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '800',
+    letterSpacing: 0.3,
   },
   circularSection: {
     flexDirection: 'row',
@@ -925,10 +1207,9 @@ const styles = StyleSheet.create({
   },
   tokenBox: {
     flex: 1,
-    borderWidth: 1,
-    paddingHorizontal: scaleFont(16),
-    paddingVertical: scaleFont(16),
+    padding: scaleFont(12),
     alignItems: 'center',
+    borderRadius: 16,
   },
   queueCardRows: {
     gap: scaleFont(12),
@@ -941,7 +1222,7 @@ const styles = StyleSheet.create({
   metricIconPill: {
     width: scaleFont(34),
     height: scaleFont(34),
-    borderRadius: 999,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -958,7 +1239,7 @@ const styles = StyleSheet.create({
   detailIconPill: {
     width: scaleFont(36),
     height: scaleFont(36),
-    borderRadius: 999,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -973,6 +1254,6 @@ const styles = StyleSheet.create({
     paddingVertical: scaleFont(4),
   },
   backButtonText: {
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });

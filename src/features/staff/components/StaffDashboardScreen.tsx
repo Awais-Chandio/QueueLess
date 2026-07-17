@@ -36,26 +36,22 @@ import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useAuth } from '../../../hooks/useAuth';
 import { useProfileStore } from '../../../store/profileStore';
 import { useTheme } from '../../../hooks/useTheme';
-import { useStaffQueueStore } from '../../../store/staffQueueStore';
+import { useStaffQueueStore } from '../../../store/queueStore';
 import type {
   AppointmentFull,
   AppointmentStatus,
   CancelReason,
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import { staffQueueService } from '../api/staffQueueService';
+import { queueService } from '../../../services/queueService';
+import { centerService } from '../../../services/centerService';
 import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
-import {
-  subscribeToAppointments,
-  unsubscribeAppointments,
-} from '../../queue/api/queueService';
 import { getAppointmentStatusState } from '../../../services/bookingService';
 
 import { getDisplayName } from '../../../utils/getDisplayName';
 import { toastService } from '../../../services/toastService';
-import { supabase } from '../../../lib/supabase';
 
-type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service';
+type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
 
 const cancelReasons: CancelReason[] = [
   'Patient Requested',
@@ -81,14 +77,14 @@ const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
       return ['start_service', 'cancel'];
     case 'called':
     case 'in_progress':
-      return ['complete_service'];
+      return ['complete_service', 'no_show'];
     default:
       return [];
   }
 };
 
 const StaffDashboardScreen = () => {
-  const { colors, spacing, typography, radius, isDarkMode } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const { logout, user } = useAuth();
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
@@ -103,13 +99,10 @@ const StaffDashboardScreen = () => {
 
   useEffect(() => {
     if (profile?.role === 'staff' && profile?.center_id) {
+      const centerId = profile.center_id;
       const fetchCenterName = async () => {
         try {
-          const { data } = await supabase
-            .from('service_centers')
-            .select('name')
-            .eq('id', profile.center_id)
-            .maybeSingle();
+          const data = await centerService.getCenterById(centerId);
           if (data?.name) {
             setCenterName(data.name);
           }
@@ -148,7 +141,7 @@ const StaffDashboardScreen = () => {
     if (!profile?.center_id) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const settings = await staffQueueService.fetchCenterSettings(profile.center_id, todayStr);
+      const settings = await queueService.fetchCenterSettings(profile.center_id, todayStr);
       setDoctorSettings(settings);
     } catch (err) {
       console.warn('Failed to load center settings:', err);
@@ -167,7 +160,7 @@ const StaffDashboardScreen = () => {
       const end = nextBreakState ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null;
       const todayStr = new Date().toISOString().split('T')[0];
 
-      const updated = await staffQueueService.setCenterBreak(
+      const updated = await queueService.setCenterBreak(
         profile.center_id,
         todayStr,
         nextBreakState,
@@ -186,7 +179,7 @@ const StaffDashboardScreen = () => {
     if (!profile?.center_id) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const updated = await staffQueueService.updateCenterAverageConsultationTime(
+      const updated = await queueService.updateCenterAverageConsultationTime(
         profile.center_id,
         todayStr,
         mins,
@@ -201,7 +194,7 @@ const StaffDashboardScreen = () => {
 
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['staff-dashboard', 'today'],
-    queryFn: () => staffQueueService.fetchDashboard('today'),
+    queryFn: () => queueService.fetchDashboard('today'),
     refetchOnMount: 'always',
     staleTime: 0,
   });
@@ -212,12 +205,14 @@ const StaffDashboardScreen = () => {
   );
   const stats = data?.stats;
 
-  const uniqueDoctorIds = useMemo(() => {
-    const ids = new Set<string>();
+  const uniqueDoctors = useMemo(() => {
+    const map = new Map<string, string>();
     appointments.forEach(item => {
-      if (item.doctor_id) ids.add(item.doctor_id);
+      if (item.doctor_id) {
+        map.set(item.doctor_id, item.doctor_name || 'Doctor');
+      }
     });
-    return Array.from(ids);
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [appointments]);
 
   const getNextPatientToCall = () => {
@@ -263,7 +258,7 @@ const StaffDashboardScreen = () => {
   useEffect(() => {
     if (!isFocused) return;
 
-    const channel = subscribeToAppointments({
+    const channel = queueService.subscribeToAppointments({
       channelName: `staff-dashboard-today-${Date.now()}`,
       onChange: () => {
         queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
@@ -271,7 +266,7 @@ const StaffDashboardScreen = () => {
     });
 
     return () => {
-      unsubscribeAppointments(channel);
+      queueService.unsubscribeAppointments(channel);
     };
   }, [queryClient, isFocused]);
 
@@ -290,21 +285,25 @@ const StaffDashboardScreen = () => {
       reason?: CancelReason;
     }) => {
       if (action === 'confirm') {
-        return staffQueueService.confirmAppointment(appointment);
+        return queueService.confirmAppointment(appointment);
       }
 
       if (action === 'cancel') {
-        return staffQueueService.cancelAppointment(
+        return queueService.cancelAppointment(
           appointment,
           reason ?? 'Other',
         );
       }
 
       if (action === 'start_service') {
-        return staffQueueService.startService(appointment);
+        return queueService.startService(appointment);
       }
 
-      return staffQueueService.completeAppointment(appointment);
+      if (action === 'no_show') {
+        return queueService.noShowAppointment(appointment);
+      }
+
+      return queueService.completeAppointment(appointment);
     },
     onSuccess: (data, variables) => {
       setCancelTarget(null);
@@ -316,6 +315,8 @@ const StaffDashboardScreen = () => {
         successMsg = 'Appointment cancelled successfully.';
       } else if (variables.action === 'start_service') {
         successMsg = 'Appointment service started.';
+      } else if (variables.action === 'no_show') {
+        successMsg = 'Appointment marked as No Show.';
       } else if (variables.action === 'complete_service') {
         successMsg = 'Appointment completed successfully.';
       }
@@ -327,6 +328,10 @@ const StaffDashboardScreen = () => {
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'Action failed. Please try again.';
       toastService.error(message);
+      if (message.includes('already updated')) {
+        queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      }
     },
   });
 
@@ -398,6 +403,7 @@ const StaffDashboardScreen = () => {
       cancel: 'Cancel',
       start_service: 'Call',
       complete_service: 'Complete',
+      no_show: 'No Show',
     };
 
     const isCancel = action === 'cancel';
@@ -414,7 +420,7 @@ const StaffDashboardScreen = () => {
         key={action}
         title={labels[action]}
         variant={
-          isCancel ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
+          isCancel || action === 'no_show' ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
         }
         loading={isBusy}
         disabled={runActionMutation.isPending || isCallBlocked}
@@ -509,7 +515,7 @@ const StaffDashboardScreen = () => {
                 },
               ]}
             >
-              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)}
+              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)} • {item.doctor_name ? `Dr. ${item.doctor_name}` : 'Any Available'}
             </Text>
           </View>
           {!isPendingSection && (
@@ -901,10 +907,10 @@ const StaffDashboardScreen = () => {
         <View style={{ marginBottom: spacing.xl }}>
           <Card variant="elevated" style={styles.cardContent}>
             {/* Doctor Filter Tabs */}
-            {uniqueDoctorIds.length > 1 && (
+            {uniqueDoctors.length > 1 && (
               <View style={{ marginBottom: spacing.md }}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 6, fontWeight: '600' }}>
-                  Filter by Counter:
+                  Filter by Doctor:
                 </Text>
                 <ScrollView
                   horizontal
@@ -923,10 +929,10 @@ const StaffDashboardScreen = () => {
                     }}
                   >
                     <Text style={{ color: selectedDoctorId === null ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
-                      All Counters
+                      All Doctors
                     </Text>
                   </Pressable>
-                  {uniqueDoctorIds.map((docId, idx) => (
+                  {uniqueDoctors.map(({ id: docId, name: docName }) => (
                     <Pressable
                       key={docId}
                       onPress={() => setSelectedDoctorId(docId)}
@@ -940,7 +946,7 @@ const StaffDashboardScreen = () => {
                       }}
                     >
                       <Text style={{ color: selectedDoctorId === docId ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
-                        Counter #{idx + 1}
+                        {docName}
                       </Text>
                     </Pressable>
                   ))}

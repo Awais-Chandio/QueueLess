@@ -11,6 +11,7 @@ interface ScreenWrapperProps {
   refreshing?: boolean;
   withPadding?: boolean;
   centered?: boolean;
+  edges?: ReadonlyArray<'top' | 'right' | 'bottom' | 'left'>;
 }
 
 const ScreenWrapper: React.FC<ScreenWrapperProps> = ({ 
@@ -20,6 +21,7 @@ const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
   refreshing = false,
   withPadding = true,
   centered = false,
+  edges = ['top', 'bottom', 'left', 'right'],
 }) => {
   const { colors, spacing } = useTheme();
 
@@ -36,7 +38,7 @@ const ScreenWrapper: React.FC<ScreenWrapperProps> = ({
   );
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={edges} style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         style={styles.safeArea}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
