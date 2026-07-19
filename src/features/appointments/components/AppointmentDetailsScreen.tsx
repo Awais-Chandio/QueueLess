@@ -300,6 +300,18 @@ const AppointmentDetailsScreen = () => {
           style={{ marginTop: spacing.md }}
         />
       )}
+
+      <AppButton
+        title="Go to Home"
+        variant="outline"
+        onPress={() => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'MainTabs' }],
+          });
+        }}
+        style={{ marginTop: spacing.md, marginBottom: spacing.lg }}
+      />
     </ScreenWrapper>
   );
 };

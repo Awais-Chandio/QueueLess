@@ -1,15 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, FlatList, Pressable, ActivityIndicator, Alert, Platform, PermissionsAndroid } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, StyleSheet, Text, FlatList, Pressable, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Geolocation from '@react-native-community/geolocation';
-import { ChevronLeft, MapPin, AlertCircle, RefreshCw } from 'lucide-react-native';
+import { ChevronLeft, MapPin, RefreshCw } from 'lucide-react-native';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
-import Card from '../../../components/ui/Card';
-import Badge from '../../../components/ui/Badge';
-import AppButton from '../../../components/ui/AppButton';
 import { useTheme } from '../../../hooks/useTheme';
-import { supabase } from '../../../lib/supabase';
+import { useNearbyClinics, NearbyCenter } from '../../../hooks/useNearbyClinics';
+import { NearbyClinicCard } from './NearbyClinicCard';
+import { NearbyClinicSkeleton } from '../../../components/NearbyClinicSkeleton';
+import { NearbyEmptyState } from '../../../components/NearbyEmptyState';
 import type { AppStackParamList } from '../../../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'NearbyClinics'>;
@@ -18,223 +17,260 @@ const NearbyClinicsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { colors, spacing, typography, radius } = useTheme();
 
-  const [loading, setLoading] = useState(true);
-  const [centers, setCenters] = useState<any[]>([]);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Call our custom hook for nearby clinics logic
+  const {
+    loading,
+    centers,
+    errorMsg,
+    permissionDenied,
+    bannerMessage,
+    isRefreshing,
+    coords,
+    refresh,
+    requestPermission,
+  } = useNearbyClinics();
 
-  const fetchNearby = async () => {
-    setLoading(true);
-    setErrorMsg(null);
+  // Callback to navigate to center details (memoized)
+  const handlePressBook = useCallback((centerId: string) => {
+    navigation.navigate('CenterDetails', {
+      centerId,
+    });
+  }, [navigation]);
 
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Access Required',
-            message: 'QueueLess needs access to your location to show healthcare centers near you.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          setErrorMsg('Location permission was denied. Please enable it in Settings.');
-          setLoading(false);
-          return;
-        }
-      }
+  // Callback to render clinic card (memoized)
+  const renderClinicCard = useCallback(({ item, index }: { item: NearbyCenter; index: number }) => (
+    <NearbyClinicCard
+      item={item}
+      index={index}
+      onPressBook={() => handlePressBook(item.id)}
+    />
+  ), [handlePressBook]);
 
-      Geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const { data, error } = await supabase.rpc('get_nearby_centers', {
-              p_lat: pos.coords.latitude,
-              p_lng: pos.coords.longitude,
-              p_radius_km: 15,
-            });
+  // Callback to get stable keys (memoized)
+  const keyExtractor = useCallback((item: NearbyCenter) => item.id, []);
 
-            if (error) throw error;
-            setCenters(data || []);
-          } catch (err: any) {
-            console.warn('RPC get_nearby_centers error:', err);
-            setErrorMsg('Failed to query nearby clinics from database.');
-          } finally {
-            setLoading(false);
-          }
-        },
-        (geoError) => {
-          console.warn('Geolocation error:', geoError);
-          setErrorMsg('Could not fetch location. Make sure GPS/location services are enabled.');
-          setLoading(false);
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-      );
-    } catch (err) {
-      console.warn('Location permission request error:', err);
-      setErrorMsg('An error occurred while requesting location permissions.');
-      setLoading(false);
+  // Main UI content helper
+  const renderContent = () => {
+    if (loading && !isRefreshing) {
+      return <NearbyClinicSkeleton />;
     }
-  };
 
-  useEffect(() => {
-    fetchNearby();
-  }, []);
+    if (permissionDenied) {
+      return (
+        <NearbyEmptyState
+          type="permission"
+          onAction={requestPermission}
+          style={styles.centerContainer}
+        />
+      );
+    }
+
+    if (errorMsg) {
+      return (
+        <NearbyEmptyState
+          type="error"
+          onAction={refresh}
+          style={styles.centerContainer}
+        />
+      );
+    }
+
+    if (centers.length === 0) {
+      return (
+        <NearbyEmptyState
+          type="empty"
+          onAction={() => navigation.navigate('Centers')}
+          style={styles.centerContainer}
+        />
+      );
+    }
+
+    return (
+      <View style={styles.listContainer}>
+        {bannerMessage ? (
+          <View
+            style={[
+              styles.banner,
+              {
+                backgroundColor: colors.primary + '10',
+                borderColor: colors.primary + '20',
+                borderRadius: radius.md,
+                marginHorizontal: spacing.md,
+                marginTop: spacing.sm,
+                marginBottom: spacing.xs,
+                padding: spacing.sm,
+              },
+            ]}
+          >
+            <Text style={[styles.bannerText, { color: colors.primary, fontSize: typography.sizes.xs }]}>
+              {bannerMessage}
+            </Text>
+          </View>
+        ) : null}
+
+        <FlatList
+          data={centers}
+          keyExtractor={keyExtractor}
+          renderItem={renderClinicCard}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl + 80 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={refresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        />
+      </View>
+    );
+  };
 
   return (
     <ScreenWrapper>
-      <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
-          <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
-            Back
-          </Text>
+      {/* Header */}
+      <View
+        style={[
+          styles.header,
+          {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            borderBottomColor: colors.border + '30',
+            borderBottomWidth: 1,
+          },
+        ]}
+      >
+        <View style={styles.headerLeft}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            style={({ pressed }) => [styles.backButton, pressed && { opacity: 0.7 }]}
+          >
+            <ChevronLeft size={24} color={colors.primary} />
+          </Pressable>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
+              Nearby Clinics
+            </Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: typography.sizes.xs }]} numberOfLines={1}>
+              {coords ? `Near GPS: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}` : 'Showing clinics near your current location'}
+            </Text>
+          </View>
+        </View>
+        <Pressable
+          onPress={refresh}
+          style={({ pressed }) => [styles.refreshIcon, pressed && { opacity: 0.7 }]}
+        >
+          <RefreshCw size={20} color={colors.primary} />
         </Pressable>
       </View>
 
-      <View style={[styles.titleSection, { paddingHorizontal: spacing.md, marginBottom: spacing.md }]}>
-        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800' }]}>
-          Nearby Clinics
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-          Showing healthcare centers within 15 km of your location
-        </Text>
+      {/* Main Body */}
+      <View style={styles.body}>
+        {renderContent()}
       </View>
 
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: spacing.sm }}>
-            Fetching location & nearby clinics...
+      {/* Floating Action Button */}
+      {!loading && !permissionDenied && !errorMsg && centers.length > 0 ? (
+        <Pressable
+          onPress={refresh}
+          style={({ pressed }) => [
+            styles.fab,
+            {
+              backgroundColor: colors.primary,
+              borderRadius: radius.full,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+            },
+            pressed && styles.fabPressed,
+          ]}
+        >
+          <MapPin size={16} color="#FFF" style={{ marginRight: spacing.xs }} />
+          <Text style={[styles.fabText, { fontSize: typography.sizes.xs }]}>
+            Use Current Location
           </Text>
-        </View>
-      ) : errorMsg ? (
-        <View style={[styles.centerContainer, { paddingHorizontal: spacing.xl }]}>
-          <AlertCircle size={40} color={colors.error} style={{ marginBottom: spacing.sm }} />
-          <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700', textAlign: 'center' }}>
-            Location Unresolved
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, textAlign: 'center', marginVertical: spacing.xs }}>
-            {errorMsg}
-          </Text>
-          <AppButton
-            title="Retry Connection"
-            onPress={fetchNearby}
-            leftIcon={<RefreshCw size={14} color="#FFF" />}
-            style={{ marginTop: spacing.md }}
-          />
-        </View>
-      ) : centers.length === 0 ? (
-        <View style={[styles.centerContainer, { paddingHorizontal: spacing.xl }]}>
-          <MapPin size={40} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
-          <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700', textAlign: 'center' }}>
-            No Clinics Found
-          </Text>
-          <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, textAlign: 'center', marginVertical: spacing.xs }}>
-            There are no clinics within 15 km of your current position, or center coordinates are not set in the system yet.
-          </Text>
-          <AppButton
-            title="Search All Clinics"
-            onPress={() => navigation.navigate('Centers')}
-            style={{ marginTop: spacing.md }}
-          />
-        </View>
-      ) : (
-        <FlatList
-          data={centers}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: spacing.md, paddingBottom: spacing.xl }}
-          renderItem={({ item }) => (
-            <Card
-              onPress={() =>
-                navigation.navigate('CenterDetails', {
-                  centerId: item.id,
-                })
-              }
-              variant="elevated"
-              style={[styles.clinicCard, { padding: spacing.md, borderRadius: radius.xl }]}
-              containerStyle={{ marginBottom: spacing.md }}
-            >
-              <View style={styles.clinicRow}>
-                <View style={[styles.clinicIconCircle, { backgroundColor: colors.primary + '12' }]}>
-                  <MapPin size={20} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1, marginLeft: spacing.sm }}>
-                  <View style={styles.titleRow}>
-                    <Text style={[styles.clinicName, { color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }]} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    {item.distance_km != null && (
-                      <Badge
-                        label={`${parseFloat(item.distance_km).toFixed(1)} km`}
-                        variant="info"
-                      />
-                    )}
-                  </View>
-                  <Text style={[styles.clinicAddress, { color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2 }]} numberOfLines={1}>
-                    {item.address}, {item.city}
-                  </Text>
-                  {item.category && (
-                    <Text style={{ color: colors.primary, fontSize: typography.sizes.xs - 1, fontWeight: '800', marginTop: spacing.xs }}>
-                      Category: {item.category}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            </Card>
-          )}
-        />
-      )}
+        </Pressable>
+      ) : null}
     </ScreenWrapper>
   );
 };
 
-export default NearbyClinicsScreen;
-
 const styles = StyleSheet.create({
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backText: {
-    fontWeight: '700',
-  },
-  titleSection: {
-    gap: 4,
-  },
-  title: {},
-  subtitle: {},
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 50,
-  },
-  clinicCard: {},
-  clinicRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  clinicIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  clinicName: {
-    maxWidth: '70%',
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  clinicAddress: {},
+  backButton: {
+    paddingRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitleContainer: {
+    flex: 1,
+    gap: 1,
+  },
+  headerTitle: {
+    fontWeight: '800',
+  },
+  headerSubtitle: {
+    fontWeight: '500',
+  },
+  refreshIcon: {
+    padding: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  body: {
+    flex: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  listContainer: {
+    flex: 1,
+  },
+  banner: {
+    borderWidth: 1.2,
+  },
+  bannerText: {
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  listContent: {
+    paddingTop: 12,
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0E7490',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  fabPressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.96 }],
+  },
+  fabText: {
+    color: '#FFF',
+    fontWeight: '800',
+  },
 });
+
+export default NearbyClinicsScreen;

@@ -277,7 +277,7 @@ const HomeScreen = () => {
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, gap: 4 }}>
                         <Star size={11} color="#FBBF24" fill="#FBBF24" />
                         <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.text, fontWeight: '800' }}>{rating}</Text>
-                        <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary }}>• {distance} km</Text>
+                        <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary }} numberOfLines={1}>• {item.address || item.city}</Text>
                       </View>
                       <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary, marginBottom: spacing.md }}>
                         {item.open_time && item.close_time ? `${item.open_time} - ${item.close_time}` : '09:00 AM - 05:00 PM'}

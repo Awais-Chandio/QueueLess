@@ -15,6 +15,7 @@ import { useTheme } from "../hooks/useTheme";
 import { Home, MapPin, Calendar, Bell, User } from "lucide-react-native";
 import { hp } from "../utils/responsive";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 let notificationChannelInstance = 0;
@@ -145,6 +146,7 @@ const getRealtimeNotificationId = (value: unknown) => {
 
 const AppTabs = () => {
     const { colors, spacing, typography } = useTheme();
+    const insets = useSafeAreaInsets();
     const userId = useAuthStore(state => state.user?.id);
     const unreadCount = useNotificationsStore(state => state.unreadCount);
     const fetchNotifications = useNotificationsStore(state => state.fetchNotifications);
@@ -228,7 +230,7 @@ const AppTabs = () => {
                 tabBarInactiveTintColor: colors.textSecondary,
                 tabBarStyle: {
                     position: 'absolute',
-                    bottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
+                    bottom: insets.bottom > 0 ? (Platform.OS === 'ios' ? insets.bottom : insets.bottom + 8) : spacing.md,
                     left: spacing.md,
                     right: spacing.md,
                     backgroundColor: colors.surface,
@@ -242,7 +244,7 @@ const AppTabs = () => {
                     shadowOpacity: 0.08,
                     shadowRadius: 16,
                     elevation: 8,
-                    paddingBottom: Platform.OS === 'ios' ? spacing.xs : spacing.sm,
+                    paddingBottom: insets.bottom > 0 ? (Platform.OS === 'ios' ? spacing.xs : 2) : (Platform.OS === 'ios' ? spacing.xs : spacing.sm),
                     paddingTop: spacing.xs,
                 },
                 tabBarLabelStyle: {
