@@ -99,9 +99,9 @@ const ReceiptScreen = () => {
 
               {/* Appointment Number */}
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Appointment Number</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Appointment ID</Text>
                 <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={1}>
-                  {appointment.id}
+                  {appointment.id ? appointment.id.split('-')[0].toUpperCase() : 'N/A'}
                 </Text>
               </View>
 
@@ -109,14 +109,14 @@ const ReceiptScreen = () => {
               <View style={[styles.detailRow, { marginTop: spacing.md }]}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Doctor</Text>
                 <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {appointment.doctor?.name || 'Any Available Doctor'}
+                  {appointment.doctor_name || 'Any Available Doctor'}
                 </Text>
               </View>
 
               <View style={[styles.detailRow, { marginTop: spacing.md }]}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Service</Text>
                 <Text style={[styles.detailValue, { color: colors.text }]}>
-                  {appointment.service?.name || 'Consultation'}
+                  {appointment.service_name || 'Consultation'}
                 </Text>
               </View>
 
@@ -124,7 +124,7 @@ const ReceiptScreen = () => {
               <View style={[styles.detailRow, { marginTop: spacing.md }]}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>Clinic Location</Text>
                 <Text style={[styles.detailValue, { color: colors.text }]} numberOfLines={2}>
-                  {appointment.center?.name || 'Clinic Center'}
+                  {appointment.center_name || 'Clinic Center'}
                 </Text>
               </View>
 

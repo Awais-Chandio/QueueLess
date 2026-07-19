@@ -263,7 +263,8 @@ export const appointmentService = {
             doctor_schedules (
               start_time,
               end_time,
-              day_of_week
+              day_of_week,
+              slot_duration_minutes
             )
           `)
           .eq('id', doctorId)
@@ -281,7 +282,7 @@ export const appointmentService = {
           if (todayAvail) {
             const startMin = timeToMinutes(todayAvail.start_time);
             const endMin = timeToMinutes(todayAvail.end_time);
-            const duration = 15; // default 15 mins slot
+            const duration = todayAvail.slot_duration_minutes || 30; // default 30 mins slot
             
             const generated: string[] = [];
             for (let min = startMin; min <= endMin - duration; min += duration) {

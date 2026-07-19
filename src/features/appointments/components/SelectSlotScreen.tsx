@@ -11,7 +11,7 @@ import Card from '../../../components/ui/Card';
 import { useTheme } from '../../../hooks/useTheme';
 import { supabase } from '../../../lib/supabase';
 import { scaleFont, wp, hp } from '../../../utils/responsive';
-import { formatAppointmentDateInput } from '../utils/appointmentTime';
+import { formatAppointmentDateInput, isPastAppointmentSlot } from '../utils/appointmentTime';
 import type { AppStackParamList } from '../../../navigation/types';
 import { doctorService } from '../../../services/doctorService';
 
@@ -169,18 +169,31 @@ const SelectSlotScreen = () => {
 
   const renderSlotChip = (slot: string) => {
     const isLocking = lockingSlot === slot;
+    
+    // Determine the date string for slot validation
+    let targetDate = todayDate;
+    if (activeTab === 'tomorrow') {
+      targetDate = tomorrowDate;
+    } else if (activeTab === 'custom') {
+      targetDate = selectedDate;
+    }
+    const dateStr = formatAppointmentDateInput(targetDate);
+    const pastSlot = isPastAppointmentSlot(dateStr, slot);
+    const isDisabled = !!lockingSlot || pastSlot;
+
     return (
       <Pressable
         key={slot}
         onPress={() => handleSelectSlot(slot)}
-        disabled={!!lockingSlot}
+        disabled={isDisabled}
         style={({ pressed }) => [
           styles.slotChip,
           {
-            borderColor: colors.border,
+            borderColor: pastSlot ? colors.border + '30' : colors.border,
             borderRadius: radius.md,
             paddingVertical: spacing.md,
-            backgroundColor: colors.surface,
+            backgroundColor: pastSlot ? colors.background : colors.surface,
+            opacity: pastSlot ? 0.4 : 1,
           },
           pressed && { opacity: 0.7 },
         ]}
@@ -188,7 +201,15 @@ const SelectSlotScreen = () => {
         {isLocking ? (
           <ActivityIndicator size="small" color={colors.primary} />
         ) : (
-          <Text style={[styles.slotText, { color: colors.text, fontSize: typography.sizes.sm, fontWeight: '700' }]}>
+          <Text style={[
+            styles.slotText,
+            {
+              color: pastSlot ? colors.textSecondary : colors.text,
+              fontSize: typography.sizes.sm,
+              fontWeight: '700',
+              textDecorationLine: pastSlot ? 'line-through' : 'none'
+            }
+          ]}>
             {slot}
           </Text>
         )}
