@@ -1,0 +1,8 @@
+{
+  "gradle.nestedProjects": [
+    "android"
+  ],
+  "java.import.exclusions": [
+    "**/node_modules/**"
+  ]
+}
