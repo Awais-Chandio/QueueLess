@@ -1,4 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   View,
   StyleSheet,
@@ -9,7 +14,11 @@ import {
   Alert,
 } from 'react-native';
 
-import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 
@@ -37,11 +46,17 @@ import {
   Baby,
   Wind,
   Activity,
-  User,
   Info,
   Phone,
   Hospital,
+  Navigation,
 } from 'lucide-react-native';
+import {
+  Camera,
+  GeoJSONSource,
+  Layer,
+  Map as MapLibreMap,
+} from '@maplibre/maplibre-react-native';
 
 import { useTheme } from '../../../hooks/useTheme';
 
@@ -53,6 +68,17 @@ import type {
   Center,
   CenterService,
 } from '../../../types/center';
+import { MAP_STYLE_URL } from '../../../config/map';
+import {
+  calculateDistanceKm,
+} from '../../../services/centers/centerService';
+import { locationService } from '../../../services/location/locationService';
+import { openMapNavigation } from '../../../services/location/mapNavigationService';
+import { useCenterStore } from '../../../store/centerStore';
+import {
+  formatCenterTime,
+  formatDistance,
+} from '../../../utils/centerLocation';
 
 type NavigationProp = NativeStackNavigationProp<
   AppStackParamList,
@@ -91,6 +117,9 @@ const CenterDetailsScreen = () => {
   const [services, setServices] = useState<CenterService[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const userLocation = useCenterStore(state => state.userLocation);
+  const setUserLocation = useCenterStore(state => state.setUserLocation);
 
   const fetchCenterDetails = useCallback(async () => {
     try {
@@ -117,23 +146,131 @@ const CenterDetailsScreen = () => {
     fetchCenterDetails();
   }, [fetchCenterDetails]);
 
-  const formatTime = (time: string | null) => {
-    if (!time) {
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      let stopTracking: (() => void) | undefined;
+
+      const beginTracking = async () => {
+        try {
+          const currentLocation =
+            await locationService.getCurrentUserLocation();
+          if (!active) {
+            return;
+          }
+
+          setUserLocation(currentLocation);
+          setLocationError(null);
+
+          stopTracking = await locationService.watchLiveLocation(
+            location => {
+              if (active) {
+                setUserLocation(location);
+                setLocationError(null);
+              }
+            },
+            trackingError => {
+              if (active) {
+                setLocationError(trackingError.message);
+              }
+            },
+          );
+
+          if (!active) {
+            stopTracking();
+          }
+        } catch (trackingError) {
+          if (active) {
+            setLocationError(
+              trackingError instanceof Error
+                ? trackingError.message
+                : 'Live distance is currently unavailable.',
+            );
+          }
+        }
+      };
+
+      void beginTracking();
+
+      return () => {
+        active = false;
+        stopTracking?.();
+      };
+    }, [setUserLocation]),
+  );
+
+  const distance = useMemo(() => {
+    if (
+      !center ||
+      center.latitude == null ||
+      center.longitude == null ||
+      !userLocation
+    ) {
       return null;
     }
 
-    const [hours, minutes] = time.split(':');
-    const date = new Date();
-    date.setHours(Number(hours), Number(minutes), 0, 0);
+    return calculateDistanceKm(
+      userLocation.latitude,
+      userLocation.longitude,
+      center.latitude,
+      center.longitude,
+    );
+  }, [center, userLocation]);
 
-    return date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const centerPoint = useMemo(
+    () =>
+      center?.latitude != null && center.longitude != null
+        ? {
+            type: 'Feature' as const,
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [center.longitude, center.latitude],
+            },
+            properties: {},
+          }
+        : null,
+    [center],
+  );
 
-  const openingTime = formatTime(center?.open_time ?? null);
-  const closingTime = formatTime(center?.close_time ?? null);
+  const userPoint = useMemo(
+    () =>
+      userLocation
+        ? {
+            type: 'Feature' as const,
+            geometry: {
+              type: 'Point' as const,
+              coordinates: [
+                userLocation.longitude,
+                userLocation.latitude,
+              ],
+            },
+            properties: {},
+          }
+        : null,
+    [userLocation],
+  );
+
+  const handleNavigate = useCallback(async () => {
+    if (center?.latitude == null || center.longitude == null) {
+      Alert.alert(
+        'Location unavailable',
+        'This center does not have valid map coordinates yet.',
+      );
+      return;
+    }
+
+    try {
+      await openMapNavigation(center.latitude, center.longitude);
+    } catch {
+      Alert.alert(
+        'Navigation unavailable',
+        'Unable to open a navigation application on this device.',
+      );
+    }
+  }, [center]);
+
+  const openingTime = formatCenterTime(center?.open_time ?? null);
+  const closingTime = formatCenterTime(center?.close_time ?? null);
 
   if (loading) {
     return (
@@ -251,6 +388,133 @@ const CenterDetailsScreen = () => {
                   {openingTime} - {closingTime}
                 </Text>
               </Card>
+            )}
+
+            {centerPoint && (
+              <View style={{ marginTop: spacing.lg }}>
+                <View
+                  style={[
+                    styles.mapHeader,
+                    { marginBottom: spacing.sm },
+                  ]}
+                >
+                  <View style={styles.mapTitleRow}>
+                    <MapPin
+                      size={18}
+                      color={colors.primary}
+                      style={{ marginRight: spacing.xs }}
+                    />
+                    <Text
+                      style={[
+                        styles.sectionTitle,
+                        {
+                          color: colors.text,
+                          fontSize: typography.sizes.md,
+                        },
+                      ]}
+                    >
+                      Location
+                    </Text>
+                  </View>
+                  {distance != null && (
+                    <Text
+                      style={[
+                        styles.liveDistance,
+                        {
+                          color: colors.primary,
+                          fontSize: typography.sizes.sm,
+                        },
+                      ]}
+                    >
+                      {formatDistance(distance)} away
+                    </Text>
+                  )}
+                </View>
+
+                <View
+                  style={[
+                    styles.mapPreview,
+                    {
+                      borderRadius: radius.xl,
+                      borderColor: colors.border,
+                    },
+                  ]}
+                >
+                  <MapLibreMap
+                    style={styles.map}
+                    mapStyle={MAP_STYLE_URL}
+                    dragPan={false}
+                    touchZoom={false}
+                    touchRotate={false}
+                    touchPitch={false}
+                    attributionPosition={{ bottom: 4, right: 4 }}
+                    logoPosition={{ bottom: 4, left: 4 }}
+                  >
+                    <Camera
+                      initialViewState={{
+                        center: [
+                          center.longitude as number,
+                          center.latitude as number,
+                        ],
+                        zoom: 14,
+                      }}
+                    />
+                    <GeoJSONSource
+                      id={`details-center-${center.id}`}
+                      data={centerPoint}
+                    >
+                      <Layer
+                        id={`details-center-marker-${center.id}`}
+                        type="circle"
+                        paint={{
+                          'circle-color': colors.primary,
+                          'circle-radius': 11,
+                          'circle-stroke-color': '#FFFFFF',
+                          'circle-stroke-width': 3,
+                        }}
+                      />
+                    </GeoJSONSource>
+                    {userPoint && (
+                      <GeoJSONSource
+                        id="details-user-location"
+                        data={userPoint}
+                      >
+                        <Layer
+                          id="details-user-location-dot"
+                          type="circle"
+                          paint={{
+                            'circle-color': '#2563EB',
+                            'circle-radius': 7,
+                            'circle-stroke-color': '#FFFFFF',
+                            'circle-stroke-width': 3,
+                          }}
+                        />
+                      </GeoJSONSource>
+                    )}
+                  </MapLibreMap>
+                </View>
+
+                <AppButton
+                  title="Navigate"
+                  onPress={() => void handleNavigate()}
+                  containerStyle={{ marginTop: spacing.sm }}
+                  leftIcon={<Navigation size={17} color="#FFFFFF" />}
+                />
+                {!!locationError && (
+                  <Text
+                    style={[
+                      styles.locationError,
+                      {
+                        color: colors.textSecondary,
+                        fontSize: typography.sizes.xs,
+                        marginTop: spacing.xs,
+                      },
+                    ]}
+                  >
+                    Live distance unavailable: {locationError}
+                  </Text>
+                )}
+              </View>
             )}
 
             {/* Departments Section */}
@@ -469,6 +733,29 @@ const styles = StyleSheet.create({
   infoText: {
     flex: 1,
     lineHeight: 18,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  mapTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  liveDistance: {
+    fontWeight: '800',
+  },
+  mapPreview: {
+    height: 190,
+    overflow: 'hidden',
+    borderWidth: 1,
+  },
+  map: {
+    flex: 1,
+  },
+  locationError: {
+    lineHeight: 16,
   },
   stickyFooter: {
     position: 'absolute',

@@ -9,7 +9,7 @@ import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
 import { CardFadeIn } from "../../../components/animations/CardFadeIn";
-import { Moon, Bell, Shield, Info, ChevronRight, FileText, LucideIcon } from "lucide-react-native";
+import { Moon, Bell, Shield, Info, ChevronRight, FileText } from "lucide-react-native";
 import type { AppStackParamList } from "../../../navigation/types";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 
@@ -18,7 +18,7 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 const SettingsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { logout } = useAuth();
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, typography } = useTheme();
   const { isDarkMode, toggleTheme } = useThemeStore();
 
   const handleLogout = async () => {
@@ -74,13 +74,7 @@ const SettingsScreen = () => {
             icon={Bell}
             color={colors.warning}
             isLast
-            onPress={() =>
-              navigation.navigate(
-                "MainTabs",
-                { screen: "Notifications" },
-                { pop: true },
-              )
-            }
+            onPress={() => navigation.navigate("Notifications")}
           />
         </Card>
       </CardFadeIn>

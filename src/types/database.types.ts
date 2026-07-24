@@ -334,6 +334,8 @@ export interface Database {
           category: string | null;
           open_time: string | null;
           close_time: string | null;
+          latitude: number | null;
+          longitude: number | null;
         };
         Insert: {
           id?: string;
@@ -346,6 +348,8 @@ export interface Database {
           category?: string | null;
           open_time?: string | null;
           close_time?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
         };
         Update: {
           id?: string;
@@ -358,6 +362,8 @@ export interface Database {
           category?: string | null;
           open_time?: string | null;
           close_time?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
         };
       };
       device_tokens: {

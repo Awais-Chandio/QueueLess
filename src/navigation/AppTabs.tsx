@@ -4,15 +4,16 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useQueryClient } from "@tanstack/react-query";
 import HomeScreen from "../screens/patient/HomeScreen";
 import MyAppointmentsScreen from "../features/appointments/components/MyAppointmentsScreen";
-import NotificationsScreen from "../features/notifications/components/NotificationsScreen";
 import ProfileScreen from "../features/profile/components/ProfileScreen";
+import CentersScreen from "../features/centers/components/CentersScreen";
+import MapScreen from "../screens/map/MapScreen";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { useNotificationsStore } from "../store/notificationsStore";
 import type { Notification } from "../types/notification";
 import type { AppTabParamList } from "./types";
 import { useTheme } from "../hooks/useTheme";
-import { Home, MapPin, Calendar, Bell, User } from "lucide-react-native";
+import { Home, Compass, MapPinned, Calendar, User } from "lucide-react-native";
 import { hp } from "../utils/responsive";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,16 +70,16 @@ const AnimatedTabIcon = ({ Icon, color, size, focused }: { Icon: any; color: str
     );
 };
 
-const AlertsTabIcon = ({ color, size, focused }: TabIconProps) => (
-    <AnimatedTabIcon Icon={Bell} color={color} size={size} focused={focused} />
-);
-
 const HomeTabIcon = ({ color, size, focused }: TabIconProps) => (
     <AnimatedTabIcon Icon={Home} color={color} size={size} focused={focused} />
 );
 
-const CentersTabIcon = ({ color, size, focused }: TabIconProps) => (
-    <AnimatedTabIcon Icon={MapPin} color={color} size={size} focused={focused} />
+const ExploreTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={Compass} color={color} size={size} focused={focused} />
+);
+
+const MapTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={MapPinned} color={color} size={size} focused={focused} />
 );
 
 const AppointmentsTabIcon = ({ color, size, focused }: TabIconProps) => (
@@ -148,7 +149,6 @@ const AppTabs = () => {
     const { colors, spacing, typography } = useTheme();
     const insets = useSafeAreaInsets();
     const userId = useAuthStore(state => state.user?.id);
-    const unreadCount = useNotificationsStore(state => state.unreadCount);
     const fetchNotifications = useNotificationsStore(state => state.fetchNotifications);
     const upsertStoreNotification = useNotificationsStore(state => state.upsertNotification);
     const removeStoreNotification = useNotificationsStore(state => state.removeNotification);
@@ -263,30 +263,21 @@ const AppTabs = () => {
                 options={{ tabBarIcon: HomeTabIcon }}
             />
             <Tab.Screen
+                name="Explore"
+                component={CentersScreen}
+                options={{ tabBarIcon: ExploreTabIcon }}
+            />
+            <Tab.Screen
+                name="Map"
+                component={MapScreen}
+                options={{ tabBarIcon: MapTabIcon }}
+            />
+            <Tab.Screen
                 name="MyAppointments"
                 component={MyAppointmentsScreen}
                 options={{ 
                     title: "Appointments",
                     tabBarIcon: AppointmentsTabIcon,
-                }}
-            />
-            <Tab.Screen 
-                name="Notifications" 
-                component={NotificationsScreen} 
-                options={{
-                    title: "Notifications",
-                    tabBarIcon: AlertsTabIcon,
-                    tabBarBadge:
-                        unreadCount > 0
-                            ? unreadCount > 99
-                                ? "99+"
-                                : unreadCount
-                            : undefined,
-                    tabBarBadgeStyle: {
-                        backgroundColor: colors.error,
-                        color: "#FFFFFF",
-                        fontSize: typography.sizes.xs,
-                    },
                 }}
             />
             <Tab.Screen 

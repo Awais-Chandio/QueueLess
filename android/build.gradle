@@ -6,6 +6,11 @@ buildscript {
         targetSdkVersion = 36
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
+        // react-native-inappbrowser-reborn defaults to dynamic versions (1.5.+/1.4.+),
+        // which makes every build request Maven metadata. Keep dependency resolution
+        // reproducible and avoid unnecessary network lookups.
+        androidXAnnotationVersion = "1.5.0"
+        androidXBrowserVersion = "1.4.0"
     }
     repositories {
         google()

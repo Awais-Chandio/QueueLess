@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Platform, PermissionsAndroid } from 'react-native';
-import Geolocation from '@react-native-community/geolocation';
 import { supabase } from '../lib/supabase';
+import { getNearbyCenters } from '../services/centers/centerService';
+import { locationService } from '../services/location/locationService';
 
 export interface NearbyCenter {
   id: string;
@@ -29,22 +29,9 @@ export const useNearbyClinics = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [permissionDenied, setPermissionDenied] = useState(false);
-  const [radiusSearched, setRadiusSearched] = useState<number>(20);
+  const [radiusSearched, setRadiusSearched] = useState<number>(10);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Helper to query nearby centers RPC
-  const queryNearbyCenters = async (lat: number, lng: number, radius: number): Promise<any[]> => {
-    const { data, error } = await supabase.rpc('get_nearby_centers', {
-      p_lat: lat,
-      p_lng: lng,
-      p_radius_km: radius,
-    });
-    if (error) {
-      throw error;
-    }
-    return data || [];
-  };
 
   // Helper to enrich a single center with real-time stats
   const enrichCenter = async (center: any): Promise<NearbyCenter> => {
@@ -144,100 +131,39 @@ export const useNearbyClinics = () => {
     setPermissionDenied(false);
 
     try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-          {
-            title: 'Location Access Required',
-            message: 'QueueLess needs access to your location to show healthcare centers near you.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          setPermissionDenied(true);
-          setLoading(false);
-          setIsRefreshing(false);
-          return;
-        }
-      }
+      const location = await locationService.getCurrentUserLocation();
+      const { latitude, longitude } = location;
+      setCoords({ latitude, longitude });
 
-      Geolocation.getCurrentPosition(
-        async (pos) => {
-          const { latitude, longitude } = pos.coords;
-          console.log('[useNearbyClinics] GPS coordinates acquired:', latitude, longitude);
-          setCoords({ latitude, longitude });
+      const results = await getNearbyCenters(latitude, longitude, 10);
+      const radius = results.some(center => center.distance > 10) ? 15 : 10;
+      const banner =
+        radius === 15 && results.length > 0
+          ? 'No clinics found within 10 km. Showing nearest clinics within 15 km.'
+          : null;
 
-          try {
-            // Step 1: Search 20 KM
-            let radius = 20;
-            let results = await queryNearbyCenters(latitude, longitude, radius);
-            let filteredResults = results.filter(
-              c => c.distance_km != null && parseFloat(c.distance_km) <= radius
-            );
-            let banner = null;
-
-            if (filteredResults.length === 0) {
-              // Step 2: Search 50 KM
-              console.log('[useNearbyClinics] No clinics within 20 km, searching 50 km...');
-              radius = 50;
-              results = await queryNearbyCenters(latitude, longitude, radius);
-              filteredResults = results.filter(
-                c => c.distance_km != null && parseFloat(c.distance_km) <= radius
-              );
-              
-              if (filteredResults.length > 0) {
-                banner = 'No clinics found within 20 km. Showing nearest clinics within 50 km.';
-              } else {
-                // Step 3: Search 100 KM
-                console.log('[useNearbyClinics] No clinics within 50 km, searching 100 km...');
-                radius = 100;
-                results = await queryNearbyCenters(latitude, longitude, radius);
-                filteredResults = results.filter(
-                  c => c.distance_km != null && parseFloat(c.distance_km) <= radius
-                );
-                if (filteredResults.length > 0) {
-                  banner = 'No clinics found within 20 km. Showing nearest clinics within 100 km.';
-                }
-              }
-            }
-
-            // Enrich the clinics with extra stats
-            if (filteredResults.length > 0) {
-              const enriched = await Promise.all(filteredResults.map(enrichCenter));
-              setCenters(enriched);
-              setRadiusSearched(radius);
-              setBannerMessage(banner);
-            } else {
-              setCenters([]);
-              setRadiusSearched(100);
-              setBannerMessage(null);
-            }
-          } catch (err: any) {
-            console.warn('[useNearbyClinics] Database query error:', err);
-            setErrorMsg('Unable to load nearby clinics. Please try again.');
-          } finally {
-            setLoading(false);
-            setIsRefreshing(false);
-          }
-        },
-        (geoError) => {
-          console.warn('[useNearbyClinics] Geolocation error:', geoError);
-          // If geolocation permission denied (code 1 is PERMISSION_DENIED on iOS/Android)
-          if (geoError.code === 1) {
-            setPermissionDenied(true);
-          } else {
-            setErrorMsg('Could not fetch location. Make sure GPS/location services are enabled.');
-          }
-          setLoading(false);
-          setIsRefreshing(false);
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
+      const enriched = await Promise.all(
+        results.map(center =>
+          enrichCenter({
+            ...center,
+            distance_km: center.distance.toFixed(2),
+          }),
+        ),
       );
+
+      setCenters(enriched);
+      setRadiusSearched(radius);
+      setBannerMessage(banner);
     } catch (err) {
       console.warn('[useNearbyClinics] Permission request error:', err);
-      setErrorMsg('An error occurred while requesting location permissions.');
+      const message =
+        err instanceof Error ? err.message : 'Unable to load nearby clinics.';
+      if (message.toLowerCase().includes('permission')) {
+        setPermissionDenied(true);
+      } else {
+        setErrorMsg(message);
+      }
+    } finally {
       setLoading(false);
       setIsRefreshing(false);
     }

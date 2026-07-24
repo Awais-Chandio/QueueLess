@@ -9,6 +9,8 @@ export interface Center {
   close_time: string | null;
   image_url: string | null;
   created_at: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface CenterService {

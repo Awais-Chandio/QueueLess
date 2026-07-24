@@ -51,6 +51,28 @@ jest.mock('react-native-image-picker', () => ({
   launchImageLibrary: jest.fn(),
 }));
 
+jest.mock('@maplibre/maplibre-react-native', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const MapComponent = ({ children, ...props }) =>
+    React.createElement(View, props, children);
+
+  return {
+    Map: MapComponent,
+    Camera: React.forwardRef((_props, _ref) => null),
+    GeoJSONSource: MapComponent,
+    Layer: () => null,
+  };
+});
+
+jest.mock('react-native-geolocation-service', () => ({
+  requestAuthorization: jest.fn(() => Promise.resolve('granted')),
+  getCurrentPosition: jest.fn(),
+  watchPosition: jest.fn(() => 1),
+  clearWatch: jest.fn(),
+  stopObserving: jest.fn(),
+}));
+
 jest.mock('@react-native-firebase/app', () => ({
   initializeApp: jest.fn(),
 }));
@@ -78,4 +100,3 @@ jest.mock('@react-native-firebase/messaging', () => ({
     PROVISIONAL: 2,
   },
 }));
-
