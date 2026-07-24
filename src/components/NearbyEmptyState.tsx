@@ -12,7 +12,7 @@ interface NearbyEmptyStateProps {
 }
 
 export const NearbyEmptyState: React.FC<NearbyEmptyStateProps> = ({ type, onAction, style }) => {
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, typography } = useTheme();
   
   // Animations: Fade-in and slide-up
   const opacity = useRef(new Animated.Value(0)).current;
@@ -46,7 +46,7 @@ export const NearbyEmptyState: React.FC<NearbyEmptyStateProps> = ({ type, onActi
       Icon: MapPin,
       iconColor: colors.textSecondary,
       title: 'No Nearby Clinics Found',
-      subtitle: "We couldn't find any healthcare centers within 100 km of your current location.",
+      subtitle: "We couldn't find any healthcare centers within 15 km of your current location.",
       buttonTitle: 'Search All Clinics',
     },
     error: {

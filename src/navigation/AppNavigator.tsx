@@ -17,6 +17,7 @@ import PublicDoctorProfileScreen from "../features/appointments/components/Publi
 import ClinicSelectionScreen from "../features/appointments/components/ClinicSelectionScreen";
 import EditProfileScreen from "../features/profile/components/EditProfileScreen";
 import SettingsScreen from "../features/profile/components/SettingsScreen";
+import NotificationsScreen from "../features/notifications/components/NotificationsScreen";
 import {
   AboutScreen,
   PrivacyPolicyScreen,
@@ -95,6 +96,11 @@ const AppNavigator = () => {
         name="NearbyClinics"
         component={NearbyClinicsScreen}
         options={{ title: "Nearby Clinics", headerShown: false }}
+      />
+      <Stack.Screen
+        name="Notifications"
+        component={NotificationsScreen}
+        options={{ title: "Notifications", headerShown: false }}
       />
       <Stack.Screen
         name="DoctorSearch"

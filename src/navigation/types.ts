@@ -23,6 +23,7 @@ export type AppStackParamList = {
   ConfirmBooking: { lockId: string; doctorId: string; centerId: string; serviceId: string; selectedDate: string; slot: string; notes: string; expiryTime: number; patientName?: string; patientPhone?: string };
   Receipt: { appointmentId: string };
   NearbyClinics: undefined;
+  Notifications: undefined;
   DoctorSearch: undefined;
   PublicDoctorProfile: { doctorId: string; centerId?: string; serviceId?: string };
   ClinicSelection: { doctorId: string };
@@ -30,8 +31,8 @@ export type AppStackParamList = {
 
 export type AppTabParamList = {
   Home: undefined;
-  Centers: undefined;
+  Explore: undefined;
+  Map: undefined;
   MyAppointments: undefined;
-  Notifications: undefined;
   Profile: undefined;
 };
