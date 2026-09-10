@@ -105,7 +105,6 @@ Keep Metro running while developing the application.
 
 Open a new terminal from the project root and run:
 
-```sh
 # npm
 npm run android
 
