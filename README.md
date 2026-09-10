@@ -126,9 +126,7 @@ bundle install
 
 Then install the CocoaPods dependencies:
 
-```sh
 bundle exec pod install
-```
 
 You should run `bundle exec pod install` again whenever native dependencies are added or updated.
 
