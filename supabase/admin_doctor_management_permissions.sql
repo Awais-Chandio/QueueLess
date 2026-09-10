@@ -17,8 +17,6 @@ AS $$
     FROM public.profiles
     WHERE profiles.id = auth.uid()
       AND profiles.role = 'admin'
-
-      
   );
 $$;
 
