@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
 import {
   doctorAvailabilityService,
@@ -6,91 +6,81 @@ import {
 } from '../services/doctorAvailabilityService';
 import type { DoctorSchedule } from '../services/doctorDashboardService';
 
+type ScheduleRow = DoctorSchedule & { id: string; is_available: boolean };
+
 export function useDoctorAvailability() {
   const { user } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  const [doctorId, setDoctorId] = useState<string | null>(null);
-  const [isOnBreak, setIsOnBreak] = useState(false);
-  const [schedule, setSchedule] = useState<(DoctorSchedule & { id: string; is_available: boolean })[]>([]);
-  const [leaves, setLeaves] = useState<DoctorLeave[]>([]);
+  const profileQuery = useQuery({
+    queryKey: ['doctor-profile-availability', user?.id],
+    queryFn: () => doctorAvailabilityService.getDoctorProfile(user!.id),
+    enabled: !!user?.id,
+  });
 
-  const loadData = useCallback(async (showLoading = true) => {
-    if (!user?.id) {
-      setError('User not logged in.');
-      setIsLoading(false);
-      return;
-    }
+  const doctorId = profileQuery.data?.id ?? null;
 
-    if (showLoading) setIsLoading(true);
-    setError(null);
+  const scheduleQuery = useQuery<ScheduleRow[]>({
+    queryKey: ['doctor-schedule', doctorId],
+    queryFn: () => doctorAvailabilityService.getWeeklySchedule(doctorId!),
+    enabled: !!doctorId,
+  });
 
-    try {
-      // 1. Get Doctor Profile to resolve doctorId and break status
-      const profile = await doctorAvailabilityService.getDoctorProfile(user.id);
-      setDoctorId(profile.id);
-      setIsOnBreak(profile.is_on_break);
+  const leavesQuery = useQuery<DoctorLeave[]>({
+    queryKey: ['doctor-leaves', doctorId],
+    queryFn: () => doctorAvailabilityService.getLeaves(doctorId!),
+    enabled: !!doctorId,
+  });
 
-      // 2. Fetch schedule and leaves concurrently
-      const [scheduleData, leavesData] = await Promise.all([
-        doctorAvailabilityService.getWeeklySchedule(profile.id),
-        doctorAvailabilityService.getLeaves(profile.id),
-      ]);
+  const isLoading =
+    profileQuery.isLoading || scheduleQuery.isLoading || leavesQuery.isLoading;
 
-      setSchedule(scheduleData);
-      setLeaves(leavesData);
-    } catch (err: any) {
-      console.error('[useDoctorAvailability] Error loading data:', err);
-      setError(err?.message || 'Failed to load availability data.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
+  const error = !user?.id
+    ? 'User not logged in.'
+    : profileQuery.error instanceof Error
+      ? profileQuery.error.message
+      : scheduleQuery.error instanceof Error
+        ? scheduleQuery.error.message
+        : leavesQuery.error instanceof Error
+          ? leavesQuery.error.message
+          : null;
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const toggleBreakModeMutation = useMutation({
+    mutationFn: (status: boolean) =>
+      doctorAvailabilityService.updateBreakMode(doctorId!, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doctor-profile-availability', user?.id] });
+    },
+  });
 
-  const toggleBreakMode = async (status: boolean) => {
-    if (!doctorId) return;
-    try {
-      setIsLoading(true);
-      await doctorAvailabilityService.updateBreakMode(doctorId, status);
-      setIsOnBreak(status);
-    } catch (err: any) {
-      console.error('[useDoctorAvailability] Error toggling break mode:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const updateDayScheduleMutation = useMutation({
+    mutationFn: ({
+      availabilityId,
+      updates,
+    }: {
+      availabilityId: string;
+      updates: {
+        start_time: string;
+        end_time: string;
+        slot_duration: number;
+        is_available: boolean;
+      };
+    }) => doctorAvailabilityService.updateDayAvailability(availabilityId, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doctor-schedule', doctorId] });
+    },
+  });
 
-  const updateDaySchedule = async (
-    availabilityId: string,
-    updates: {
-      start_time: string;
-      end_time: string;
-      slot_duration: number;
-      is_available: boolean;
-    }
-  ) => {
-    try {
-      setIsLoading(true);
-      await doctorAvailabilityService.updateDayAvailability(availabilityId, updates);
-      await loadData(false);
-    } catch (err: any) {
-      console.error('[useDoctorAvailability] Error updating day schedule:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const requestLeaveRange = async (startDate: string, endDate: string, reason: string) => {
-    if (!doctorId) return;
-    try {
-      setIsLoading(true);
+  const requestLeaveRangeMutation = useMutation({
+    mutationFn: async ({
+      startDate,
+      endDate,
+      reason,
+    }: {
+      startDate: string;
+      endDate: string;
+      reason: string;
+    }) => {
       const start = new Date(startDate);
       const end = new Date(endDate);
       const dates: string[] = [];
@@ -103,41 +93,49 @@ export function useDoctorAvailability() {
       }
 
       await Promise.all(
-        dates.map(dateStr => doctorAvailabilityService.addLeave(doctorId, dateStr, reason))
+        dates.map(dateStr => doctorAvailabilityService.addLeave(doctorId!, dateStr, reason)),
       );
-      await loadData(false);
-    } catch (err: any) {
-      console.error('[useDoctorAvailability] Error requesting leave range:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doctor-leaves', doctorId] });
+    },
+  });
 
-  const cancelLeave = async (leaveId: string) => {
-    try {
-      setIsLoading(true);
-      await doctorAvailabilityService.deleteLeave(leaveId);
-      await loadData(false);
-    } catch (err: any) {
-      console.error('[useDoctorAvailability] Error cancelling leave:', err);
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
+  const cancelLeaveMutation = useMutation({
+    mutationFn: (leaveId: string) => doctorAvailabilityService.deleteLeave(leaveId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doctor-leaves', doctorId] });
+    },
+  });
+
+  const refresh = async () => {
+    await Promise.all([
+      profileQuery.refetch(),
+      scheduleQuery.refetch(),
+      leavesQuery.refetch(),
+    ]);
   };
 
   return {
     isLoading,
     error,
     doctorId,
-    isOnBreak,
-    schedule,
-    leaves,
-    toggleBreakMode,
-    updateDaySchedule,
-    requestLeaveRange,
-    cancelLeave,
-    refresh: () => loadData(false),
+    isOnBreak: profileQuery.data?.is_on_break ?? false,
+    schedule: scheduleQuery.data ?? [],
+    leaves: leavesQuery.data ?? [],
+    toggleBreakMode: (status: boolean) => toggleBreakModeMutation.mutateAsync(status),
+    updateDaySchedule: (
+      availabilityId: string,
+      updates: {
+        start_time: string;
+        end_time: string;
+        slot_duration: number;
+        is_available: boolean;
+      },
+    ) => updateDayScheduleMutation.mutateAsync({ availabilityId, updates }),
+    requestLeaveRange: (startDate: string, endDate: string, reason: string) =>
+      requestLeaveRangeMutation.mutateAsync({ startDate, endDate, reason }),
+    cancelLeave: (leaveId: string) => cancelLeaveMutation.mutateAsync(leaveId),
+    refresh,
   };
 }
