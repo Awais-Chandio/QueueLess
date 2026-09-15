@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, StyleSheet, Text, Image, Pressable } from 'react-native';
-import { Hospital, MapPin, Star, Stethoscope, Users, Clock } from 'lucide-react-native';
+import { Hospital, MapPin, Stethoscope, Users, Clock } from 'lucide-react-native';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import AppButton from '../../../components/ui/AppButton';
@@ -86,19 +86,11 @@ const NearbyClinicCardComponent: React.FC<NearbyClinicCardProps> = ({ item, inde
               ) : null}
             </View>
 
-            {/* Badges & Rating Row */}
+            {/* Status & Doctor Badges Row */}
             <View style={styles.badgeRow}>
-              <View style={styles.ratingContainer}>
-                <Star size={14} color="#FBBF24" fill="#FBBF24" style={{ marginRight: 2 }} />
-                <Text style={[styles.ratingText, { color: colors.text, fontSize: typography.sizes.xs, fontWeight: '800' }]}>
-                  {item.rating.toFixed(1)}
-                </Text>
-              </View>
-              
               <Badge
                 label={isOpen ? 'Open' : 'Closed'}
                 variant={isOpen ? 'success' : 'error'}
-                style={{ marginLeft: spacing.sm }}
               />
             </View>
 
@@ -133,7 +125,7 @@ const NearbyClinicCardComponent: React.FC<NearbyClinicCardProps> = ({ item, inde
               Current Token
             </Text>
             <Text style={[styles.queueVal, { color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }]}>
-              {item.currentToken}
+              {item.hasActiveToken ? item.currentToken : 'Not started'}
             </Text>
           </View>
 
@@ -214,13 +206,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 4,
     marginBottom: 6,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    marginLeft: 2,
   },
   metaRow: {
     flexDirection: 'row',
