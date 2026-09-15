@@ -16,9 +16,9 @@ export interface NearbyCenter {
   latitude: number;
   longitude: number;
   distance_km: string;
-  rating: number;
   doctorCount: number;
   currentToken: number;
+  hasActiveToken: boolean;
   waitingCount: number;
   estimatedWait: number;
 }
@@ -33,30 +33,24 @@ export const useNearbyClinics = () => {
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Helper to enrich a single center with real-time stats
+  // Helper to enrich a single center with real, live queue stats. No fields
+  // here are fabricated: everything defaults to a genuine zero/empty state
+  // when there's no real data, rather than a fake "looks busy" placeholder.
   const enrichCenter = async (center: any): Promise<NearbyCenter> => {
-    // Generate deterministic values based on center name/id for premium details fallback
-    let charCodeSum = 0;
-    const key = center.id || center.name || '';
-    for (let i = 0; i < key.length; i++) {
-      charCodeSum += key.charCodeAt(i);
-    }
-    
-    const defaultRating = parseFloat((4.4 + (charCodeSum % 6) * 0.1).toFixed(1));
-    let doctorCount = (charCodeSum % 3) + 2; // e.g. 2, 3, or 4 doctors
-    let currentToken = (charCodeSum % 20) + 5; // e.g. 5 to 24
-    let waitingCount = (charCodeSum % 10) + 3; // e.g. 3 to 12
-    let estimatedWait = waitingCount * 4; // e.g. 12 to 48 mins
+    let doctorCount = 0;
+    let currentToken = 0;
+    let hasActiveToken = false;
+    let waitingCount = 0;
+    let estimatedWait = 0;
 
     try {
-      // 1. Fetch real active doctors count
       const { count: docCount, error: docError } = await supabase
         .from('doctors')
         .select('id', { count: 'exact', head: true })
         .eq('center_id', center.id)
         .eq('is_active', true);
-      
-      if (!docError && docCount !== null && docCount > 0) {
+
+      if (!docError && typeof docCount === 'number') {
         doctorCount = docCount;
       }
     } catch (e) {
@@ -64,7 +58,6 @@ export const useNearbyClinics = () => {
     }
 
     try {
-      // 2. Fetch today's appointments to get current serving token and waiting count
       const todayStr = new Date().toISOString().split('T')[0];
       const { data: appointments, error: apptError } = await supabase
         .from('appointments')
@@ -72,40 +65,30 @@ export const useNearbyClinics = () => {
         .eq('center_id', center.id)
         .eq('appointment_date', todayStr);
 
-      if (!apptError && appointments && appointments.length > 0) {
-        // Current Token: highest token in status 'called' or 'in_progress'
+      if (!apptError && appointments) {
         const serving = appointments
           .filter(a => ['called', 'in_progress'].includes(a.status))
           .map(a => a.token_number)
           .filter((t): t is number => typeof t === 'number');
 
-        let dbCurrentToken = 0;
         if (serving.length > 0) {
-          dbCurrentToken = Math.max(...serving);
+          currentToken = Math.max(...serving);
+          hasActiveToken = true;
         } else {
-          // Fallback to highest completed token
           const completed = appointments
             .filter(a => a.status === 'completed')
             .map(a => a.token_number)
             .filter((t): t is number => typeof t === 'number');
-          dbCurrentToken = completed.length > 0 ? Math.max(...completed) : 0;
+          if (completed.length > 0) {
+            currentToken = Math.max(...completed);
+            hasActiveToken = true;
+          }
         }
 
-        // Waiting Count: count of status 'confirmed' or 'checked_in'
-        const dbWaitingCount = appointments.filter(a => ['confirmed', 'checked_in'].includes(a.status)).length;
-
-        // If there are real appointments, update our stats. If 0, keep fallbacks so the UI looks premium
-        if (dbCurrentToken > 0) {
-          currentToken = dbCurrentToken;
-        }
-        if (dbWaitingCount > 0) {
-          waitingCount = dbWaitingCount;
-          estimatedWait = dbWaitingCount * 5; // 5 mins average consultation
-        } else if (appointments.length > 0) {
-          // If there are appointments today but none called/confirmed, set waiting count to 0
-          waitingCount = 0;
-          estimatedWait = 0;
-        }
+        waitingCount = appointments.filter(a =>
+          ['confirmed', 'checked_in'].includes(a.status),
+        ).length;
+        estimatedWait = waitingCount * 5; // 5 mins average consultation
       }
     } catch (e) {
       console.warn('Error fetching appointments for center', center.id, e);
@@ -113,9 +96,9 @@ export const useNearbyClinics = () => {
 
     return {
       ...center,
-      rating: defaultRating,
       doctorCount,
       currentToken,
+      hasActiveToken,
       waitingCount,
       estimatedWait,
     };
