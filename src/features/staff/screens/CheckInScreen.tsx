@@ -4,46 +4,39 @@ import {
   StyleSheet,
   Text,
   Pressable,
-  ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, Search, UserCheck, CheckCircle } from 'lucide-react-native';
-import ScreenWrapper from '../../components/ui/ScreenWrapper';
-import AppInput from '../../components/ui/AppInput';
-import AppButton from '../../components/ui/AppButton';
-import { Card } from '../../components/ui/Card';
-import { EmptyState } from '../../components/ui/EmptyState';
-import ErrorState from '../../components/ui/ErrorState';
-import { StatusChip } from '../../components/ui/StatusChip';
-import { useTheme } from '../../hooks/useTheme';
-import { scaleFont } from '../../utils/responsive';
-import { queueService } from '../../services/queueService';
-import { appointmentService } from '../../services/appointmentService';
-import { getAppointmentTimeLabel } from '../../features/appointments/utils/appointmentTime';
-import { toastService } from '../../services/toastService';
+import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import AppInput from '../../../components/ui/AppInput';
+import AppButton from '../../../components/ui/AppButton';
+import { Card } from '../../../components/ui/Card';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import ErrorState from '../../../components/ui/ErrorState';
+import { StatusChip } from '../../../components/ui/StatusChip';
+import { useTheme } from '../../../hooks/useTheme';
+import { scaleFont } from '../../../utils/responsive';
+import { staffQueueService } from '../api/staffQueueService';
+import { appointmentService } from '../../../services/appointmentService';
+import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
+import { toastService } from '../../../services/toastService';
 
 const CheckInScreen = () => {
   const navigation = useNavigation();
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing } = useTheme();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch today's appointments
   const { data, error, isError, isLoading, refetch } = useQuery({
     queryKey: ['staff-dashboard', 'today'],
-    queryFn: () => queueService.fetchDashboard('today'),
+    queryFn: () => staffQueueService.fetchDashboard('today'),
     staleTime: 0,
   });
 
-  const appointments = useMemo(
-    () => data?.appointments ?? [],
-    [data?.appointments],
-  );
+  const appointments = useMemo(() => data?.appointments ?? [], [data?.appointments]);
 
-  // Filter appointments to show pending (not confirmed yet) or confirmed (ready to check in)
   const checkInQueue = useMemo(() => {
     return appointments.filter(item => {
       const isPendingOrConfirmed = item.status === 'pending' || item.status === 'confirmed';
@@ -60,7 +53,6 @@ const CheckInScreen = () => {
     });
   }, [appointments, searchQuery]);
 
-  // Mutation for staff checking in a patient
   const checkInMutation = useMutation({
     mutationFn: async (appointmentId: string) => {
       return appointmentService.staffCheckInAppointment(appointmentId);
@@ -75,10 +67,9 @@ const CheckInScreen = () => {
     },
   });
 
-  // Mutation for confirming a pending appointment
   const confirmMutation = useMutation({
     mutationFn: async (item: any) => {
-      return queueService.confirmAppointment(item);
+      return staffQueueService.confirmAppointment(item);
     },
     onSuccess: () => {
       toastService.success('Appointment confirmed successfully!');
@@ -92,7 +83,6 @@ const CheckInScreen = () => {
 
   return (
     <ScreenWrapper scrollable>
-      {/* Header */}
       <View style={[styles.header, { marginBottom: spacing.md }]}>
         <Pressable
           onPress={() => navigation.goBack()}
@@ -135,7 +125,7 @@ const CheckInScreen = () => {
           ) : (
             checkInQueue.map(item => {
               const isPending = item.status === 'pending';
-              const isBusy = 
+              const isBusy =
                 (checkInMutation.isPending && checkInMutation.variables === item.id) ||
                 (confirmMutation.isPending && confirmMutation.variables?.id === item.id);
 
@@ -167,7 +157,6 @@ const CheckInScreen = () => {
                     </Text>
                   </View>
 
-                  {/* Actions Block */}
                   <View style={[styles.actions, { marginTop: spacing.md }]}>
                     {isPending ? (
                       <AppButton

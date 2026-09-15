@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,21 @@ import {
   ScrollView,
   Image,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Platform,
   Alert,
 } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useTheme } from '../../../hooks/useTheme';
 import { useDoctorDashboard } from '../hooks/useDoctorDashboard';
 import { useAuthStore } from '../../../store/authStore';
+import { doctorService } from '../../../services/doctorService';
+import { supabase } from '../../../lib/supabase';
+import { toastService } from '../../../services/toastService';
+import AppInput from '../../../components/ui/AppInput';
+import AppButton from '../../../components/ui/AppButton';
 import {
   User,
   Mail,
@@ -22,6 +30,8 @@ import {
   CreditCard,
   MapPin,
   ShieldCheck,
+  ShieldAlert,
+  Camera,
   LogOut,
 } from 'lucide-react-native';
 
@@ -29,6 +39,92 @@ export default function ProfileScreen() {
   const { colors, spacing, typography, radius } = useTheme();
   const { isLoading, doctorProfile } = useDoctorDashboard();
   const { clearAuth } = useAuthStore();
+  const queryClient = useQueryClient();
+
+  const [bio, setBio] = useState('');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    if (doctorProfile) {
+      setBio(doctorProfile.bio || '');
+      setPhotoUrl(doctorProfile.photo_url || null);
+    }
+    // Re-seed only when the doctor identity changes, not on every background
+    // refetch — otherwise an in-progress edit would get clobbered mid-typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doctorProfile?.id]);
+
+  const handlePhotoUpload = async () => {
+    if (!doctorProfile?.id || uploading) return;
+
+    let result;
+    try {
+      result = await launchImageLibrary({
+        mediaType: 'photo',
+        includeBase64: true,
+        quality: 0.8,
+        selectionLimit: 1,
+      });
+    } catch {
+      toastService.error('Unable to open image picker.');
+      return;
+    }
+
+    if (result.didCancel || result.errorMessage || !result.assets?.[0]) {
+      if (result.errorMessage) {
+        toastService.error(result.errorMessage);
+      }
+      return;
+    }
+
+    const asset = result.assets[0];
+    if (!asset.base64) {
+      toastService.error('Could not get image base64 data.');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const publicUrl = await doctorService.uploadPhoto(doctorProfile.id, asset.base64, asset.type || 'image/jpeg');
+      setPhotoUrl(publicUrl);
+      toastService.success('Photo uploaded successfully! Save changes to apply.');
+    } catch (err: any) {
+      toastService.error(err.message || 'Failed to upload photo.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!doctorProfile?.id) return;
+
+    try {
+      setSaving(true);
+
+      const { error } = await supabase
+        .from('doctors')
+        .update({ bio, photo_url: photoUrl })
+        .eq('id', doctorProfile.id);
+
+      if (error) {
+        if (error.message.includes('Only admin can change')) {
+          Alert.alert('Not allowed', 'Only an admin can change that field.');
+        } else {
+          Alert.alert('Error', error.message);
+        }
+        return;
+      }
+
+      toastService.success('Profile updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['doctor-profile'] });
+    } catch (err: any) {
+      toastService.error(err.message || 'Failed to save changes.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -56,12 +152,29 @@ export default function ProfileScreen() {
     >
       {/* Profile Header Card */}
       <View style={[styles.profileHeaderCard, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-        <View style={[styles.avatarContainer, { backgroundColor: colors.primary + '10' }]}>
-          {doctorProfile?.photo_url ? (
-            <Image source={{ uri: doctorProfile.photo_url }} style={styles.avatarImage} />
-          ) : (
-            <User size={48} color={colors.primary} />
-          )}
+        <View style={styles.avatarWrapper}>
+          <View style={[styles.avatarContainer, { backgroundColor: colors.primary + '10' }]}>
+            {photoUrl ? (
+              <Image source={{ uri: photoUrl }} style={styles.avatarImage} />
+            ) : (
+              <User size={48} color={colors.primary} />
+            )}
+          </View>
+          <Pressable
+            onPress={handlePhotoUpload}
+            disabled={uploading}
+            style={({ pressed }) => [
+              styles.cameraButton,
+              { backgroundColor: colors.primary },
+              pressed && { opacity: 0.8 },
+            ]}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Camera size={16} color="#FFFFFF" />
+            )}
+          </Pressable>
         </View>
         <Text style={[styles.name, { color: colors.text, fontSize: typography.sizes.md }]}>
           Dr. {doctorProfile?.name}
@@ -69,11 +182,35 @@ export default function ProfileScreen() {
         <Text style={[styles.specialty, { color: colors.primary, fontSize: typography.sizes.xs }]}>
           {doctorProfile?.specialty || 'General Specialist'}
         </Text>
-        {doctorProfile?.bio ? (
-          <Text style={[styles.bio, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-            {doctorProfile.bio}
-          </Text>
-        ) : null}
+      </View>
+
+      {/* Editable Profile Information */}
+      <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.sm }]}>
+        Editable Profile Information
+      </Text>
+      <View style={[styles.infoBlock, styles.editableBlock, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
+        <AppInput
+          label="Professional Biography (Bio)"
+          placeholder="Describe your qualifications, specialties, and clinical experience..."
+          multiline
+          value={bio}
+          onChangeText={setBio}
+        />
+        <AppButton
+          title="Save Changes"
+          variant="primary"
+          loading={saving}
+          disabled={saving || uploading}
+          onPress={handleSave}
+        />
+      </View>
+
+      {/* Restricted Fields Banner */}
+      <View style={[styles.restrictedBanner, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '30', borderRadius: radius.md }]}>
+        <ShieldAlert size={16} color={colors.warning} />
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginLeft: 8, flex: 1 }}>
+          The following details are locked for security and auditing. Contact admin to update them.
+        </Text>
       </View>
 
       {/* Profile Info Details List */}
@@ -218,13 +355,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 12,
+  },
   avatarContainer: {
     width: 90,
     height: 90,
     borderRadius: 45,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
     borderWidth: 3,
     borderColor: '#ffffff',
     shadowColor: '#000',
@@ -232,6 +372,34 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+  },
+  cameraButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  editableBlock: {
+    padding: 16,
+    gap: 12,
+  },
+  restrictedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderWidth: 1,
+    marginBottom: 16,
   },
   avatarImage: {
     width: '100%',

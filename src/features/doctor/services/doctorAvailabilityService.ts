@@ -43,7 +43,7 @@ export const doctorAvailabilityService = {
   async getWeeklySchedule(doctorId: string): Promise<(DoctorSchedule & { id: string; is_available: boolean })[]> {
     const { data, error } = await supabase
       .from('doctor_schedules')
-      .select('id, day_of_week, start_time, end_time, max_tokens_per_day')
+      .select('id, day_of_week, start_time, end_time, max_tokens_per_day, slot_duration_minutes, is_available')
       .eq('doctor_id', doctorId)
       .order('day_of_week', { ascending: true });
 
@@ -57,8 +57,8 @@ export const doctorAvailabilityService = {
       day_of_week: row.day_of_week,
       start_time: row.start_time,
       end_time: row.end_time,
-      slot_duration: 15,
-      is_available: true,
+      slot_duration: row.slot_duration_minutes,
+      is_available: row.is_available,
       max_tokens_per_day: row.max_tokens_per_day,
     })) as (DoctorSchedule & { id: string; is_available: boolean })[];
   },
@@ -75,7 +75,11 @@ export const doctorAvailabilityService = {
     const { slot_duration, is_available, ...rest } = updates;
     const { error } = await supabase
       .from('doctor_schedules')
-      .update(rest)
+      .update({
+        ...rest,
+        slot_duration_minutes: slot_duration,
+        is_available,
+      })
       .eq('id', availabilityId);
 
     if (error) {

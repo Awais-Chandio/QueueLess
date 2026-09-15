@@ -3,8 +3,8 @@ import { View, StyleSheet } from "react-native";
 import AuthNavigator from "./AuthNavigator";
 import AdminNavigator from "./AdminNavigator";
 import PatientNavigator from "./PatientNavigator";
-import DoctorNavigator from "./DoctorNavigator";
-import CounterStaffNavigator from "./CounterStaffNavigator";
+import DoctorNavigator from "../features/doctor/navigation/DoctorNavigator";
+import StaffNavigator from "../features/staff/navigation/StaffNavigator";
 import { useAuthStore } from "../stores/authStore";
 import { useProfileStore } from "../stores/profileStore";
 import { getUserRoute } from "../utils/roleMapping";
@@ -60,7 +60,7 @@ const RootNavigator = () => {
 
     if (role === 'admin') return <AdminNavigator />;
     if (role === 'doctor') return <DoctorNavigator />;
-    if (role === 'staff') return <CounterStaffNavigator />;
+    if (role === 'staff') return <StaffNavigator />;
     if (role === 'client') return <PatientNavigator />;
 
     return <PatientNavigator />;

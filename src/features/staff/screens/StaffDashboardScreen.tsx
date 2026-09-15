@@ -9,11 +9,10 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  BellRing,
-  CheckCircle2,
   Users,
   Clock,
   XCircle,
@@ -22,6 +21,8 @@ import {
   Search,
   LogOut,
   Coffee,
+  ClipboardCheck,
+  CheckCircle2,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
@@ -39,19 +40,18 @@ import { useTheme } from '../../../hooks/useTheme';
 import { useStaffQueueStore } from '../../../store/queueStore';
 import type {
   AppointmentFull,
-  AppointmentStatus,
   CancelReason,
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { queueService } from '../../../services/queueService';
 import { centerService } from '../../../services/centerService';
-import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
 import { getAppointmentStatusState } from '../../../services/bookingService';
-
 import { getDisplayName } from '../../../utils/getDisplayName';
 import { toastService } from '../../../services/toastService';
+import { AppointmentRow } from '../components/AppointmentRow';
+import type { StaffStackParamList } from '../navigation/StaffNavigator';
 
-type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
+export type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
 
 const cancelReasons: CancelReason[] = [
   'Patient Requested',
@@ -61,31 +61,10 @@ const cancelReasons: CancelReason[] = [
   'Other',
 ];
 
-const statusLabel = (status: string) =>
-  status
-    .split('_')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(' ');
-
-const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
-  switch (status) {
-    case 'pending':
-      return ['confirm', 'cancel'];
-    case 'confirmed':
-      return ['start_service', 'complete_service', 'cancel'];
-    case 'checked_in':
-      return ['start_service', 'cancel'];
-    case 'called':
-    case 'in_progress':
-      return ['complete_service', 'no_show'];
-    default:
-      return [];
-  }
-};
-
 const StaffDashboardScreen = () => {
   const { colors, spacing, typography, radius } = useTheme();
   const { logout, user } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<StaffStackParamList>>();
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
 
@@ -394,200 +373,79 @@ const StaffDashboardScreen = () => {
     });
   }, [appointments, statusFilter, searchQuery, selectedDoctorId]);
 
-  const renderActionButton = (
-    action: QueueAction,
-    appointment: AppointmentFull,
-  ) => {
-    const labels: Record<QueueAction, string> = {
-      confirm: 'Confirm',
-      cancel: 'Cancel',
-      start_service: 'Call',
-      complete_service: 'Complete',
-      no_show: 'No Show',
-    };
+  const confirmAction = useCallback(
+    (action: QueueAction, appointment: AppointmentFull) => {
+      const labels: Record<QueueAction, string> = {
+        confirm: 'Confirm',
+        cancel: 'Cancel',
+        start_service: 'Call',
+        complete_service: 'Complete',
+        no_show: 'No Show',
+      };
+      const actionLabel = labels[action];
+      Alert.alert(
+        `${actionLabel} Appointment`,
+        `Are you sure you want to ${actionLabel.toLowerCase()} this appointment?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Yes', onPress: () => runActionMutation.mutate({ action, appointment }) },
+        ],
+      );
+    },
+    [runActionMutation],
+  );
 
-    const isCancel = action === 'cancel';
-    const isCallBlocked =
-      action === 'start_service' &&
-      (hasActiveService || appointment.id !== nextCallableAppointmentId);
-    const isBusy =
+  const handleConfirm = useCallback(
+    (appointment: AppointmentFull) => confirmAction('confirm', appointment),
+    [confirmAction],
+  );
+  const handleCancel = useCallback(
+    (appointment: AppointmentFull) => setCancelTarget(appointment),
+    [],
+  );
+  const handleCall = useCallback(
+    (appointment: AppointmentFull) => confirmAction('start_service', appointment),
+    [confirmAction],
+  );
+  const handleComplete = useCallback(
+    (appointment: AppointmentFull) => confirmAction('complete_service', appointment),
+    [confirmAction],
+  );
+  const handleNoShow = useCallback(
+    (appointment: AppointmentFull) => confirmAction('no_show', appointment),
+    [confirmAction],
+  );
+
+  const busyActionFor = (appointmentId: string): QueueAction | null => {
+    if (
       runActionMutation.isPending &&
-      runActionMutation.variables?.appointment.id === appointment.id &&
-      runActionMutation.variables?.action === action;
-
-    return (
-      <AppButton
-        key={action}
-        title={labels[action]}
-        variant={
-          isCancel || action === 'no_show' ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
-        }
-        loading={isBusy}
-        disabled={runActionMutation.isPending || isCallBlocked}
-        style={styles.actionButton}
-        textStyle={{ fontSize: typography.sizes.sm }}
-        onPress={() => {
-          if (isCancel) {
-            setCancelTarget(appointment);
-            return;
-          }
-
-          const actionLabel = labels[action];
-          Alert.alert(
-            `${actionLabel} Appointment`,
-            `Are you sure you want to ${actionLabel.toLowerCase()} this appointment?`,
-            [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Yes',
-                onPress: () =>
-                  runActionMutation.mutate({ action, appointment }),
-              },
-            ],
-          );
-        }}
-      />
-    );
+      runActionMutation.variables?.appointment.id === appointmentId
+    ) {
+      return runActionMutation.variables.action;
+    }
+    return null;
   };
 
   const renderAppointmentItem = (
     item: AppointmentFull,
     index: number,
     isPendingSection: boolean,
-  ) => {
-    const { resolvedStatus } = getAppointmentStatusState(item);
-    const actions = getAvailableActions(resolvedStatus);
-
-    return (
-      <View
-        key={item.id}
-        style={[
-          styles.itemContainer,
-          index > 0 && {
-            borderTopWidth: 1,
-            borderTopColor: colors.border + '50',
-            paddingTop: spacing.md,
-            marginTop: spacing.md,
-          },
-        ]}
-      >
-        <View style={styles.itemHeader}>
-          <View style={styles.itemTitleWrap}>
-            <View style={styles.itemMainRow}>
-              {/* Token badge pill */}
-              <View
-                style={[
-                  styles.tokenPill,
-                  {
-                    backgroundColor: `${colors.primary}10`,
-                    borderColor: `${colors.primary}30`,
-                    borderWidth: 1,
-                  },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.tokenText,
-                    { color: colors.primary, fontSize: typography.sizes.sm },
-                  ]}
-                >
-                  {typeof item.token_number === 'number'
-                    ? `#${item.token_number}`
-                    : 'No Token'}
-                </Text>
-              </View>
-              <Text
-                style={[
-                  styles.patientName,
-                  { color: colors.text, fontSize: typography.sizes.md },
-                ]}
-              >
-                {item.patient_name ?? 'Patient'}
-              </Text>
-            </View>
-            <Text
-              style={[
-                styles.metaText,
-                {
-                  color: colors.textSecondary,
-                  fontSize: typography.sizes.sm,
-                  marginTop: scaleFont(4),
-                },
-              ]}
-            >
-              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)} • {item.doctor_name ? `Dr. ${item.doctor_name}` : 'Any Available'}
-            </Text>
-          </View>
-          {!isPendingSection && (
-            <StatusChip
-              status={resolvedStatus}
-              label={statusLabel(resolvedStatus)}
-              size="sm"
-            />
-          )}
-        </View>
-
-        {resolvedStatus === 'checked_in' && (
-          <View
-            style={[
-              styles.statusAlert,
-              {
-                backgroundColor: `${colors.success}10`,
-                borderColor: `${colors.success}30`,
-                marginTop: spacing.sm,
-              },
-            ]}
-          >
-            <CheckCircle2 color={colors.success} size={scaleFont(12)} />
-            <Text
-              style={{
-                color: colors.success,
-                fontSize: typography.sizes.xs,
-                fontWeight: '700',
-              }}
-            >
-              Arrived
-            </Text>
-          </View>
-        )}
-
-        {resolvedStatus === 'called' && (
-          <View
-            style={[
-              styles.statusAlert,
-              {
-                backgroundColor: `${colors.info}10`,
-                borderColor: `${colors.info}30`,
-                marginTop: spacing.sm,
-              },
-            ]}
-          >
-            <BellRing color={colors.info} size={scaleFont(12)} />
-            <Text
-              style={{
-                color: colors.info,
-                fontSize: typography.sizes.xs,
-                fontWeight: '700',
-              }}
-            >
-              Called
-            </Text>
-          </View>
-        )}
-
-        {actions.length > 0 && (
-          <View
-            style={[
-              styles.actionsRow,
-              { gap: spacing.sm, marginTop: spacing.md },
-            ]}
-          >
-            {actions.map(action => renderActionButton(action, item))}
-          </View>
-        )}
-      </View>
-    );
-  };
+  ) => (
+    <AppointmentRow
+      key={item.id}
+      appointment={item}
+      isFirst={index === 0}
+      isPendingSection={isPendingSection}
+      isCallBlocked={hasActiveService || item.id !== nextCallableAppointmentId}
+      disabledAll={runActionMutation.isPending}
+      busyAction={busyActionFor(item.id)}
+      onConfirm={handleConfirm}
+      onCancel={handleCancel}
+      onCall={handleCall}
+      onComplete={handleComplete}
+      onNoShow={handleNoShow}
+    />
+  );
 
   if (isLoading) {
     return (
@@ -691,23 +549,37 @@ const StaffDashboardScreen = () => {
             {centerName ? `Center: ${centerName}` : "Today's Queue Control"}
           </Text>
         </View>
-        <Pressable
-          onPress={() => {
-            Alert.alert('Logout', 'Are you sure you want to logout?', [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Logout', style: 'destructive', onPress: logout },
-            ]);
-          }}
-          style={({ pressed }) => [
-            styles.logoutIconButton,
-            {
-              backgroundColor: pressed ? colors.border + '30' : colors.surface,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <LogOut color={colors.text} size={18} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <Pressable
+            onPress={() => navigation.navigate('CheckIn')}
+            style={({ pressed }) => [
+              styles.logoutIconButton,
+              {
+                backgroundColor: pressed ? colors.border + '30' : colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <ClipboardCheck color={colors.text} size={18} />
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              Alert.alert('Logout', 'Are you sure you want to logout?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Logout', style: 'destructive', onPress: logout },
+              ]);
+            }}
+            style={({ pressed }) => [
+              styles.logoutIconButton,
+              {
+                backgroundColor: pressed ? colors.border + '30' : colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <LogOut color={colors.text} size={18} />
+          </Pressable>
+        </View>
       </View>
 
       {/* Card 1: Today's Stats */}
@@ -1271,55 +1143,6 @@ const styles = StyleSheet.create({
   statGridLabel: {
     fontWeight: '600',
     marginTop: scaleFont(2),
-  },
-  itemContainer: {
-    flexDirection: 'column',
-  },
-  itemHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  itemTitleWrap: {
-    flex: 1,
-    paddingRight: wp(2),
-  },
-  itemMainRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleFont(8),
-  },
-  tokenPill: {
-    borderRadius: scaleFont(8),
-    paddingHorizontal: scaleFont(8),
-    paddingVertical: scaleFont(3),
-  },
-  tokenText: {
-    fontWeight: '800',
-  },
-  patientName: {
-    fontWeight: '700',
-  },
-  metaText: {
-    fontWeight: '500',
-  },
-  statusAlert: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    borderRadius: scaleFont(999),
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: scaleFont(5),
-    paddingHorizontal: wp(2.5),
-    paddingVertical: hp(0.4),
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  actionButton: {
-    flexGrow: 1,
-    minWidth: '45%',
   },
   modalBackdrop: {
     alignItems: 'center',
