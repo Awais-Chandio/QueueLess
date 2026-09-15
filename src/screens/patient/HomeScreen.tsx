@@ -39,7 +39,7 @@ const HomeScreen = () => {
   const setUserLocation = useCenterStore(state => state.setUserLocation);
   const fetchNearbyCenters = useCenterStore(state => state.fetchNearbyCenters);
   const [locationError, setLocationError] = useState<string | null>(null);
-  const [locationRequested, setLocationRequested] = useState(false);
+  const [locationLoading, setLocationLoading] = useState(true);
 
   const [popularCenters, setPopularCenters] = useState<(Center & { bookingCount: number })[]>([]);
   const [popularLoading, setPopularLoading] = useState(true);
@@ -58,7 +58,7 @@ const HomeScreen = () => {
   }, [isFocused, refetch]);
 
   const loadNearbyByLocation = React.useCallback(async () => {
-    setLocationRequested(true);
+    setLocationLoading(true);
     setLocationError(null);
     try {
       const location = await locationService.getCurrentUserLocation();
@@ -70,6 +70,8 @@ const HomeScreen = () => {
           ? error.message
           : 'Unable to access your current location.',
       );
+    } finally {
+      setLocationLoading(false);
     }
   }, [fetchNearbyCenters, setUserLocation]);
 
@@ -314,11 +316,11 @@ const HomeScreen = () => {
                 textStyle={{ fontSize: 12 }}
               />
             </View>
-          ) : nearbyLoading && nearbyCenters.length === 0 ? (
+          ) : locationLoading || (nearbyLoading && nearbyCenters.length === 0) ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color={colors.primary} />
             </View>
-          ) : !locationRequested || nearbyCenters.length === 0 ? (
+          ) : nearbyCenters.length === 0 ? (
             <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>
               No clinics found near your current location.
             </Text>
