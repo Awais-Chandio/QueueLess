@@ -81,6 +81,16 @@ already in the project.
 | Metro bundle (iOS) | clean, no warnings |
 | Metro bundle (Android) | clean, no warnings |
 | `pod install` | RNVectorIcons removed, RNReactNativeHapticFeedback added |
+| Android `assembleDebug` | **passing** (exit 0) |
+
+APK contents verified rather than trusting the exit code: all five Inter faces
+present under `assets/fonts/`, zero vector-icons font files, and
+`RNReactNativeHapticFeedbackPackage` autolinked into the generated
+`PackageList.java` with no `vector` entry remaining.
+
+The iOS native build was not run here — `pod install` succeeded and the iOS
+Metro bundle is clean, but an Xcode build still needs a run on a Mac with a
+configured simulator/signing before Phase B is considered shipped.
 
 ---
 
