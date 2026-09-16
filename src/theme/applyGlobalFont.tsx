@@ -17,7 +17,7 @@ import { fontFamilies, fontFamilyForWeight } from './typography';
  * Call this once from index.js, before `App` is imported.
  */
 
-type StyleProp = TextStyle | number | null | undefined | ReadonlyArray<StyleProp>;
+export type StyleProp = TextStyle | number | null | undefined | ReadonlyArray<StyleProp>;
 
 // Resolved styles are cached so we flatten each distinct style only once.
 // Registered StyleSheet styles arrive as numbers; inline objects/arrays are
@@ -25,7 +25,7 @@ type StyleProp = TextStyle | number | null | undefined | ReadonlyArray<StyleProp
 const numericCache = new Map<number, TextStyle>();
 const objectCache = new WeakMap<object, TextStyle>();
 
-function resolveStyle(style: StyleProp): StyleProp {
+export function resolveStyle(style: StyleProp): StyleProp {
   if (style == null) {
     return style;
   }
