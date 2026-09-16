@@ -16,6 +16,7 @@ import { centerService } from '../../services/centerService';
 import type { Center } from '../../types/center';
 import { useDashboardStats } from '../../features/home/hooks/useDashboardStats';
 import { getDisplayName } from '../../utils/getDisplayName';
+import Wordmark from '../../components/ui/Wordmark';
 import { hp, scaleFont, wp } from '../../utils/responsive';
 import LinearGradient from 'react-native-linear-gradient';
 import type { AppStackParamList } from '../../navigation/types';
@@ -178,7 +179,7 @@ const HomeScreen = () => {
             style={[styles.heroCard, { borderRadius: radius.xl }]}
           >
             <View style={styles.heroContent}>
-              <Text style={[styles.heroTitle, { fontSize: typography.sizes.lg }]}>MediQ Care</Text>
+              <Wordmark size={18} tone="onColor" suffix="Care" style={styles.heroTitle} />
               <Text style={styles.heroSubtitle}>
                 Skip the waiting rooms. Book slot locks, track live queue token numbers, and consult instantly.
               </Text>
@@ -481,9 +482,8 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   heroTitle: {
-    color: '#FFFFFF',
-    fontWeight: '900',
     marginBottom: 6,
+    textAlign: 'left',
   },
   heroSubtitle: {
     color: 'rgba(255, 255, 255, 0.85)',
