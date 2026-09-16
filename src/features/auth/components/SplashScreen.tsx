@@ -322,7 +322,7 @@ const SplashScreen = ({
 
   return (
     <Animated.View style={[styles.container, { opacity: containerOpacity }]} pointerEvents={introFinished && isReady ? 'none' : 'auto'}>
-      {/* QueueLess clinical gradient */}
+      {/* MediQ clinical gradient */}
       <LinearGradient
         colors={gradientColors}
         style={StyleSheet.absoluteFill}
@@ -431,7 +431,7 @@ const SplashScreen = ({
           }}
         >
           <Text style={[styles.title, { fontSize: scaleFont(34) }]}>
-            QueueLess
+            MediQ
           </Text>
         </Animated.View>
 

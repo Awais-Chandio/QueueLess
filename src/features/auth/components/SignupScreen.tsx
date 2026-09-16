@@ -259,7 +259,7 @@ const SignupScreen = () => {
                         <View style={styles.mainContent}>
                             {/* Premium Healthcare Welcome Illustration */}
                             <DoctorConsultationAnimation />
-                            <Text style={styles.illustrationText}>Join QueueLess to Skip Waiting Lines</Text>
+                            <Text style={styles.illustrationText}>Join MediQ to Skip Waiting Lines</Text>
 
                             {/* Glassmorphic Wizard Card */}
                             <View style={[

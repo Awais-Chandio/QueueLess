@@ -266,7 +266,7 @@ const OTPVerificationScreen = () => {
                         </RNAnimated.View>
 
                         <RNAnimated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
-                            <Text style={styles.appTitle}>QueueLess</Text>
+                            <Text style={styles.appTitle}>MediQ</Text>
                             <Text style={styles.appSubtitle}>Smart Healthcare Queue Management</Text>
                             <Text style={styles.tagline}>Verification Code</Text>
                         </RNAnimated.View>
