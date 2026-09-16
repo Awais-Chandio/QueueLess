@@ -7,10 +7,10 @@ const brandingPath = path.join(ROOT, 'src/assets/branding');
 const androidResPath = path.join(ROOT, 'android/app/src/main/res');
 const iosAppIconPath = path.join(ROOT, 'ios/QueueLess/Images.xcassets/AppIcon.appiconset');
 
-const MASTER_COLOR = path.join(brandingPath, 'queueless_icon_master.png');
-const MASTER_MONO = path.join(brandingPath, 'queueless_icon_monochrome_master.png');
-const MASTER_SVG = path.join(brandingPath, 'queueless_icon_master.svg');
-const MASTER_MONO_SVG = path.join(brandingPath, 'queueless_icon_monochrome_master.svg');
+const MASTER_COLOR = path.join(brandingPath, 'mediq_icon_master.png');
+const MASTER_MONO = path.join(brandingPath, 'mediq_icon_monochrome_master.png');
+const MASTER_SVG = path.join(brandingPath, 'mediq_icon_master.svg');
+const MASTER_MONO_SVG = path.join(brandingPath, 'mediq_icon_monochrome_master.svg');
 
 const iconSvg = ({ monochrome = false } = {}) => {
   const bg = monochrome ? 'transparent' : 'url(#bg)';
@@ -94,7 +94,7 @@ async function main() {
     { file: 'Icon-40@3x.png', size: 120 },
     { file: 'Icon-60@2x.png', size: 120 },
     { file: 'Icon-60@3x.png', size: 180 },
-    { file: 'QueueLess-AppIcon-1024.png', size: 1024 },
+    { file: 'MediQ-AppIcon-1024.png', size: 1024 },
   ];
 
   for (const icon of iosIcons) {
