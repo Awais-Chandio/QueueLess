@@ -224,7 +224,14 @@ export const locationService = {
       position => {
         if (!isAccurateFix(position)) {
           consecutiveInaccurateFixes += 1;
-          if (consecutiveInaccurateFixes === 3) {
+          // Only surface this as an error before we have any accepted fix
+          // to fall back on. Once tracking has a good fix, a transient
+          // accuracy dip (walking under a bridge, brief signal loss) must
+          // stay silent and keep using the last known-good location —
+          // callers show this as a persistent "tap to retry" banner that
+          // doesn't auto-clear on the next good fix, so firing it here
+          // would leave a stale error on screen after GPS recovers.
+          if (consecutiveInaccurateFixes === 3 && !lastAccepted) {
             onError?.(
               new Error(
                 `GPS accuracy is too low (${Math.round(
