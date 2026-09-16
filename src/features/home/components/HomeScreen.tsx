@@ -222,7 +222,7 @@ const HomeScreen = () => {
   const showComingSoonAlert = () => {
     Alert.alert(
       "Feature Coming Soon",
-      "Medical History is a premium feature that will be available in the upcoming QueueLess Pro update. Stay tuned!",
+      "Medical History is a premium feature that will be available in the upcoming MediQ Pro update. Stay tuned!",
       [{ text: "OK", style: "default" }]
     );
   };
@@ -593,7 +593,7 @@ const HomeScreen = () => {
                     </View>
                     <View style={styles.activityContent}>
                       <Text style={{ color: colors.text, fontWeight: '600', fontSize: typography.sizes.sm }}>{appt.serviceName || 'Clinic Appointment'}</Text>
-                      <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{appt.centerName || 'QueueLess Center'} • {appt.dateLabel} • {appt.status.replace('_', ' ')}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{appt.centerName || 'MediQ Center'} • {appt.dateLabel} • {appt.status.replace('_', ' ')}</Text>
                     </View>
                     <ChevronRight size={16} color={colors.textTertiary} />
                   </Pressable>

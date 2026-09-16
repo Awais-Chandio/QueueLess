@@ -2,7 +2,7 @@
 //
 // Values are carried over from NaviGo (MyPlacesTracker), a sibling project's
 // audited location implementation (`src/config/locationConfig.ts`), except
-// where noted — QueueLess is a clinic finder, not a turn-by-turn navigation
+// where noted — MediQ is a clinic finder, not a turn-by-turn navigation
 // app, so a couple of values are relaxed to match that use case.
 
 export const LOCATION_CONFIG = {
@@ -40,7 +40,7 @@ export const LOCATION_CONFIG = {
    * is made. Matches NaviGo's ADDRESS_GEOCODE_THRESHOLD_METERS, which is the
    * threshold that specific project uses to gate reverse geocoding on
    * movement (its separate 150m NEARBY_REQUERY_THRESHOLD_METERS governs
-   * re-querying nearby places, a different concern QueueLess doesn't use
+   * re-querying nearby places, a different concern MediQ doesn't use
    * Photon for).
    */
   REVERSE_GEOCODE_MOVE_THRESHOLD_METERS: 50,

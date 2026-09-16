@@ -82,7 +82,7 @@ const InfoScreen = ({ title, subtitle, sections }: InfoScreenProps) => {
 const privacySections: InfoSection[] = [
   {
     title: 'Information We Use',
-    body: 'QueueLess uses your profile details, appointments, queue status, and notification preferences to provide booking and queue updates.',
+    body: 'MediQ uses your profile details, appointments, queue status, and notification preferences to provide booking and queue updates.',
   },
   {
     title: 'How It Helps',
@@ -96,8 +96,8 @@ const privacySections: InfoSection[] = [
 
 const aboutSections: InfoSection[] = [
   {
-    title: 'QueueLess',
-    body: 'QueueLess helps patients book appointments, track queue progress, and receive timely service updates from participating centers.',
+    title: 'MediQ',
+    body: 'MediQ helps patients book appointments, track queue progress, and receive timely service updates from participating centers.',
   },
   {
     title: 'For Centers',
@@ -112,7 +112,7 @@ const aboutSections: InfoSection[] = [
 const termsSections: InfoSection[] = [
   {
     title: 'Use of Service',
-    body: 'Use QueueLess for genuine appointment booking and queue tracking. Keep your account details accurate so centers can serve you correctly.',
+    body: 'Use MediQ for genuine appointment booking and queue tracking. Keep your account details accurate so centers can serve you correctly.',
   },
   {
     title: 'Appointments',
@@ -127,14 +127,14 @@ const termsSections: InfoSection[] = [
 export const PrivacyPolicyScreen = () => (
   <InfoScreen
     title="Privacy Policy"
-    subtitle="How QueueLess handles app data."
+    subtitle="How MediQ handles app data."
     sections={privacySections}
   />
 );
 
 export const AboutScreen = () => (
   <InfoScreen
-    title="About QueueLess"
+    title="About MediQ"
     subtitle="A cleaner appointment and queue experience."
     sections={aboutSections}
   />
@@ -143,7 +143,7 @@ export const AboutScreen = () => (
 export const TermsScreen = () => (
   <InfoScreen
     title="Terms of Service"
-    subtitle="Basic terms for using QueueLess."
+    subtitle="Basic terms for using MediQ."
     sections={termsSections}
   />
 );

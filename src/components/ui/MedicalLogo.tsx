@@ -50,7 +50,7 @@ export const MedicalLogo: React.FC<MedicalLogoProps> = ({
           <Circle cx="50" cy="44" r="26" fill="url(#pinGradient)" opacity="0.16" />
         ) : null}
 
-        {/* QueueLess mark: location pin + queue tail */}
+        {/* MediQ mark: location pin + queue tail */}
         <Path
           d="M50 15C65.5 15 78 27.6 78 43.1C78 61.8 50 84 50 84C50 84 22 61.8 22 43.1C22 27.6 34.5 15 50 15Z"
           stroke={finalQColor}

@@ -181,7 +181,7 @@ const ForgotPasswordScreen = () => {
                         </Animated.View>
 
                         <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
-                            <Text style={styles.appTitle}>QueueLess</Text>
+                            <Text style={styles.appTitle}>MediQ</Text>
                             <Text style={styles.appSubtitle}>Smart Healthcare Portal</Text>
                         </Animated.View>
                     </LinearGradient>

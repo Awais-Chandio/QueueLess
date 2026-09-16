@@ -313,7 +313,7 @@ const AddDoctorScreen = () => {
 
             <AppInput
               label="Email Address"
-              placeholder="e.g. johndoe@queueless.com"
+              placeholder="e.g. johndoe@mediq.com"
               value={email}
               onChangeText={setEmail}
               error={formErrors.email}

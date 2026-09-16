@@ -320,7 +320,7 @@ const LoginScreen = () => {
                         </Animated.View>
 
                         <Animated.View style={titleContainerStyle}>
-                            <Text style={styles.appTitle}>QueueLess</Text>
+                            <Text style={styles.appTitle}>MediQ</Text>
                             <Text style={styles.appSubtitle}>Smart Healthcare Portal</Text>
                         </Animated.View>
                     </LinearGradient>

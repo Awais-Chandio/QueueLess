@@ -178,7 +178,7 @@ const HomeScreen = () => {
             style={[styles.heroCard, { borderRadius: radius.xl }]}
           >
             <View style={styles.heroContent}>
-              <Text style={[styles.heroTitle, { fontSize: typography.sizes.lg }]}>QueueLess Care</Text>
+              <Text style={[styles.heroTitle, { fontSize: typography.sizes.lg }]}>MediQ Care</Text>
               <Text style={styles.heroSubtitle}>
                 Skip the waiting rooms. Book slot locks, track live queue token numbers, and consult instantly.
               </Text>
