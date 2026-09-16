@@ -15,7 +15,7 @@ import {
   Tag,
 } from 'lucide-react-native';
 
-import BottomSheet from '../ui/BottomSheet';
+import BottomSheet from '../ui/AppBottomSheet';
 import AppButton from '../ui/AppButton';
 import { useTheme } from '../../hooks/useTheme';
 import type { NearbyCenter } from '../../services/centers/centerService';
