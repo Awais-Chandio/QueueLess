@@ -25,6 +25,7 @@ import { toastService } from "../../../services/toastService";
 import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import Wordmark from "../../../components/ui/Wordmark";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
+import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
 
 type ForgotPasswordNavigationProp = NativeStackNavigationProp<
   AuthStackParamList,
@@ -42,36 +43,13 @@ const ForgotPasswordScreen = () => {
     const [errorMessage, setErrorMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
 
-    // Mount animations
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(40)).current;
-    const logoScale = useRef(new Animated.Value(0.8)).current;
+    const { fadeAnim, slideAnim, logoScale } = useAuthEntranceAnimation();
 
     // Background shapes animations
     const bgAnim1 = useRef(new Animated.Value(0)).current;
     const bgAnim2 = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                friction: 8,
-                tension: 40,
-                useNativeDriver: true,
-            }),
-            Animated.spring(logoScale, {
-                toValue: 1,
-                friction: 5,
-                tension: 30,
-                useNativeDriver: true,
-            })
-        ]).start();
-
         // Background subtle animations
         Animated.loop(
             Animated.sequence([
@@ -85,7 +63,7 @@ const ForgotPasswordScreen = () => {
                 Animated.timing(bgAnim2, { toValue: 0, duration: 5000, useNativeDriver: true }),
             ])
         ).start();
-    }, []);
+    }, [bgAnim1, bgAnim2]);
 
     const handleSendResetLink = async () => {
         if (isLoading) return;
@@ -177,7 +155,7 @@ const ForgotPasswordScreen = () => {
 
                         <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" crossColor="#14B8A6" />
+                                <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" />
                             </View>
                         </Animated.View>
 
@@ -242,8 +220,8 @@ const ForgotPasswordScreen = () => {
                                     />
                                 </View>
 
-                                {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
-                                {successMessage ? <Text style={styles.successMessage}>{successMessage}</Text> : null}
+                                {errorMessage ? <Text style={[styles.errorMessage, { color: colors.error }]}>{errorMessage}</Text> : null}
+                                {successMessage ? <Text style={[styles.successMessage, { color: colors.success }]}>{successMessage}</Text> : null}
 
                                 {/* Reset Button */}
                                 <AppButton
@@ -362,14 +340,12 @@ const styles = StyleSheet.create({
         marginTop: hp(1.5),
     },
     errorMessage: {
-        color: '#EF4444',
         textAlign: 'center',
         marginTop: hp(1),
         fontSize: scaleFont(12),
         fontWeight: '600',
     },
     successMessage: {
-        color: '#22C55E',
         textAlign: 'center',
         marginTop: hp(1),
         fontSize: scaleFont(12),

@@ -124,7 +124,64 @@ or settings rows, where a logotype reads as a typo.
 mark ever changes, change it in both `MedicalLogo.tsx` and
 `scripts/generate-app-icons.js` or the in-app logo and home-screen icon drift.
 
-## Phase B — Splash + Auth — ⬜ NOT STARTED
+## Phase B — Splash + Auth — 🟨 IN PROGRESS
+
+Scope is `src/features/auth/components/`: Splash, Onboarding, Login, Signup,
+PhoneLogin, OTPVerification, ForgotPassword, ResetPassword.
+
+### Done this pass — token/dark-mode correctness + duplication
+| # | Task | Status |
+|---|------|--------|
+| B1 | Extract the 5x-duplicated fade/slide/logo-pop mount animation into `useAuthEntranceAnimation` | ✅ |
+| B2 | Replace hardcoded `#EF4444`/`#22C55E` error/success text with `colors.error`/`colors.success` (Login, Signup, PhoneLogin, OTP, ForgotPassword) | ✅ |
+| B3 | Remove the hardcoded `crossColor="#14B8A6"` override on `Floating3DLogo` across all 5 screens | ✅ |
+| B4 | Convert `PhoneLoginScreen`'s country picker from a plain `Modal` to `AppBottomSheet` | ✅ |
+| B5 | Fix `OnboardingScreen`'s off-brand background gradient (`#1e3a8a`/`#0f766e` — outside the palette, and a jarring bright gradient in dark mode) to theme tokens | ✅ |
+
+**B3 detail:** `MedicalLogo.tsx` already has a deliberately-tuned default —
+`checkColor = crossColor || (showBackground ? '#5EEAD4' : colors.accent)` — a
+lighter tint calibrated for contrast against the primary gradient, matching the
+app icon. Every auth screen's header logo was passing a *hardcoded*
+`crossColor="#14B8A6"`, which silently overrode that tuned default with a value
+that (a) doesn't match the icon's on-gradient tint and (b) never changes in
+dark mode. Deleting the prop lets the existing considered default apply.
+
+**B2/B3 pattern:** none of this was a random hardcoded color — every instance
+was a value that already exists as a semantic token (`colors.error`,
+`colors.success`, `colors.accent`, `colors.warning`) but was pinned to its
+light-mode hex instead of reading the token, so it silently stayed the same
+color when the OS switched to dark mode. Same root cause as the doctor/staff
+queue-screen dark-mode gap flagged in Phase A's Observations — just in auth.
+
+### Verified after this pass
+| Check | Result |
+|---|---|
+| `tsc --noEmit` | clean |
+| `eslint .` | 79 errors / 569 warnings (was 83/577 — net improvement, no new errors in touched files) |
+| `jest` | 70/70 passing |
+| Metro bundle (Android, `--dev false`) | clean, no errors |
+
+### Not done yet — remaining for Phase B to be complete
+- Screens still use raw `<Text>` with hand-set `fontSize`/`fontWeight` rather
+  than `AppText` variants. Not a correctness bug (global font patching still
+  applies), but it's the inconsistent-typography pattern `AppText` exists to
+  fix, and these screens predate it.
+- Screen-entry animation still runs on the legacy `Animated` API rather than
+  Moti, per Section 19's guidance. Left as-is this pass because it already
+  works and converting five screens' worth of interleaved fade/slide/step-wizard
+  animation is a larger, separable change — flagging rather than doing it
+  half-supervised.
+- `OTPVerificationScreen` mixes `Animated` (RN) for mount and `Animated`
+  (Reanimated, aliased) for shake/success in the same file. Works, but is a
+  legibility smell worth a follow-up unification.
+- No structural/spacing-rhythm redesign of the card layouts yet (Section 34's
+  "premium via execution" bar) — this pass fixed correctness and duplication,
+  not visual redesign depth.
+- `SplashScreen.tsx` was reviewed and left untouched: its animated background
+  (heartbeat pulse, signal-field paths, rising particles) is already a
+  deliberate, premium, brand-consistent treatment predating this tracker —
+  no changes needed.
+
 ## Phase C — Patient flow — ⬜ NOT STARTED
 ## Phase D — Staff flow — ⬜ NOT STARTED
 ## Phase E — Admin flow — ⬜ NOT STARTED
