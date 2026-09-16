@@ -1,37 +1,20 @@
 import { create } from 'zustand';
-
-type ToastType = 'success' | 'error' | 'info' | 'warning';
+import { toastService, type ToastType } from '../services/toastService';
 
 type ToastState = {
-  visible: boolean;
-  message: string;
-  type: ToastType;
   showToast: (message: string, type?: ToastType) => void;
   hideToast: () => void;
 };
 
-let hideTimer: ReturnType<typeof setTimeout> | null = null;
-
-export const useToastStore = create<ToastState>(set => ({
-  visible: false,
-  message: '',
-  type: 'info',
-  showToast: (message, type = 'info') => {
-    if (hideTimer) {
-      clearTimeout(hideTimer);
-    }
-
-    set({ visible: true, message, type });
-    hideTimer = setTimeout(() => {
-      set({ visible: false });
-      hideTimer = null;
-    }, 2500);
-  },
-  hideToast: () => {
-    if (hideTimer) {
-      clearTimeout(hideTimer);
-      hideTimer = null;
-    }
-    set({ visible: false });
-  },
+/**
+ * Kept as a thin delegate so the screens that already pull `showToast` off this
+ * store keep working. Rendering now belongs to `react-native-toast-message`, so
+ * the store no longer holds visible/message/type state — two sources of truth
+ * for the same toast is how a message ends up shown twice or not at all.
+ *
+ * New code should call `toastService` directly.
+ */
+export const useToastStore = create<ToastState>(() => ({
+  showToast: (message, type = 'info') => toastService.show(message, type),
+  hideToast: () => toastService.hide(),
 }));

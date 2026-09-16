@@ -5,10 +5,13 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { queryClient } from "./src/lib/react-query";
-import { SafeAreaProvider } from "react-native-safe-area-context"; 
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useAuth } from "./src/hooks/useAuth";
 
 import ToastMessage from "./src/components/ui/ToastMessage";
+import RealtimeIndicator from "./src/components/ui/RealtimeIndicator";
 import { authService } from "./src/features/auth/api/authService";
 import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
@@ -244,40 +247,47 @@ const App = ()=>{
 
   if (!supabaseConfig.isValid) {
     return (
-      <SafeAreaProvider>
-        <View style={styles.startupErrorContainer}>
-          <Text style={styles.startupErrorTitle}>Configuration error</Text>
-          <Text style={styles.startupErrorMessage}>
-            {supabaseConfig.errorMessage}
-          </Text>
-          <Text style={styles.startupErrorHint}>
-            Please rebuild the app with Supabase URL and anon key configured.
-          </Text>
-        </View>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <View style={styles.startupErrorContainer}>
+            <Text style={styles.startupErrorTitle}>Configuration error</Text>
+            <Text style={styles.startupErrorMessage}>
+              {supabaseConfig.errorMessage}
+            </Text>
+            <Text style={styles.startupErrorHint}>
+              Please rebuild the app with Supabase URL and anon key configured.
+            </Text>
+          </View>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
 
   return(
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister }}
-    >
-      <SafeAreaProvider>
-        <View style={styles.container}>
-          <NavigationContainer linking={linking}>
-            <RootNavigator/>
-          </NavigationContainer>
-          
-          <View style={[
-            styles.connectionDot,
-            { backgroundColor: realtimeConnected ? '#22C55E' : '#EF4444' }
-          ]} />
+    // GestureHandlerRootView has to be the outermost native view for
+    // react-native-gesture-handler to receive touches, which @gorhom/bottom-sheet
+    // depends on. Importing 'react-native-gesture-handler' in index.js alone is
+    // not enough on Android.
+    <GestureHandlerRootView style={styles.container}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister }}
+      >
+        <SafeAreaProvider>
+          <BottomSheetModalProvider>
+            <View style={styles.container}>
+              <NavigationContainer linking={linking}>
+                <RootNavigator/>
+              </NavigationContainer>
 
-          <ToastMessage />
-        </View>
-      </SafeAreaProvider>
-    </PersistQueryClientProvider>
+              <RealtimeIndicator connected={realtimeConnected} />
+
+              <ToastMessage />
+            </View>
+          </BottomSheetModalProvider>
+        </SafeAreaProvider>
+      </PersistQueryClientProvider>
+    </GestureHandlerRootView>
   )
 }
 
@@ -312,19 +322,5 @@ const styles = StyleSheet.create({
     fontSize: scaleFont(14),
     lineHeight: scaleFont(20),
     textAlign: "center",
-  },
-  connectionDot: {
-    position: 'absolute',
-    top: 54,
-    right: 16,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    zIndex: 9999,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
   },
 });

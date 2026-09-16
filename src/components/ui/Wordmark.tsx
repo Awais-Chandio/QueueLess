@@ -76,7 +76,7 @@ export const Wordmark: React.FC<WordmarkProps> = ({
       Medi
       <Text style={{ color: qColor }}>Q</Text>
       {suffix ? (
-        <Text style={[styles.suffix, { fontWeight: typography.weights.normal }]}>{` ${suffix}`}</Text>
+        <Text style={[styles.suffix, { fontWeight: typography.weights.medium }]}>{` ${suffix}`}</Text>
       ) : null}
     </Text>
   );

@@ -1,18 +1,49 @@
-import React from 'react';
-import { View, StyleSheet, ViewProps, StyleProp, ViewStyle, Pressable } from 'react-native';
+import React, { useCallback } from 'react';
+import {
+  View,
+  StyleSheet,
+  ViewProps,
+  StyleProp,
+  ViewStyle,
+  Pressable,
+  type GestureResponderEvent,
+} from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  useReducedMotion,
+} from 'react-native-reanimated';
 import { useTheme } from '../../hooks/useTheme';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export type CardVariant = 'elevated' | 'outlined' | 'flat' | 'gradient';
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
-  variant?: 'elevated' | 'outlined' | 'flat' | 'gradient';
-  onPress?: () => void;
+  variant?: CardVariant;
+  onPress?: (event: GestureResponderEvent) => void;
   disabled?: boolean;
   gradientColors?: string[];
   containerStyle?: StyleProp<ViewStyle>;
+  /** Padding preset. `none` lets a card hold a full-bleed image or its own rows. */
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+  accessibilityLabel?: string;
 }
 
+/**
+ * The app's card surface.
+ *
+ * The previous version painted a teal gradient hairline across the top of every
+ * elevated card and cast a brand-tinted shadow beneath it. Both were decoration
+ * applied uniformly, which flattened the hierarchy — everything looked equally
+ * important — and pushed the app toward a consumer look. A card now separates
+ * itself with a hairline border and a neutral, restrained shadow, so emphasis
+ * comes from what a card *contains* rather than from its frame.
+ */
 export const Card: React.FC<CardProps> = ({
   children,
   style,
@@ -21,27 +52,53 @@ export const Card: React.FC<CardProps> = ({
   disabled = false,
   gradientColors,
   containerStyle,
+  padding = 'md',
+  accessibilityLabel,
   ...props
 }) => {
-  const { colors, radius, spacing, isDarkMode } = useTheme();
+  const { colors, radius, spacing, shadows, motion, isDarkMode } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const pressed = useSharedValue(0);
 
-  const resolvedColors = gradientColors || colors.gradients.card;
+  const handlePressIn = useCallback(() => {
+    pressed.value = withTiming(1, { duration: motion.duration.instant });
+  }, [motion.duration.instant, pressed]);
+
+  const handlePressOut = useCallback(() => {
+    pressed.value = withTiming(0, { duration: motion.duration.fast });
+  }, [motion.duration.fast, pressed]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    if (reducedMotion) {
+      return { opacity: 1 - pressed.value * 0.15, transform: [{ scale: 1 }] };
+    }
+    return { transform: [{ scale: 1 - pressed.value * (1 - motion.pressScale) }] };
+  });
+
+  // `md` is the default and matches the 16pt padding cards had before the
+  // redesign, so adopting the preset does not silently reflow existing screens.
+  const pad =
+    padding === 'none'
+      ? 0
+      : padding === 'sm'
+      ? spacing.md
+      : padding === 'md'
+      ? spacing.lg
+      : spacing.xl;
+
+  const base: ViewStyle = {
+    borderRadius: radius.card,
+    padding: pad,
+  };
 
   const renderCardBody = () => {
     if (variant === 'gradient') {
       return (
         <LinearGradient
-          colors={resolvedColors}
+          colors={gradientColors ?? colors.gradients.card}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[
-            styles.cardBody,
-            {
-              borderRadius: radius.xl,
-              padding: spacing.lg,
-            },
-            style,
-          ]}
+          style={[styles.cardBody, base, style]}
         >
           {children}
         </LinearGradient>
@@ -52,39 +109,23 @@ export const Card: React.FC<CardProps> = ({
       <View
         style={[
           styles.cardBody,
-          {
-            backgroundColor: colors.card,
-            borderRadius: radius.xl,
-            padding: spacing.lg,
-          },
+          base,
+          { backgroundColor: colors.card },
           variant === 'elevated' && {
-            shadowColor: isDarkMode ? '#000000' : '#0F766E',
-            shadowOffset: { width: 0, height: 6 },
-            shadowOpacity: isDarkMode ? 0.35 : 0.05,
-            shadowRadius: 16,
-            borderWidth: 1,
-            borderColor: isDarkMode ? colors.border : 'rgba(15, 118, 110, 0.08)',
-            elevation: isDarkMode ? 4 : 2,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: colors.border,
+            ...shadows.sm,
           },
           variant === 'outlined' && {
-            borderWidth: 1.5,
-            borderColor: colors.glassBorder,
-            backgroundColor: colors.card,
+            borderWidth: 1,
+            borderColor: colors.border,
           },
           variant === 'flat' && {
-            backgroundColor: colors.primaryLight,
+            backgroundColor: isDarkMode ? colors.surfaceSunken : colors.surfaceSunken,
           },
           style,
         ]}
       >
-        {variant === 'elevated' && !isDarkMode ? (
-          <LinearGradient
-            colors={['rgba(20, 184, 166, 0.20)', 'rgba(255, 255, 255, 0)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.topHighlight}
-          />
-        ) : null}
         {children}
       </View>
     );
@@ -92,17 +133,18 @@ export const Card: React.FC<CardProps> = ({
 
   if (onPress) {
     return (
-      <Pressable
+      <AnimatedPressable
         onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         disabled={disabled}
-        style={({ pressed }) => [
-          styles.pressable,
-          !disabled && pressed && styles.pressed,
-          containerStyle,
-        ]}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ disabled }}
+        style={[styles.pressable, disabled && styles.disabled, animatedStyle, containerStyle]}
       >
         {renderCardBody()}
-      </Pressable>
+      </AnimatedPressable>
     );
   }
 
@@ -117,8 +159,8 @@ const styles = StyleSheet.create({
   pressable: {
     width: '100%',
   },
-  pressed: {
-    transform: [{ scale: 0.97 }],
+  disabled: {
+    opacity: 0.5,
   },
   card: {
     overflow: 'visible',
@@ -126,13 +168,6 @@ const styles = StyleSheet.create({
   cardBody: {
     overflow: 'hidden',
     position: 'relative',
-  },
-  topHighlight: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    height: 4,
   },
 });
 
