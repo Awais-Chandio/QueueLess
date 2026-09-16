@@ -181,9 +181,9 @@ export const OnboardingScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Dynamic medical background gradient */}
+      {/* Soft brand-tinted background, easing into the app's normal surface */}
       <LinearGradient
-        colors={isDarkMode ? ['#1e3a8a', '#0f766e'] : ['#eff6ff', '#e6fdf9']}
+        colors={isDarkMode ? [colors.surfaceRaised, colors.background] : [colors.primaryLight, colors.background]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

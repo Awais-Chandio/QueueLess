@@ -32,6 +32,7 @@ import { toastService } from "../../../services/toastService";
 import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import Wordmark from "../../../components/ui/Wordmark";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
+import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
 
 type OTPVerificationRouteProp = RouteProp<AuthStackParamList, "OTPVerification">;
 
@@ -60,32 +61,9 @@ const OTPVerificationScreen = () => {
     const shakeOffset = useSharedValue(0);
     const successScale = useSharedValue(0);
 
-    // Mount animations
-    const fadeAnim = useRef(new RNAnimated.Value(0)).current;
-    const slideAnim = useRef(new RNAnimated.Value(40)).current;
-    const logoScale = useRef(new RNAnimated.Value(0.8)).current;
+    const { fadeAnim, slideAnim, logoScale } = useAuthEntranceAnimation();
 
     useEffect(() => {
-        RNAnimated.parallel([
-            RNAnimated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-            RNAnimated.spring(slideAnim, {
-                toValue: 0,
-                friction: 8,
-                tension: 40,
-                useNativeDriver: true,
-            }),
-            RNAnimated.spring(logoScale, {
-                toValue: 1,
-                friction: 5,
-                tension: 30,
-                useNativeDriver: true,
-            })
-        ]).start();
-
         // Auto-focus input on mount
         setTimeout(() => {
             inputRef.current?.focus();
@@ -224,7 +202,7 @@ const OTPVerificationScreen = () => {
                 >
                     {isSuccess ? (
                         <Animated.View style={successAnimatedStyle}>
-                            <Check size={20} color={colors.success || '#22C55E'} />
+                            <Check size={20} color={colors.success} />
                         </Animated.View>
                     ) : (
                         <Text style={[styles.otpCellText, { color: colors.text, fontSize: typography.sizes.xl }]}>{char}</Text>
@@ -262,7 +240,7 @@ const OTPVerificationScreen = () => {
 
                         <RNAnimated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <Floating3DLogo size={scaleFont(46)} qColor="#FFFFFF" crossColor="#14B8A6" />
+                                <Floating3DLogo size={scaleFont(46)} qColor="#FFFFFF" />
                             </View>
                         </RNAnimated.View>
 
@@ -338,13 +316,13 @@ const OTPVerificationScreen = () => {
                                 {renderOtpCells()}
                             </View>
 
-                            {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
+                            {errorMessage ? <Text style={[styles.errorMessage, { color: colors.error }]}>{errorMessage}</Text> : null}
 
                             <AppButton
                                 title={isSuccess ? "Verified" : (isVerifying ? "Verifying OTP..." : "Verify OTP")}
                                 onPress={handleVerifyOTP}
                                 loading={isVerifying}
-                                style={isSuccess ? { backgroundColor: colors.success || '#22C55E' } : {}}
+                                style={isSuccess ? { backgroundColor: colors.success } : {}}
                                 disabled={isSuccess}
                             />
 
@@ -478,7 +456,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     errorMessage: {
-        color: '#EF4444',
         textAlign: 'center',
         fontSize: scaleFont(13),
         fontWeight: '600',

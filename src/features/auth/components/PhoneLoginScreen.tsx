@@ -1,18 +1,16 @@
-import React, { useState, useRef, useEffect } from "react";
-import { 
-    View, 
-    StyleSheet, 
-    Text, 
-    Pressable, 
-    Animated, 
-    Dimensions, 
-    KeyboardAvoidingView, 
-    Platform, 
-    ScrollView, 
+import React, { useState } from "react";
+import {
+    View,
+    StyleSheet,
+    Text,
+    Pressable,
+    Animated,
+    Dimensions,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
     Image,
-    Modal,
-    FlatList,
-    TextInput as RNTextInput 
+    TextInput as RNTextInput
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -21,12 +19,14 @@ import { LinearGradient } from "react-native-linear-gradient";
 import { useTheme } from "../../../hooks/useTheme";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import AppButton from "../../../components/ui/AppButton";
+import AppBottomSheet from "../../../components/ui/AppBottomSheet";
 import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
 import { toastService } from "../../../services/toastService";
 import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import Wordmark from "../../../components/ui/Wordmark";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
+import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
 
 type PhoneLoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "PhoneLogin">;
 
@@ -52,32 +52,7 @@ const PhoneLoginScreen = () => {
     const [showCountryModal, setShowCountryModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Mount animations
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(40)).current;
-    const logoScale = useRef(new Animated.Value(0.8)).current;
-
-    useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                friction: 8,
-                tension: 40,
-                useNativeDriver: true,
-            }),
-            Animated.spring(logoScale, {
-                toValue: 1,
-                friction: 5,
-                tension: 30,
-                useNativeDriver: true,
-            })
-        ]).start();
-    }, []);
+    const { fadeAnim, slideAnim, logoScale } = useAuthEntranceAnimation();
 
     const filteredCountries = COUNTRIES.filter(country => 
         country.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -154,7 +129,7 @@ const PhoneLoginScreen = () => {
 
                         <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <Floating3DLogo size={scaleFont(46)} qColor="#FFFFFF" crossColor="#14B8A6" />
+                                <Floating3DLogo size={scaleFont(46)} qColor="#FFFFFF" />
                             </View>
                         </Animated.View>
 
@@ -237,7 +212,7 @@ const PhoneLoginScreen = () => {
                                 </View>
                             </View>
 
-                            {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
+                            {errorMessage ? <Text style={[styles.errorMessage, { color: colors.error }]}>{errorMessage}</Text> : null}
 
                             <AppButton
                                 title={isSending ? "Sending OTP..." : "Send OTP"}
@@ -250,58 +225,40 @@ const PhoneLoginScreen = () => {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Custom Country Picker Modal */}
-            <Modal
+            {/* Country picker */}
+            <AppBottomSheet
                 visible={showCountryModal}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setShowCountryModal(false)}
+                onClose={() => { setShowCountryModal(false); setSearchQuery(''); }}
+                title="Select Country"
+                maxHeightPercent={0.65}
             >
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl }]}>
-                        <View style={styles.modalHeader}>
-                            <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.md }]}>Select Country</Text>
-                            <Pressable 
-                                onPress={() => { setShowCountryModal(false); setSearchQuery(''); }}
-                                style={styles.modalCloseButton}
-                            >
-                                <Text style={{ color: colors.primary, fontWeight: '700' }}>Close</Text>
-                            </Pressable>
-                        </View>
-                        
-                        <View style={[styles.searchBarContainer, { backgroundColor: colors.background, borderRadius: radius.lg, borderColor: colors.border }]}>
-                            <Search size={18} color={colors.textSecondary} style={{ marginLeft: 12, marginRight: 8 }} />
-                            <RNTextInput
-                                placeholder="Search country..."
-                                placeholderTextColor={colors.textTertiary}
-                                style={[styles.searchInput, { color: colors.text }]}
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                            />
-                        </View>
-                        
-                        <FlatList
-                            data={filteredCountries}
-                            keyExtractor={(item) => item.code}
-                            contentContainerStyle={{ paddingBottom: hp(4) }}
-                            renderItem={({ item }) => (
-                                <Pressable
-                                    style={[styles.countryItem, { borderBottomColor: colors.border + '50' }]}
-                                    onPress={() => {
-                                        setSelectedCountry(item);
-                                        setShowCountryModal(false);
-                                        setSearchQuery('');
-                                    }}
-                                >
-                                    <Text style={styles.countryFlag}>{item.flag}</Text>
-                                    <Text style={[styles.countryName, { color: colors.text }]}>{item.name}</Text>
-                                    <Text style={[styles.countryCode, { color: colors.textSecondary }]}>{item.code}</Text>
-                                </Pressable>
-                            )}
-                        />
-                    </View>
+                <View style={[styles.searchBarContainer, { backgroundColor: colors.background, borderRadius: radius.lg, borderColor: colors.border }]}>
+                    <Search size={18} color={colors.textSecondary} style={styles.searchIcon} />
+                    <RNTextInput
+                        placeholder="Search country..."
+                        placeholderTextColor={colors.textTertiary}
+                        style={[styles.searchInput, { color: colors.text }]}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
                 </View>
-            </Modal>
+
+                {filteredCountries.map((item) => (
+                    <Pressable
+                        key={item.code}
+                        style={[styles.countryItem, { borderBottomColor: colors.border + '50' }]}
+                        onPress={() => {
+                            setSelectedCountry(item);
+                            setShowCountryModal(false);
+                            setSearchQuery('');
+                        }}
+                    >
+                        <Text style={styles.countryFlag}>{item.flag}</Text>
+                        <Text style={[styles.countryName, { color: colors.text }]}>{item.name}</Text>
+                        <Text style={[styles.countryCode, { color: colors.textSecondary }]}>{item.code}</Text>
+                    </Pressable>
+                ))}
+            </AppBottomSheet>
         </ScreenWrapper>
     );
 };
@@ -417,7 +374,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     errorMessage: {
-        color: '#EF4444',
         textAlign: 'center',
         marginTop: hp(1.5),
         fontSize: scaleFont(13),
@@ -426,36 +382,17 @@ const styles = StyleSheet.create({
     sendButton: {
         marginTop: hp(2),
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        maxHeight: SCREEN_HEIGHT * 0.7,
-        paddingTop: hp(2),
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: wp(5),
-        paddingBottom: hp(1.5),
-    },
-    modalTitle: {
-        fontWeight: '800',
-    },
-    modalCloseButton: {
-        padding: 4,
-    },
     searchBarContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginHorizontal: wp(5),
+        marginTop: hp(1),
         marginBottom: hp(1.5),
         borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.05)',
         height: hp(5),
+    },
+    searchIcon: {
+        marginLeft: 12,
+        marginRight: 8,
     },
     searchInput: {
         flex: 1,

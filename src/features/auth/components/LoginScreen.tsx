@@ -27,6 +27,7 @@ import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import Wordmark from "../../../components/ui/Wordmark";
 import DoctorSchedulingAnimation from "../../../components/animations/DoctorSchedulingAnimation";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
+import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "Login">;
 
@@ -64,36 +65,13 @@ const LoginScreen = () => {
     const [errorMessage, setErrorMessage] = useState('');
     const { login, loginWithGoogle, isLoading } = useAuth();
 
-    // Mount animations
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(40)).current;
-    const logoScale = useRef(new Animated.Value(0.8)).current;
+    const { fadeAnim, slideAnim, logoScale } = useAuthEntranceAnimation();
 
     // Background shapes animations
     const bgAnim1 = useRef(new Animated.Value(0)).current;
     const bgAnim2 = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                friction: 8,
-                tension: 40,
-                useNativeDriver: true,
-            }),
-            Animated.spring(logoScale, {
-                toValue: 1,
-                friction: 5,
-                tension: 30,
-                useNativeDriver: true,
-            })
-        ]).start();
-
         // Background subtle animations
         Animated.loop(
             Animated.sequence([
@@ -107,7 +85,7 @@ const LoginScreen = () => {
                 Animated.timing(bgAnim2, { toValue: 0, duration: 5000, useNativeDriver: true }),
             ])
         ).start();
-    }, [bgAnim1, bgAnim2, fadeAnim, logoScale, slideAnim]);
+    }, [bgAnim1, bgAnim2]);
 
     async function handleLogin() {
         if (isLoading) return;
@@ -316,7 +294,7 @@ const LoginScreen = () => {
                     >
                         <Animated.View style={dynamicLogoStyle}>
                             <View style={styles.logoOutline}>
-                                <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" crossColor="#14B8A6" />
+                                <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" />
                             </View>
                         </Animated.View>
 
@@ -385,7 +363,7 @@ const LoginScreen = () => {
                                     </View>
                                 </View>
 
-                                {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
+                                {errorMessage ? <Text style={[styles.errorMessage, { color: colors.error }]}>{errorMessage}</Text> : null}
 
                                 {/* Gradient CTA Button */}
                                 <AppButton
@@ -424,8 +402,8 @@ const LoginScreen = () => {
                                 <Text style={secureEncryptionBadgeTextStyle}>Secure Encryption</Text>
                             </View>
                             <View style={smartQueueingBadgeStyle}>
-                                <Sparkles size={scaleFont(11)} color="#14B8A6" style={styles.badgeIcon} />
-                                <Text style={[styles.badgeText, styles.tealBadgeText]}>Smart Queueing</Text>
+                                <Sparkles size={scaleFont(11)} color={colors.accent} style={styles.badgeIcon} />
+                                <Text style={[styles.badgeText, { color: colors.accent }]}>Smart Queueing</Text>
                             </View>
                         </View>
 
@@ -542,7 +520,6 @@ const styles = StyleSheet.create({
         marginTop: hp(1),
     },
     errorMessage: {
-        color: '#EF4444',
         textAlign: 'center',
         marginTop: hp(0.8),
         fontSize: scaleFont(12),
@@ -617,8 +594,5 @@ const styles = StyleSheet.create({
     },
     badgeIcon: {
         marginRight: 4,
-    },
-    tealBadgeText: {
-        color: '#14B8A6',
     },
 });
