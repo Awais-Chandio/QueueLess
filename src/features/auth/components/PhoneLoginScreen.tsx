@@ -25,6 +25,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
 import { toastService } from "../../../services/toastService";
 import Floating3DLogo from "../../../components/ui/Floating3DLogo";
+import Wordmark from "../../../components/ui/Wordmark";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 
 type PhoneLoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "PhoneLogin">;
@@ -158,7 +159,7 @@ const PhoneLoginScreen = () => {
                         </Animated.View>
 
                         <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
-                            <Text style={styles.appTitle}>MediQ</Text>
+                            <Wordmark size={26} tone="onColor" />
                             <Text style={styles.appSubtitle}>Smart Healthcare Queue Management</Text>
                             <Text style={styles.tagline}>OTP Authentication</Text>
                         </Animated.View>
@@ -345,12 +346,6 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         borderColor: 'rgba(255, 255, 255, 0.2)',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    appTitle: {
-        fontSize: scaleFont(26),
-        fontWeight: '900',
-        color: '#FFFFFF',
-        textAlign: 'center',
     },
     appSubtitle: {
         fontSize: scaleFont(13),

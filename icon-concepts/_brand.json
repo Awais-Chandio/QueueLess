@@ -1,0 +1,10 @@
+{
+  "note": "Sourced verbatim from src/theme/colors.ts (clientColorsLight). No invented colors.",
+  "primary": "#0E7490",
+  "primaryDark": "#155E75",
+  "gradientPrimary": ["#0E7490", "#0891B2"],
+  "accent": "#14B8A6",
+  "secondary": "#10B981",
+  "primaryLight": "#ECFEFF",
+  "onDarkTint": "#A5F3FC"
+}

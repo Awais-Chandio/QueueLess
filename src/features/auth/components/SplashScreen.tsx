@@ -12,6 +12,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 import { useTheme } from '../../../hooks/useTheme';
 import { scaleFont, wp, hp } from '../../../utils/responsive';
 import Floating3DLogo from '../../../components/ui/Floating3DLogo';
+import Wordmark from '../../../components/ui/Wordmark';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -430,9 +431,7 @@ const SplashScreen = ({
             alignItems: 'center',
           }}
         >
-          <Text style={[styles.title, { fontSize: scaleFont(34) }]}>
-            MediQ
-          </Text>
+          <Wordmark size={34} tone="onColor" style={styles.title} />
         </Animated.View>
 
         <Animated.View
@@ -508,9 +507,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(10),
   },
   title: {
-    color: '#FFFFFF',
-    fontWeight: '900',
-    letterSpacing: 0,
     textShadowColor: 'rgba(0, 0, 0, 0.2)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,

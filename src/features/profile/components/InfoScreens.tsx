@@ -3,11 +3,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '../../../components/ui/Card';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { useTheme } from '../../../hooks/useTheme';
+import Wordmark from '../../../components/ui/Wordmark';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 
 type InfoSection = {
   title: string;
   body: string;
+  /** Renders the title as the MediQ logotype instead of a plain heading. */
+  brand?: boolean;
 };
 
 type InfoScreenProps = {
@@ -49,18 +52,26 @@ const InfoScreen = ({ title, subtitle, sections }: InfoScreenProps) => {
 
       {sections.map(section => (
         <Card key={section.title} variant="outlined" style={[styles.sectionCard, { marginBottom: hp(1.6) }]}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color: colors.text,
-                fontSize: typography.sizes.lg,
-                marginBottom: spacing.sm,
-              },
-            ]}
-          >
-            {section.title}
-          </Text>
+          {section.brand ? (
+            <Wordmark
+              size={18}
+              tone="onSurface"
+              style={[styles.sectionTitle, styles.brandTitle, { marginBottom: spacing.sm }]}
+            />
+          ) : (
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: colors.text,
+                  fontSize: typography.sizes.lg,
+                  marginBottom: spacing.sm,
+                },
+              ]}
+            >
+              {section.title}
+            </Text>
+          )}
           <Text
             style={[
               styles.sectionBody,
@@ -97,6 +108,7 @@ const privacySections: InfoSection[] = [
 const aboutSections: InfoSection[] = [
   {
     title: 'MediQ',
+    brand: true,
     body: 'MediQ helps patients book appointments, track queue progress, and receive timely service updates from participating centers.',
   },
   {
@@ -157,6 +169,10 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     width: '100%',
+  },
+  // Wordmark centres by default; section headings are left-aligned.
+  brandTitle: {
+    textAlign: 'left',
   },
   sectionTitle: {
     fontWeight: '700',

@@ -23,6 +23,7 @@ import { authService } from "../../../services/authService";
 import type { AuthStackParamList } from "../../../navigation/AuthNavigator";
 import { toastService } from "../../../services/toastService";
 import Floating3DLogo from "../../../components/ui/Floating3DLogo";
+import Wordmark from "../../../components/ui/Wordmark";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 
 type ForgotPasswordNavigationProp = NativeStackNavigationProp<
@@ -181,7 +182,7 @@ const ForgotPasswordScreen = () => {
                         </Animated.View>
 
                         <Animated.View style={{ opacity: fadeAnim, alignItems: 'center' }}>
-                            <Text style={styles.appTitle}>MediQ</Text>
+                            <Wordmark size={22} tone="onColor" />
                             <Text style={styles.appSubtitle}>Smart Healthcare Portal</Text>
                         </Animated.View>
                     </LinearGradient>
@@ -325,12 +326,6 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         borderColor: 'rgba(255, 255, 255, 0.25)',
         backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    appTitle: {
-        fontSize: scaleFont(22),
-        fontWeight: '900',
-        color: '#FFFFFF',
-        textAlign: 'center',
     },
     appSubtitle: {
         fontSize: scaleFont(11),

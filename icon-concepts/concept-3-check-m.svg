@@ -1,0 +1,19 @@
+<!-- MediQ icon concept 3 — "Check M"
+     The M's centre valley is drawn as an asymmetric checkmark and tinted in the
+     accent colour, so "confirmed / your turn" sits inside the monogram itself.
+     Shapes: 1 M stroke + 1 accent check overlay. -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg3" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E7490"/>
+      <stop offset="1" stop-color="#0891B2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="url(#bg3)"/>
+  <path d="M316 700V372L474 588L708 312V700"
+        fill="none" stroke="#FFFFFF" stroke-width="76"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M316 372L474 588L708 312"
+        fill="none" stroke="#5EEAD4" stroke-width="76"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
