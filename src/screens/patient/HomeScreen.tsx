@@ -36,8 +36,10 @@ const HomeScreen = () => {
 
   const nearbyCenters = useCenterStore(state => state.centers);
   const nearbyLoading = useCenterStore(state => state.loading);
+  const areaLabel = useCenterStore(state => state.areaLabel);
   const setUserLocation = useCenterStore(state => state.setUserLocation);
   const fetchNearbyCenters = useCenterStore(state => state.fetchNearbyCenters);
+  const fetchAreaLabel = useCenterStore(state => state.fetchAreaLabel);
   const [locationError, setLocationError] = useState<string | null>(null);
   const [locationLoading, setLocationLoading] = useState(true);
 
@@ -64,6 +66,9 @@ const HomeScreen = () => {
       const location = await locationService.getCurrentUserLocation();
       setUserLocation(location);
       await fetchNearbyCenters();
+      // Best-effort: the header falls back to the nearest center's city if
+      // this doesn't resolve, so it never blocks the nearby-clinics load.
+      fetchAreaLabel();
     } catch (error) {
       setLocationError(
         error instanceof Error
@@ -73,7 +78,7 @@ const HomeScreen = () => {
     } finally {
       setLocationLoading(false);
     }
-  }, [fetchNearbyCenters, setUserLocation]);
+  }, [fetchAreaLabel, fetchNearbyCenters, setUserLocation]);
 
   useEffect(() => {
     loadNearbyByLocation();
@@ -138,7 +143,7 @@ const HomeScreen = () => {
             title={displayName}
             subtitle={`${greeting},`}
             avatarUri={profile?.avatar_url}
-            location={nearbyCenters[0]?.city ?? undefined}
+            location={areaLabel ?? nearbyCenters[0]?.city ?? undefined}
             onPressAvatar={() => (navigation as any).navigate('Profile')}
             onPressNotifications={() => (navigation as any).navigate('Notifications')}
           />

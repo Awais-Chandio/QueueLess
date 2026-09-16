@@ -29,8 +29,8 @@ const LOCATION_OPTIONS = {
 
 // Rejects NaN/out-of-range coordinates and "Null Island" (0, 0), which is
 // what a missing/uninitialized GPS reading commonly reports as rather than a
-// genuine position.
-const isValidCoordinate = (latitude: unknown, longitude: unknown): boolean =>
+// genuine position. Exported for reuse by reverseGeocodeService.
+export const isValidCoordinate = (latitude: unknown, longitude: unknown): boolean =>
   typeof latitude === 'number' &&
   Number.isFinite(latitude) &&
   latitude >= -90 &&
@@ -58,7 +58,9 @@ const isAccurateFix = (position: GeoPosition): boolean => {
 
 const EARTH_RADIUS_METERS = 6371e3;
 
-const haversineDistanceMeters = (
+// Exported for reuse by reverseGeocodeService, which needs the same
+// distance math to gate reverse-geocode calls on meaningful movement.
+export const haversineDistanceMeters = (
   lat1: number,
   lon1: number,
   lat2: number,
