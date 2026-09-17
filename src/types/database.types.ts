@@ -392,6 +392,36 @@ export type Database = {
           },
         ]
       }
+      staff_centers: {
+        Row: {
+          center_id: string
+          profile_id: string
+        }
+        Insert: {
+          center_id: string
+          profile_id: string
+        }
+        Update: {
+          center_id?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_centers_center_id_fkey"
+            columns: ["center_id"]
+            isOneToOne: false
+            referencedRelation: "service_centers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_centers_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           bio: string | null
@@ -890,6 +920,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_staff_account: {
+        Args: { staff_profile_id: string }
+        Returns: undefined
+      }
       book_appointment: {
         Args: { p_lock_id: string; p_notes?: string; p_service_id: string }
         Returns: string

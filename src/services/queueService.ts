@@ -99,6 +99,19 @@ const applyScopeRange = <T extends { gte: Function; lt: Function }>(
   return query.lt('scheduled_at', start);
 };
 
+export const getStaffCenterIds = async (profileId: string): Promise<string[]> => {
+  const { data, error } = await supabase
+    .from('staff_centers')
+    .select('center_id')
+    .eq('profile_id', profileId);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return [...new Set((data ?? []).map(row => row.center_id))];
+};
+
 const getCurrentUserId = async () => {
   const {
     data: { session },
@@ -223,17 +236,27 @@ const fetchScopedAppointments = async (
   });
 
   const userId = await getCurrentUserId();
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select('role, center_id')
+    .select('role')
     .eq('id', userId)
     .maybeSingle();
 
-  const centerId = profile?.role === 'staff' ? profile?.center_id : null;
+  if (profileError) {
+    throw new Error(profileError.message);
+  }
+
+  // Staff are scoped to every center in staff_centers (the source of truth).
+  // Other roles are scoped by RLS, so no center filter is applied for them.
+  const centerIds = profile?.role === 'staff' ? await getStaffCenterIds(userId) : null;
+  if (centerIds && centerIds.length === 0) {
+    console.warn('[STAFF_QUEUE] Staff member has no center assignments; returning empty queue.');
+    return [];
+  }
 
   let query = supabase.from('appointments_full').select(appointmentSelect);
-  if (centerId) {
-    query = query.eq('center_id', centerId);
+  if (centerIds) {
+    query = query.in('center_id', centerIds);
   }
   if (doctorId) {
     query = query.eq('doctor_id', doctorId);
@@ -258,8 +281,8 @@ const fetchScopedAppointments = async (
     );
 
     let fallbackQuery = supabase.from('appointments_full').select(appointmentFallbackSelect);
-    if (centerId) {
-      fallbackQuery = fallbackQuery.eq('center_id', centerId);
+    if (centerIds) {
+      fallbackQuery = fallbackQuery.in('center_id', centerIds);
     }
     if (doctorId) {
       fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
@@ -282,8 +305,8 @@ const fetchScopedAppointments = async (
     });
 
     let tableQuery = supabase.from('appointments').select(baseAppointmentSelect);
-    if (centerId) {
-      tableQuery = tableQuery.eq('center_id', centerId);
+    if (centerIds) {
+      tableQuery = tableQuery.in('center_id', centerIds);
     }
     if (doctorId) {
       tableQuery = tableQuery.eq('doctor_id', doctorId);
@@ -296,8 +319,8 @@ const fetchScopedAppointments = async (
 
     if (fallback.error?.code === '42703') {
       let legacyQuery = supabase.from('appointments').select(baseAppointmentLegacySelect);
-      if (centerId) {
-        legacyQuery = legacyQuery.eq('center_id', centerId);
+      if (centerIds) {
+        legacyQuery = legacyQuery.in('center_id', centerIds);
       }
       if (doctorId) {
         legacyQuery = legacyQuery.eq('doctor_id', doctorId);
@@ -342,7 +365,7 @@ const fetchScopedAppointments = async (
   return enrichAppointments((data ?? []) as AppointmentFull[]);
 };
 
-const buildStats = (appointments: AppointmentFull[]): StaffDashboardStats => ({
+export const buildStats = (appointments: AppointmentFull[]): StaffDashboardStats => ({
   totalToday: appointments.length,
   pending: appointments.filter(item => item.status === 'pending').length,
   confirmed: appointments.filter(item => item.status === 'confirmed').length,
