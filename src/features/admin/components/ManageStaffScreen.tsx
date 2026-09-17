@@ -30,7 +30,9 @@ type ManageStaffScreenNavigationProp = NativeStackNavigationProp<
   'ManageStaff'
 >;
 
-export const STAFF_QUERY_KEY = ['admin-staff'] as const;
+// Versioned because the query cache is persisted: entries saved before staff moved to
+// staff_centers have no `centers` field and must not be restored into this screen.
+export const STAFF_QUERY_KEY = ['admin-staff', 'staff-centers-v2'] as const;
 
 const ManageStaffScreen = () => {
   const navigation = useNavigation<ManageStaffScreenNavigationProp>();
@@ -67,7 +69,7 @@ const ManageStaffScreen = () => {
   const centers = useMemo(() => {
     const centerMap = new Map<string, string>();
     staff.forEach(member => {
-      member.centers.forEach(center => centerMap.set(center.id, center.name));
+      (member.centers ?? []).forEach(center => centerMap.set(center.id, center.name));
     });
 
     return [
@@ -86,7 +88,7 @@ const ManageStaffScreen = () => {
         member.email?.toLowerCase().includes(query) ||
         member.phone?.toLowerCase().includes(query);
       const matchesCenter =
-        selectedCenterId === 'all' || member.centers.some(center => center.id === selectedCenterId);
+        selectedCenterId === 'all' || (member.centers ?? []).some(center => center.id === selectedCenterId);
 
       return Boolean(matchesSearch && matchesCenter);
     });

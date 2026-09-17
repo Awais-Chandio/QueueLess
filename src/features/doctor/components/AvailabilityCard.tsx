@@ -1,102 +1,74 @@
 import React from 'react';
-import { View, Text, Switch, StyleSheet } from 'react-native';
+import { View, Switch, StyleSheet, ActivityIndicator } from 'react-native';
+import { Coffee, Stethoscope } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
-import { Coffee, AlertCircle } from 'lucide-react-native';
+import AppText from '../../../components/ui/AppText';
+import { Card } from '../../../components/ui/Card';
 
 interface AvailabilityCardProps {
   isOnBreak: boolean;
+  busy?: boolean;
   onToggleBreak: (value: boolean) => void;
 }
 
-export const AvailabilityCard = ({ isOnBreak, onToggleBreak }: AvailabilityCardProps) => {
-  const { colors, typography, radius } = useTheme();
+export const AvailabilityCard = ({ isOnBreak, busy = false, onToggleBreak }: AvailabilityCardProps) => {
+  const { colors, spacing, radius } = useTheme();
+  const tone = isOnBreak ? colors.warning : colors.success;
+  const Icon = isOnBreak ? Coffee : Stethoscope;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-      <View style={styles.header}>
-        <View style={styles.left}>
-          <View style={[styles.iconContainer, { backgroundColor: isOnBreak ? colors.warning + '15' : colors.primary + '10' }]}>
-            <Coffee size={20} color={isOnBreak ? colors.warning : colors.primary} />
-          </View>
-          <View style={styles.titleContainer}>
-            <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.sm }]}>
-              Break Mode Status
-            </Text>
-            <Text style={[styles.subtitle, { color: isOnBreak ? colors.warning : colors.success, fontSize: typography.sizes.xs }]}>
-              {isOnBreak ? 'Currently on Break' : 'Active / Serving'}
-            </Text>
-          </View>
+    <Card variant="elevated" padding="lg" style={{ marginBottom: spacing.lg }}>
+      <View style={styles.row}>
+        <View
+          style={[
+            styles.icon,
+            {
+              backgroundColor: isOnBreak ? colors.tint.warning : colors.tint.success,
+              borderRadius: radius.pill,
+            },
+          ]}
+        >
+          <Icon size={22} color={tone} />
         </View>
+        <View style={styles.text}>
+          <AppText variant="subtitle">{isOnBreak ? 'On a break' : 'Seeing patients'}</AppText>
+          <AppText variant="caption" tone="secondary">
+            {isOnBreak
+              ? 'Your queue shows a break to patients and front desk.'
+              : 'Patients see you as active in the live queue.'}
+          </AppText>
+        </View>
+        {busy ? <ActivityIndicator color={colors.primary} style={styles.switchSlot} /> : null}
         <Switch
           value={isOnBreak}
           onValueChange={onToggleBreak}
-          trackColor={{ false: colors.border, true: colors.primary }}
-          thumbColor={Platform.OS === 'android' ? '#ffffff' : undefined}
+          disabled={busy}
+          trackColor={{ false: colors.border, true: colors.warning }}
+          thumbColor={colors.surface}
+          accessibilityLabel="Break mode"
         />
       </View>
-
-      <View style={[styles.infoBox, { backgroundColor: colors.background, borderRadius: radius.lg }]}>
-        <AlertCircle size={14} color={colors.textSecondary} style={{ marginRight: 6 }} />
-        <Text style={[styles.infoText, { color: colors.textSecondary, fontSize: 10 }]} numberOfLines={2}>
-          {isOnBreak
-            ? 'Patients will see you are on break. Consulting tokens are held but users can still queue.'
-            : 'Break mode is off. Patients see you as active in real-time consultations.'}
-        </Text>
-      </View>
-    </View>
+    </Card>
   );
 };
 
-import { Platform } from 'react-native';
-
 const styles = StyleSheet.create({
-  card: {
-    padding: 16,
-    borderWidth: 1,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  left: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  icon: {
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  titleContainer: {
+  text: {
     flex: 1,
+    marginRight: 8,
   },
-  title: {
-    fontWeight: '800',
-  },
-  subtitle: {
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 10,
-  },
-  infoText: {
-    flex: 1,
-    fontWeight: '500',
-    lineHeight: 14,
+  switchSlot: {
+    marginRight: 8,
   },
 });

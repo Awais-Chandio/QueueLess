@@ -77,8 +77,9 @@ export const doctorDashboardService = {
     });
 
     if (error) {
-      console.error('[doctorDashboardService] Error fetching availability:', error);
-      throw error;
+      // Non-fatal: the dashboard's other cards must still load if this RPC is broken.
+      console.warn('[doctorDashboardService] Availability unavailable:', error.message);
+      return { status: 'unknown', tokens_ahead: 0, estimated_wait_minutes: 0 };
     }
 
     if (!data || data.length === 0) {

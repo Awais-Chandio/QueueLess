@@ -61,7 +61,7 @@ const StaffCard = ({ staff, deleting, onEdit, onDelete }: StaffCardProps) => {
               style={[styles.metaValue, { color: colors.text, fontSize: typography.caption }]}
               numberOfLines={2}
             >
-              {staff.centers.map(center => center.name).join(', ') || 'Unassigned Center'}
+              {(staff.centers ?? []).map(center => center.name).join(', ') || 'Unassigned Center'}
             </Text>
           </View>
 

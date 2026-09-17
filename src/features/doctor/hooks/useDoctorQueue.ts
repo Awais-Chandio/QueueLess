@@ -8,8 +8,8 @@ import type {
   CancelReason,
 } from '../../../types/appointment';
 import { queueService } from '../../../services/queueService';
-import { getAppointmentStatusState } from '../../../services/bookingService';
 import { toastService } from '../../../services/toastService';
+import { doctorDashboardService } from '../services/doctorDashboardService';
 
 export type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
 
@@ -27,7 +27,22 @@ export function useDoctorQueue() {
 
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['doctor-queue', 'today', doctorId],
-    queryFn: () => queueService.fetchDashboard('today', doctorId),
+    queryFn: async () => {
+      const [dashboard, todayRows] = await Promise.all([
+        queueService.fetchDashboard('today', doctorId),
+        doctorDashboardService.getTodayAppointments(doctorId!),
+      ]);
+      // RLS hides patient profiles from doctors, so appointments_full returns no
+      // patient_name. The doctor-scoped RPC resolves names server-side.
+      const names = new Map(todayRows.map(row => [row.appointment_id, row.patient_name]));
+      return {
+        ...dashboard,
+        appointments: dashboard.appointments.map(item => ({
+          ...item,
+          patient_name: item.patient_name ?? names.get(item.id) ?? undefined,
+        })),
+      };
+    },
     enabled: !!doctorId,
     refetchOnMount: 'always',
     staleTime: 0,
@@ -36,47 +51,45 @@ export function useDoctorQueue() {
   const appointments = useMemo(() => data?.appointments ?? [], [data?.appointments]);
   const stats = data?.stats;
 
-  const nextPatient = useMemo(() => {
-    const checkedIn = appointments.find(item => item.status === 'checked_in');
-    if (checkedIn) return checkedIn;
-
-    const confirmed = appointments.find(item => item.status === 'confirmed');
-    if (confirmed) return confirmed;
-
-    return null;
-  }, [appointments]);
-
-  const hasActiveService = useMemo(
+  // The patient currently with the doctor, if any. Kept separate from the next
+  // patient so the queue card never hides an in-progress consultation.
+  const currentPatient = useMemo(
     () =>
-      appointments.some(
-        appointment => appointment.status === 'called' || appointment.status === 'in_progress',
-      ),
+      appointments.find(item => item.status === 'in_progress') ??
+      appointments.find(item => item.status === 'called') ??
+      null,
     [appointments],
   );
 
-  const nextCallableAppointmentId = useMemo(
+  const nextPatient = useMemo(
     () =>
-      appointments.find(appointment => appointment.status === 'checked_in')?.id ??
-      appointments.find(appointment => appointment.status === 'confirmed')?.id,
+      appointments.find(item => item.status === 'checked_in') ??
+      appointments.find(item => item.status === 'confirmed') ??
+      null,
     [appointments],
   );
+
+  const hasActiveService = currentPatient !== null;
+
+  const nextCallableAppointmentId = nextPatient?.id;
 
   const pendingAppointments = useMemo(
     () =>
-      appointments.filter(item => {
-        const { resolvedStatus } = getAppointmentStatusState(item);
-        return resolvedStatus === 'pending';
-      }),
+      appointments.filter(item => item.status === 'pending'),
     [appointments],
   );
 
   const filteredQueueAppointments = useMemo(() => {
+    // The doctor works from the database status. getAppointmentStatusState
+    // guesses "expired" 30 minutes after the slot, which hid late-running and
+    // in-room patients from the queue and removed their actions.
     return appointments.filter(item => {
-      const { resolvedStatus } = getAppointmentStatusState(item);
+      const resolvedStatus = item.status;
 
       let matchesStatus = false;
       if (statusFilter === 'queue') {
-        matchesStatus = ['confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus);
+        // The patient in the room is shown in the Now Serving card, not the waiting list.
+        matchesStatus = ['confirmed', 'checked_in'].includes(resolvedStatus);
       } else if (statusFilter === 'checked_in') {
         matchesStatus = resolvedStatus === 'checked_in';
       } else if (statusFilter === 'serving') {
@@ -150,7 +163,10 @@ export function useDoctorQueue() {
       }
       return queueService.completeAppointment(appointment);
     },
-    onSuccess: (_result, variables) => {
+    onSuccess: async (_result, variables) => {
+      // Keep the action's spinner up until the refreshed queue is on screen, so
+      // the toast and the moved card arrive together instead of seconds apart.
+      await queryClient.invalidateQueries({ queryKey: ['doctor-queue', 'today', doctorId] });
       setCancelTarget(null);
 
       let successMsg = 'Action completed successfully.';
@@ -159,7 +175,7 @@ export function useDoctorQueue() {
       } else if (variables.action === 'cancel') {
         successMsg = 'Appointment cancelled successfully.';
       } else if (variables.action === 'start_service') {
-        successMsg = 'Appointment service started.';
+        successMsg = `Token #${variables.appointment.token_number ?? ''} called in.`;
       } else if (variables.action === 'no_show') {
         successMsg = 'Appointment marked as No Show.';
       } else if (variables.action === 'complete_service') {
@@ -167,7 +183,7 @@ export function useDoctorQueue() {
       }
 
       toastService.success(successMsg);
-      queryClient.invalidateQueries({ queryKey: ['doctor-queue', 'today', doctorId] });
+      queryClient.invalidateQueries({ queryKey: ['doctor-dashboard-extras'] });
       queryClient.invalidateQueries({ queryKey: ['appointments'] });
     },
     onError: (err: unknown) => {
@@ -188,6 +204,7 @@ export function useDoctorQueue() {
     refetch,
     appointments,
     stats,
+    currentPatient,
     nextPatient,
     hasActiveService,
     nextCallableAppointmentId,
