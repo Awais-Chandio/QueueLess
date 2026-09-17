@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Pre
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ShieldAlert, Info, ChevronLeft, MapPin } from 'lucide-react-native';
+import { ShieldAlert, ChevronLeft, MapPin } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppInput from '../../../components/ui/AppInput';
@@ -14,6 +14,7 @@ import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 import { toastService } from '../../../services/toastService';
 import { centerService } from '../../../services/centerService';
 import { supabase } from '../../../lib/supabase';
+import { staffFormSchema } from '../../../validations/staffSchema';
 
 type CreateAccountScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'CreateAccount'>;
 type CreateAccountScreenRouteProp = RouteProp<AdminStackParamList, 'CreateAccount'>;
@@ -26,6 +27,7 @@ const CreateAccountScreen = () => {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -33,12 +35,14 @@ const CreateAccountScreen = () => {
 
   const [centers, setCenters] = useState<{ id: string; name: string }[]>([]);
   const [selectedCenterId, setSelectedCenterId] = useState<string | null>(null);
+  const [selectedCenterIds, setSelectedCenterIds] = useState<string[]>([]);
 
   // New staff role selection states
   const [selectedRole, setSelectedRole] = useState<'doctor' | 'staff'>('staff');
   const [specialty, setSpecialty] = useState('General Physician');
   const [qualification, setQualification] = useState('');
   const [fee, setFee] = useState('');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const title = role === 'admin' 
     ? 'Create Admin Account' 
@@ -67,14 +71,34 @@ const CreateAccountScreen = () => {
   const handleCreateAccount = async () => {
     if (isLoading) return;
     setError(null);
+    setFormErrors({});
 
     if (!name.trim() || !email.trim() || !password || !confirmPassword) {
       setError('All fields are required');
       return;
     }
 
-    if (role === 'staff' && !selectedCenterId) {
-      setError('Please select a service center to assign this staff');
+    if (role === 'staff' && selectedRole === 'staff') {
+      const result = staffFormSchema.safeParse({
+        full_name: name,
+        email,
+        phone,
+        center_ids: selectedCenterIds,
+      });
+      if (!result.success) {
+        const nextErrors: Record<string, string> = {};
+        result.error.issues.forEach(issue => {
+          const field = String(issue.path[0] ?? 'form');
+          if (!nextErrors[field]) nextErrors[field] = issue.message;
+        });
+        setFormErrors(nextErrors);
+        setError('Please correct the highlighted fields.');
+        return;
+      }
+    }
+
+    if (role === 'staff' && selectedRole === 'doctor' && !selectedCenterId) {
+      setError('Please select a service center to assign this doctor');
       return;
     }
 
@@ -116,7 +140,9 @@ const CreateAccountScreen = () => {
         email: email.trim().toLowerCase(),
         password,
         role: targetRole,
-        centerId: role === 'staff' ? (selectedCenterId ?? undefined) : undefined,
+        centerId: targetRole === 'doctor' ? selectedCenterId ?? undefined : undefined,
+        centerIds: targetRole === 'staff' ? selectedCenterIds : undefined,
+        phone: targetRole === 'staff' ? phone.trim() : undefined,
       });
 
       if (targetRole === 'doctor' && result.userId) {
@@ -262,6 +288,7 @@ const CreateAccountScreen = () => {
               value={name}
               onChangeText={setName}
               editable={!isLoading}
+              error={formErrors.full_name}
             />
 
             <AppInput
@@ -275,7 +302,20 @@ const CreateAccountScreen = () => {
               textContentType="emailAddress"
               autoComplete="email"
               editable={!isLoading}
+              error={formErrors.email}
             />
+
+            {role === 'staff' && selectedRole === 'staff' && (
+              <AppInput
+                placeholder="e.g. 03001234567"
+                label="Mobile Number"
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                editable={!isLoading}
+                error={formErrors.phone}
+              />
+            )}
 
             <AppInput
               placeholder="Password"
@@ -339,7 +379,7 @@ const CreateAccountScreen = () => {
             {role === 'staff' && (
               <View style={{ marginBottom: spacing.md, marginTop: spacing.xs }}>
                 <Text style={{ color: colors.text, fontSize: typography.sizes.sm, fontWeight: '800', marginBottom: spacing.sm }}>
-                  Assign Service Center
+                  {selectedRole === 'staff' ? 'Assign Service Centers' : 'Assign Service Center'}
                 </Text>
                 {centers.length === 0 ? (
                   <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontStyle: 'italic', fontWeight: '500' }}>
@@ -348,11 +388,24 @@ const CreateAccountScreen = () => {
                 ) : (
                   <View style={{ gap: spacing.xs }}>
                     {centers.map(center => {
-                      const isSelected = selectedCenterId === center.id;
+                      const isSelected = selectedRole === 'staff'
+                        ? selectedCenterIds.includes(center.id)
+                        : selectedCenterId === center.id;
                       return (
                         <Pressable
                           key={center.id}
-                          onPress={() => setSelectedCenterId(center.id)}
+                          onPress={() => {
+                            if (selectedRole === 'staff') {
+                              setSelectedCenterIds(current =>
+                                current.includes(center.id)
+                                  ? current.filter(centerId => centerId !== center.id)
+                                  : [...current, center.id],
+                              );
+                              setFormErrors(current => ({ ...current, center_ids: '' }));
+                            } else {
+                              setSelectedCenterId(center.id);
+                            }
+                          }}
                           style={{
                             padding: spacing.md,
                             borderRadius: radius.md,
@@ -372,20 +425,29 @@ const CreateAccountScreen = () => {
                             </Text>
                           </View>
                           {isSelected && (
-                            <View 
+                            <View
                               style={{ 
-                                width: 8, 
-                                height: 8, 
-                                borderRadius: 4, 
-                                backgroundColor: colors.primary 
-                              }} 
-                            />
+                                width: 24,
+                                height: 24,
+                                borderRadius: 6,
+                                backgroundColor: colors.primary,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Text style={{ color: colors.onPrimary, fontWeight: '900' }}>✓</Text>
+                            </View>
                           )}
                         </Pressable>
                       );
                     })}
                   </View>
                 )}
+                {formErrors.center_ids ? (
+                  <Text style={{ color: colors.error, fontSize: typography.sizes.xs, marginTop: spacing.xs }}>
+                    {formErrors.center_ids}
+                  </Text>
+                ) : null}
               </View>
             )}
 

@@ -39,4 +39,6 @@ export type CreateManagedAccountPayload = {
   password?: string;
   role: 'staff' | 'admin' | 'doctor' | 'client';
   centerId?: string;
+  centerIds?: string[];
+  phone?: string;
 };

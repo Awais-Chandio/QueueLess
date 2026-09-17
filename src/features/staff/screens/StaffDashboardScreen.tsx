@@ -43,7 +43,7 @@ import type {
   CancelReason,
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import { queueService } from '../../../services/queueService';
+import { buildStats, getStaffCenterIds, queueService } from '../../../services/queueService';
 import { centerService } from '../../../services/centerService';
 import { getAppointmentStatusState } from '../../../services/bookingService';
 import { getDisplayName } from '../../../utils/getDisplayName';
@@ -74,26 +74,28 @@ const StaffDashboardScreen = () => {
     }
   }, [user?.id, profile, fetchProfile]);
 
-  const [centerName, setCenterName] = useState<string | null>(null);
+  // staff_centers is the source of truth for which centers this staff member runs.
+  const { data: assignedCenters = [], isLoading: centersLoading } = useQuery({
+    queryKey: ['staff-centers', user?.id],
+    enabled: !!user?.id && profile?.role === 'staff',
+    queryFn: async () => {
+      const centerIds = await getStaffCenterIds(user!.id);
+      const centers = await Promise.all(centerIds.map(id => centerService.getCenterById(id)));
+      return centers
+        .map(center => ({ id: center.id, name: center.name }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    },
+  });
+
+  const [selectedCenterId, setSelectedCenterId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (profile?.role === 'staff' && profile?.center_id) {
-      const centerId = profile.center_id;
-      const fetchCenterName = async () => {
-        try {
-          const data = await centerService.getCenterById(centerId);
-          if (data?.name) {
-            setCenterName(data.name);
-          }
-        } catch (err) {
-          console.warn('Failed to fetch assigned center name:', err);
-        }
-      };
-      fetchCenterName();
-    } else {
-      setCenterName(null);
+    if (!assignedCenters.some(center => center.id === selectedCenterId)) {
+      setSelectedCenterId(assignedCenters[0]?.id ?? null);
     }
-  }, [profile]);
+  }, [assignedCenters, selectedCenterId]);
+
+  const centerName = assignedCenters.find(center => center.id === selectedCenterId)?.name ?? null;
 
   const staffName = useMemo(() => {
     return getDisplayName(profile);
@@ -117,22 +119,22 @@ const StaffDashboardScreen = () => {
   const [doctorSettings, setDoctorSettings] = useState<any>(null);
 
   const loadCenterSettings = useCallback(async () => {
-    if (!profile?.center_id) return;
+    if (!selectedCenterId) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const settings = await queueService.fetchCenterSettings(profile.center_id, todayStr);
+      const settings = await queueService.fetchCenterSettings(selectedCenterId, todayStr);
       setDoctorSettings(settings);
     } catch (err) {
       console.warn('Failed to load center settings:', err);
     }
-  }, [profile?.center_id]);
+  }, [selectedCenterId]);
 
   useEffect(() => {
     loadCenterSettings();
   }, [loadCenterSettings]);
 
   const handleToggleBreak = async () => {
-    if (!profile?.center_id) return;
+    if (!selectedCenterId) return;
     try {
       const nextBreakState = !doctorSettings?.is_on_break;
       const start = nextBreakState ? new Date().toISOString() : null;
@@ -140,7 +142,7 @@ const StaffDashboardScreen = () => {
       const todayStr = new Date().toISOString().split('T')[0];
 
       const updated = await queueService.setCenterBreak(
-        profile.center_id,
+        selectedCenterId,
         todayStr,
         nextBreakState,
         start,
@@ -155,11 +157,11 @@ const StaffDashboardScreen = () => {
   };
 
   const handleUpdateAvgTime = async (mins: number) => {
-    if (!profile?.center_id) return;
+    if (!selectedCenterId) return;
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const updated = await queueService.updateCenterAverageConsultationTime(
-        profile.center_id,
+        selectedCenterId,
         todayStr,
         mins,
       );
@@ -178,11 +180,15 @@ const StaffDashboardScreen = () => {
     staleTime: 0,
   });
 
+  // The server already limits staff to all assigned centers; narrow to the one being managed.
   const appointments = useMemo(
-    () => data?.appointments ?? [],
-    [data?.appointments],
+    () =>
+      (data?.appointments ?? []).filter(
+        item => !selectedCenterId || item.center_id === selectedCenterId,
+      ),
+    [data?.appointments, selectedCenterId],
   );
-  const stats = data?.stats;
+  const stats = useMemo(() => (data ? buildStats(appointments) : undefined), [appointments, data]);
 
   const uniqueDoctors = useMemo(() => {
     const map = new Map<string, string>();
@@ -581,6 +587,54 @@ const StaffDashboardScreen = () => {
           </Pressable>
         </View>
       </View>
+
+      {profile?.role === 'staff' && !centersLoading && assignedCenters.length === 0 && (
+        <View style={{ marginBottom: spacing.lg }}>
+          <EmptyState
+            title="No Centers Assigned"
+            subtitle="Ask an administrator to assign you to a service center to manage its queue."
+          />
+        </View>
+      )}
+
+      {assignedCenters.length > 1 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: spacing.lg }}
+          contentContainerStyle={{ gap: spacing.xs }}
+        >
+          {assignedCenters.map(center => {
+            const selected = center.id === selectedCenterId;
+            return (
+              <Pressable
+                key={center.id}
+                onPress={() => setSelectedCenterId(center.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                style={[
+                  styles.centerChip,
+                  {
+                    borderRadius: radius.full,
+                    borderColor: selected ? colors.primary : colors.border,
+                    backgroundColor: selected ? colors.primary : colors.surface,
+                  },
+                ]}
+              >
+                <Text
+                  style={{
+                    color: selected ? colors.onPrimary : colors.text,
+                    fontSize: typography.sizes.sm,
+                    fontWeight: '700',
+                  }}
+                >
+                  {center.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      )}
 
       {/* Card 1: Today's Stats */}
       <CardFadeIn delay={0}>
@@ -1084,6 +1138,11 @@ const StaffDashboardScreen = () => {
 export default StaffDashboardScreen;
 
 const styles = StyleSheet.create({
+  centerChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
