@@ -68,8 +68,8 @@ export const DayScheduleCard = ({
         </View>
         <AppText variant="caption" tone={isAvailable ? 'secondary' : 'tertiary'}>
           {isAvailable
-            ? `${formatTime12h(startTime)} – ${formatTime12h(endTime)} · ${slotDuration} min slots · ${slots} slots`
-            : 'Off — not bookable'}
+            ? `${formatTime12h(startTime)} – ${formatTime12h(endTime)} · ${slots} × ${slotDuration} min`
+            : 'Day off'}
         </AppText>
       </View>
       {isAvailable && <ChevronRight size={18} color={colors.textTertiary} style={{ marginRight: spacing.sm }} />}

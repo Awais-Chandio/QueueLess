@@ -71,24 +71,6 @@ export const doctorDashboardService = {
     return (data || []) as TodayAppointment[];
   },
 
-  async getDoctorAvailability(doctorId: string): Promise<{ status: string; tokens_ahead: number; estimated_wait_minutes: number }> {
-    const { data, error } = await supabase.rpc('get_doctor_availability', {
-      p_doctor_id: doctorId,
-    });
-
-    if (error) {
-      // Non-fatal: the dashboard's other cards must still load if this RPC is broken.
-      console.warn('[doctorDashboardService] Availability unavailable:', error.message);
-      return { status: 'unknown', tokens_ahead: 0, estimated_wait_minutes: 0 };
-    }
-
-    if (!data || data.length === 0) {
-      return { status: 'not_working', tokens_ahead: 0, estimated_wait_minutes: 0 };
-    }
-
-    return data[0];
-  },
-
   async getRecentPatients(doctorId: string): Promise<RecentPatient[]> {
     const { data, error } = await supabase.rpc('get_doctor_recent_patients', {
       p_doctor_id: doctorId,

@@ -2,9 +2,9 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { CalendarOff, Users } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppText from '../../../components/ui/AppText';
 import AppButton from '../../../components/ui/AppButton';
@@ -123,18 +123,18 @@ export default function ScheduleScreen() {
             const accent =
               day.state === 'working' ? colors.primary : day.state === 'leave' ? colors.error : colors.textTertiary;
             return (
-              <Animated.View
-                key={day.key}
-                entering={FadeInDown.duration(motion.duration.normal).delay(Math.min(index, 8) * motion.stagger)}
-              >
+              <CardFadeIn key={day.key} delay={Math.min(index, 8) * motion.stagger}>
                 <Card
                   variant={isToday ? 'elevated' : 'outlined'}
                   padding="md"
-                  style={{
-                    marginBottom: spacing.sm,
-                    borderColor: isToday ? colors.primary : undefined,
-                    borderWidth: isToday ? 1 : undefined,
-                  }}
+                  // Only override the border for today. Passing undefined border
+                  // props over the outlined variant clipped the card's content
+                  // to nothing on Android (Fabric + overflow hidden).
+                  style={
+                    isToday
+                      ? { marginBottom: spacing.sm, borderColor: colors.primary, borderWidth: 1 }
+                      : { marginBottom: spacing.sm }
+                  }
                 >
                   <View style={styles.row}>
                     <View style={[styles.dateBlock, { borderRadius: radius.md, backgroundColor: isToday ? colors.primary : colors.surfaceSunken }]}>
@@ -183,7 +183,7 @@ export default function ScheduleScreen() {
                     ) : null}
                   </View>
                 </Card>
-              </Animated.View>
+              </CardFadeIn>
             );
           })}
 

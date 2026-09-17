@@ -11,7 +11,6 @@ import type { Doctor } from '../../../types/doctor';
 
 interface DashboardExtras {
   todayAppointments: TodayAppointment[];
-  availability: { status: string; tokens_ahead: number; estimated_wait_minutes: number };
   recentPatients: RecentPatient[];
   incomeSummary: IncomeSummary;
   schedule: DoctorSchedule[];
@@ -31,10 +30,12 @@ export function useDoctorDashboard() {
   const extrasQuery = useQuery<DashboardExtras>({
     queryKey: ['doctor-dashboard-extras', doctorId],
     queryFn: async () => {
-      const [appointmentsData, availData, patientsData, incomeData, scheduleData] =
+      // get_doctor_availability is not called: it reads a doctor_availability
+      // table that does not exist, so it always errored. Live queue numbers are
+      // derived from today's appointments instead.
+      const [appointmentsData, patientsData, incomeData, scheduleData] =
         await Promise.all([
           doctorDashboardService.getTodayAppointments(doctorId!),
-          doctorDashboardService.getDoctorAvailability(doctorId!),
           doctorDashboardService.getRecentPatients(doctorId!),
           doctorDashboardService.getIncomeSummary(doctorId!),
           doctorDashboardService.getDoctorSchedule(doctorId!),
@@ -42,7 +43,6 @@ export function useDoctorDashboard() {
 
       return {
         todayAppointments: appointmentsData,
-        availability: availData,
         recentPatients: patientsData,
         incomeSummary: incomeData,
         schedule: scheduleData,
@@ -53,13 +53,7 @@ export function useDoctorDashboard() {
 
   const isLoading = profileQuery.isLoading || (!!doctorId && extrasQuery.isLoading);
 
-  const error = !user?.id
-    ? 'User not logged in.'
-    : profileQuery.error instanceof Error
-      ? profileQuery.error.message
-      : extrasQuery.error instanceof Error
-        ? extrasQuery.error.message
-        : null;
+  const error = profileQuery.error ?? extrasQuery.error ?? null;
 
   const refresh = async () => {
     await Promise.all([profileQuery.refetch(), extrasQuery.refetch()]);
@@ -67,12 +61,12 @@ export function useDoctorDashboard() {
 
   return {
     isLoading,
+    isRefetching: profileQuery.isRefetching || extrasQuery.isRefetching,
     error,
     doctorProfile: (profileQuery.data ?? null) as
       | (Doctor & { center_name?: string; email?: string; phone?: string })
       | null,
     todayAppointments: extrasQuery.data?.todayAppointments ?? [],
-    availability: extrasQuery.data?.availability ?? null,
     recentPatients: extrasQuery.data?.recentPatients ?? [],
     incomeSummary: extrasQuery.data?.incomeSummary ?? null,
     schedule: extrasQuery.data?.schedule ?? [],

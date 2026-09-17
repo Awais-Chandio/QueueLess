@@ -5,7 +5,7 @@ import { Clock } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
 import AppText from '../../../components/ui/AppText';
-import { AppBottomSheet } from '../../../components/ui/AppBottomSheet';
+import { DoctorSheet } from './DoctorSheet';
 import {
   WEEKDAYS,
   dateToTimeString,
@@ -82,7 +82,7 @@ export const DayHoursSheet = ({ dayOfWeek, initial, saving, onClose, onSave }: P
   );
 
   return (
-    <AppBottomSheet
+    <DoctorSheet
       visible={dayOfWeek !== null}
       onClose={onClose}
       title={dayOfWeek !== null ? `${WEEKDAYS[dayOfWeek]} hours` : ''}
@@ -160,7 +160,7 @@ export const DayHoursSheet = ({ dayOfWeek, initial, saving, onClose, onSave }: P
         containerStyle={{ marginTop: spacing.lg }}
         onPress={() => onSave(value)}
       />
-    </AppBottomSheet>
+    </DoctorSheet>
   );
 };
 
