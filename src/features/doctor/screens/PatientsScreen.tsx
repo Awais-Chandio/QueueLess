@@ -1,16 +1,16 @@
 import React, { useCallback, useMemo } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Pressable, ScrollView, Alert } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BellRing, Search } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useTabBarInset } from '../../../hooks/useTabBarInset';
 import { useDoctorQueue, QueueAction } from '../hooks/useDoctorQueue';
 import { QueueAppointmentRow } from '../components/QueueAppointmentRow';
 import { NowServingCard } from '../components/NowServingCard';
 import AppInput from '../../../components/ui/AppInput';
 import AppText from '../../../components/ui/AppText';
-import { AppBottomSheet } from '../../../components/ui/AppBottomSheet';
+import { DoctorSheet } from '../components/DoctorSheet';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
@@ -114,7 +114,7 @@ export default function PatientsScreen() {
 
   const renderRow = useCallback(
     ({ item, index }: { item: AppointmentFull; index: number }) => (
-      <Animated.View entering={FadeInDown.duration(motion.duration.normal).delay(Math.min(index, 8) * motion.stagger)}>
+      <CardFadeIn delay={Math.min(index, 8) * motion.stagger}>
         <QueueAppointmentRow
           appointment={item}
           isCallBlocked={hasActiveService || item.id !== nextCallableAppointmentId}
@@ -122,9 +122,9 @@ export default function PatientsScreen() {
           busyAction={busyActionFor(item.id)}
           onAction={handleAction}
         />
-      </Animated.View>
+      </CardFadeIn>
     ),
-    [busyActionFor, handleAction, hasActiveService, motion, nextCallableAppointmentId, runActionMutation.isPending],
+    [busyActionFor, handleAction, hasActiveService, motion.stagger, nextCallableAppointmentId, runActionMutation.isPending],
   );
 
   const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
@@ -290,7 +290,7 @@ export default function PatientsScreen() {
         renderItem={renderRow}
       />
 
-      <AppBottomSheet
+      <DoctorSheet
         visible={cancelTarget !== null}
         onClose={() => setCancelTarget(null)}
         title="Cancel appointment"
@@ -323,7 +323,7 @@ export default function PatientsScreen() {
             <AppText variant="bodyStrong">{reason}</AppText>
           </Pressable>
         ))}
-      </AppBottomSheet>
+      </DoctorSheet>
     </SafeAreaView>
   );
 }

@@ -1,330 +1,275 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import React, { useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { ArrowRight, CalendarClock, CalendarOff, CheckCircle2, Clock, Coffee, Users, Wallet } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
+import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import AppButton from '../../../components/ui/AppButton';
+import AppText from '../../../components/ui/AppText';
+import { Card } from '../../../components/ui/Card';
+import { StatusChip } from '../../../components/ui/StatusChip';
+import ErrorState from '../../../components/ui/ErrorState';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { CardFadeIn } from '../../../components/animations/CardFadeIn';
+import type { AppointmentStatus } from '../../../types/appointment';
 import { useDoctorDashboard } from '../hooks/useDoctorDashboard';
-import { DashboardCard } from '../components/DashboardCard';
-import {
-  Users,
-  TrendingUp,
-  Clock,
-  CheckCircle,
-  Calendar,
-  AlertCircle,
-  Sparkles,
-} from 'lucide-react-native';
+import { useDoctorAvailability } from '../hooks/useDoctorAvailability';
+import type { DoctorTabParamList } from '../navigation/DoctorNavigator';
+import { doctorDisplayName, formatDateKey, formatTime12h, greetingForHour, todayKey } from '../utils/doctorFormat';
 
-const WEEKDAYS = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
+const WAITING: string[] = ['confirmed', 'checked_in'];
+const IN_ROOM: string[] = ['called', 'in_progress'];
+
+const statusLabel = (status: string) =>
+  status
+    .split('_')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
 
 export default function DashboardScreen() {
-  const { colors, spacing, typography, radius } = useTheme();
-  const {
-    isLoading,
-    error,
-    doctorProfile,
-    availability,
-    recentPatients,
-    incomeSummary,
-    schedule,
-    refresh,
-  } = useDoctorDashboard();
+  const { colors, spacing, radius } = useTheme();
+  const navigation = useNavigation<BottomTabNavigationProp<DoctorTabParamList>>();
+  const { isLoading, isRefetching, error, doctorProfile, todayAppointments, recentPatients, incomeSummary, refresh } =
+    useDoctorDashboard();
+  const { schedule, leaves, isOnBreak } = useDoctorAvailability();
 
-  const handleRefresh = React.useCallback(async () => {
-    await refresh();
-  }, [refresh]);
+  const counts = useMemo(
+    () => ({
+      booked: todayAppointments.filter(a => a.status !== 'cancelled').length,
+      waiting: todayAppointments.filter(a => WAITING.includes(a.status)).length,
+      inRoom: todayAppointments.filter(a => IN_ROOM.includes(a.status)).length,
+      pending: todayAppointments.filter(a => a.status === 'pending').length,
+    }),
+    [todayAppointments],
+  );
 
-  if (isLoading && !doctorProfile) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  // Today's hours come from doctor_schedules including is_available and leave;
+  // the old card used get_doctor_schedule, which has neither, so days off and
+  // leave days still showed working hours.
+  const today = todayKey();
+  const todayRow = schedule.find(row => row.day_of_week === new Date().getDay());
+  const onLeaveToday = leaves.some(leave => leave.leave_date === today);
 
   if (error && !doctorProfile) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background, padding: spacing.lg }]}>
-        <AlertCircle size={48} color={colors.error} style={{ marginBottom: spacing.md }} />
-        <Text style={[styles.errorText, { color: colors.text, fontSize: typography.sizes.sm }]}>
-          {error}
-        </Text>
-      </View>
+      <ScreenWrapper edges={['top']}>
+        <ErrorState title="Couldn't load your dashboard" message={error} onRetry={refresh} />
+      </ScreenWrapper>
     );
   }
 
-  // Find today's schedule
-  const todayDay = new Date().getDay();
-  const todaySchedule = schedule.find(s => s.day_of_week === todayDay);
-
-  const formatTime = (timeStr?: string | null) => {
-    if (!timeStr) return '';
-    const parts = timeStr.split(':');
-    if (parts.length < 2) return timeStr;
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-    const displayMin = `${minutes}`.padStart(2, '0');
-    return `${displayHour.toString().padStart(2, '0')}:${displayMin} ${period}`;
-  };
+  const stats: { label: string; value: string | number; icon: LucideIcon; tone: string; tint: string }[] = [
+    { label: 'Booked today', value: counts.booked, icon: Users, tone: colors.primary, tint: colors.tint.primary },
+    { label: 'Waiting', value: counts.waiting, icon: Clock, tone: colors.warning, tint: colors.tint.warning },
+    {
+      label: 'Completed',
+      value: incomeSummary?.completed_count ?? 0,
+      icon: CheckCircle2,
+      tone: colors.success,
+      tint: colors.tint.success,
+    },
+    {
+      label: "Today's earnings",
+      value: `Rs. ${Number(incomeSummary?.total_fee ?? 0).toLocaleString()}`,
+      icon: Wallet,
+      tone: colors.info,
+      tint: colors.tint.info,
+    },
+  ];
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={[styles.contentContainer, { paddingBottom: spacing.xl * 2 }]}
-      refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} colors={[colors.primary]} />
-      }
-    >
-      {/* Header Greeting */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={[styles.greetingLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-            Good Morning
-          </Text>
-          <Text style={[styles.doctorName, { color: colors.text, fontSize: typography.sizes.lg }]}>
-            Dr. {doctorProfile?.name || 'Doctor'}
-          </Text>
+    <ScreenWrapper scrollable edges={['top']} onRefresh={refresh} refreshing={isRefetching}>
+      <View style={[styles.header, { marginBottom: spacing.lg }]}>
+        <View style={styles.flex}>
+          <AppText variant="label" tone="secondary">
+            {greetingForHour()}
+          </AppText>
+          {isLoading || !doctorProfile ? (
+            <Skeleton width="70%" height={28} style={{ marginTop: 4 }} />
+          ) : (
+            <AppText variant="heading" numberOfLines={1}>
+              {doctorDisplayName(doctorProfile.name)}
+            </AppText>
+          )}
+          <AppText variant="caption" tone="tertiary">
+            {formatDateKey(today, { weekday: 'long', month: 'long', day: 'numeric' })}
+          </AppText>
         </View>
-        <View style={[styles.sparkleContainer, { backgroundColor: colors.primary + '10' }]}>
-          <Sparkles size={18} color={colors.primary} />
+        {isOnBreak ? <StatusChip status="doctor_on_break" label="On break" /> : null}
+      </View>
+
+      {isLoading ? (
+        <View style={{ gap: spacing.md }}>
+          <Skeleton height={150} borderRadius={radius.card} />
+          <Skeleton height={200} borderRadius={radius.card} />
+          <Skeleton height={80} borderRadius={radius.card} />
         </View>
-      </View>
+      ) : (
+        <>
+          <CardFadeIn>
+            <Card variant="gradient" gradientColors={colors.gradients.primary} padding="lg" style={{ marginBottom: spacing.lg }}>
+              <AppText variant="label" tone="onPrimary" weight="600" style={styles.soft}>
+                {counts.inRoom > 0 ? 'CONSULTATION IN PROGRESS' : 'YOUR QUEUE'}
+              </AppText>
+              <AppText variant="display" tone="onPrimary" style={{ marginTop: spacing.xs }}>
+                {counts.waiting} waiting
+              </AppText>
+              <AppText variant="label" tone="onPrimary" style={styles.soft}>
+                {counts.inRoom > 0 ? `${counts.inRoom} in the room · ` : ''}
+                {counts.pending > 0 ? `${counts.pending} to confirm` : 'No bookings awaiting confirmation'}
+              </AppText>
+              <AppButton
+                title="Open queue"
+                variant="secondary"
+                rightIcon={<ArrowRight size={18} color={colors.primary} />}
+                containerStyle={{ marginTop: spacing.lg }}
+                onPress={() => navigation.navigate('Patients')}
+              />
+            </Card>
+          </CardFadeIn>
 
-      {/* Cards Grid */}
-      <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.sm, marginHorizontal: spacing.sm }]}>
-        Today's Stats
-      </Text>
-      <View style={styles.gridRow}>
-        <DashboardCard
-          title="Today's Patients"
-          value={incomeSummary?.today_appointments_count ?? 0}
-          icon={<Users size={16} color={colors.primary} />}
-          subtitle="Total Booked"
-        />
-        <DashboardCard
-          title="Current Queue"
-          value={availability?.tokens_ahead ?? 0}
-          icon={<Clock size={16} color={colors.primary} />}
-          subtitle={`${availability?.estimated_wait_minutes ?? 0}m est. wait`}
-        />
-      </View>
+          <View style={[styles.grid, { gap: spacing.sm, marginBottom: spacing.lg }]}>
+            {stats.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <CardFadeIn key={stat.label} delay={(index + 1) * 45} style={styles.gridItem}>
+                  <Card variant="outlined" padding="md">
+                    <View style={[styles.statIcon, { backgroundColor: stat.tint, borderRadius: radius.md }]}>
+                      <Icon size={18} color={stat.tone} />
+                    </View>
+                    <AppText variant="section" numberOfLines={1} style={{ marginTop: spacing.sm }}>
+                      {stat.value}
+                    </AppText>
+                    <AppText variant="caption" tone="secondary">
+                      {stat.label}
+                    </AppText>
+                  </Card>
+                </CardFadeIn>
+              );
+            })}
+          </View>
 
-      <View style={styles.gridRow}>
-        <DashboardCard
-          title="Completed"
-          value={incomeSummary?.completed_count ?? 0}
-          icon={<CheckCircle size={16} color={colors.primary} />}
-          subtitle="Consultations finished"
-        />
-        <DashboardCard
-          title="Total Income"
-          value={`Rs. ${(incomeSummary?.total_fee ?? 0).toLocaleString()}`}
-          icon={<TrendingUp size={16} color={colors.primary} />}
-          subtitle={`Fee: Rs. ${doctorProfile?.fee || 0}`}
-        />
-      </View>
-
-      {/* Schedule Info Box */}
-      <View style={[styles.scheduleBox, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-        <Calendar size={18} color={colors.primary} style={{ marginRight: spacing.sm }} />
-        <View style={styles.scheduleInfo}>
-          <Text style={[styles.scheduleLabel, { color: colors.textSecondary, fontSize: 10 }]}>
-            TODAY'S SCHEDULE ({WEEKDAYS[todayDay]})
-          </Text>
-          <Text style={[styles.scheduleTime, { color: colors.text, fontSize: typography.sizes.sm }]}>
-            {todaySchedule
-              ? `${formatTime(todaySchedule.start_time)} - ${formatTime(todaySchedule.end_time)} (${todaySchedule.slot_duration}m slots)`
-              : 'OFF / Not Scheduled Today'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Recent Patients */}
-      <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.sm, marginHorizontal: spacing.sm, marginTop: spacing.md }]}>
-        Recent Patients
-      </Text>
-      <View style={[styles.recentBox, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-        {recentPatients.length === 0 ? (
-          <Text style={[styles.noPatientsText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-            No recent patients found.
-          </Text>
-        ) : (
-          recentPatients.map((patient, index) => (
-            <View
-              key={index}
-              style={[
-                styles.patientRow,
-                {
-                  borderBottomWidth: index === recentPatients.length - 1 ? 0 : 1,
-                  borderBottomColor: colors.border + '20',
-                },
-              ]}
-            >
-              <View style={styles.patientLeft}>
-                <Text style={[styles.patientNameText, { color: colors.text, fontSize: typography.sizes.sm }]}>
-                  {patient.patient_name}
-                </Text>
-                <Text style={[styles.patientDateText, { color: colors.textSecondary, fontSize: 10 }]}>
-                  Last Visit: {new Date(patient.last_appointment_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                </Text>
-              </View>
+          <Card
+            variant="outlined"
+            padding="md"
+            onPress={() => navigation.navigate('Schedule')}
+            accessibilityLabel="Today's hours, open schedule"
+            style={{ marginBottom: spacing.lg }}
+          >
+            <View style={styles.row}>
               <View
                 style={[
-                  styles.patientStatusBadge,
+                  styles.statIcon,
                   {
-                    backgroundColor:
-                      patient.status.toLowerCase() === 'completed'
-                        ? colors.success + '15'
-                        : colors.primary + '15',
+                    borderRadius: radius.md,
+                    backgroundColor: onLeaveToday ? colors.tint.error : colors.tint.primary,
                   },
                 ]}
               >
-                <Text
+                {onLeaveToday ? (
+                  <CalendarOff size={18} color={colors.error} />
+                ) : isOnBreak ? (
+                  <Coffee size={18} color={colors.warning} />
+                ) : (
+                  <CalendarClock size={18} color={colors.primary} />
+                )}
+              </View>
+              <View style={[styles.flex, { marginLeft: spacing.md }]}>
+                <AppText variant="caption" tone="secondary">
+                  Today's hours
+                </AppText>
+                <AppText variant="bodyStrong">
+                  {onLeaveToday
+                    ? 'On leave today'
+                    : todayRow?.is_available
+                      ? `${formatTime12h(todayRow.start_time)} – ${formatTime12h(todayRow.end_time)} · ${todayRow.slot_duration} min slots`
+                      : 'Day off'}
+                </AppText>
+              </View>
+              <ArrowRight size={18} color={colors.textTertiary} />
+            </View>
+          </Card>
+
+          <AppText variant="subtitle" style={{ marginBottom: spacing.sm }}>
+            Recent patients
+          </AppText>
+          <Card variant="outlined" padding="none" style={{ paddingHorizontal: spacing.lg }}>
+            {recentPatients.length === 0 ? (
+              <AppText variant="body" tone="secondary" style={{ paddingVertical: spacing.lg }}>
+                Patients you see will appear here.
+              </AppText>
+            ) : (
+              recentPatients.slice(0, 6).map((patient, index) => (
+                <View
+                  key={`${patient.patient_name}-${patient.last_appointment_date}-${index}`}
                   style={[
-                    styles.patientStatusText,
+                    styles.row,
                     {
-                      color:
-                        patient.status.toLowerCase() === 'completed'
-                          ? colors.success
-                          : colors.primary,
-                      fontSize: 10,
+                      paddingVertical: spacing.md,
+                      borderTopWidth: index === 0 ? 0 : StyleSheet.hairlineWidth,
+                      borderTopColor: colors.divider,
                     },
                   ]}
                 >
-                  {patient.status.toUpperCase()}
-                </Text>
-              </View>
-            </View>
-          ))
-        )}
-      </View>
-    </ScrollView>
+                  <View style={[styles.initial, { backgroundColor: colors.tint.primary, borderRadius: radius.pill }]}>
+                    <AppText variant="label" tone="brand" weight="700">
+                      {(patient.patient_name || '?').charAt(0).toUpperCase()}
+                    </AppText>
+                  </View>
+                  <View style={[styles.flex, { marginLeft: spacing.md }]}>
+                    <AppText variant="bodyStrong" numberOfLines={1}>
+                      {patient.patient_name}
+                    </AppText>
+                    <AppText variant="caption" tone="secondary">
+                      Last visit {formatDateKey(patient.last_appointment_date, { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </AppText>
+                  </View>
+                  <StatusChip status={patient.status as AppointmentStatus} label={statusLabel(patient.status)} />
+                </View>
+              ))
+            )}
+          </Card>
+        </>
+      )}
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
-  },
-  contentContainer: {
-    padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    textAlign: 'center',
-    fontWeight: '500',
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  soft: {
+    opacity: 0.85,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  gridItem: {
+    width: '48.5%',
+  },
+  row: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  headerLeft: {
-    flex: 1,
-  },
-  greetingLabel: {
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  doctorName: {
-    fontWeight: '800',
-  },
-  sparkleContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  statIcon: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sectionTitle: {
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  gridRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  scheduleBox: {
-    flexDirection: 'row',
+  initial: {
+    width: 36,
+    height: 36,
     alignItems: 'center',
-    padding: 16,
-    borderWidth: 1,
-    marginTop: 12,
-    marginBottom: 12,
-  },
-  scheduleInfo: {
-    flex: 1,
-  },
-  scheduleLabel: {
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  scheduleTime: {
-    fontWeight: '700',
-  },
-  recentBox: {
-    borderWidth: 1,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  noPatientsText: {
-    textAlign: 'center',
-    paddingVertical: 10,
-    fontWeight: '500',
-  },
-  patientRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  patientLeft: {
-    flex: 1,
-  },
-  patientNameText: {
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  patientDateText: {
-    fontWeight: '500',
-  },
-  patientStatusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  patientStatusText: {
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    justifyContent: 'center',
   },
 });
