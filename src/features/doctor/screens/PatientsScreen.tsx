@@ -1,29 +1,20 @@
-import React, { useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  Platform,
-  RefreshControl,
-  Modal,
-  Pressable,
-  ScrollView,
-  Alert,
-} from 'react-native';
-import { Users, AlertCircle, BellRing, Activity, Search } from 'lucide-react-native';
+import React, { useCallback, useMemo } from 'react';
+import { View, StyleSheet, FlatList, RefreshControl, Pressable, ScrollView, Alert } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BellRing, Search } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
+import { useTabBarInset } from '../../../hooks/useTabBarInset';
 import { useDoctorQueue, QueueAction } from '../hooks/useDoctorQueue';
-import {
-  QueueAppointmentRow,
-  getAvailableActions,
-  statusLabel,
-} from '../components/QueueAppointmentRow';
-import AppButton from '../../../components/ui/AppButton';
+import { QueueAppointmentRow } from '../components/QueueAppointmentRow';
+import { NowServingCard } from '../components/NowServingCard';
 import AppInput from '../../../components/ui/AppInput';
+import AppText from '../../../components/ui/AppText';
+import { AppBottomSheet } from '../../../components/ui/AppBottomSheet';
 import { Card } from '../../../components/ui/Card';
-import { StatusChip } from '../../../components/ui/StatusChip';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import ErrorState from '../../../components/ui/ErrorState';
+import { Skeleton } from '../../../components/ui/Skeleton';
 import type { AppointmentFull, CancelReason } from '../../../types/appointment';
 
 const cancelReasons: CancelReason[] = [
@@ -34,14 +25,33 @@ const cancelReasons: CancelReason[] = [
   'Other',
 ];
 
+const FILTERS = [
+  { id: 'queue', label: 'Waiting' },
+  { id: 'serving', label: 'In Room' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'cancelled', label: 'Missed / Cancelled' },
+] as const;
+
+const EMPTY_COPY: Record<string, { title: string; subtitle: string }> = {
+  queue: { title: 'Queue is clear', subtitle: 'Confirmed patients for today will appear here.' },
+  checked_in: { title: 'No one checked in', subtitle: 'Patients appear here once front desk checks them in.' },
+  serving: { title: 'No active consultation', subtitle: 'Call in the next patient to start.' },
+  completed: { title: 'Nothing completed yet', subtitle: 'Finished consultations for today show up here.' },
+  cancelled: { title: 'No missed appointments', subtitle: 'Cancelled and no-show appointments show up here.' },
+};
+
 export default function PatientsScreen() {
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, radius, motion } = useTheme();
+  const tabBarInset = useTabBarInset();
   const {
     isLoading,
     isError,
     isRefetching,
     error,
     refetch,
+    appointments,
+    stats,
+    currentPatient,
     nextPatient,
     hasActiveService,
     nextCallableAppointmentId,
@@ -56,299 +66,265 @@ export default function PatientsScreen() {
     runActionMutation,
   } = useDoctorQueue();
 
-  const handleRefresh = useCallback(async () => {
-    await refetch();
-  }, [refetch]);
+  const busyActionFor = useCallback(
+    (appointmentId: string): QueueAction | null =>
+      runActionMutation.isPending && runActionMutation.variables?.appointment.id === appointmentId
+        ? runActionMutation.variables.action
+        : null,
+    [runActionMutation.isPending, runActionMutation.variables],
+  );
 
-  const confirmAction = useCallback(
+  // Calling in, confirming and completing are the doctor's routine flow and run
+  // immediately with a toast. Only the actions that end an appointment for the
+  // patient ask first.
+  const handleAction = useCallback(
     (action: QueueAction, appointment: AppointmentFull) => {
-      const label = action === 'confirm' ? 'Confirm' : action === 'start_service' ? 'Call' : action === 'complete_service' ? 'Complete' : 'No Show';
-      Alert.alert(
-        `${label} Appointment`,
-        `Are you sure you want to ${label.toLowerCase()} this appointment?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Yes', onPress: () => runActionMutation.mutate({ action, appointment }) },
-        ],
-      );
+      if (action === 'cancel') {
+        setCancelTarget(appointment);
+        return;
+      }
+      if (action === 'no_show') {
+        Alert.alert(
+          'Mark as No Show?',
+          `${appointment.patient_name || 'This patient'} (token ${appointment.token_number ?? '—'}) will be removed from today's queue.`,
+          [
+            { text: 'Keep', style: 'cancel' },
+            {
+              text: 'Mark No Show',
+              style: 'destructive',
+              onPress: () => runActionMutation.mutate({ action, appointment }),
+            },
+          ],
+        );
+        return;
+      }
+      runActionMutation.mutate({ action, appointment });
     },
-    [runActionMutation],
+    [runActionMutation, setCancelTarget],
   );
 
-  const handleConfirm = useCallback(
-    (appointment: AppointmentFull) => confirmAction('confirm', appointment),
-    [confirmAction],
+  const counts = useMemo(
+    () => ({
+      waiting: appointments.filter(a => a.status === 'confirmed' || a.status === 'checked_in').length,
+      done: stats?.completed ?? 0,
+      pending: pendingAppointments.length,
+    }),
+    [appointments, pendingAppointments.length, stats?.completed],
   );
-  const handleCancel = useCallback(
-    (appointment: AppointmentFull) => setCancelTarget(appointment),
-    [setCancelTarget],
-  );
-  const handleCall = useCallback(
-    (appointment: AppointmentFull) => confirmAction('start_service', appointment),
-    [confirmAction],
-  );
-  const handleComplete = useCallback(
-    (appointment: AppointmentFull) => confirmAction('complete_service', appointment),
-    [confirmAction],
-  );
-  const handleNoShow = useCallback(
-    (appointment: AppointmentFull) => confirmAction('no_show', appointment),
-    [confirmAction],
-  );
-
-  const busyActionFor = (appointmentId: string): QueueAction | null => {
-    if (
-      runActionMutation.isPending &&
-      runActionMutation.variables?.appointment.id === appointmentId
-    ) {
-      return runActionMutation.variables.action;
-    }
-    return null;
-  };
 
   const renderRow = useCallback(
-    ({ item, index }: { item: AppointmentFull; index: number }) => {
-      const busyAction =
-        runActionMutation.isPending && runActionMutation.variables?.appointment.id === item.id
-          ? runActionMutation.variables.action
-          : null;
-
-      return (
+    ({ item, index }: { item: AppointmentFull; index: number }) => (
+      <Animated.View entering={FadeInDown.duration(motion.duration.normal).delay(Math.min(index, 8) * motion.stagger)}>
         <QueueAppointmentRow
           appointment={item}
-          isFirst={index === 0}
           isCallBlocked={hasActiveService || item.id !== nextCallableAppointmentId}
           disabledAll={runActionMutation.isPending}
-          busyAction={busyAction}
-          onConfirm={handleConfirm}
-          onCancel={handleCancel}
-          onCall={handleCall}
-          onComplete={handleComplete}
-          onNoShow={handleNoShow}
+          busyAction={busyActionFor(item.id)}
+          onAction={handleAction}
         />
-      );
-    },
-    [
-      hasActiveService,
-      nextCallableAppointmentId,
-      runActionMutation.isPending,
-      runActionMutation.variables,
-      handleConfirm,
-      handleCancel,
-      handleCall,
-      handleComplete,
-      handleNoShow,
-    ],
+      </Animated.View>
+    ),
+    [busyActionFor, handleAction, hasActiveService, motion, nextCallableAppointmentId, runActionMutation.isPending],
   );
 
-  if (isLoading && filteredQueueAppointments.length === 0 && pendingAppointments.length === 0) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
-  if (isError && filteredQueueAppointments.length === 0) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background, padding: spacing.lg }]}>
-        <AlertCircle size={48} color={colors.error} style={{ marginBottom: spacing.md }} />
-        <Text style={[styles.errorText, { color: colors.text, fontSize: typography.sizes.sm }]}>
-          {error instanceof Error ? error.message : 'Failed to load queue.'}
-        </Text>
-      </View>
-    );
-  }
-
-  const listHeader = (
+  const header = (
     <View>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
-          Today's Patients
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-          Manage your live queue: confirm, call, complete, or mark no-show.
-        </Text>
+      <View style={{ marginBottom: spacing.lg }}>
+        <AppText variant="heading">Today's Queue</AppText>
+        <AppText variant="label" tone="secondary">
+          {today}
+        </AppText>
       </View>
 
-      {nextPatient && (
-        <View style={{ marginBottom: spacing.lg }}>
-          <Card variant="elevated" style={[styles.activeCard, { borderColor: colors.primary, borderWidth: 1 }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-              <Activity size={18} color={colors.primary} />
-              <Text style={[styles.activeTitle, { color: colors.text, marginLeft: spacing.xs }]}>
-                Next Patient up / Active Service
-              </Text>
+      {!isLoading && (
+        <View style={[styles.statsRow, { gap: spacing.sm, marginBottom: spacing.lg }]}>
+          {[
+            { label: 'Waiting', value: counts.waiting, tone: colors.primary, bg: colors.tint.primary },
+            { label: 'To confirm', value: counts.pending, tone: colors.warning, bg: colors.tint.warning },
+            { label: 'Completed', value: counts.done, tone: colors.success, bg: colors.tint.success },
+          ].map(item => (
+            <View key={item.label} style={[styles.stat, { backgroundColor: item.bg, borderRadius: radius.lg, padding: spacing.md }]}>
+              <AppText variant="heading" style={{ color: item.tone }}>
+                {item.value}
+              </AppText>
+              <AppText variant="caption" tone="secondary" weight="600">
+                {item.label}
+              </AppText>
             </View>
-            <View style={styles.activeDetails}>
-              <Text style={[styles.activeName, { color: colors.text }]}>
-                {nextPatient.patient_name || 'Anonymous'}
-              </Text>
-              <StatusChip status={nextPatient.status} label={statusLabel(nextPatient.status)} />
-            </View>
-            <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginTop: 4 }}>
-              Token: #{nextPatient.token_number} • {nextPatient.service_name}
-            </Text>
-
-            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-              {getAvailableActions(nextPatient.status).map(action => (
-                <AppButton
-                  key={action}
-                  title={
-                    action === 'start_service'
-                      ? 'Call Patient'
-                      : action === 'complete_service'
-                        ? 'Complete Consultation'
-                        : 'No Show'
-                  }
-                  variant={action === 'no_show' ? 'danger' : 'primary'}
-                  loading={busyActionFor(nextPatient.id) === action}
-                  disabled={runActionMutation.isPending}
-                  style={{ flex: 1 }}
-                  onPress={() => confirmAction(action, nextPatient)}
-                />
-              ))}
-            </View>
-          </Card>
+          ))}
         </View>
+      )}
+
+      {isLoading ? (
+        <Card variant="elevated" padding="lg" style={{ marginBottom: spacing.lg }}>
+          <Skeleton width="40%" height={14} />
+          <View style={[styles.statsRow, { marginTop: spacing.md, gap: spacing.md }]}>
+            <Skeleton width={88} height={72} borderRadius={radius.lg} />
+            <View style={{ flex: 1, gap: spacing.sm }}>
+              <Skeleton width="70%" height={20} />
+              <Skeleton width="45%" height={14} />
+            </View>
+          </View>
+        </Card>
+      ) : (
+        <NowServingCard
+          currentPatient={currentPatient}
+          nextPatient={nextPatient}
+          busyAction={busyActionFor}
+          disabled={runActionMutation.isPending}
+          onAction={handleAction}
+        />
       )}
 
       {pendingAppointments.length > 0 && (
         <View style={{ marginBottom: spacing.lg }}>
-          <Card variant="elevated" style={styles.cardContent}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.md }}>
-              <BellRing size={16} color={colors.warning} />
-              <Text style={[styles.cardTitle, { color: colors.text, marginLeft: spacing.xs }]}>
-                Pending Confirmations ({pendingAppointments.length})
-              </Text>
-            </View>
-            <ScrollView style={{ maxHeight: 220 }}>
-              {pendingAppointments.map((item, idx) => (
-                <QueueAppointmentRow
-                  key={item.id}
-                  appointment={item}
-                  isFirst={idx === 0}
-                  isCallBlocked={hasActiveService || item.id !== nextCallableAppointmentId}
-                  disabledAll={runActionMutation.isPending}
-                  busyAction={busyActionFor(item.id)}
-                  onConfirm={handleConfirm}
-                  onCancel={handleCancel}
-                  onCall={handleCall}
-                  onComplete={handleComplete}
-                  onNoShow={handleNoShow}
-                />
-              ))}
-            </ScrollView>
-          </Card>
+          <View style={[styles.sectionTitle, { marginBottom: spacing.sm }]}>
+            <BellRing size={16} color={colors.warning} />
+            <AppText variant="subtitle" style={{ marginLeft: spacing.xs }}>
+              Awaiting confirmation
+            </AppText>
+          </View>
+          {pendingAppointments.map(item => (
+            <QueueAppointmentRow
+              key={item.id}
+              appointment={item}
+              isCallBlocked
+              disabledAll={runActionMutation.isPending}
+              busyAction={busyActionFor(item.id)}
+              onAction={handleAction}
+            />
+          ))}
         </View>
       )}
 
-      <View style={styles.filterSection}>
-        <AppInput
-          placeholder="Search patient, token..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          leftIcon={Search}
-        />
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.sm }}
-        >
-          {[
-            { id: 'queue', label: 'All Waiting' },
-            { id: 'checked_in', label: 'Checked In' },
-            { id: 'serving', label: 'In Progress' },
-            { id: 'completed', label: 'Completed' },
-            { id: 'cancelled', label: 'Cancelled/Skipped' },
-          ].map(tab => (
+      <AppInput
+        placeholder="Search by patient, service or token"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        leftIcon={Search}
+        autoCorrect={false}
+      />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.md }}
+      >
+        {FILTERS.map(tab => {
+          const selected = statusFilter === tab.id;
+          return (
             <Pressable
               key={tab.id}
-              onPress={() => setStatusFilter(tab.id as any)}
-              style={({ pressed }) => [
-                styles.tabButton,
+              onPress={() => setStatusFilter(tab.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              style={[
+                styles.chip,
                 {
-                  borderColor: statusFilter === tab.id ? colors.primary : colors.border + '50',
-                  backgroundColor: statusFilter === tab.id ? colors.primary + '10' : 'transparent',
+                  borderRadius: radius.pill,
+                  borderColor: selected ? colors.primary : colors.border,
+                  backgroundColor: selected ? colors.primary : colors.surface,
                 },
-                pressed && { opacity: 0.8 },
               ]}
             >
-              <Text
-                style={{
-                  color: statusFilter === tab.id ? colors.primary : colors.textSecondary,
-                  fontWeight: '700',
-                  fontSize: typography.sizes.sm,
-                }}
-              >
+              <AppText variant="label" weight="600" tone={selected ? 'onPrimary' : 'secondary'}>
                 {tab.label}
-              </Text>
+              </AppText>
             </Pressable>
-          ))}
-        </ScrollView>
-      </View>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 
+  if (isError && appointments.length === 0) {
+    return (
+      <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
+        <ErrorState
+          title="Couldn't load your queue"
+          message={error}
+          fallbackMessage="Check your connection and try again."
+          onRetry={() => refetch()}
+        />
+      </SafeAreaView>
+    );
+  }
+
+  const emptyCopy = searchQuery.trim()
+    ? { title: 'No matches', subtitle: 'Try a different name, service or token number.' }
+    : EMPTY_COPY[statusFilter];
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
-        data={filteredQueueAppointments}
+        data={isLoading ? [] : filteredQueueAppointments}
         keyExtractor={item => item.id}
-        contentContainerStyle={[styles.contentContainer, { paddingBottom: spacing.xl * 2 }]}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.screen,
+          paddingTop: spacing.lg,
+          paddingBottom: tabBarInset + spacing.lg,
+        }}
         refreshControl={
-          <RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} colors={[colors.primary]} />
+          <RefreshControl
+            refreshing={isRefetching}
+            onRefresh={() => refetch()}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+            progressBackgroundColor={colors.surface}
+          />
         }
-        ListHeaderComponent={listHeader}
+        keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={header}
         ListEmptyComponent={
-          <View style={[styles.emptyContainer, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-            <Users size={32} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-              No appointments match the filter criteria.
-            </Text>
-          </View>
+          isLoading ? (
+            <View style={{ gap: spacing.sm }}>
+              {[0, 1, 2].map(i => (
+                <Skeleton key={i} height={96} borderRadius={radius.card} />
+              ))}
+            </View>
+          ) : (
+            <EmptyState illustrationKind="queue" title={emptyCopy.title} subtitle={emptyCopy.subtitle} />
+          )
         }
         renderItem={renderRow}
       />
 
-      <Modal
+      <AppBottomSheet
         visible={cancelTarget !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCancelTarget(null)}
+        onClose={() => setCancelTarget(null)}
+        title="Cancel appointment"
+        maxHeightPercent={0.6}
       >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.background, borderRadius: radius.md, padding: spacing.lg }]}>
-            <Text style={[styles.modalTitle, { color: colors.text, marginBottom: spacing.md }]}>
-              Select Reason for Cancellation
-            </Text>
-            {cancelReasons.map(reason => (
-              <Pressable
-                key={reason}
-                onPress={() => {
-                  if (cancelTarget) {
-                    runActionMutation.mutate({ action: 'cancel', appointment: cancelTarget, reason });
-                  }
-                }}
-                style={({ pressed }) => [
-                  styles.reasonItem,
-                  { borderColor: colors.border },
-                  pressed && { backgroundColor: colors.border + '30' },
-                ]}
-              >
-                <Text style={{ color: colors.text, fontSize: typography.sizes.md }}>{reason}</Text>
-              </Pressable>
-            ))}
-            <AppButton
-              title="Close"
-              variant="outline"
-              onPress={() => setCancelTarget(null)}
-              style={{ marginTop: spacing.md }}
-            />
-          </View>
-        </View>
-      </Modal>
-    </View>
+        <AppText variant="body" tone="secondary" style={{ marginBottom: spacing.md }}>
+          {cancelTarget
+            ? `Why is ${cancelTarget.patient_name || 'this patient'}'s appointment (token ${cancelTarget.token_number ?? '—'}) being cancelled? The patient will be notified.`
+            : ''}
+        </AppText>
+        {cancelReasons.map(reason => (
+          <Pressable
+            key={reason}
+            disabled={runActionMutation.isPending}
+            onPress={() => {
+              if (cancelTarget) {
+                runActionMutation.mutate({ action: 'cancel', appointment: cancelTarget, reason });
+              }
+            }}
+            style={({ pressed }) => [
+              styles.reason,
+              {
+                borderColor: colors.border,
+                borderRadius: radius.control,
+                backgroundColor: pressed ? colors.surfaceSunken : colors.surface,
+                marginBottom: spacing.sm,
+              },
+            ]}
+          >
+            <AppText variant="bodyStrong">{reason}</AppText>
+          </Pressable>
+        ))}
+      </AppBottomSheet>
+    </SafeAreaView>
   );
 }
 
@@ -356,96 +332,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  contentContainer: {
-    padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontWeight: '500',
-  },
-  activeCard: {
-    padding: 16,
-  },
-  activeTitle: {
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  activeDetails: {
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 10,
   },
-  activeName: {
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  cardContent: {
-    padding: 16,
-  },
-  cardTitle: {
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  filterSection: {
-    borderBottomWidth: 1.5,
-    borderBottomColor: '#f1f5f9',
-    paddingBottom: 4,
-    marginBottom: 12,
-  },
-  tabButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 15,
-    borderWidth: 1.5,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 30,
-    borderWidth: 1,
-    marginTop: 10,
-  },
-  emptyText: {
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  modalOverlay: {
+  stat: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    padding: 20,
   },
-  modalContent: {
-    width: '100%',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  reasonItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderRadius: 8,
-    marginBottom: 8,
+  sectionTitle: {
+    flexDirection: 'row',
     alignItems: 'center',
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+  },
+  reason: {
+    borderWidth: 1,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
 });

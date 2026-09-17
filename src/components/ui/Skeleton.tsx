@@ -54,7 +54,9 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     <View
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[{ width, height }, style]}
+      // Clip the moving highlight: without this the sweep paints past the
+      // block's bounds and neighbouring placeholders appear to merge.
+      style={[{ width, height, borderRadius: resolvedRadius, overflow: 'hidden' }, style]}
     >
       <MotiSkeleton
         colorMode={isDarkMode ? 'dark' : 'light'}

@@ -106,22 +106,45 @@ export interface DoctorPayload {
 }
 
 export const doctorService = {
-  /** Fetch all doctors for a given service (active only by default) */
+  /** Fetch doctors assigned to a service through doctor_services (active only by default) */
   async getByServiceId(serviceId: string, activeOnly = true): Promise<Doctor[]> {
-    let query = supabase.from('doctors').select('id, name, specialization, photo_url, service_id, is_active, created_at').eq('service_id', serviceId).order('created_at', { ascending: true });
+    const { data, error } = await supabase
+      .from('doctor_services')
+      .select('doctors!inner (id, center_id, name, specialty, qualification, photo_url, is_active, created_at)')
+      .eq('service_id', serviceId);
 
-    if (activeOnly) {
-      query = query.eq('is_active', true);
-    }
-
-    const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return (data ?? []) as any as Doctor[];
+
+    return ((data ?? []) as unknown as { doctors: Doctor | Doctor[] | null }[])
+      .map(row => (Array.isArray(row.doctors) ? row.doctors[0] : row.doctors))
+      .filter((doctor): doctor is Doctor => !!doctor && (!activeOnly || doctor.is_active))
+      .map(doctor => ({ ...doctor, specialization: doctor.specialty, service_id: serviceId }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   },
 
   /** Fetch all doctors for a service (admin view, includes inactive) */
   async getAllByServiceId(serviceId: string): Promise<Doctor[]> {
     return this.getByServiceId(serviceId, false);
+  },
+
+  /** Assign an existing doctor to a service (admin-only by RLS) */
+  async assignToService(doctorId: string, serviceId: string): Promise<void> {
+    const { error } = await supabase
+      .from('doctor_services')
+      .insert({ doctor_id: doctorId, service_id: serviceId });
+    if (error) {
+      throw new Error(error.code === '23505' ? 'This doctor is already assigned to this service.' : error.message);
+    }
+  },
+
+  /** Remove a doctor's assignment from a service without touching the doctor record */
+  async unassignFromService(doctorId: string, serviceId: string): Promise<void> {
+    const { error } = await supabase
+      .from('doctor_services')
+      .delete()
+      .eq('doctor_id', doctorId)
+      .eq('service_id', serviceId);
+    if (error) throw new Error(error.message);
   },
 
   /** Create a new doctor */

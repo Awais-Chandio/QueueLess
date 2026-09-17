@@ -1,141 +1,104 @@
 import React from 'react';
-import { View, Text, Switch, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Switch, Pressable, StyleSheet } from 'react-native';
+import { ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
-import { Clock, Edit2 } from 'lucide-react-native';
+import AppText from '../../../components/ui/AppText';
+import { WEEKDAYS, formatTime12h, timeToMinutes } from '../utils/doctorFormat';
 
 interface DayScheduleCardProps {
   dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  slotDuration: number;
+  startTime?: string | null;
+  endTime?: string | null;
+  slotDuration?: number | null;
   isAvailable: boolean;
+  isToday: boolean;
+  isLast: boolean;
   onToggle: (value: boolean) => void;
   onEdit: () => void;
 }
 
-const WEEKDAYS = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-];
-
+/** One weekday row inside the weekly hours card. Tapping the row edits hours. */
 export const DayScheduleCard = ({
   dayOfWeek,
   startTime,
   endTime,
   slotDuration,
   isAvailable,
+  isToday,
+  isLast,
   onToggle,
   onEdit,
 }: DayScheduleCardProps) => {
-  const { colors, typography, radius } = useTheme();
+  const { colors, spacing, radius } = useTheme();
 
-  const formatTimeStr = (timeStr: string) => {
-    if (!timeStr) return '';
-    const parts = timeStr.split(':');
-    if (parts.length < 2) return timeStr;
-    const hours = parseInt(parts[0], 10);
-    const minutes = parseInt(parts[1], 10);
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-    const displayMin = `${minutes}`.padStart(2, '0');
-    return `${displayHour.toString().padStart(2, '0')}:${displayMin} ${period}`;
-  };
+  const slots =
+    isAvailable && startTime && endTime && slotDuration
+      ? Math.max(0, Math.floor((timeToMinutes(endTime) - timeToMinutes(startTime)) / slotDuration))
+      : 0;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-      <View style={styles.header}>
-        <Text style={[styles.day, { color: colors.text, fontSize: typography.sizes.sm }]}>
-          {WEEKDAYS[dayOfWeek]}
-        </Text>
-        <Switch
-          value={isAvailable}
-          onValueChange={onToggle}
-          trackColor={{ false: colors.border, true: colors.primary }}
-        />
+    <Pressable
+      onPress={onEdit}
+      disabled={!isAvailable}
+      accessibilityRole="button"
+      accessibilityLabel={`${WEEKDAYS[dayOfWeek]}, ${isAvailable ? `${formatTime12h(startTime)} to ${formatTime12h(endTime)}` : 'off'}`}
+      accessibilityHint={isAvailable ? 'Edit working hours' : undefined}
+      style={({ pressed }) => [
+        styles.row,
+        {
+          paddingVertical: spacing.md,
+          borderBottomWidth: isLast ? 0 : StyleSheet.hairlineWidth,
+          borderBottomColor: colors.divider,
+          backgroundColor: pressed ? colors.surfaceSunken : 'transparent',
+        },
+      ]}
+    >
+      <View style={styles.dayCol}>
+        <View style={styles.dayLine}>
+          <AppText variant="bodyStrong" tone={isAvailable ? 'primary' : 'tertiary'}>
+            {WEEKDAYS[dayOfWeek]}
+          </AppText>
+          {isToday && (
+            <View style={[styles.todayPill, { backgroundColor: colors.tint.primary, borderRadius: radius.pill }]}>
+              <AppText variant="caption" tone="brand" weight="600">
+                Today
+              </AppText>
+            </View>
+          )}
+        </View>
+        <AppText variant="caption" tone={isAvailable ? 'secondary' : 'tertiary'}>
+          {isAvailable
+            ? `${formatTime12h(startTime)} – ${formatTime12h(endTime)} · ${slotDuration} min slots · ${slots} slots`
+            : 'Off — not bookable'}
+        </AppText>
       </View>
-
-      {isAvailable ? (
-        <View style={styles.body}>
-          <View style={styles.details}>
-            <Clock size={14} color={colors.primary} style={{ marginRight: 6 }} />
-            <Text style={[styles.time, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-              {formatTimeStr(startTime)} - {formatTimeStr(endTime)} ({slotDuration} min slots)
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.editButton, { backgroundColor: colors.primary + '10', borderRadius: radius.md }]}
-            onPress={onEdit}
-          >
-            <Edit2 size={12} color={colors.primary} style={{ marginRight: 4 }} />
-            <Text style={[styles.editText, { color: colors.primary, fontSize: 10 }]}>
-              Edit Hours
-            </Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.offBody}>
-          <Text style={[styles.offText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-            Off Day (Not available for booking)
-          </Text>
-        </View>
-      )}
-    </View>
+      {isAvailable && <ChevronRight size={18} color={colors.textTertiary} style={{ marginRight: spacing.sm }} />}
+      <Switch
+        value={isAvailable}
+        onValueChange={onToggle}
+        trackColor={{ false: colors.border, true: colors.primary }}
+        thumbColor={colors.surface}
+        accessibilityLabel={`${WEEKDAYS[dayOfWeek]} availability`}
+      />
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    padding: 14,
-    borderWidth: 1,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  day: {
-    fontWeight: '800',
-  },
-  body: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  details: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  dayCol: {
     flex: 1,
   },
-  time: {
-    fontWeight: '600',
-  },
-  editButton: {
+  dayLine: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    gap: 8,
   },
-  editText: {
-    fontWeight: '700',
-  },
-  offBody: {
-    paddingVertical: 4,
-  },
-  offText: {
-    fontWeight: '500',
-    fontStyle: 'italic',
+  todayPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 1,
   },
 });

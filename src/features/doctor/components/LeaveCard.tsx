@@ -1,92 +1,113 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
+import { AlertTriangle, CalendarOff } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
-import { Calendar, Trash2 } from 'lucide-react-native';
+import AppButton from '../../../components/ui/AppButton';
+import AppText from '../../../components/ui/AppText';
+import { Card } from '../../../components/ui/Card';
+import { formatDateKey } from '../utils/doctorFormat';
+
+export type LeaveGroup = {
+  /** Leave row ids, one per day, in date order. */
+  ids: string[];
+  dates: string[];
+  reason: string | null;
+};
 
 interface LeaveCardProps {
-  leaveDate: string;
-  reason: string | null;
-  onCancel: () => void;
+  group: LeaveGroup;
+  bookedCount: number;
+  past: boolean;
+  cancelling: boolean;
+  onCancel?: () => void;
 }
 
-export const LeaveCard = ({ leaveDate, reason, onCancel }: LeaveCardProps) => {
-  const { colors, typography, radius } = useTheme();
+/**
+ * A run of consecutive leave days with the same reason, shown as one entry.
+ * Previously a week off rendered as seven identical cards.
+ */
+export const LeaveCard = ({ group, bookedCount, past, cancelling, onCancel }: LeaveCardProps) => {
+  const { colors, spacing, radius } = useTheme();
+  const first = group.dates[0];
+  const last = group.dates[group.dates.length - 1];
+  const days = group.dates.length;
 
-  const formattedDate = new Date(leaveDate).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const title =
+    days === 1
+      ? formatDateKey(first, { weekday: 'long', month: 'long', day: 'numeric' })
+      : `${formatDateKey(first, { month: 'short', day: 'numeric' })} – ${formatDateKey(last, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-      <View style={styles.left}>
-        <View style={[styles.iconContainer, { backgroundColor: colors.error + '10' }]}>
-          <Calendar size={18} color={colors.error} />
+    <Card variant={past ? 'flat' : 'outlined'} padding="md" style={{ marginBottom: spacing.sm, opacity: past ? 0.75 : 1 }}>
+      <View style={styles.row}>
+        <View
+          style={[
+            styles.icon,
+            { backgroundColor: past ? colors.tint.neutral : colors.tint.error, borderRadius: radius.md },
+          ]}
+        >
+          <CalendarOff size={18} color={past ? colors.textTertiary : colors.error} />
         </View>
-        <View style={styles.info}>
-          <Text style={[styles.date, { color: colors.text, fontSize: typography.sizes.sm }]}>
-            {formattedDate}
-          </Text>
-          <Text style={[styles.reason, { color: colors.textSecondary, fontSize: 10 }]} numberOfLines={2}>
-            Reason: {reason || 'No reason provided.'}
-          </Text>
+        <View style={styles.flex}>
+          <AppText variant="bodyStrong">{title}</AppText>
+          <AppText variant="caption" tone="secondary" numberOfLines={2}>
+            {days > 1 ? `${days} days · ` : ''}
+            {group.reason || 'No reason given'}
+          </AppText>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={[styles.cancelButton, { backgroundColor: colors.error + '10', borderRadius: radius.lg }]}
-        onPress={onCancel}
-      >
-        <Trash2 size={14} color={colors.error} />
-      </TouchableOpacity>
-    </View>
+      {!past && bookedCount > 0 && (
+        <View
+          style={[
+            styles.warning,
+            { backgroundColor: colors.tint.warning, borderRadius: radius.md, marginTop: spacing.sm, padding: spacing.sm },
+          ]}
+        >
+          <AlertTriangle size={14} color={colors.warning} />
+          <AppText variant="caption" tone="warning" weight="600" style={styles.warningText}>
+            {bookedCount} active booking{bookedCount === 1 ? '' : 's'} on {days === 1 ? 'this day' : 'these days'} — contact the front desk to reschedule.
+          </AppText>
+        </View>
+      )}
+
+      {!past && onCancel && (
+        <AppButton
+          title={days === 1 ? 'Cancel leave' : `Cancel all ${days} days`}
+          variant="ghost"
+          size="sm"
+          fullWidth={false}
+          loading={cancelling}
+          textStyle={{ color: colors.error }}
+          containerStyle={{ alignSelf: 'flex-end' }}
+          onPress={onCancel}
+        />
+      )}
+    </Card>
   );
 };
 
 const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-    borderWidth: 1,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 6,
-    elevation: 1,
-  },
-  left: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  flex: {
     flex: 1,
-    marginRight: 10,
   },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  icon: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  info: {
-    flex: 1,
-  },
-  date: {
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  reason: {
-    fontWeight: '500',
-  },
-  cancelButton: {
-    width: 32,
-    height: 32,
+  warning: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+  },
+  warningText: {
+    marginLeft: 6,
+    flex: 1,
   },
 });

@@ -1,382 +1,216 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  TouchableOpacity,
-  Platform,
-  Alert,
-} from 'react-native';
-import { useTheme } from '../../../hooks/useTheme';
-import { useDoctorAvailability } from '../hooks/useDoctorAvailability';
-import { LeaveCard } from '../components/LeaveCard';
+import React, { useMemo, useState } from 'react';
+import { View, Pressable, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Calendar, Plus, X, ArrowLeft } from 'lucide-react-native';
+import { ChevronLeft, Plus } from 'lucide-react-native';
+import { useTheme } from '../../../hooks/useTheme';
+import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import AppButton from '../../../components/ui/AppButton';
+import AppText from '../../../components/ui/AppText';
+import { EmptyState } from '../../../components/ui/EmptyState';
+import ErrorState from '../../../components/ui/ErrorState';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { toastService } from '../../../services/toastService';
+import { useDoctorAvailability } from '../hooks/useDoctorAvailability';
+import type { DoctorLeave } from '../services/doctorAvailabilityService';
+import { LeaveCard, LeaveGroup } from '../components/LeaveCard';
+import { RequestLeaveSheet } from '../components/RequestLeaveSheet';
+import { parseDateKey, toDateKey, todayKey } from '../utils/doctorFormat';
+
+const PAST_LIMIT = 10;
+
+/** Collapses consecutive days with the same reason into one entry. */
+const groupLeaves = (leaves: DoctorLeave[]): LeaveGroup[] => {
+  const groups: LeaveGroup[] = [];
+  [...leaves]
+    .sort((a, b) => a.leave_date.localeCompare(b.leave_date))
+    .forEach(leave => {
+      const last = groups[groups.length - 1];
+      if (last) {
+        const next = parseDateKey(last.dates[last.dates.length - 1]);
+        next.setDate(next.getDate() + 1);
+        if (toDateKey(next) === leave.leave_date && (last.reason ?? '') === (leave.reason ?? '')) {
+          last.ids.push(leave.id);
+          last.dates.push(leave.leave_date);
+          return;
+        }
+      }
+      groups.push({ ids: [leave.id], dates: [leave.leave_date], reason: leave.reason });
+    });
+  return groups;
+};
 
 export default function LeaveManagementScreen() {
-  const { colors, spacing, typography, radius } = useTheme();
+  const { colors, spacing, radius } = useTheme();
   const navigation = useNavigation();
   const {
     isLoading,
+    isRefetching,
+    error,
     leaves,
+    bookingCounts,
     requestLeaveRange,
-    cancelLeave,
+    isRequestingLeave,
+    cancelLeaves,
+    cancellingLeaveIds,
     refresh,
   } = useDoctorAvailability();
 
-  const [addModalVisible, setAddModalVisible] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [reason, setReason] = useState('');
-  const [addLoading, setAddLoading] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  const handleOpenAdd = () => {
-    // Populate today's date in format YYYY-MM-DD
-    const todayStr = new Date().toISOString().split('T')[0];
-    setStartDate(todayStr);
-    setEndDate(todayStr);
-    setReason('');
-    setAddModalVisible(true);
-  };
+  const today = todayKey();
+  const { upcoming, past } = useMemo(() => {
+    const groups = groupLeaves(leaves);
+    return {
+      upcoming: groups.filter(group => group.dates[group.dates.length - 1] >= today),
+      past: groups.filter(group => group.dates[group.dates.length - 1] < today).reverse().slice(0, PAST_LIMIT),
+    };
+  }, [leaves, today]);
 
-  const handleSaveLeave = async () => {
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(startDate) || !dateRegex.test(endDate)) {
-      Alert.alert('Error', 'Please enter valid dates in YYYY-MM-DD format.');
-      return;
-    }
+  const existingLeaveDates = useMemo(() => new Set(leaves.map(leave => leave.leave_date)), [leaves]);
 
-    const startVal = new Date(startDate).getTime();
-    const endVal = new Date(endDate).getTime();
-    if (isNaN(startVal) || isNaN(endVal) || startVal > endVal) {
-      Alert.alert('Error', 'End date must be greater than or equal to start date.');
-      return;
-    }
-
+  const handleSubmit = async (start: Date, end: Date, reason: string) => {
     try {
-      setAddLoading(true);
-      await requestLeaveRange(startDate, endDate, reason);
-      setAddModalVisible(false);
-      Alert.alert('Success', 'Leave requested successfully.');
-    } catch {
-      Alert.alert('Error', 'Failed to request leave. Please try again.');
-    } finally {
-      setAddLoading(false);
+      const added = await requestLeaveRange(start, end, reason);
+      setSheetOpen(false);
+      toastService.success(added === 1 ? 'Day off added.' : `${added} days off added.`);
+    } catch (err) {
+      toastService.error('Could not save your time off.', err instanceof Error ? err.message : undefined);
     }
   };
 
-  const handleCancelLeave = (leaveId: string, dateStr: string) => {
-    const formatted = new Date(dateStr).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+  const handleCancel = (group: LeaveGroup) => {
+    // Only days that have not started yet can be withdrawn; past days are history.
+    const ids = group.ids.filter((_, index) => group.dates[index] >= today);
     Alert.alert(
-      'Cancel Leave',
-      `Are you sure you want to cancel your leave on ${formatted}?`,
+      ids.length === 1 ? 'Cancel this day off?' : `Cancel ${ids.length} days off?`,
+      'You will be shown as working on these dates again.',
       [
-        { text: 'No', style: 'cancel' },
+        { text: 'Keep leave', style: 'cancel' },
         {
-          text: 'Yes, Cancel',
+          text: 'Cancel leave',
           style: 'destructive',
           onPress: async () => {
             try {
-              await cancelLeave(leaveId);
-            } catch {
-              Alert.alert('Error', 'Failed to cancel leave. Please try again.');
+              await cancelLeaves(ids);
+              toastService.success('Leave cancelled.');
+            } catch (err) {
+              toastService.error('Could not cancel leave.', err instanceof Error ? err.message : undefined);
             }
           },
         },
-      ]
+      ],
     );
   };
 
-  if (isLoading && leaves.length === 0) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+  const header = (
+    <View style={[styles.header, { marginBottom: spacing.lg }]}>
+      <Pressable
+        onPress={() => navigation.goBack()}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        hitSlop={8}
+        style={[styles.back, { borderRadius: radius.pill, backgroundColor: colors.surface, borderColor: colors.border }]}
+      >
+        <ChevronLeft size={22} color={colors.text} />
+      </Pressable>
+      <View style={styles.flex}>
+        <AppText variant="heading">Time off</AppText>
+        <AppText variant="label" tone="secondary">
+          Days you are not seeing patients.
+        </AppText>
       </View>
+    </View>
+  );
+
+  if (error && leaves.length === 0) {
+    return (
+      <ScreenWrapper edges={['top']}>
+        {header}
+        <ErrorState title="Couldn't load your leave" message={error} onRetry={refresh} />
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: Platform.OS === 'ios' ? 50 : 20 }]}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.md }]}
-        >
-          <ArrowLeft size={20} color={colors.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
-            Leave Management
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-            Add or cancel your leave dates and vacation days.
-          </Text>
-        </View>
-      </View>
+    <ScreenWrapper scrollable edges={['top']} onRefresh={refresh} refreshing={isRefetching}>
+      {header}
 
-      {/* Leaves List */}
-      <FlatList
-        data={leaves}
-        keyExtractor={item => item.id}
-        contentContainerStyle={[styles.listContent, { paddingBottom: spacing.xl * 2 }]}
-        refreshing={isLoading}
-        onRefresh={refresh}
-        ListEmptyComponent={
-          <View style={[styles.emptyContainer, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-            <Calendar size={32} color={colors.textSecondary} style={{ marginBottom: spacing.sm }} />
-            <Text style={[styles.emptyText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-              No requested leaves found.
-            </Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <LeaveCard
-            leaveDate={item.leave_date}
-            reason={item.reason}
-            onCancel={() => handleCancelLeave(item.id, item.leave_date)}
-          />
-        )}
+      <AppButton
+        title="Request time off"
+        leftIcon={<Plus size={18} color={colors.onPrimary} />}
+        onPress={() => setSheetOpen(true)}
+        disabled={isLoading}
+        containerStyle={{ marginTop: 0, marginBottom: spacing.lg }}
       />
 
-      {/* Floating Action Button */}
-      <TouchableOpacity
-        style={[styles.fab, { backgroundColor: colors.primary, borderRadius: radius.xl }]}
-        onPress={handleOpenAdd}
-      >
-        <Plus size={24} color="#ffffff" />
-      </TouchableOpacity>
-
-      {/* Add Leave Modal */}
-      <Modal
-        visible={addModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setAddModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderRadius: radius.xl }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
-                Add Leave Date(s)
-              </Text>
-              <TouchableOpacity onPress={() => setAddModalVisible(false)} style={styles.closeButton}>
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Start Date */}
-            <View style={styles.formRow}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                Start Date (YYYY-MM-DD)
-              </Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border, borderRadius: radius.md }]}
-                value={startDate}
-                onChangeText={setStartDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* End Date */}
-            <View style={styles.formRow}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                End Date (YYYY-MM-DD)
-              </Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border, borderRadius: radius.md }]}
-                value={endDate}
-                onChangeText={setEndDate}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* Reason */}
-            <View style={styles.formRow}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                Reason for Leave
-              </Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border, borderRadius: radius.md, height: 60 }]}
-                value={reason}
-                onChangeText={setReason}
-                multiline
-                placeholder="e.g., Medical checkup, family vacation"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* Actions */}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.cancelBtn, { borderColor: colors.border, borderRadius: radius.lg }]}
-                onPress={() => setAddModalVisible(false)}
-              >
-                <Text style={[styles.cancelBtnText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: colors.primary, borderRadius: radius.lg }]}
-                onPress={handleSaveLeave}
-                disabled={addLoading}
-              >
-                {addLoading ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={[styles.saveBtnText, { fontSize: typography.sizes.sm }]}>
-                    Request Leave
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
+      {isLoading ? (
+        <View style={{ gap: spacing.sm }}>
+          <Skeleton height={76} borderRadius={radius.card} />
+          <Skeleton height={76} borderRadius={radius.card} />
         </View>
-      </Modal>
-    </View>
+      ) : (
+        <>
+          <AppText variant="subtitle" style={{ marginBottom: spacing.sm }}>
+            Upcoming
+          </AppText>
+          {upcoming.length === 0 ? (
+            <EmptyState
+              illustrationKind="appointment"
+              title="No time off scheduled"
+              subtitle="Plan ahead so the front desk can reschedule patients."
+            />
+          ) : (
+            upcoming.map(group => (
+              <LeaveCard
+                key={group.ids[0]}
+                group={group}
+                past={false}
+                bookedCount={group.dates.reduce((sum, key) => sum + (bookingCounts[key] ?? 0), 0)}
+                cancelling={group.ids.some(id => cancellingLeaveIds.includes(id))}
+                onCancel={() => handleCancel(group)}
+              />
+            ))
+          )}
+
+          {past.length > 0 && (
+            <>
+              <AppText variant="subtitle" style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
+                Past
+              </AppText>
+              {past.map(group => (
+                <LeaveCard key={group.ids[0]} group={group} past bookedCount={0} cancelling={false} />
+              ))}
+            </>
+          )}
+        </>
+      )}
+
+      <RequestLeaveSheet
+        visible={sheetOpen}
+        existingLeaveDates={existingLeaveDates}
+        bookingCounts={bookingCounts}
+        submitting={isRequestingLeave}
+        onClose={() => setSheetOpen(false)}
+        onSubmit={handleSubmit}
+      />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 16,
+    gap: 12,
   },
-  backButton: {
+  back: {
     width: 40,
     height: 40,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
-  },
-  headerTitleContainer: {
-    flex: 1,
-  },
-  title: {
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontWeight: '500',
-  },
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 30,
-    borderWidth: 1,
-    marginTop: 10,
-  },
-  emptyText: {
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    width: '100%',
-    maxWidth: 360,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontWeight: '800',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  formRow: {
-    marginBottom: 14,
-  },
-  inputLabel: {
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 16,
-  },
-  cancelBtn: {
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  cancelBtnText: {
-    fontWeight: '600',
-  },
-  saveBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 120,
-  },
-  saveBtnText: {
-    color: '#ffffff',
-    fontWeight: '700',
   },
 });

@@ -375,11 +375,18 @@ export const buildStats = (appointments: AppointmentFull[]): StaffDashboardStats
     .length,
 });
 
+// Best effort: the status change has already been committed when this runs, so
+// a rejected log (RLS only lets staff/admin write audit_logs, not doctors) must
+// not surface to the user as a failed queue action.
 const insertAuditLog = async (payload: CreateAuditLogPayload) => {
   const { error } = await supabase.from('audit_logs').insert(payload);
 
   if (error) {
-    throw new Error(error.message);
+    console.warn('[STAFF_QUEUE] Audit log not recorded:', {
+      action: payload.action,
+      code: error.code,
+      message: error.message,
+    });
   }
 };
 
@@ -883,6 +890,24 @@ export const queueService = {
 
     if (!rpcError) {
       console.log('[STAFF_QUEUE] RPC complete_appointment succeeded for appointment:', appointment.id);
+      // The RPC already moved the row to completed, so the guarded update below
+      // would match nothing and wrongly report a conflict.
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(baseAppointmentSelect)
+        .eq('id', appointment.id)
+        .single();
+      if (error) {
+        throw new Error(error.message);
+      }
+      await insertAuditLog({
+        staff_user_id: await getCurrentUserId(),
+        appointment_id: appointment.id,
+        action: 'complete_service',
+        old_status: appointment.status,
+        new_status: 'completed',
+      });
+      return data as unknown as AppointmentFull;
     } else {
       console.warn('[STAFF_QUEUE] RPC complete_appointment unavailable, using table update fallback:', rpcError.message);
     }

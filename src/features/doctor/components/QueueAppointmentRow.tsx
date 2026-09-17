@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Clock } from 'lucide-react-native';
+import { View, StyleSheet } from 'react-native';
+import { Clock, Stethoscope } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
+import AppText from '../../../components/ui/AppText';
+import { Card } from '../../../components/ui/Card';
 import { StatusChip } from '../../../components/ui/StatusChip';
 import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
-import { getAppointmentStatusState } from '../../../services/bookingService';
-import { scaleFont } from '../../../utils/responsive';
 import type { AppointmentFull, AppointmentStatus } from '../../../types/appointment';
 import type { QueueAction } from '../hooks/useDoctorQueue';
 
@@ -16,12 +16,17 @@ export const statusLabel = (status: string) =>
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+/**
+ * Actions a doctor may take from each status. These mirror the database's
+ * validate_appointment_status_transition trigger: confirmed may only move to
+ * checked_in, called or cancelled, so "Complete" is never offered before the
+ * patient has been called in.
+ */
 export const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
   switch (status) {
     case 'pending':
       return ['confirm', 'cancel'];
     case 'confirmed':
-      return ['start_service', 'complete_service', 'cancel'];
     case 'checked_in':
       return ['start_service', 'cancel'];
     case 'called':
@@ -35,186 +40,136 @@ export const getAvailableActions = (status: AppointmentStatus): QueueAction[] =>
 const actionLabels: Record<QueueAction, string> = {
   confirm: 'Confirm',
   cancel: 'Cancel',
-  start_service: 'Call',
+  start_service: 'Call In',
   complete_service: 'Complete',
   no_show: 'No Show',
 };
 
 interface QueueAppointmentRowProps {
   appointment: AppointmentFull;
-  isFirst: boolean;
   isCallBlocked: boolean;
   disabledAll: boolean;
   busyAction: QueueAction | null;
-  onConfirm: (appointment: AppointmentFull) => void;
-  onCancel: (appointment: AppointmentFull) => void;
-  onCall: (appointment: AppointmentFull) => void;
-  onComplete: (appointment: AppointmentFull) => void;
-  onNoShow: (appointment: AppointmentFull) => void;
+  onAction: (action: QueueAction, appointment: AppointmentFull) => void;
 }
 
 const QueueAppointmentRowComponent = ({
   appointment,
-  isFirst,
   isCallBlocked,
   disabledAll,
   busyAction,
-  onConfirm,
-  onCancel,
-  onCall,
-  onComplete,
-  onNoShow,
+  onAction,
 }: QueueAppointmentRowProps) => {
-  const { colors, spacing, typography } = useTheme();
-  const { resolvedStatus } = getAppointmentStatusState(appointment);
+  const { colors, spacing, radius } = useTheme();
+  // Database status, not the patient-facing expiry guess (see useDoctorQueue).
+  const resolvedStatus = appointment.status;
   const actions = getAvailableActions(resolvedStatus);
 
-  const handlerFor = (action: QueueAction) => {
-    switch (action) {
-      case 'confirm':
-        return () => onConfirm(appointment);
-      case 'cancel':
-        return () => onCancel(appointment);
-      case 'start_service':
-        return () => onCall(appointment);
-      case 'complete_service':
-        return () => onComplete(appointment);
-      case 'no_show':
-        return () => onNoShow(appointment);
-    }
-  };
-
   return (
-    <View
-      style={[
-        styles.itemContainer,
-        !isFirst && {
-          borderTopWidth: 1,
-          borderTopColor: colors.border + '50',
-          paddingTop: spacing.md,
-          marginTop: spacing.md,
-        },
-      ]}
-    >
-      <View style={styles.itemHeader}>
-        <View style={styles.itemTitleWrap}>
-          <View style={styles.itemMainRow}>
-            <View
-              style={[
-                styles.tokenPill,
-                {
-                  backgroundColor: `${colors.primary}10`,
-                  borderColor: `${colors.primary}30`,
-                  borderWidth: 1,
-                },
-              ]}
-            >
-              <Text style={[styles.tokenText, { color: colors.primary, fontSize: typography.sizes.sm }]}>
-                {typeof appointment.token_number === 'number' ? `#${appointment.token_number}` : 'No Token'}
-              </Text>
-            </View>
-            <Text
-              style={[styles.patientNameText, { color: colors.text, fontSize: typography.sizes.md }]}
-              numberOfLines={1}
-            >
-              {appointment.patient_name || 'Anonymous Patient'}
-            </Text>
-          </View>
-          <View style={{ height: 4 }} />
-          <Text style={[styles.serviceText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-            {appointment.service_name || 'Consultation'}
-          </Text>
+    <Card variant="outlined" padding="md" style={{ marginBottom: spacing.sm }}>
+      <View style={styles.header}>
+        <View
+          style={[
+            styles.token,
+            { backgroundColor: colors.tint.primary, borderRadius: radius.md },
+          ]}
+        >
+          <AppText variant="caption" tone="brand" weight="600">
+            TOKEN
+          </AppText>
+          <AppText variant="subtitle" tone="brand" weight="800">
+            {typeof appointment.token_number === 'number' ? appointment.token_number : '—'}
+          </AppText>
         </View>
+
+        <View style={styles.titleWrap}>
+          <AppText variant="bodyStrong" numberOfLines={1}>
+            {appointment.patient_name || 'Patient'}
+          </AppText>
+          <View style={[styles.metaRow, { marginTop: 2 }]}>
+            <Stethoscope size={12} color={colors.textSecondary} />
+            <AppText variant="caption" tone="secondary" numberOfLines={1} style={styles.metaText}>
+              {appointment.service_name || 'Consultation'}
+            </AppText>
+          </View>
+          <View style={styles.metaRow}>
+            <Clock size={12} color={colors.textSecondary} />
+            <AppText variant="caption" tone="secondary" style={styles.metaText}>
+              {getAppointmentTimeLabel(appointment)}
+            </AppText>
+          </View>
+        </View>
+
         <StatusChip status={resolvedStatus} label={statusLabel(resolvedStatus)} />
       </View>
 
-      <View style={[styles.itemSubRow, { marginTop: spacing.sm }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Clock size={scaleFont(14)} color={colors.textSecondary} />
-          <Text
-            style={[
-              styles.subRowText,
-              { color: colors.textSecondary, marginLeft: spacing.xs, fontSize: typography.sizes.sm },
-            ]}
-          >
-            {getAppointmentTimeLabel(appointment)}
-          </Text>
-        </View>
-      </View>
-
       {actions.length > 0 && (
-        <View style={[styles.actionsRow, { marginTop: spacing.md }]}>
+        <View style={[styles.actions, { marginTop: spacing.md, gap: spacing.sm }]}>
           {actions.map(action => {
-            const isCancel = action === 'cancel';
+            const isDanger = action === 'cancel' || action === 'no_show';
             const isBlocked = action === 'start_service' && isCallBlocked;
-            const isBusy = busyAction === action;
-
             return (
               <AppButton
                 key={action}
                 title={actionLabels[action]}
-                variant={isCancel || action === 'no_show' ? 'danger' : action === 'confirm' ? 'primary' : 'outline'}
-                loading={isBusy}
+                size="sm"
+                variant={
+                  isDanger
+                    ? 'ghost'
+                    : action === 'complete_service'
+                      ? 'success'
+                      : action === 'confirm'
+                        ? 'primary'
+                        : 'outline'
+                }
+                textStyle={isDanger ? { color: colors.error } : undefined}
+                loading={busyAction === action}
                 disabled={disabledAll || isBlocked}
-                style={styles.actionButton}
-                textStyle={{ fontSize: typography.sizes.sm }}
-                onPress={handlerFor(action)}
+                containerStyle={styles.actionButton}
+                onPress={() => onAction(action, appointment)}
+                accessibilityHint={
+                  isBlocked ? 'Finish the current consultation or call the next patient in order first.' : undefined
+                }
               />
             );
           })}
         </View>
       )}
-    </View>
+    </Card>
   );
 };
 
 export const QueueAppointmentRow = React.memo(QueueAppointmentRowComponent);
 
 const styles = StyleSheet.create({
-  itemContainer: {
-    paddingVertical: 4,
-  },
-  itemHeader: {
+  header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'flex-start',
   },
-  itemTitleWrap: {
+  token: {
+    minWidth: 56,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  titleWrap: {
     flex: 1,
-    paddingRight: 10,
+    marginRight: 8,
   },
-  itemMainRow: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginTop: 1,
   },
-  tokenPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+  metaText: {
+    marginLeft: 4,
+    flexShrink: 1,
   },
-  tokenText: {
-    fontWeight: '700',
-  },
-  patientNameText: {
-    fontWeight: '700',
-  },
-  serviceText: {
-    fontWeight: '500',
-  },
-  itemSubRow: {
+  actions: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  subRowText: {
-    fontWeight: '600',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: 10,
   },
   actionButton: {
     flex: 1,
-    height: 38,
   },
 });

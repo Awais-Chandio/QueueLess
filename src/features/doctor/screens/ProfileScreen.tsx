@@ -12,21 +12,23 @@ import {
   Alert,
 } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { Controller, useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useTheme } from '../../../hooks/useTheme';
 import { useDoctorDashboard } from '../hooks/useDoctorDashboard';
-import { useAuthStore } from '../../../store/authStore';
+import { useAuth } from '../../../hooks/useAuth';
 import { doctorService } from '../../../services/doctorService';
 import { supabase } from '../../../lib/supabase';
 import { toastService } from '../../../services/toastService';
 import AppInput from '../../../components/ui/AppInput';
 import AppButton from '../../../components/ui/AppButton';
+import { doctorSelfProfileSchema, type DoctorSelfProfileData } from '../../../validations/doctorProfileSchema';
 import {
   User,
   Mail,
   Phone,
   Briefcase,
-  Award,
   CreditCard,
   MapPin,
   ShieldCheck,
@@ -38,17 +40,29 @@ import {
 export default function ProfileScreen() {
   const { colors, spacing, typography, radius } = useTheme();
   const { isLoading, doctorProfile } = useDoctorDashboard();
-  const { clearAuth } = useAuthStore();
+  const { logout } = useAuth();
   const queryClient = useQueryClient();
 
-  const [bio, setBio] = useState('');
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<DoctorSelfProfileData>({
+    resolver: zodResolver(doctorSelfProfileSchema),
+    defaultValues: { specialty: '', qualification: '', bio: '' },
+  });
 
   useEffect(() => {
     if (doctorProfile) {
-      setBio(doctorProfile.bio || '');
+      reset({
+        specialty: doctorProfile.specialty || '',
+        qualification: doctorProfile.qualification || '',
+        bio: doctorProfile.bio || '',
+      });
       setPhotoUrl(doctorProfile.photo_url || null);
     }
     // Re-seed only when the doctor identity changes, not on every background
@@ -97,16 +111,24 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (values: DoctorSelfProfileData) => {
     if (!doctorProfile?.id) return;
 
     try {
       setSaving(true);
 
-      const { error } = await supabase
+      // Only doctor-editable columns are sent; admin-only columns are never touched here.
+      const { data: saved, error } = await supabase
         .from('doctors')
-        .update({ bio, photo_url: photoUrl })
-        .eq('id', doctorProfile.id);
+        .update({
+          specialty: values.specialty.trim(),
+          qualification: values.qualification.trim(),
+          bio: values.bio.trim() || null,
+          photo_url: photoUrl,
+        })
+        .eq('id', doctorProfile.id)
+        .select('id')
+        .maybeSingle();
 
       if (error) {
         if (error.message.includes('Only admin can change')) {
@@ -114,6 +136,11 @@ export default function ProfileScreen() {
         } else {
           Alert.alert('Error', error.message);
         }
+        return;
+      }
+
+      if (!saved) {
+        Alert.alert('Not saved', 'Your profile could not be updated. Please sign in again and retry.');
         return;
       }
 
@@ -132,7 +159,7 @@ export default function ProfileScreen() {
       'Are you sure you want to sign out from your Doctor Portal account?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign Out', style: 'destructive', onPress: () => clearAuth() },
+        { text: 'Sign Out', style: 'destructive', onPress: logout },
       ]
     );
   };
@@ -189,19 +216,61 @@ export default function ProfileScreen() {
         Editable Profile Information
       </Text>
       <View style={[styles.infoBlock, styles.editableBlock, { backgroundColor: colors.surface, borderColor: colors.border + '40', borderRadius: radius.xl }]}>
-        <AppInput
-          label="Professional Biography (Bio)"
-          placeholder="Describe your qualifications, specialties, and clinical experience..."
-          multiline
-          value={bio}
-          onChangeText={setBio}
+        <Controller
+          name="specialty"
+          control={control}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <AppInput
+              label="Specialty"
+              placeholder="e.g. Cardiology"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.specialty?.message}
+              required
+              editable={!saving}
+            />
+          )}
+        />
+        <Controller
+          name="qualification"
+          control={control}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <AppInput
+              label="Qualification"
+              placeholder="e.g. MBBS, FCPS"
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.qualification?.message}
+              required
+              editable={!saving}
+            />
+          )}
+        />
+        <Controller
+          name="bio"
+          control={control}
+          render={({ field: { onChange, onBlur, value } }) => (
+            <AppInput
+              label="Professional Biography (Bio)"
+              placeholder="Describe your clinical experience and areas of focus..."
+              multiline
+              value={value}
+              onChangeText={onChange}
+              onBlur={onBlur}
+              error={errors.bio?.message}
+              maxLength={1000}
+              editable={!saving}
+            />
+          )}
         />
         <AppButton
           title="Save Changes"
           variant="primary"
           loading={saving}
           disabled={saving || uploading}
-          onPress={handleSave}
+          onPress={handleSubmit(handleSave)}
         />
       </View>
 
@@ -228,19 +297,6 @@ export default function ProfileScreen() {
             </Text>
             <Text style={[styles.infoValue, { color: colors.text, fontSize: typography.sizes.sm }]}>
               {doctorProfile?.center_name || 'Not Assigned'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Qualification */}
-        <View style={[styles.infoRow, { borderTopWidth: 1, borderTopColor: colors.border + '20' }]}>
-          <Award size={18} color={colors.primary} style={styles.infoIcon} />
-          <View style={styles.infoContent}>
-            <Text style={[styles.infoLabel, { color: colors.textSecondary, fontSize: 10 }]}>
-              QUALIFICATION
-            </Text>
-            <Text style={[styles.infoValue, { color: colors.text, fontSize: typography.sizes.sm }]}>
-              {doctorProfile?.qualification || 'MBBS'}
             </Text>
           </View>
         </View>
