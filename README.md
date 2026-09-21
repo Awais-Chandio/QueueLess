@@ -1,6 +1,6 @@
-# QueueLess
+# MediQ
 
-QueueLess is a React Native mobile app for appointment booking and queue
+MediQ is a React Native mobile app for appointment booking and queue
 management. The app uses React Navigation for auth and app flows, Zustand for
 local state, and Supabase for backend auth/profile services.
 
@@ -64,9 +64,7 @@ bundle install
 
 Then, and every time you update your native dependencies, run:
 
-```sh
 bundle exec pod install
-```
 
 For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
 

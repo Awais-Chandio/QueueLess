@@ -1,12 +1,17 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { queryPersister } from "./src/lib/queryPersister";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { queryClient } from "./src/lib/react-query";
-import { SafeAreaProvider } from "react-native-safe-area-context"; 
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useAuth } from "./src/hooks/useAuth";
+
 import ToastMessage from "./src/components/ui/ToastMessage";
+import RealtimeIndicator from "./src/components/ui/RealtimeIndicator";
 import { authService } from "./src/features/auth/api/authService";
 import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
@@ -40,6 +45,30 @@ const getDeepLinkParams = (url: string) => {
 
 const App = ()=>{
   const { restoreSession } = useAuth();
+
+  const [realtimeConnected, setRealtimeConnected] = useState(true);
+
+  useEffect(() => {
+    if (!supabaseConfig.isValid) return;
+
+    // Listen to real-time subscription status
+    const channel = supabase.channel('realtime_status_listener');
+    
+    channel.subscribe((status) => {
+      if (__DEV__) {
+        console.log('[REALTIME_STATUS]', status);
+      }
+      if (status === 'SUBSCRIBED') {
+        setRealtimeConnected(true);
+      } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+        setRealtimeConnected(false);
+      }
+    });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabaseConfig.isValid) {
@@ -192,31 +221,49 @@ const App = ()=>{
 
   if (!supabaseConfig.isValid) {
     return (
-      <SafeAreaProvider>
-        <View style={styles.startupErrorContainer}>
-          <Text style={styles.startupErrorTitle}>Configuration error</Text>
-          <Text style={styles.startupErrorMessage}>
-            {supabaseConfig.errorMessage}
-          </Text>
-          <Text style={styles.startupErrorHint}>
-            Please rebuild the app with Supabase URL and anon key configured.
-          </Text>
-        </View>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <View style={styles.startupErrorContainer}>
+            <Text style={styles.startupErrorTitle}>Configuration error</Text>
+            <Text style={styles.startupErrorMessage}>
+              {supabaseConfig.errorMessage}
+            </Text>
+            <Text style={styles.startupErrorHint}>
+              Please rebuild the app with Supabase URL and anon key configured.
+            </Text>
+          </View>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
 
   return(
-    <QueryClientProvider client={queryClient}>
-      <SafeAreaProvider>
-        <View style={styles.container}>
-          <NavigationContainer linking={linking}>
-            <RootNavigator/>
-          </NavigationContainer>
-          <ToastMessage />
-        </View>
-      </SafeAreaProvider>
-    </QueryClientProvider>
+    // GestureHandlerRootView has to be the outermost native view for
+    // react-native-gesture-handler to receive touches, which @gorhom/bottom-sheet
+    // depends on. Importing 'react-native-gesture-handler' in index.js alone is
+    // not enough on Android.
+    <GestureHandlerRootView style={styles.container}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        // Bump the buster when a query's cached shape changes, so old
+        // persisted data is dropped instead of crashing a screen.
+        persistOptions={{ persister: queryPersister, buster: "2026-09-perf" }}
+      >
+        <SafeAreaProvider>
+          <BottomSheetModalProvider>
+            <View style={styles.container}>
+              <NavigationContainer linking={linking}>
+                <RootNavigator/>
+              </NavigationContainer>
+
+              <RealtimeIndicator connected={realtimeConnected} />
+
+              <ToastMessage />
+            </View>
+          </BottomSheetModalProvider>
+        </SafeAreaProvider>
+      </PersistQueryClientProvider>
+    </GestureHandlerRootView>
   )
 }
 

@@ -3,31 +3,27 @@ import { View, StyleSheet } from "react-native";
 import AuthNavigator from "./AuthNavigator";
 import AdminNavigator from "./AdminNavigator";
 import PatientNavigator from "./PatientNavigator";
-import StaffNavigator from "./StaffNavigator";
-import { useAuthStore } from "../store/authStore";
-import { useProfileStore } from "../store/profileStore";
-import { getUserRoute } from "../utils/roleMapping";
+import DoctorNavigator from "../features/doctor/navigation/DoctorNavigator";
+import StaffNavigator from "../features/staff/navigation/StaffNavigator";
+import { useAuthStore } from "../stores/authStore";
 import SplashScreen from "../features/auth/components/SplashScreen";
+import { useNotifications } from "../hooks/useNotifications";
+import { useTheme } from "../hooks/useTheme";
 
 const RootNavigator = () => {
-  const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
-  const { profile } = useProfileStore();
+  useNotifications();
+  const { isDarkMode } = useTheme();
+  // Select individual fields: destructuring the whole store re-rendered the
+  // entire navigator tree on every auth or profile store update.
+  const isLoading = useAuthStore(state => state.isLoading);
+  const role = useAuthStore(state => state.role);
+  const user = useAuthStore(state => state.user);
+  const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
   const [isSplashFinished, setIsSplashFinished] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
 
   // We are fully ready when auth is not loading AND if logged in, the role is resolved, OR immediately ready if user and role are present
   const isReady = (user && role) ? true : (!isLoading && (user ? role !== null : true));
-
-  const loading = isLoading;
-  const route = role ? getUserRoute(role) : null;
-
-  // Debug logging
-  React.useEffect(() => {
-    console.log('AUTH_LOADING:', loading);
-    console.log('PROFILE:', profile);
-    console.log('ROLE:', role);
-    console.log('CURRENT_ROUTE:', route);
-  }, [loading, profile, role, route]);
 
   // Handle splash transition & dismiss instantly on successful auth
   React.useEffect(() => {
@@ -40,25 +36,9 @@ const RootNavigator = () => {
   }, [isReady, isSplashFinished, user, role]);
 
   const renderContent = () => {
-    if (loading === false && role === 'client' && !isPasswordRecovery) {
-      return <PatientNavigator />;
-    }
-
-    // Navigate immediately if session and role/profile exists
-    if (user && role && !isPasswordRecovery) {
-      const targetRoute = getUserRoute(role);
-      if (targetRoute === "AdminNavigator") {
-        return <AdminNavigator />;
-      }
-      if (targetRoute === "StaffNavigator") {
-        return <StaffNavigator />;
-      }
-      return <PatientNavigator />;
-    }
-
-    // Return a dark background placeholder while auth is loading or resolving roles initially
-    if (isLoading) {
-      return <View style={styles.placeholder} />;
+    // Return a dark background placeholder while auth is loading initially during boot
+    if (isLoading && !isSplashFinished) {
+      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
     }
 
     if (!user || isPasswordRecovery) {
@@ -66,18 +46,13 @@ const RootNavigator = () => {
     }
 
     if (!role) {
-      return <View style={styles.placeholder} />;
+      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
     }
 
-    const targetRoute = getUserRoute(role);
-
-    if (targetRoute === "AdminNavigator") {
-      return <AdminNavigator />;
-    }
-
-    if (targetRoute === "StaffNavigator") {
-      return <StaffNavigator />;
-    }
+    if (role === 'admin') return <AdminNavigator />;
+    if (role === 'doctor') return <DoctorNavigator />;
+    if (role === 'staff') return <StaffNavigator />;
+    if (role === 'client') return <PatientNavigator />;
 
     return <PatientNavigator />;
   };
@@ -118,6 +93,6 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     flex: 1,
-    backgroundColor: "#0F172A", // Dark blue placeholder matching the gradient splash theme
+    backgroundColor: "#061A1A", // Dark clinical placeholder matching the gradient splash theme
   },
 });

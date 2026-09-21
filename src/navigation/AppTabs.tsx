@@ -1,21 +1,22 @@
 import React, { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
-import HomeScreen from "../features/home/components/HomeScreen";
-import CentersScreen from "../features/centers/components/CentersScreen";
+import HomeScreen from "../screens/patient/HomeScreen";
 import MyAppointmentsScreen from "../features/appointments/components/MyAppointmentsScreen";
-import NotificationsScreen from "../features/notifications/components/NotificationsScreen";
 import ProfileScreen from "../features/profile/components/ProfileScreen";
+import CentersScreen from "../features/centers/components/CentersScreen";
+import MapScreen from "../screens/map/MapScreen";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
 import { useNotificationsStore } from "../store/notificationsStore";
 import type { Notification } from "../types/notification";
 import type { AppTabParamList } from "./types";
 import { useTheme } from "../hooks/useTheme";
-import { Home, MapPin, Calendar, Bell, User } from "lucide-react-native";
+import { Home, Compass, MapPinned, Calendar, User } from "lucide-react-native";
 import { hp } from "../utils/responsive";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 let notificationChannelInstance = 0;
@@ -23,26 +24,70 @@ let notificationChannelInstance = 0;
 type TabIconProps = {
     color: string;
     size: number;
+    focused?: boolean;
 };
 
-const AlertsTabIcon = ({ color, size }: TabIconProps) => (
-    <Bell color={color} size={size} />
+const AnimatedTabIcon = ({ Icon, color, size, focused }: { Icon: any; color: string; size: number; focused?: boolean }) => {
+    const scale = useSharedValue(1);
+    const activeProgress = useSharedValue(focused ? 1 : 0);
+
+    useEffect(() => {
+        scale.value = withSpring(focused ? 1.15 : 1, {
+            damping: 15,
+            stiffness: 180,
+        });
+        activeProgress.value = withSpring(focused ? 1 : 0, {
+            damping: 15,
+            stiffness: 180,
+        });
+    }, [focused, activeProgress, scale]);
+
+    const animStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    const bgStyle = useAnimatedStyle(() => ({
+        opacity: activeProgress.value,
+        transform: [{ scale: activeProgress.value }],
+    }));
+
+    return (
+        <View style={{ alignItems: 'center', justifyContent: 'center', height: 32, width: 56 }}>
+            <Animated.View style={[
+                {
+                    position: 'absolute',
+                    width: 48,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: color + '12',
+                },
+                bgStyle
+            ]} />
+            <Animated.View style={animStyle}>
+                <Icon color={color} size={size} fill={focused ? color : 'transparent'} />
+            </Animated.View>
+        </View>
+    );
+};
+
+const HomeTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={Home} color={color} size={size} focused={focused} />
 );
 
-const HomeTabIcon = ({ color, size }: TabIconProps) => (
-    <Home color={color} size={size} />
+const ExploreTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={Compass} color={color} size={size} focused={focused} />
 );
 
-const CentersTabIcon = ({ color, size }: TabIconProps) => (
-    <MapPin color={color} size={size} />
+const MapTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={MapPinned} color={color} size={size} focused={focused} />
 );
 
-const AppointmentsTabIcon = ({ color, size }: TabIconProps) => (
-    <Calendar color={color} size={size} />
+const AppointmentsTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={Calendar} color={color} size={size} focused={focused} />
 );
 
-const ProfileTabIcon = ({ color, size }: TabIconProps) => (
-    <User color={color} size={size} />
+const ProfileTabIcon = ({ color, size, focused }: TabIconProps) => (
+    <AnimatedTabIcon Icon={User} color={color} size={size} focused={focused} />
 );
 
 const sortNotifications = (notifications: Notification[]) =>
@@ -102,13 +147,12 @@ const getRealtimeNotificationId = (value: unknown) => {
 
 const AppTabs = () => {
     const { colors, spacing, typography } = useTheme();
+    const insets = useSafeAreaInsets();
     const userId = useAuthStore(state => state.user?.id);
-    const unreadCount = useNotificationsStore(state => state.unreadCount);
     const fetchNotifications = useNotificationsStore(state => state.fetchNotifications);
     const upsertStoreNotification = useNotificationsStore(state => state.upsertNotification);
     const removeStoreNotification = useNotificationsStore(state => state.removeNotification);
     const queryClient = useQueryClient();
-    const insets = useSafeAreaInsets();
 
     useEffect(() => {
         if (userId) {
@@ -177,10 +221,6 @@ const AppTabs = () => {
         upsertStoreNotification,
         userId,
     ]);
-    const bottomInset = Math.max(
-        insets.bottom,
-        Platform.OS === "android" ? spacing.xl : spacing.sm,
-    );
 
     return (
         <Tab.Navigator
@@ -189,16 +229,28 @@ const AppTabs = () => {
                 tabBarActiveTintColor: colors.primary,
                 tabBarInactiveTintColor: colors.textSecondary,
                 tabBarStyle: {
+                    position: 'absolute',
+                    bottom: insets.bottom > 0 ? (Platform.OS === 'ios' ? insets.bottom : insets.bottom + 8) : spacing.md,
+                    left: spacing.md,
+                    right: spacing.md,
                     backgroundColor: colors.surface,
-                    borderTopColor: colors.border,
-                    height: hp(8) + bottomInset,
-                    paddingBottom: bottomInset,
-                    paddingTop: spacing.sm,
+                    borderRadius: 24,
+                    height: hp(7.8),
+                    borderTopWidth: 0,
+                    borderWidth: 1,
+                    borderColor: colors.border + '40',
+                    shadowColor: '#000000',
+                    shadowOffset: { width: 0, height: 8 },
+                    shadowOpacity: 0.08,
+                    shadowRadius: 16,
+                    elevation: 8,
+                    paddingBottom: insets.bottom > 0 ? (Platform.OS === 'ios' ? spacing.xs : 2) : (Platform.OS === 'ios' ? spacing.xs : spacing.sm),
+                    paddingTop: spacing.xs,
                 },
                 tabBarLabelStyle: {
-                    fontSize: typography.sizes.xs,
-                    fontWeight: '500',
-                    lineHeight: typography.sizes.sm,
+                    fontSize: typography.sizes.xs - 1,
+                    fontWeight: '600',
+                    marginBottom: Platform.OS === 'ios' ? 0 : 2,
                 },
                 tabBarItemStyle: {
                     paddingVertical: spacing.xs,
@@ -210,36 +262,22 @@ const AppTabs = () => {
                 component={HomeScreen} 
                 options={{ tabBarIcon: HomeTabIcon }}
             />
-            <Tab.Screen 
-                name="Centers" 
-                component={CentersScreen} 
-                options={{ tabBarIcon: CentersTabIcon }}
+            <Tab.Screen
+                name="Explore"
+                component={CentersScreen}
+                options={{ tabBarIcon: ExploreTabIcon }}
+            />
+            <Tab.Screen
+                name="Map"
+                component={MapScreen}
+                options={{ tabBarIcon: MapTabIcon }}
             />
             <Tab.Screen
                 name="MyAppointments"
                 component={MyAppointmentsScreen}
                 options={{ 
-                    title: "Appts",
+                    title: "Appointments",
                     tabBarIcon: AppointmentsTabIcon,
-                }}
-            />
-            <Tab.Screen 
-                name="Notifications" 
-                component={NotificationsScreen} 
-                options={{
-                    title: "Alerts",
-                    tabBarIcon: AlertsTabIcon,
-                    tabBarBadge:
-                        unreadCount > 0
-                            ? unreadCount > 99
-                                ? "99+"
-                                : unreadCount
-                            : undefined,
-                    tabBarBadgeStyle: {
-                        backgroundColor: colors.error,
-                        color: "#FFFFFF",
-                        fontSize: typography.sizes.xs,
-                    },
                 }}
             />
             <Tab.Screen 

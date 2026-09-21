@@ -1,0 +1,16 @@
+<!-- MediQ icon concept 1 — "Pulse M"
+     One continuous ECG trace whose two peaks and centre valley read as an M.
+     Shapes: 1 stroke + 1 accent dot. Colours: theme gradients.primary + accent. -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg1" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E7490"/>
+      <stop offset="1" stop-color="#0891B2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="url(#bg1)"/>
+  <path d="M262 540H348L436 330L512 648L588 330L676 540H762"
+        fill="none" stroke="#FFFFFF" stroke-width="72"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="762" cy="540" r="54" fill="#14B8A6"/>
+</svg>

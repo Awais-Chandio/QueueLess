@@ -1,11 +1,20 @@
 import { useCallback } from "react";
+import { useShallow } from 'zustand/react/shallow';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import { User } from '@supabase/supabase-js';
-import { authService } from '../features/auth/api/authService';
-import { useAuthStore } from '../store/authStore';
-import { useProfileStore } from '../store/profileStore';
+import { authService } from '../services/authService';
+import { useAuthStore } from '../stores/authStore';
+import { useProfileStore } from '../stores/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
-import { profileService } from '../features/profile/api/profileService';
+import { profileService } from '../services/profileService';
+import { firebasePhoneAuth } from '../services/firebasePhoneAuth';
+import { fcmService } from '../services/fcmService';
+import { useNotificationsStore } from '../stores/notificationStore';
+import { supabase } from '../lib/supabase';
+import { normalizeUserRole } from '../utils/roleMapping';
+import { queryClient } from '../lib/react-query';
+import { queryPersister } from '../lib/queryPersister';
+import { useAppointmentsStore } from '../stores/appointmentStore';
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -13,6 +22,18 @@ const toAuthError = (error: unknown, fallbackMessage: string) => {
   }
 
   return new Error(fallbackMessage);
+};
+
+const setAuthState = (payload: {
+  profile: any;
+  role: any;
+  doctorId: string | null;
+}) => {
+  useProfileStore.setState({ profile: payload.profile, isLoading: false, error: null });
+  useAuthStore.setState({
+    role: normalizeUserRole(payload.role),
+    doctorId: payload.doctorId,
+  });
 };
 
 // ROLE ARCHITECTURE SAFETY:
@@ -23,9 +44,24 @@ const toAuthError = (error: unknown, fallbackMessage: string) => {
 //   Do NOT convert a client account into a staff account by changing the role field.
 //   The client's historical appointments would remain attached to that user_id,
 //   giving the staff member access to their own client appointment history.
+const fetchStaffDoctorId = async (): Promise<string | null> => {
+  try {
+    const __t = Date.now(); console.log('[TMP] staff ctx start');
+    const { data } = await supabase.rpc('get_my_staff_context');
+    console.log('[TMP] staff ctx done', Date.now() - __t);
+    return (data as any)?.[0]?.doctor_id ?? null;
+  } catch (err) {
+    if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
+    return null;
+  }
+};
+
 const fetchVerifiedProfileRole = async (
   user: User,
 ) => {
+  // Started alongside the profile read instead of after it, so doctors and
+  // staff wait for one round trip at sign-in rather than two.
+  const staffContext = fetchStaffDoctorId();
   const { data: profile } =
     await profileService.getProfileById(user.id);
 
@@ -38,6 +74,8 @@ const fetchVerifiedProfileRole = async (
     console.log('GOOGLE_AVATAR:', avatar);
   }
 
+  let finalProfile = profile;
+
   if (profile) {
     // If profile already exists and full_name is empty/missing, update it
     if (isGoogle && (!profile.full_name || profile.full_name.trim() === '')) {
@@ -47,13 +85,9 @@ const fetchVerifiedProfileRole = async (
         auth_provider: 'google',
       } as any);
       if (updated) {
-        useProfileStore.setState({ profile: updated, isLoading: false, error: null });
-        return updated.role ?? 'client';
+        finalProfile = updated;
       }
     }
-    // Populate the store directly from this fetch — no second read needed.
-    useProfileStore.setState({ profile, isLoading: false, error: null });
-    return profile.role ?? 'client';
   } else {
     // Profile exists in auth but not in profiles table — create it.
     const createPayload: any = {
@@ -63,23 +97,42 @@ const fetchVerifiedProfileRole = async (
       role: 'client',
     };
 
+    const isPhone = !!user.phone;
     if (isGoogle) {
       createPayload.avatar_url = avatar;
       createPayload.auth_provider = 'google';
+    } else if (isPhone) {
+      createPayload.auth_provider = 'phone';
     } else {
       createPayload.auth_provider = 'email';
     }
 
     const { data: created } = await profileService.createProfile(createPayload);
     if (created) {
-      useProfileStore.setState({ profile: created, isLoading: false, error: null });
-      return created.role ?? 'client';
+      finalProfile = created;
     }
   }
 
-  // Profile fetch or creation failed — fall back gracefully.
-  await useProfileStore.getState().fetchProfile(user.id);
-  return useProfileStore.getState().profile?.role ?? 'client';
+  if (!finalProfile) {
+    await useProfileStore.getState().fetchProfile(user.id);
+    finalProfile = useProfileStore.getState().profile;
+  }
+
+  const profileToUse = finalProfile || { id: user.id, role: 'client' };
+
+  const isStaffRole =
+    profileToUse.role === 'doctor' || profileToUse.role === 'staff' || profileToUse.role === 'admin';
+  const doctorId = isStaffRole ? await staffContext : null;
+
+  console.log('[TMP] before setAuthState');
+  setAuthState({
+    profile: profileToUse,
+    role: profileToUse.role,
+    doctorId,
+  });
+
+  console.log('[TMP] after setAuthState');
+  return profileToUse.role ?? 'client';
 };
 
 export const useAuth = () => {
@@ -87,29 +140,33 @@ export const useAuth = () => {
     session,
     user,
     role,
+    doctorId,
     isAuthenticated,
     isLoading,
     setSession,
     setRole,
     clearAuth,
     setLoading,
-  } = useAuthStore();
+  } = useAuthStore(
+    // Shallow-selected: App.tsx calls this hook at the root, and taking the
+    // whole store re-rendered the entire app on every auth store change.
+    useShallow(state => ({
+      session: state.session,
+      user: state.user,
+      role: state.role,
+      doctorId: state.doctorId,
+      isAuthenticated: state.isAuthenticated,
+      isLoading: state.isLoading,
+      setSession: state.setSession,
+      setRole: state.setRole,
+      clearAuth: state.clearAuth,
+      setLoading: state.setLoading,
+    })),
+  );
 
   const restoreSession = useCallback(async () => {
     if (__DEV__) console.log('[AUTH] restoreSession started');
     setLoading(true);
-    const startTime = Date.now();
-    const isJest = Boolean((process.env as Record<string, string | undefined>).JEST_WORKER_ID);
-    const minimumSplashMs = isJest ? 0 : 2000;
-
-    const delayIfNeeded = async () => {
-      const elapsed = Date.now() - startTime;
-      const remaining = minimumSplashMs - elapsed;
-      if (remaining > 0) {
-        await new Promise<void>(resolve => setTimeout(() => resolve(), remaining));
-      }
-    };
-
     try {
       const { data, error } = await authService.getSession();
       if (__DEV__) {
@@ -126,25 +183,22 @@ export const useAuth = () => {
         // Verify authorization role from profiles table, not JWT claims.
         try {
           const verifiedRole = await fetchVerifiedProfileRole(currentSession.user);
+          // fetchVerifiedProfileRole already stored the profile and doctorId.
           setRole(verifiedRole);
-          console.log('PROFILE_LOADED');
-          console.log('ROLE_SET');
           if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
           if (__DEV__) console.log('[AUTH] restoreSession complete');
         } catch (e) {
           if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
           setRole('client');
-          console.log('ROLE_SET');
         }
       }
     } catch {
       clearAuth();
       useProfileStore.getState().clearProfile();
     } finally {
-      await delayIfNeeded();
+      // The splash screen enforces its own intro length, so there is no
+      // artificial minimum here; it only delayed Google sign-in and reloads.
       setLoading(false);
-      console.log('SET_LOADING_FALSE');
-      console.log('RESTORE_COMPLETE');
     }
   }, [clearAuth, setRole, setSession, setLoading]);
 
@@ -308,33 +362,139 @@ export const useAuth = () => {
   const logout = useCallback(async () => {
     if (__DEV__) console.log('[AUTH] logout started');
     setLoading(true);
+    const userId = user?.id;
 
     try {
-      const { error } = await authService.signOut();
+      // These used to run one after another (profile update, FCM delete,
+      // Supabase sign-out, Firebase sign-out), so sign-out waited on four
+      // network calls. The token clear and the sign-out now run together:
+      // the profile update is sent with the current access token, which stays
+      // valid until it expires even after the refresh token is revoked.
+      const clearServerToken = userId
+        ? Promise.resolve(
+            supabase.from('profiles').update({ fcm_token: null } as any).eq('id', userId),
+          ).catch(dbError => {
+            if (__DEV__) console.warn('[useAuth] Failed to clear FCM token from profiles on logout:', dbError);
+          })
+        : Promise.resolve();
 
-      if (error) {
-        throw error;
+      const [, signOutResult] = await Promise.all([clearServerToken, authService.signOut()]);
+      if (signOutResult.error) {
+        throw signOutResult.error;
       }
+
+      // Device-local cleanup does not need to hold the UI.
+      // The notifications store reset below already clears the token in state.
+      fcmService
+        .deleteToken()
+        .catch(fcmError => {
+          if (__DEV__) console.warn('[useAuth] Failed to delete FCM token on logout:', fcmError);
+        });
+      firebasePhoneAuth.logoutFirebase().catch(fbSignOutError => {
+        if (__DEV__) console.warn('[AUTH] Firebase sign out error:', fbSignOutError);
+      });
 
       clearAuth();
       useProfileStore.getState().clearProfile();
+      useNotificationsStore.getState().reset();
+      useAppointmentsStore.getState().reset();
+      // Drop the previous user's cached queries in memory and on disk, so the
+      // next account neither sees them nor pays to rehydrate them.
+      queryClient.clear();
+      queryPersister.removeClient();
       if (__DEV__) console.log('[AUTH] logout complete, profile cleared');
     } catch (error) {
       setLoading(false);
       throw toAuthError(error, 'Logout failed. Please try again.');
     }
-  }, [clearAuth, setLoading]);
+  }, [user?.id, clearAuth, setLoading]);
+
+  const sendPhoneOtp = useCallback(async (phone: string) => {
+    if (__DEV__) console.log('[AUTH] sendPhoneOtp (Firebase) started', phone);
+    try {
+      await firebasePhoneAuth.sendOTP(phone);
+      if (__DEV__) console.log('[AUTH] Firebase OTP confirmation result stored');
+    } catch (error) {
+      throw toAuthError(error, 'Failed to send OTP via Firebase. Please check the phone number.');
+    }
+  }, []);
+
+  const verifyPhoneOtp = useCallback(async (phone: string, token: string) => {
+    if (__DEV__) console.log('[AUTH] verifyPhoneOtp (Firebase) started', phone);
+    setLoading(true);
+    try {
+      const userCredential = await firebasePhoneAuth.verifyOTP(token);
+      if (!userCredential || !userCredential.user) {
+        throw new Error('Verification failed. Invalid OTP code.');
+      }
+
+      const fbUser = userCredential.user;
+      if (__DEV__) {
+        console.log('[AUTH] Firebase user authenticated:', fbUser.uid);
+      }
+
+      const { data, error } = await authService.bridgeFirebaseUserToSupabase(fbUser.uid, fbUser.phoneNumber, fbUser.displayName);
+      if (error) throw error;
+
+      if (!data || !data.session || !data.user) {
+        throw new Error('Verification failed. Unable to establish Supabase session.');
+      }
+
+      setSession(data.session);
+
+      // Verify authorization role from profiles table, not JWT claims.
+      try {
+        const verifiedRole = await fetchVerifiedProfileRole(data.user);
+        setRole(verifiedRole);
+        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN (Phone/Firebase Bridge)');
+      } catch (e) {
+        if (__DEV__) console.warn('[OTP VERIFY] Profile fetch/restore warning:', e);
+        setRole('client');
+      }
+    } catch (error) {
+      clearAuth();
+      throw toAuthError(error, 'Verification failed. Please check the OTP and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [clearAuth, setRole, setSession, setLoading]);
+
+  const loginWithPhone = useCallback(async (phone: string) => {
+    if (__DEV__) console.log('[AUTH] loginWithPhone started', phone);
+    try {
+      const success = await firebasePhoneAuth.sendOTP(phone);
+      return success;
+    } catch (error) {
+      throw toAuthError(error, 'Failed to send OTP via Firebase.');
+    }
+  }, []);
+
+  const verifyPhoneOTP = useCallback(async (code: string) => {
+    if (__DEV__) console.log('[AUTH] verifyPhoneOTP started', code);
+    try {
+      const userCredential = await firebasePhoneAuth.verifyOTP(code);
+      if (__DEV__) console.log('[AUTH] verifyPhoneOTP success, returning Firebase user');
+      return userCredential.user;
+    } catch (error) {
+      throw toAuthError(error, 'Failed to verify OTP via Firebase.');
+    }
+  }, []);
 
   return {
     session,
     user,
     role,
+    doctorId,
     isAuthenticated,
     isLoading,
     restoreSession,
     login,
     loginWithGoogle,
+    sendPhoneOtp,
+    verifyPhoneOtp,
     signup,
     logout,
+    loginWithPhone,
+    verifyPhoneOTP,
   };
 };

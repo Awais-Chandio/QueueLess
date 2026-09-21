@@ -91,8 +91,14 @@ export const getSlotDateTime = (
   appointmentDate: string,
   appointmentTime: string,
 ) => {
-  const match = slotPattern.exec(appointmentTime);
-  const dateTime = new Date(`${appointmentDate}T00:00:00`);
+  const normalizedTime = normalizeAppointmentTimeSlot(appointmentTime) || appointmentTime;
+  const match = slotPattern.exec(normalizedTime);
+
+  const parts = appointmentDate.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const dateTime = new Date(year, month, day, 0, 0, 0, 0);
 
   if (!match || Number.isNaN(dateTime.getTime())) {
     return dateTime;
@@ -120,10 +126,13 @@ export const isPastAppointmentDate = (
   appointmentDate: string,
   now = new Date(),
 ) => {
-  const date = new Date(`${appointmentDate}T00:00:00`);
-  const today = new Date(now);
+  const parts = appointmentDate.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const date = new Date(year, month, day, 0, 0, 0, 0);
 
-  date.setHours(0, 0, 0, 0);
+  const today = new Date(now);
   today.setHours(0, 0, 0, 0);
 
   return date.getTime() < today.getTime();
@@ -133,12 +142,15 @@ export const isTodayAppointmentDate = (
   appointmentDate: string,
   now = new Date(),
 ) => {
-  const date = new Date(`${appointmentDate}T00:00:00`);
+  const parts = appointmentDate.split('-');
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
 
   return (
-    date.getFullYear() === now.getFullYear() &&
-    date.getMonth() === now.getMonth() &&
-    date.getDate() === now.getDate()
+    year === now.getFullYear() &&
+    month === now.getMonth() &&
+    day === now.getDate()
   );
 };
 
@@ -188,10 +200,24 @@ export const getAppointmentDateLabel = (
   appointment: Pick<AppointmentFull, 'appointment_date' | 'scheduled_at'>,
 ) => {
   if (appointment.appointment_date) {
-    return new Date(`${appointment.appointment_date}T00:00:00`).toLocaleDateString();
+    const parts = appointment.appointment_date.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    return new Date(year, month, day, 0, 0, 0, 0).toLocaleDateString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
   }
 
-  return new Date(appointment.scheduled_at).toLocaleDateString();
+  return new Date(appointment.scheduled_at).toLocaleDateString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 };
 
 export const getAppointmentTimeLabel = (
@@ -207,3 +233,43 @@ export const getAppointmentTimeLabel = (
     minute: '2-digit',
   });
 };
+
+export const getPakistanDayOfWeek = (dateStr?: string): number => {
+  let date: Date;
+  if (dateStr) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    date = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  } else {
+    date = new Date();
+  }
+  const dayStr = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    weekday: 'short',
+  }).format(date);
+
+  const mapping: Record<string, number> = {
+    'Sun': 0,
+    'Mon': 1,
+    'Tue': 2,
+    'Wed': 3,
+    'Thu': 4,
+    'Fri': 5,
+    'Sat': 6,
+  };
+  return mapping[dayStr];
+};
+
+export const getPakistanTodayDateString = (): string => {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Karachi',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(new Date());
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  const day = parts.find(p => p.type === 'day')?.value;
+  return `${year}-${month}-${day}`;
+};
+
