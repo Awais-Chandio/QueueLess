@@ -33,6 +33,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>MediQ uses the camera to scan patient appointment QR codes at check-in.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>MediQ uses your location to show nearby healthcare centers and live distance updates.</string>
 	<key>RCTNewArchEnabled</key>

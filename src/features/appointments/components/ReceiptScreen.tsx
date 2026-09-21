@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, ActivityIndicator, ScrollView } from 'react-nat
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import QRCode from 'react-native-qrcode-svg';
 import { CheckCircle2, ChevronRight, Home, ArrowRight } from 'lucide-react-native';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppButton from '../../../components/ui/AppButton';
@@ -10,6 +11,7 @@ import Card from '../../../components/ui/Card';
 import { useTheme } from '../../../hooks/useTheme';
 import { appointmentService } from '../../../services/appointmentService';
 import { getAppointmentDateLabel, getAppointmentTimeLabel } from '../utils/appointmentTime';
+import { buildAppointmentQrValue } from '../utils/appointmentQr';
 import type { AppStackParamList } from '../../../navigation/types';
 import { scaleFont } from '../../../utils/responsive';
 
@@ -135,6 +137,21 @@ const ReceiptScreen = () => {
                   {getAppointmentDateLabel(appointment)} @ {getAppointmentTimeLabel(appointment)}
                 </Text>
               </View>
+
+              {/* Check-in QR */}
+              <View style={[styles.divider, { borderBottomColor: colors.border + '50' }]} />
+              <View style={styles.qrSection}>
+                <View style={styles.qrFrame}>
+                  <QRCode
+                    value={buildAppointmentQrValue(appointment.id)}
+                    size={scaleFont(170)}
+                    quietZone={6}
+                  />
+                </View>
+                <Text style={[styles.qrCaption, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                  Show this QR at the clinic desk to check in
+                </Text>
+              </View>
             </Card>
 
             {/* Quick Actions */}
@@ -214,6 +231,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderStyle: 'dashed',
     marginVertical: 20,
+  },
+  qrSection: {
+    alignItems: 'center',
+  },
+  qrFrame: {
+    // QR codes need a light background to scan reliably, even in dark theme.
+    backgroundColor: '#FFFFFF',
+    padding: 8,
+    borderRadius: 12,
+  },
+  qrCaption: {
+    fontWeight: '600',
+    marginTop: 12,
+    textAlign: 'center',
   },
   detailRow: {
     flexDirection: 'row',
