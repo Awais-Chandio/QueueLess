@@ -16,20 +16,17 @@ export type ScheduleRow = DoctorSchedule & { id: string; is_available: boolean }
 const BOOKING_WINDOW_DAYS = 60;
 
 export function useDoctorAvailability() {
-  const userId = useAuthStore(state => state.user?.id);
-  // Known from sign-in, so schedule, leave and booking queries start without
-  // waiting for the profile request.
-  const authDoctorId = useAuthStore(state => state.doctorId);
+  const { user } = useAuthStore();
   const queryClient = useQueryClient();
 
-  const profileKey = ['doctor-profile-availability', userId];
+  const profileKey = ['doctor-profile-availability', user?.id];
   const profileQuery = useQuery({
     queryKey: profileKey,
-    queryFn: () => doctorAvailabilityService.getDoctorProfile(userId!),
-    enabled: !!userId,
+    queryFn: () => doctorAvailabilityService.getDoctorProfile(user!.id),
+    enabled: !!user?.id,
   });
 
-  const doctorId = authDoctorId ?? profileQuery.data?.id ?? null;
+  const doctorId = profileQuery.data?.id ?? null;
 
   const scheduleQuery = useQuery<ScheduleRow[]>({
     queryKey: ['doctor-schedule', doctorId],

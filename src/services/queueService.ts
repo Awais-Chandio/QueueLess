@@ -691,58 +691,13 @@ export const getQueueSnapshot = async (
 type AppointmentsSubscriptionOptions = {
   channelName?: string;
   onChange: () => void;
-  /** Only receive changes for this doctor's appointments and queue settings. */
-  doctorId?: string | null;
-  /** Only receive changes for this center's appointments and queue settings. */
-  centerId?: string | null;
-  /** Only receive changes to this user's own appointments. */
-  userId?: string | null;
-  /** Only receive queue_updates rows for this appointment. */
-  appointmentId?: string | null;
-  /** Bursts of events within this window cause a single onChange. */
-  debounceMs?: number;
 };
 
-type RealtimeChannel = ReturnType<typeof supabase.channel>;
-
-const pendingChangeTimers = new WeakMap<RealtimeChannel, () => void>();
-
-/**
- * Subscribes to the tables that move a queue.
- *
- * Previously every subscriber listened to all appointments in the database
- * and refetched on each event, so one status change (which also writes
- * queue_updates and settings rows) triggered several full refetches on every
- * open queue screen. Subscribers now pass the narrowest scope they have, and
- * events are debounced into one refetch.
- */
 export const subscribeToAppointments = ({
   channelName,
   onChange,
-  doctorId,
-  centerId,
-  userId,
-  appointmentId,
-  debounceMs = 400,
 }: AppointmentsSubscriptionOptions) => {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const scheduleChange = () => {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      timer = null;
-      onChange();
-    }, debounceMs);
-  };
-
-  const appointmentFilter = doctorId
-    ? `doctor_id=eq.${doctorId}`
-    : centerId
-      ? `center_id=eq.${centerId}`
-      : userId
-        ? `user_id=eq.${userId}`
-        : undefined;
-
-  let channel = supabase
+  return supabase
     .channel(channelName ?? `appointments-live-${Date.now()}`)
     .on(
       'postgres_changes',
@@ -750,9 +705,11 @@ export const subscribeToAppointments = ({
         event: 'INSERT',
         schema: 'public',
         table: 'appointments',
-        ...(appointmentFilter ? { filter: appointmentFilter } : {}),
       },
-      scheduleChange,
+      payload => {
+        console.log('[QUEUE APPOINTMENT INSERT]', payload.new?.id);
+        onChange();
+      },
     )
     .on(
       'postgres_changes',
@@ -760,79 +717,62 @@ export const subscribeToAppointments = ({
         event: 'UPDATE',
         schema: 'public',
         table: 'appointments',
-        ...(appointmentFilter ? { filter: appointmentFilter } : {}),
       },
-      scheduleChange,
-    );
-
-  // Only doctors, notifications and queue_updates are in the supabase_realtime
-  // publication today, so queue_updates (written on every queue move) and
-  // doctors (break status) are the signals that actually arrive. The appointment
-  // and settings listeners start working once those tables are published.
-  channel = channel.on(
-    'postgres_changes',
-    {
-      event: '*',
-      schema: 'public',
-      table: 'queue_updates',
-      ...(appointmentId ? { filter: `appointment_id=eq.${appointmentId}` } : {}),
-    },
-    scheduleChange,
-  );
-
-  if (doctorId) {
-    channel = channel.on(
+      payload => {
+        console.log('[QUEUE APPOINTMENT UPDATE]', payload.new?.id);
+        onChange();
+      },
+    )
+    .on(
       'postgres_changes',
-      { event: 'UPDATE', schema: 'public', table: 'doctors', filter: `id=eq.${doctorId}` },
-      scheduleChange,
-    );
-  }
-
-  if (!doctorId && !userId) {
-    channel = channel.on(
+      {
+        event: '*',
+        schema: 'public',
+        table: 'queue_updates',
+      },
+      payload => {
+        console.log('[QUEUE QUEUE_UPDATES EVENT]', (payload.new as any)?.id);
+        onChange();
+      },
+    )
+    .on(
       'postgres_changes',
       {
         event: 'UPDATE',
         schema: 'public',
         table: 'center_queue_settings',
-        ...(centerId ? { filter: `center_id=eq.${centerId}` } : {}),
       },
-      scheduleChange,
-    );
-  }
-
-  if (!userId) {
-    channel = channel.on(
+      payload => {
+        console.log('[QUEUE CENTER_SETTINGS UPDATE]', payload.new?.center_id);
+        onChange();
+      },
+    )
+    .on(
       'postgres_changes',
       {
         event: 'UPDATE',
         schema: 'public',
         table: 'doctor_queue_settings',
-        ...(doctorId ? { filter: `doctor_id=eq.${doctorId}` } : {}),
       },
-      scheduleChange,
-    );
-  }
-
-  const subscribed = channel.subscribe((status, err) => {
-    if (__DEV__ && status !== 'SUBSCRIBED') {
-      console.warn(`[REALTIME] ${channelName ?? 'appointments-live'}: ${status}`, err ?? '');
-    }
-  });
-
-  pendingChangeTimers.set(subscribed, () => {
-    if (timer) clearTimeout(timer);
-    timer = null;
-  });
-
-  return subscribed;
+      payload => {
+        console.log('[QUEUE DOCTOR_SETTINGS UPDATE]', payload.new?.doctor_id);
+        onChange();
+      },
+    )
+    .subscribe((status, err) => {
+      console.log(`[REALTIME_STATUS] ${channelName ?? 'appointments-live'}: ${status}`, err ? err : '');
+      if (status === 'CHANNEL_ERROR') {
+        console.warn(`[REALTIME] Channel error on ${channelName}, reconnecting...`);
+      }
+      if (status === 'TIMED_OUT') {
+        console.warn(`[REALTIME] Channel timed out on ${channelName}, reconnecting...`);
+      }
+    });
 };
 
 export const unsubscribeAppointments = (
-  queueChannel: RealtimeChannel,
+  queueChannel: ReturnType<typeof supabase.channel>,
 ) => {
-  pendingChangeTimers.get(queueChannel)?.();
-  pendingChangeTimers.delete(queueChannel);
   supabase.removeChannel(queueChannel);
 };
 

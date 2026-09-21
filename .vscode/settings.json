@@ -4,6 +4,5 @@
   ],
   "java.import.exclusions": [
     "**/node_modules/**"
-  ],
-  "java.configuration.updateBuildConfiguration": "interactive"
+  ]
 }

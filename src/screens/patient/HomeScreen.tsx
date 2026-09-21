@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, View, StyleSheet, Text, Pressable, Platform, FlatList, Image, ActivityIndicator } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, Clock, MapPin, Bell, Stethoscope, ChevronRight, Star, Heart, ArrowRight, Search, Hospital } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, Bell, Stethoscope, ChevronRight, Heart, ArrowRight, Search, Hospital } from 'lucide-react-native';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import Card from '../../components/ui/Card';
 import AppButton from '../../components/ui/AppButton';
@@ -10,7 +10,6 @@ import AnimatedHeader from '../../components/ui/AnimatedHeader';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { useProfileStore } from '../../store/profileStore';
-import { useCentersStore } from '../../store/queueStore';
 import { useCenterStore } from '../../store/centerStore';
 import { locationService } from '../../services/location/locationService';
 import { centerService } from '../../services/centerService';
@@ -34,8 +33,8 @@ const HomeScreen = () => {
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
   
-  const { centers, fetchCenters } = useCentersStore();
   const { refetch } = useDashboardStats();
+
   const nearbyCenters = useCenterStore(state => state.centers);
   const nearbyLoading = useCenterStore(state => state.loading);
   const areaLabel = useCenterStore(state => state.areaLabel);
@@ -49,8 +48,6 @@ const HomeScreen = () => {
   const [popularLoading, setPopularLoading] = useState(true);
   const [popularError, setPopularError] = useState<string | null>(null);
 
-=======
->>>>>>> 100cd4b1edc3b7e1caf362165750c82c4650e96b
   useEffect(() => {
     if (user?.id && (!profile || profile.id !== user.id)) {
       fetchProfile(user.id);
@@ -58,8 +55,6 @@ const HomeScreen = () => {
   }, [user?.id, profile, fetchProfile]);
 
   useEffect(() => {
-    fetchCenters();
-  }, [fetchCenters]);
     if (isFocused) {
       refetch();
     }
@@ -119,8 +114,6 @@ const HomeScreen = () => {
     };
   }, []);
 
-=======
->>>>>>> 100cd4b1edc3b7e1caf362165750c82c4650e96b
   const displayName = useMemo(() => {
     return getDisplayName(profile);
   }, [profile]);
@@ -151,10 +144,7 @@ const HomeScreen = () => {
             title={displayName}
             subtitle={`${greeting},`}
             avatarUri={profile?.avatar_url}
-            location={areaLabel ?? (centers[0]?.city ? `${centers[0]?.city}, Pakistan` : (nearbyCenters[0]?.city ?? 'Karachi, Pakistan'))}
-=======
             location={areaLabel ?? nearbyCenters[0]?.city ?? undefined}
->>>>>>> 100cd4b1edc3b7e1caf362165750c82c4650e96b
             onPressAvatar={() => (navigation as any).navigate('Profile')}
             onPressNotifications={() => (navigation as any).navigate('Notifications')}
           />
@@ -340,15 +330,6 @@ const HomeScreen = () => {
             <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>
               No clinics found near your current location.
             </Text>
-          {centers.length === 0 ? (
-            <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>No clinics currently configured.</Text>
-          ) : (
-            <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>
-              No clinics found near your current location.
-            </Text>
-          )}
-=======
->>>>>>> 100cd4b1edc3b7e1caf362165750c82c4650e96b
           ) : (
             <FlatList
               horizontal
@@ -356,7 +337,7 @@ const HomeScreen = () => {
               data={nearbyCenters.slice(0, 4)}
               keyExtractor={(item) => `nearby-${item.id}`}
               contentContainerStyle={{ paddingVertical: spacing.xs, gap: spacing.md }}
-              renderItem={({ item, index }) => {
+              renderItem={({ item }) => {
                 return (
                   <View
                     style={[
@@ -383,7 +364,7 @@ const HomeScreen = () => {
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, gap: 4 }}>
                         <MapPin size={11} color={colors.primary} />
                         <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.primary, fontWeight: '800' }}>
-                          {item.distance?.toFixed(1) ?? '0.0'} km
+                          {item.distance.toFixed(1)} km
                         </Text>
                         <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary }} numberOfLines={1}>• {item.address || item.city}</Text>
                       </View>

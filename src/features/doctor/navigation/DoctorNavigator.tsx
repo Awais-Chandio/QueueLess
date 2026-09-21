@@ -1,5 +1,4 @@
 import React from 'react';
-console.log('[TMP] DoctorNavigator module eval');
 import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -67,7 +66,6 @@ const ProfileTabIcon = ({ color, size }: TabIconProps) => (
 );
 
 const DoctorNavigator = () => {
-  console.log('[TMP] DoctorNavigator render');
   const { colors, spacing, typography } = useTheme();
 
   return (

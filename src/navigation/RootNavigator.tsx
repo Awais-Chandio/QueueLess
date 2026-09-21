@@ -6,6 +6,8 @@ import PatientNavigator from "./PatientNavigator";
 import DoctorNavigator from "../features/doctor/navigation/DoctorNavigator";
 import StaffNavigator from "../features/staff/navigation/StaffNavigator";
 import { useAuthStore } from "../stores/authStore";
+import { useProfileStore } from "../stores/profileStore";
+import { getUserRoute } from "../utils/roleMapping";
 import SplashScreen from "../features/auth/components/SplashScreen";
 import { useNotifications } from "../hooks/useNotifications";
 import { useTheme } from "../hooks/useTheme";
@@ -13,17 +15,24 @@ import { useTheme } from "../hooks/useTheme";
 const RootNavigator = () => {
   useNotifications();
   const { isDarkMode } = useTheme();
-  // Select individual fields: destructuring the whole store re-rendered the
-  // entire navigator tree on every auth or profile store update.
-  const isLoading = useAuthStore(state => state.isLoading);
-  const role = useAuthStore(state => state.role);
-  const user = useAuthStore(state => state.user);
-  const isPasswordRecovery = useAuthStore(state => state.isPasswordRecovery);
+  const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
+  const { profile } = useProfileStore();
   const [isSplashFinished, setIsSplashFinished] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
 
   // We are fully ready when auth is not loading AND if logged in, the role is resolved, OR immediately ready if user and role are present
   const isReady = (user && role) ? true : (!isLoading && (user ? role !== null : true));
+
+  const loading = isLoading;
+  const route = role ? getUserRoute(role) : null;
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('AUTH_LOADING:', loading);
+    console.log('PROFILE:', profile);
+    console.log('ROLE:', role);
+    console.log('CURRENT_ROUTE:', route);
+  }, [loading, profile, role, route]);
 
   // Handle splash transition & dismiss instantly on successful auth
   React.useEffect(() => {
