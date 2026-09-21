@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Clock, Stethoscope } from 'lucide-react-native';
+import { ClipboardList, Clock, Stethoscope } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
 import AppText from '../../../components/ui/AppText';
@@ -51,6 +51,8 @@ interface QueueAppointmentRowProps {
   disabledAll: boolean;
   busyAction: QueueAction | null;
   onAction: (action: QueueAction, appointment: AppointmentFull) => void;
+  /** Opens the visit summary / prescription form; offered on completed visits only. */
+  onWriteSummary?: (appointment: AppointmentFull) => void;
 }
 
 const QueueAppointmentRowComponent = ({
@@ -59,6 +61,7 @@ const QueueAppointmentRowComponent = ({
   disabledAll,
   busyAction,
   onAction,
+  onWriteSummary,
 }: QueueAppointmentRowProps) => {
   const { colors, spacing, radius } = useTheme();
   // Database status, not the patient-facing expiry guess (see useDoctorQueue).
@@ -134,6 +137,18 @@ const QueueAppointmentRowComponent = ({
             );
           })}
         </View>
+      )}
+
+      {resolvedStatus === 'completed' && onWriteSummary && (
+        <AppButton
+          title="Visit summary"
+          size="sm"
+          variant="outline"
+          leftIcon={<ClipboardList size={16} color={colors.primary} />}
+          containerStyle={{ marginTop: spacing.md }}
+          onPress={() => onWriteSummary(appointment)}
+          accessibilityHint="Write or edit the diagnosis and prescription for this visit."
+        />
       )}
     </Card>
   );

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BellRing, Search } from 'lucide-react-native';
@@ -11,6 +11,7 @@ import { NowServingCard } from '../components/NowServingCard';
 import AppInput from '../../../components/ui/AppInput';
 import AppText from '../../../components/ui/AppText';
 import { DoctorSheet } from '../components/DoctorSheet';
+import { VisitSummarySheet } from '../components/VisitSummarySheet';
 import { Card } from '../../../components/ui/Card';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
@@ -65,6 +66,7 @@ export default function PatientsScreen() {
     setCancelTarget,
     runActionMutation,
   } = useDoctorQueue();
+  const [summaryTarget, setSummaryTarget] = useState<AppointmentFull | null>(null);
 
   const busyActionFor = useCallback(
     (appointmentId: string): QueueAction | null =>
@@ -121,6 +123,7 @@ export default function PatientsScreen() {
           disabledAll={runActionMutation.isPending}
           busyAction={busyActionFor(item.id)}
           onAction={handleAction}
+          onWriteSummary={setSummaryTarget}
         />
       </CardFadeIn>
     ),
@@ -288,6 +291,12 @@ export default function PatientsScreen() {
           )
         }
         renderItem={renderRow}
+      />
+
+      <VisitSummarySheet
+        visible={summaryTarget !== null}
+        appointment={summaryTarget}
+        onClose={() => setSummaryTarget(null)}
       />
 
       <DoctorSheet

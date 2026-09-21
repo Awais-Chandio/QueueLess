@@ -21,6 +21,8 @@ import { useAuthStore } from '../../../store/authStore';
 import { useAppointmentReview, useSubmitReview } from '../../../hooks/useReviews';
 import { StarRating } from '../../../components/ui/StarRating';
 import RateVisitSheet from './RateVisitSheet';
+import VisitSummaryCard from './VisitSummaryCard';
+import { useVisitSummary } from '../../../hooks/useVisitSummary';
 import type { AppStackParamList } from '../../../navigation/types';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
 import {
@@ -72,6 +74,12 @@ const AppointmentDetailsScreen = () => {
     isReviewable,
   );
   const submitReview = useSubmitReview();
+  // Nothing renders until a summary exists, so the patient is never told one
+  // is coming. A failed load is treated the same as "none yet".
+  const { data: visitSummary } = useVisitSummary(
+    appointmentId,
+    appointment?.status === 'completed',
+  );
 
   React.useEffect(() => {
     if (appointment && (appointment.status === 'confirmed' || appointment.status === 'pending')) {
@@ -285,6 +293,12 @@ const AppointmentDetailsScreen = () => {
               {appointment.notes}
             </Text>
           </Card>
+        </CardFadeIn>
+      )}
+
+      {appointment.status === 'completed' && !!visitSummary && (
+        <CardFadeIn delay={70}>
+          <VisitSummaryCard summary={visitSummary} />
         </CardFadeIn>
       )}
 
