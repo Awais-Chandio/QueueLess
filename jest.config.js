@@ -13,6 +13,6 @@ module.exports = {
     '^expo-linear-gradient$': '<rootDir>/src/shims/expo-linear-gradient.ts',
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-native-firebase|@react-navigation|react-native-gesture-handler|react-native-safe-area-context|react-native-screens|react-native-url-polyfill|react-native-chart-kit|react-native-linear-gradient|react-native-inappbrowser-reborn|react-native-reanimated|react-native-worklets|@supabase|@react-native-async-storage|@react-native-community/datetimepicker|react-native-toast-message|moti|@motify|@gorhom/bottom-sheet|lottie-react-native|react-native-haptic-feedback)/)',
+    'node_modules/(?!(react-native|@react-native|@react-native-firebase|@react-navigation|react-native-gesture-handler|react-native-safe-area-context|react-native-screens|react-native-url-polyfill|react-native-chart-kit|react-native-linear-gradient|react-native-inappbrowser-reborn|react-native-reanimated|react-native-worklets|@supabase|@react-native-async-storage|@react-native-community/datetimepicker|react-native-toast-message|moti|@motify|@gorhom/bottom-sheet|lottie-react-native|react-native-haptic-feedback|react-native-qrcode-svg)/)',
   ],
 };
