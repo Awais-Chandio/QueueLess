@@ -1,64 +1,103 @@
 import React, { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Animated, View, StyleSheet, Text, Pressable } from 'react-native';
+import { Animated, View, StyleSheet, Text, Pressable, ScrollView, Alert } from 'react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
-import { LinearGradient } from 'react-native-linear-gradient';
 import { Card } from '../../../components/ui/Card';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { StatusChip } from '../../../components/ui/StatusChip';
-import { CircularProgress } from '../../../components/ui/CircularProgress';
 import { ProgressBar } from '../../../components/ui/ProgressBar';
 import { CardFadeIn } from '../../../components/animations/CardFadeIn';
+import AppButton from '../../../components/ui/AppButton';
+import SectionHeader from '../../../components/ui/SectionHeader';
+import AnimatedHeader from '../../../components/ui/AnimatedHeader';
 import { useDashboardStats } from '../hooks/useDashboardStats';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../../../navigation/types';
 import {
-  Bell,
   Calendar,
   Clock,
-  User,
-  CircleDot,
   Users,
   Hash,
   Activity,
   ChevronRight,
+  MapPin,
+  Heart,
+  Plus,
+  ShieldCheck,
+  Stethoscope,
+  Smile,
+  Droplet,
+  Wind,
+  Moon,
+  Sparkles,
 } from 'lucide-react-native';
 import { useAuthStore } from '../../../store/authStore';
 import { useProfileStore } from '../../../store/profileStore';
+import { useCentersStore } from '../../../store/queueStore';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import ProfileAvatar from '../../../components/ui/ProfileAvatar';
 import {
   getAppointmentDateLabel,
   getAppointmentTimeLabel,
 } from '../../appointments/utils/appointmentTime';
-import { useRealtimeQueue } from '../../queue/hooks/useRealtimeQueue';
+import { useQueue } from '../../../hooks/useQueue';
 import type { AppointmentStatus } from '../../../types/appointment';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
-
 import { getDisplayName } from '../../../utils/getDisplayName';
+import LinearGradient from 'react-native-linear-gradient';
+import ReAnimated, { FadeInDown } from 'react-native-reanimated';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
+const FEATURED_SERVICES = [
+  { id: '1', name: 'General Consultation', description: 'Routine checkups & wellness', icon: Stethoscope, color: '#0F766E' },
+  { id: '2', name: 'Pediatrics Care', description: 'Child growth & immunizations', icon: Smile, color: '#22C55E' },
+  { id: '3', name: 'Cardiology Center', description: 'Heart diagnostics & therapy', icon: Heart, color: '#EF4444' },
+  { id: '4', name: 'Dental Diagnostics', description: 'Teeth cleaning & checks', icon: Hash, color: '#F59E0B' },
+];
+
+const HEALTH_TIPS = [
+  { id: '1', title: 'Stay Hydrated', text: 'Drink at least 8-10 glasses of water daily to maintain energy levels and kidney function.', icon: Droplet, color: '#06B6D4' },
+  { id: '2', title: 'Mindful Breathing', text: 'Take 5 deep breaths during stressful moments to regulate heart rate and calm your mind.', icon: Wind, color: '#10B981' },
+  { id: '3', title: 'Sleep Hygiene', text: 'Aim for 7-9 hours of quality sleep to boost immune system responses and memory recall.', icon: Moon, color: '#6366F1' },
+  { id: '4', title: 'Active Desk Breaks', text: 'Stand up and stretch for 2 minutes every hour you spend working at a desk.', icon: Sparkles, color: '#F59E0B' },
+];
+
 const HomeScreen = () => {
-  const { colors, spacing, typography } = useTheme();
+  const { colors, spacing, typography, radius, isDarkMode } = useTheme();
   const navigation = useNavigation<NavigationProp>();
+  const isFocused = useIsFocused();
 
   const { data: stats, isLoading, refetch, isRefetching } = useDashboardStats();
   const user = useAuthStore(state => state.user);
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
   const isProfileLoading = useProfileStore(state => state.isLoading);
+  const profileId = profile?.id;
+
+  const { centers, fetchCenters, loading: centersLoading } = useCentersStore();
 
   useEffect(() => {
-    if (user?.id && (!profile || profile.id !== user.id)) {
+    if (user?.id && profileId !== user.id) {
       fetchProfile(user.id);
     }
-  }, [user?.id, profile?.id, fetchProfile]);
+  }, [user?.id, profileId, fetchProfile]);
+
+  useEffect(() => {
+    fetchCenters();
+  }, [fetchCenters]);
 
   const displayName = useMemo(() => {
     return getDisplayName(profile);
   }, [profile]);
+
+  // Greeting based on time of day
+  const greeting = useMemo(() => {
+    const hours = new Date().getHours();
+    if (hours < 12) return 'Good Morning';
+    if (hours < 17) return 'Good Afternoon';
+    return 'Good Evening';
+  }, []);
 
   const activeAppointment = stats?.activeAppointment;
   const resolvedActiveApptStatus = useMemo(() => {
@@ -89,8 +128,7 @@ const HomeScreen = () => {
   const {
     queueData,
     loading: queueLoading,
-    error: queueError,
-  } = useRealtimeQueue(
+  } = useQueue(
     activeToken,
     refetch,
     {
@@ -100,7 +138,6 @@ const HomeScreen = () => {
     true,
   );
 
-  const queuePulse = useRef(new Animated.Value(1)).current;
   const screenFade = useRef(new Animated.Value(0)).current;
   const livePulse = useRef(new Animated.Value(1)).current;
 
@@ -112,6 +149,13 @@ const HomeScreen = () => {
       useNativeDriver: true,
     }).start();
   }, [screenFade]);
+
+  // Refresh home data when screen gains focus
+  useEffect(() => {
+    if (isFocused) {
+      refetch();
+    }
+  }, [isFocused, refetch]);
 
   useEffect(() => {
     let animation: Animated.CompositeAnimation | null = null;
@@ -139,31 +183,13 @@ const HomeScreen = () => {
     };
   }, [activeAppointment, activeToken, hasActiveQueueAppt, livePulse]);
 
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(queuePulse, {
-        toValue: 1.02,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(queuePulse, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [
-    queuePulse,
-    queueData?.peopleAhead,
-    resolvedActiveApptStatus,
-  ]);
-
   const refreshHome = useCallback(async () => {
     await Promise.all([
       refetch(),
       user?.id ? fetchProfile(user.id) : Promise.resolve(),
+      fetchCenters(),
     ]);
-  }, [fetchProfile, refetch, user?.id]);
+  }, [fetchProfile, refetch, user?.id, fetchCenters]);
 
   const nextApptDate = useMemo(() => {
     if (!activeAppointment) return '';
@@ -191,376 +217,387 @@ const HomeScreen = () => {
   }, [hasActiveQueueAppt, currentToken, yourToken]);
 
   const peopleAhead = queueData?.peopleAhead ?? 0;
-
   const statusProps = getStatusDisplayProperties(resolvedActiveApptStatus || (activeAppointment?.status as AppointmentStatus));
 
+  const showComingSoonAlert = () => {
+    Alert.alert(
+      "Feature Coming Soon",
+      "Medical History is a premium feature that will be available in the upcoming QueueLess Pro update. Stay tuned!",
+      [{ text: "OK", style: "default" }]
+    );
+  };
+
   return (
-    <Animated.View style={[styles.screen, { opacity: screenFade }]}>
+    <Animated.View style={[styles.screen, { opacity: screenFade, backgroundColor: colors.background }]}>
       <ScreenWrapper
         scrollable
         onRefresh={refreshHome}
-        refreshing={isRefetching || isProfileLoading}
+        refreshing={isRefetching || isProfileLoading || centersLoading}
       >
         {/* A. Welcome Header */}
         <CardFadeIn delay={0}>
-          <View style={[styles.header, { marginBottom: spacing.lg }]}>
-            <View style={styles.headerText}>
-              <Text
-                style={[
-                  styles.welcomeText,
-                  { color: colors.textSecondary, fontSize: typography.sizes.md },
-                ]}
-              >
-                Welcome,
-              </Text>
-              <Text
-                style={[
-                  styles.nameText,
-                  {
-                    color: colors.text,
-                    fontSize: typography.sizes.xxl,
-                    fontWeight: typography.weights.bold,
-                  },
-                ]}
-              >
-                {displayName}
-              </Text>
-            </View>
-            <View style={styles.headerRight}>
-              <Pressable
-                onPress={() => navigation.navigate('MainTabs', { screen: 'Notifications' })}
-                style={({ pressed }) => [
-                  styles.iconBtn,
-                  { marginRight: spacing.md, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
-                  pressed && styles.pressedEffect,
-                ]}
-              >
-                <Bell color={colors.text} size={scaleFont(20)} />
-              </Pressable>
-              <Pressable
-                onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
-                style={({ pressed }) => [
-                  styles.avatarRing,
-                  { borderColor: colors.primary + '50' },
-                  pressed && { opacity: 0.75 },
-                ]}
-              >
-                <ProfileAvatar uri={profile?.avatar_url} size={48} />
-              </Pressable>
-            </View>
-          </View>
+          <AnimatedHeader
+            title={displayName}
+            subtitle={`${greeting},`}
+            avatarUri={profile?.avatar_url}
+            location={centers[0]?.city ? `${centers[0]?.city}, Pakistan` : 'Karachi, Pakistan'}
+            onPressAvatar={() => (navigation as any).navigate('Profile')}
+            onPressNotifications={() => (navigation as any).navigate('Notifications')}
+          />
         </CardFadeIn>
 
-        {/* B. Queue Status Card */}
-        <CardFadeIn delay={60}>
-          <Animated.View style={{ transform: [{ scale: queuePulse }], marginBottom: spacing.lg }}>
-            <Card variant="elevated" style={styles.cardContent}>
-              <View style={styles.cardHeader}>
-                <Text
-                  style={[
-                    styles.cardTitle,
-                    { color: colors.text, fontSize: typography.sizes.lg },
-                  ]}
-                >
-                  Queue Status
-                </Text>
-                {activeAppointment && activeToken != null && hasActiveQueueAppt && (
-                  <View
-                    style={[
-                      styles.liveBadge,
-                      { backgroundColor: `${colors.success}18`, borderColor: `${colors.success}30`, borderWidth: 1 },
-                    ]}
-                  >
-                    <Animated.View style={{ opacity: livePulse, marginRight: scaleFont(4), justifyContent: 'center', alignItems: 'center' }}>
-                      <CircleDot color={colors.success} size={scaleFont(11)} />
-                    </Animated.View>
-                    <Text
-                      style={{
-                        color: colors.success,
-                        fontSize: typography.sizes.xs,
-                        fontWeight: '700',
-                      }}
-                    >
-                      Live
+        {/* B. Health Hero Banner */}
+        <ReAnimated.View entering={FadeInDown.delay(100).duration(400)} style={{ marginBottom: spacing.lg }}>
+          <LinearGradient
+            colors={colors.gradients.primary}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.healthBanner, { borderRadius: 20 }]}
+          >
+            <View style={styles.bannerContainer}>
+              <View style={styles.bannerContent}>
+                <Text style={styles.bannerTitle}>Need a Consultation Today?</Text>
+                <Text style={styles.bannerSubtitle}>Skip the waiting room. Book your virtual or physical slot instantly.</Text>
+                <AppButton
+                  title="Book a Consultation"
+                  onPress={() => (navigation as any).navigate('Centers')}
+                  variant="secondary"
+                  style={{ backgroundColor: '#FFFFFF', borderWidth: 0 }}
+                  textStyle={{ color: colors.primary, fontSize: typography.sizes.sm }}
+                  rightIcon={<Plus size={14} color={colors.primary} />}
+                  containerStyle={{ width: 'auto', alignSelf: 'flex-start', marginTop: spacing.xs }}
+                />
+              </View>
+              <View style={styles.bannerIllustration}>
+                <Stethoscope size={scaleFont(96)} color="rgba(255, 255, 255, 0.15)" style={styles.illIcon} />
+              </View>
+            </View>
+          </LinearGradient>
+        </ReAnimated.View>
+
+        {/* C. Quick Actions Grid */}
+        <ReAnimated.View entering={FadeInDown.delay(150).duration(400)} style={{ marginBottom: spacing.lg }}>
+          <SectionHeader title="Quick Actions" />
+          <View style={styles.actionsGrid}>
+            <View style={styles.actionsGridRow}>
+              <Card
+                onPress={() => (navigation as any).navigate('Centers')}
+                variant="gradient"
+                gradientColors={isDarkMode ? ['rgba(15, 118, 110, 0.20)', '#0B2424'] : ['#F0FDFA', '#FFFFFF']}
+                style={[styles.gridActionCard, { borderColor: isDarkMode ? 'rgba(20, 184, 166, 0.25)' : 'rgba(15, 118, 110, 0.15)', borderWidth: 1 }]}
+              >
+                <View style={[styles.gridActionIconWrapper, { backgroundColor: `${colors.primary}12` }]}>
+                  <Calendar size={scaleFont(22)} color={colors.primary} />
+                </View>
+                <Text style={[styles.gridActionTitle, { color: colors.text }]}>Book Slot</Text>
+                <Text style={[styles.gridActionSubtitle, { color: colors.textSecondary }]}>Find nearby clinics</Text>
+              </Card>
+
+              <View style={{ width: spacing.md }} />
+
+              <Card
+                onPress={() => (navigation as any).navigate('MyAppointments')}
+                variant="gradient"
+                gradientColors={isDarkMode ? ['rgba(20, 184, 166, 0.18)', '#0B2424'] : ['#ECFDF5', '#FFFFFF']}
+                style={[styles.gridActionCard, { borderColor: isDarkMode ? 'rgba(20, 184, 166, 0.25)' : 'rgba(16, 185, 129, 0.15)', borderWidth: 1 }]}
+              >
+                <View style={[styles.gridActionIconWrapper, { backgroundColor: `${colors.info}12` }]}>
+                  <Clock size={scaleFont(22)} color={colors.info} />
+                </View>
+                <Text style={[styles.gridActionTitle, { color: colors.text }]}>My Visits</Text>
+                <Text style={[styles.gridActionSubtitle, { color: colors.textSecondary }]}>Manage your queue</Text>
+              </Card>
+            </View>
+
+            <View style={{ height: spacing.md }} />
+
+            <View style={styles.actionsGridRow}>
+              <Card
+                disabled={!activeAppointment || activeToken == null || !hasActiveQueueAppt}
+                onPress={() => activeAppointment && navigation.navigate('QueueStatus', { appointmentId: activeAppointment.id })}
+                variant="gradient"
+                gradientColors={isDarkMode ? ['rgba(16, 185, 129, 0.15)', '#0D1B33'] : ['#DCFCE7', '#FFFFFF']}
+                style={[
+                  styles.gridActionCard,
+                  { borderColor: isDarkMode ? 'rgba(16, 185, 129, 0.25)' : 'rgba(16, 185, 129, 0.15)', borderWidth: 1 },
+                  (!activeAppointment || activeToken == null || !hasActiveQueueAppt) && { opacity: 0.5 }
+                ]}
+              >
+                <View style={[styles.gridActionIconWrapper, { backgroundColor: `${colors.success}12` }]}>
+                  <Activity size={scaleFont(22)} color={colors.success} />
+                </View>
+                <Text style={[styles.gridActionTitle, { color: colors.text }]}>Live Queue</Text>
+                <Text style={[styles.gridActionSubtitle, { color: colors.textSecondary }]}>Track current token</Text>
+              </Card>
+
+              <View style={{ width: spacing.md }} />
+
+              <Card
+                onPress={showComingSoonAlert}
+                variant="gradient"
+                gradientColors={isDarkMode ? ['rgba(245, 158, 11, 0.15)', '#0D1B33'] : ['#FEF3C7', '#FFFFFF']}
+                style={[styles.gridActionCard, { borderColor: isDarkMode ? 'rgba(245, 158, 11, 0.25)' : 'rgba(245, 158, 11, 0.15)', borderWidth: 1 }]}
+              >
+                <View style={[styles.gridActionIconWrapper, { backgroundColor: `${colors.warning}12` }]}>
+                  <ShieldCheck size={scaleFont(22)} color={colors.warning} />
+                </View>
+                <Text style={[styles.gridActionTitle, { color: colors.text }]}>Health History</Text>
+                <Text style={[styles.gridActionSubtitle, { color: colors.textSecondary }]}>Lab reports & files</Text>
+              </Card>
+            </View>
+          </View>
+        </ReAnimated.View>
+
+        {/* D. Current Queue Ticket / Hero Status Card */}
+        <CardFadeIn delay={200}>
+          <View style={{ marginBottom: spacing.lg }}>
+            <SectionHeader title="Current Queue Ticket" />
+
+            {isLoading || queueLoading ? (
+              <Card variant="elevated" style={styles.ticketCardLoading}>
+                <Skeleton height={24} width="60%" borderRadius={radius.md} style={{ marginBottom: 12 }} />
+                <Skeleton height={50} width="100%" borderRadius={radius.md} />
+              </Card>
+            ) : activeAppointment ? (
+              <Card
+                onPress={() => navigation.navigate('AppointmentDetails', { appointmentId: activeAppointment.id })}
+                variant="gradient"
+                gradientColors={isDarkMode ? ['#111A2E', '#0D1B33'] : ['#EEF4FF', '#FFFFFF']}
+                style={[styles.ticketCard, { borderColor: isDarkMode ? 'rgba(20, 184, 166, 0.22)' : 'rgba(15, 118, 110, 0.15)', borderWidth: 1 }]}
+              >
+                {/* Header info */}
+                <View style={styles.ticketCardHeader}>
+                  <View style={styles.ticketLogoContainer}>
+                    <View style={[styles.ticketLogoCircle, { backgroundColor: colors.primary + '12' }]}>
+                      <Stethoscope size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.ticketServiceName, { color: colors.text, fontSize: typography.sizes.md }]}>
+                        {activeAppointment.serviceName}
+                      </Text>
+                      <Text style={[styles.ticketCenterName, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                        {activeAppointment.centerName}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <StatusChip
+                      status={resolvedActiveApptStatus || activeAppointment.status as any}
+                      label={statusProps.label}
+                      size="sm"
+                    />
+                  </View>
+                </View>
+
+                {/* Dotted separator line */}
+                <View style={[styles.ticketDottedLine, { borderColor: colors.border + '50' }]} />
+
+                {/* Ticket Details Row */}
+                <View style={styles.ticketMetricsRow}>
+                  <View style={styles.ticketMetric}>
+                    <Calendar size={14} color={colors.textSecondary} style={{ marginBottom: 4 }} />
+                    <Text style={[styles.ticketMetricLabel, { color: colors.textSecondary }]}>Date</Text>
+                    <Text style={[styles.ticketMetricValue, { color: colors.text }]}>{nextApptDate}</Text>
+                  </View>
+
+                  <View style={styles.ticketMetric}>
+                    <Clock size={14} color={colors.textSecondary} style={{ marginBottom: 4 }} />
+                    <Text style={[styles.ticketMetricLabel, { color: colors.textSecondary }]}>Time</Text>
+                    <Text style={[styles.ticketMetricValue, { color: colors.text }]}>{nextApptTime}</Text>
+                  </View>
+
+                  <View style={styles.ticketMetric}>
+                    <Hash size={14} color={colors.textSecondary} style={{ marginBottom: 4 }} />
+                    <Text style={[styles.ticketMetricLabel, { color: colors.textSecondary }]}>Token</Text>
+                    <Text style={[styles.ticketMetricValue, { color: colors.primary, fontWeight: '800' }]}>
+                      #{activeToken ?? '--'}
                     </Text>
+                  </View>
+                </View>
+
+                {/* Serving Progress Bar (Only if active in queue) */}
+                {hasActiveQueueAppt && activeToken != null && (
+                  <View style={[styles.ticketProgressSection, { borderTopColor: colors.border + '30', borderTopWidth: 1 }]}>
+                    <View style={styles.ticketProgressLabels}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Animated.View style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: colors.success,
+                          opacity: livePulse,
+                        }} />
+                        <Text style={[styles.progressServingText, { color: colors.textSecondary }]}>
+                          Now Serving #{currentToken}
+                        </Text>
+                      </View>
+                      <Text style={[styles.progressYourTokenText, { color: colors.primary }]}>
+                        Your Slot #{activeToken}
+                      </Text>
+                    </View>
+                    <ProgressBar progress={queueProgress} color={colors.primary} height={6} />
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.sm, gap: spacing.xs }}>
+                      <Users size={12} color={colors.warning} />
+                      <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>
+                        {peopleAhead === 0 ? 'You are next in line! Head to your counter.' : `${peopleAhead} people ahead of you.`}
+                      </Text>
+                    </View>
                   </View>
                 )}
-              </View>
-
-              {isLoading || queueLoading ? (
-                <View style={styles.skeletonRow}>
-                  <Skeleton height={40} width="30%" />
-                  <Skeleton height={40} width="30%" />
-                  <Skeleton height={40} width="30%" />
+              </Card>
+            ) : (
+              /* Illustration empty state card */
+              <Card variant="elevated" style={[styles.emptyTicketCard, { borderColor: colors.border + '30', borderWidth: 1 }]}>
+                <View style={[styles.emptyIllustrationWrapper, { backgroundColor: colors.primary + '12' }]}>
+                  <Calendar size={scaleFont(24)} color={colors.primary} />
                 </View>
-              ) : activeAppointment && activeToken != null && hasActiveQueueAppt ? (
-                <View>
-                  {/* Circular progress + token progress bar */}
-                  <View style={styles.queueVisualRow}>
-                    <CircularProgress
-                      progress={queueProgress}
-                      size={scaleFont(100)}
-                      strokeWidth={8}
-                      color={colors.primary}
-                      trackColor={colors.border}
-                      centerLabel={`#${yourToken}`}
-                      centerCaption="Your Token"
-                      centerLabelColor={colors.primary}
-                      centerCaptionColor={colors.textSecondary}
-                    />
-                    <View style={styles.queueMetrics}>
-                      {/* Metric: Current Token */}
-                      <View style={styles.metricRow}>
-                        <View style={[styles.metricIcon, { backgroundColor: `${colors.textSecondary}15` }]}>
-                          <Hash size={scaleFont(12)} color={colors.textSecondary} />
-                        </View>
-                        <View>
-                          <Text style={[styles.metricCaption, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                            Now Serving
-                          </Text>
-                          <Text style={[styles.metricValue, { color: colors.text, fontSize: typography.sizes.lg }]}>
-                            #{currentToken}
-                          </Text>
-                        </View>
-                      </View>
-                      {/* Metric: People Ahead */}
-                      <View style={[styles.metricRow, { marginTop: scaleFont(8) }]}>
-                        <View style={[styles.metricIcon, { backgroundColor: `${colors.warning}15` }]}>
-                          <Users size={scaleFont(12)} color={colors.warning} />
-                        </View>
-                        <View>
-                          <Text style={[styles.metricCaption, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                            People Ahead
-                          </Text>
-                          <Text style={[styles.metricValue, { color: colors.warning, fontSize: typography.sizes.lg }]}>
-                            {peopleAhead}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Token progress bar */}
-                  <View style={[styles.progressSection, { marginTop: scaleFont(10) }]}>
-                    <View style={styles.progressLabels}>
-                      <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}># {currentToken}</Text>
-                      <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>Your #{yourToken}</Text>
-                    </View>
-                    <ProgressBar progress={queueProgress} color={colors.primary} height={scaleFont(6)} />
-                  </View>
-                </View>
-              ) : (
-                <Text
-                  style={[
-                    styles.emptyText,
-                    { color: colors.textSecondary, fontSize: typography.sizes.sm },
+                <Text style={[styles.emptyTicketTitle, { color: colors.text }]}>No Upcoming Bookings</Text>
+                <Text style={[styles.emptyTicketSubtitle, { color: colors.textSecondary }]}>
+                  You don't have any active clinic queues booked. Schedule a slot below.
+                </Text>
+                <Pressable
+                  onPress={() => (navigation as any).navigate('Centers')}
+                  style={({ pressed }) => [
+                    styles.emptyTicketBtn,
+                    { backgroundColor: colors.primary, borderRadius: radius.xl },
+                    pressed && { opacity: 0.95 }
                   ]}
                 >
-                  No active appointments in queue.
-                </Text>
-              )}
-
-              {queueError && (
-                <Text
-                  style={{
-                    color: colors.error,
-                    fontSize: typography.sizes.sm,
-                    marginTop: spacing.sm,
-                    textAlign: 'center',
-                  }}
-                >
-                  {queueError}
-                </Text>
-              )}
-            </Card>
-          </Animated.View>
-        </CardFadeIn>
-
-        {/* C. Next Appointment Card */}
-        <CardFadeIn delay={120}>
-          <View style={{ marginBottom: spacing.lg }}>
-            <Card variant="elevated" style={styles.cardContent}>
-              <Text
-                style={[
-                  styles.cardTitle,
-                  { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
-                ]}
-              >
-                Next Appointment
-              </Text>
-
-              {isLoading ? (
-                <View style={styles.skeletonRow}>
-                  <Skeleton height={40} width="30%" />
-                  <Skeleton height={40} width="30%" />
-                  <Skeleton height={40} width="30%" />
-                </View>
-              ) : activeAppointment ? (
-                <View style={styles.metricsRow}>
-                  <View style={styles.metricItem}>
-                    <View style={[styles.apptIconPill, { backgroundColor: `${colors.primary}12` }]}>
-                      <Calendar size={scaleFont(14)} color={colors.primary} />
-                    </View>
-                    <Text
-                      style={[
-                        styles.metricLabel,
-                        { color: colors.textSecondary, fontSize: typography.caption, marginTop: hp(0.4) },
-                      ]}
-                    >
-                      Date
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricTextValue,
-                        { color: colors.text, fontSize: typography.sizes.sm },
-                      ]}
-                    >
-                      {nextApptDate}
-                    </Text>
-                  </View>
-
-                  <View style={styles.metricItem}>
-                    <View style={[styles.apptIconPill, { backgroundColor: `${colors.info}12` }]}>
-                      <Clock size={scaleFont(14)} color={colors.info} />
-                    </View>
-                    <Text
-                      style={[
-                        styles.metricLabel,
-                        { color: colors.textSecondary, fontSize: typography.caption, marginTop: hp(0.4) },
-                      ]}
-                    >
-                      Time
-                    </Text>
-                    <Text
-                      style={[
-                        styles.metricTextValue,
-                        { color: colors.text, fontSize: typography.sizes.sm },
-                      ]}
-                    >
-                      {nextApptTime}
-                    </Text>
-                  </View>
-
-                  <View style={styles.metricItem}>
-                    <View style={[styles.apptIconPill, { backgroundColor: `${colors.success}12` }]}>
-                      <CircleDot size={scaleFont(14)} color={colors.success} />
-                    </View>
-                    <Text
-                      style={[
-                        styles.metricLabel,
-                        { color: colors.textSecondary, fontSize: typography.caption, marginTop: hp(0.4) },
-                      ]}
-                    >
-                      Status
-                    </Text>
-                    <View style={{ marginTop: hp(0.4) }}>
-                      <StatusChip
-                        status={resolvedActiveApptStatus || activeAppointment.status as any}
-                        label={statusProps.label}
-                        size="sm"
-                      />
-                    </View>
-                  </View>
-                </View>
-              ) : (
-                <Text
-                  style={[
-                    styles.emptyText,
-                    { color: colors.textSecondary, fontSize: typography.sizes.sm },
-                  ]}
-                >
-                  No upcoming appointments.
-                </Text>
-              )}
-            </Card>
+                  <Text style={styles.emptyTicketBtnText}>Schedule Visit</Text>
+                  <Plus size={14} color="#FFF" />
+                </Pressable>
+              </Card>
+            )}
           </View>
         </CardFadeIn>
 
-        {/* D. Quick Actions */}
-        <CardFadeIn delay={180}>
-          <View style={{ marginBottom: spacing.lg }}>
-            <Card variant="elevated" style={styles.cardContent}>
-              <Text
-                style={[
-                  styles.cardTitle,
-                  { color: colors.text, fontSize: typography.sizes.lg, marginBottom: spacing.md },
-                ]}
+        {/* F. Featured Medical Services */}
+        <ReAnimated.View entering={FadeInDown.delay(300).duration(400)} style={{ marginBottom: spacing.lg }}>
+          <SectionHeader title="Featured Services" />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.servicesScrollContainer}
+          >
+            {FEATURED_SERVICES.map(service => (
+              <Card
+                key={service.id}
+                onPress={() => (navigation as any).navigate('Centers')}
+                style={[styles.serviceScrollCard, { borderColor: colors.border + '20', borderWidth: 1 }]}
               >
-                Quick Actions
-              </Text>
-              <View style={styles.actionsRow}>
-                <Pressable
-                  onPress={() => navigation.navigate('MainTabs', { screen: 'MyAppointments' })}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    pressed && styles.pressedEffect,
-                  ]}
-                >
-                  <View style={[styles.actionIconContainer, { backgroundColor: `${colors.primary}12` }]}>
-                    <Calendar size={scaleFont(22)} color={colors.primary} />
-                  </View>
-                  <Text style={[styles.actionLabel, { color: colors.text, fontSize: typography.caption }]}>
-                    Appointments
-                  </Text>
-                </Pressable>
+                <View style={[styles.serviceCardIconCircle, { backgroundColor: service.color + '12' }]}>
+                  <service.icon size={20} color={service.color} />
+                </View>
+                <Text style={[styles.serviceCardTitle, { color: colors.text }]} numberOfLines={1}>{service.name}</Text>
+                <Text style={[styles.serviceCardDesc, { color: colors.textSecondary }]} numberOfLines={2}>{service.description}</Text>
+                <View style={styles.serviceCardArrowRow}>
+                  <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, fontWeight: '700' }}>Book Now</Text>
+                  <ChevronRight size={14} color={colors.primary} />
+                </View>
+              </Card>
+            ))}
+          </ScrollView>
+        </ReAnimated.View>
 
-                <Pressable
-                  onPress={() => navigation.navigate('MainTabs', { screen: 'Notifications' })}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    pressed && styles.pressedEffect,
-                  ]}
-                >
-                  <View style={[styles.actionIconContainer, { backgroundColor: `${colors.warning}12` }]}>
-                    <Bell size={scaleFont(22)} color={colors.warning} />
+        {/* Daily Health Tips */}
+        <ReAnimated.View entering={FadeInDown.delay(320).duration(400)} style={{ marginBottom: spacing.lg }}>
+          <SectionHeader title="Daily Health Tips" />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.tipsScrollContainer}
+          >
+            {HEALTH_TIPS.map(tip => (
+              <Card
+                key={tip.id}
+                style={[styles.tipScrollCard, { borderColor: colors.border + '20', borderWidth: 1 }]}
+              >
+                <View style={styles.tipCardHeader}>
+                  <View style={[styles.tipIconCircle, { backgroundColor: tip.color + '12' }]}>
+                    <tip.icon size={18} color={tip.color} />
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text, fontSize: typography.caption }]}>
-                    Notifications
-                  </Text>
-                </Pressable>
+                  <Text style={[styles.tipTitle, { color: colors.text }]}>{tip.title}</Text>
+                </View>
+                <Text style={[styles.tipText, { color: colors.textSecondary }]}>{tip.text}</Text>
+              </Card>
+            ))}
+          </ScrollView>
+        </ReAnimated.View>
 
-                <Pressable
-                  onPress={() => navigation.navigate('MainTabs', { screen: 'Profile' })}
-                  style={({ pressed }) => [
-                    styles.actionItem,
-                    pressed && styles.pressedEffect,
-                  ]}
+        {/* G. Nearby Service Centers */}
+        <ReAnimated.View entering={FadeInDown.delay(350).duration(400)} style={{ marginBottom: spacing.xl }}>
+          <SectionHeader title="Nearby Clinics" onPressAction={() => (navigation as any).navigate('Centers')} />
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.centersScrollContainer}
+          >
+            {centers.length ? (
+              centers.map(center => (
+                <Card
+                  key={center.id}
+                  onPress={() => navigation.navigate('CenterDetails', { centerId: center.id })}
+                  style={[styles.centerScrollCard, { borderColor: colors.border + '20', borderWidth: 1 }]}
                 >
-                  <View style={[styles.actionIconContainer, { backgroundColor: `${colors.success}12` }]}>
-                    <User size={scaleFont(22)} color={colors.success} />
+                  <View style={[styles.centerCardImagePlaceholder, { backgroundColor: colors.primary + '08' }]}>
+                    <MapPin size={32} color={colors.primary} />
+                    <View style={[styles.centerOpenBadge, { backgroundColor: colors.success + '15' }]}>
+                      <Text style={[styles.centerOpenBadgeText, { color: colors.success }]}>Open</Text>
+                    </View>
                   </View>
-                  <Text style={[styles.actionLabel, { color: colors.text, fontSize: typography.caption }]}>
-                    Profile
-                  </Text>
-                </Pressable>
-              </View>
-            </Card>
-          </View>
-        </CardFadeIn>
+                  <View style={styles.centerCardInfo}>
+                    <Text style={[styles.centerCardName, { color: colors.text }]} numberOfLines={1}>
+                      {center.name}
+                    </Text>
+                    <Text style={[styles.centerCardAddr, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {center.address}
+                    </Text>
+
+                    <View style={styles.centerCardStatsRow}>
+                      <View style={styles.centerCardStat}>
+                        <Text style={{ color: '#F59E0B', fontWeight: '700', fontSize: 11 }}>★ 4.8</Text>
+                      </View>
+                      <View style={[styles.centerCardStatDot, { backgroundColor: colors.border }]} />
+                      <Text style={{ color: colors.textSecondary, fontSize: 11 }}>1.2 km</Text>
+                    </View>
+                  </View>
+                </Card>
+              ))
+            ) : (
+            <Card style={styles.emptyCentersScroll}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>No clinics found.</Text>
+              </Card>
+            )}
+          </ScrollView>
+        </ReAnimated.View>
 
         {/* E. Recent Activity */}
-        <CardFadeIn delay={240}>
+        <CardFadeIn delay={400}>
           <View style={{ marginBottom: spacing.xl }}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.lg }]}>Recent Activity</Text>
-              <Pressable style={styles.viewAllBtn}>
-                <Text style={{ color: colors.primary, fontSize: typography.sizes.sm, fontWeight: '600' }}>View All</Text>
-                <ChevronRight size={16} color={colors.primary} />
-              </Pressable>
-            </View>
+            <SectionHeader title="Recent Activity" onPressAction={() => (navigation as any).navigate('MyAppointments')} />
             <Card variant="elevated" style={styles.activityCard}>
               {stats?.todayAppointments?.length ? (
-                 stats.todayAppointments.slice(0, 2).map((appt: any, index: number) => (
-                   <View key={appt.id} style={[styles.activityItem, index !== 0 && { borderTopWidth: 1, borderTopColor: colors.border }]}>
-                     <View style={[styles.activityIconContainer, { backgroundColor: `${colors.primary}12` }]}>
-                       <Activity size={20} color={colors.primary} />
-                     </View>
-                      <View style={styles.activityContent}>
-                        <Text style={{ color: colors.text, fontWeight: '600', fontSize: typography.sizes.sm }}>{appt.serviceName || 'Clinic Appointment'}</Text>
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{appt.centerName || 'QueueLess Center'} • Today • {appt.status.replace('_', ' ')}</Text>
-                      </View>
-                   </View>
-                 ))
+                stats.todayAppointments.slice(0, 3).map((appt: any, index: number) => (
+                  <Pressable
+                    key={appt.id}
+                    onPress={() => navigation.navigate('AppointmentDetails', { appointmentId: appt.id })}
+                    style={({ pressed }) => [
+                      styles.activityItem,
+                      index !== 0 && { borderTopWidth: 1, borderTopColor: colors.border + '50' },
+                      pressed && { backgroundColor: colors.border + '20' }
+                    ]}
+                  >
+                    <View style={[styles.activityIconContainer, { backgroundColor: `${colors.primary}10` }]}>
+                      <Activity size={18} color={colors.primary} />
+                    </View>
+                    <View style={styles.activityContent}>
+                      <Text style={{ color: colors.text, fontWeight: '600', fontSize: typography.sizes.sm }}>{appt.serviceName || 'Clinic Appointment'}</Text>
+                      <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs }}>{appt.centerName || 'QueueLess Center'} • {appt.dateLabel} • {appt.status.replace('_', ' ')}</Text>
+                    </View>
+                    <ChevronRight size={16} color={colors.textTertiary} />
+                  </Pressable>
+                ))
               ) : (
                 <View style={styles.emptyActivity}>
                   <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm }}>No recent activity to show.</Text>
@@ -569,12 +606,15 @@ const HomeScreen = () => {
             </Card>
           </View>
         </CardFadeIn>
+
+        {/* Space at bottom */}
+        <View style={{ height: hp(12) }} />
       </ScreenWrapper>
     </Animated.View>
   );
 };
 
-export default HomeScreen;
+
 
 const styles = StyleSheet.create({
   screen: {
@@ -594,152 +634,413 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   welcomeText: {
-    marginBottom: hp(0.2),
-    fontWeight: '500',
+    marginBottom: hp(0.1),
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   nameText: {
     lineHeight: scaleFont(32),
+  },
+  locationChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    marginTop: 6,
+    gap: 4,
+  },
+  locationText: {
+    fontWeight: '700',
   },
   iconBtn: {
     alignItems: 'center',
     justifyContent: 'center',
     width: scaleFont(40),
     aspectRatio: 1,
-    borderRadius: scaleFont(20),
   },
   avatarRing: {
     borderWidth: 2,
-    borderRadius: scaleFont(28),
+    borderRadius: 999,
     padding: 2,
   },
   pressedEffect: {
     opacity: 0.7,
   },
-  cardContent: {
-    padding: wp(4),
+  healthBanner: {
+    padding: wp(5),
+    overflow: 'hidden',
   },
-  cardHeader: {
-    alignItems: 'center',
+  bannerContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: hp(1.5),
+    alignItems: 'center',
   },
-  cardTitle: {
+  bannerContent: {
+    flex: 1.3,
+    zIndex: 2,
+  },
+  bannerTitle: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  bannerSubtitle: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 14,
+  },
+  bannerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  bannerBtnText: {
+    fontSize: 11,
     fontWeight: '700',
   },
-  liveBadge: {
-    alignItems: 'center',
-    borderRadius: 999,
-    flexDirection: 'row',
-    gap: wp(1.2),
-    paddingHorizontal: wp(2.4),
-    paddingVertical: hp(0.6),
+  bannerIllustration: {
+    position: 'absolute',
+    right: -20,
+    bottom: -30,
+    zIndex: 1,
   },
-  skeletonRow: {
+  illIcon: {
+    transform: [{ rotate: '-15deg' }],
+  },
+  sectionTitle: {
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  actionsGrid: {
+    width: '100%',
+  },
+  actionsGridRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: hp(1),
   },
-  queueVisualRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: wp(4),
-  },
-  queueMetrics: {
+  gridActionCard: {
     flex: 1,
+    padding: wp(4.5),
+    alignItems: 'flex-start',
+    borderRadius: 20,
   },
-  metricRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: scaleFont(8),
-  },
-  metricIcon: {
-    width: scaleFont(28),
-    height: scaleFont(28),
-    borderRadius: scaleFont(14),
+  gridActionIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 10,
   },
-  metricCaption: {
+  gridActionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 2,
+  },
+  gridActionSubtitle: {
+    fontSize: 11,
     fontWeight: '500',
   },
-  metricValue: {
+  statsGrid: {
+    width: '100%',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statCard: {
+    padding: wp(4),
+    alignItems: 'flex-start',
+  },
+  statCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  statDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statNumber: {
+    fontSize: 22,
     fontWeight: '800',
   },
-  progressSection: {},
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: scaleFont(4),
+  ticketCard: {
+    padding: wp(5),
+    borderRadius: 20,
   },
-  metricsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  ticketCardLoading: {
+    padding: wp(5),
     alignItems: 'flex-start',
-    marginTop: hp(0.5),
   },
-  metricItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  apptIconPill: {
-    width: scaleFont(32),
-    height: scaleFont(32),
-    borderRadius: scaleFont(16),
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metricLabel: {
-    fontWeight: '600',
-  },
-  metricTextValue: {
-    fontWeight: '700',
-    marginTop: hp(0.6),
-    textAlign: 'center',
-  },
-  emptyText: {
-    textAlign: 'center',
-    marginVertical: hp(2),
-    fontWeight: '500',
-  },
-  actionsRow: {
+  ticketCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: hp(0.5),
+    alignItems: 'center',
+    width: '100%',
   },
-  actionItem: {
+  ticketLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  ticketLogoCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketServiceName: {
+    fontWeight: '800',
+  },
+  ticketCenterName: {
+    marginTop: 2,
+  },
+  ticketDottedLine: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    height: 0,
+    width: '100%',
+    marginVertical: hp(1.8),
+  },
+  ticketMetricsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  ticketMetric: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: hp(1),
   },
-  actionIconContainer: {
-    width: scaleFont(52),
-    aspectRatio: 1,
-    borderRadius: scaleFont(26),
+  ticketMetricLabel: {
+    fontSize: 9,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 3,
+  },
+  ticketMetricValue: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  ticketProgressSection: {
+    marginTop: hp(1.8),
+    paddingTop: hp(1.5),
+  },
+  ticketProgressLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  progressServingText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  progressYourTokenText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyTicketCard: {
+    padding: wp(6),
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: hp(0.8),
+    borderRadius: 20,
   },
-  actionLabel: {
-    fontWeight: '600',
+  emptyIllustrationWrapper: {
+    width: 52,
+    height: 52,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  emptyTicketTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  emptyTicketSubtitle: {
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    paddingHorizontal: wp(3),
+    marginBottom: 16,
+  },
+  emptyTicketBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 6,
+  },
+  emptyTicketBtnText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  servicesScrollContainer: {
+    paddingRight: wp(6),
+    gap: 12,
+  },
+  tipsScrollContainer: {
+    paddingRight: wp(6),
+    gap: 12,
+  },
+  tipScrollCard: {
+    width: wp(64),
+    padding: wp(4),
+    borderRadius: 20,
+  },
+  tipCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  tipIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tipTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  tipText: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  serviceScrollCard: {
+    width: wp(42),
+    padding: wp(4),
+    alignItems: 'flex-start',
+    borderRadius: 20,
+  },
+  serviceCardIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  serviceCardTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  serviceCardDesc: {
+    fontSize: 11,
+    lineHeight: 15,
+    height: 30,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  serviceCardArrowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    justifyContent: 'space-between',
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: hp(1.5),
-  },
-  sectionTitle: {
-    fontWeight: '700',
+    paddingHorizontal: wp(1),
   },
   viewAllBtn: {
     flexDirection: 'row',
     alignItems: 'center',
   },
+  centersScrollContainer: {
+    paddingRight: wp(6),
+    gap: 12,
+  },
+  centerScrollCard: {
+    width: wp(54),
+    padding: wp(3.5),
+    borderRadius: 20,
+  },
+  centerCardImagePlaceholder: {
+    width: '100%',
+    height: hp(11),
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  centerOpenBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  centerOpenBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  centerCardInfo: {
+    marginTop: 10,
+  },
+  centerCardName: {
+    fontWeight: '800',
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  centerCardAddr: {
+    fontSize: 11,
+    marginBottom: 6,
+  },
+  centerCardStatsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  centerCardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  centerCardStatDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+  },
+  emptyCentersScroll: {
+    padding: wp(6),
+    width: wp(80),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   activityCard: {
     padding: 0,
     overflow: 'hidden',
+    borderRadius: 20,
   },
   activityItem: {
     flexDirection: 'row',
@@ -747,9 +1048,9 @@ const styles = StyleSheet.create({
     padding: wp(4),
   },
   activityIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: wp(3),
@@ -762,3 +1063,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 });
+
+export default HomeScreen;

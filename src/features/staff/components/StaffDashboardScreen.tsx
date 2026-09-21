@@ -7,6 +7,7 @@ import {
   View,
   Alert,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -19,8 +20,8 @@ import {
   ClipboardList,
   Activity,
   Search,
-  SlidersHorizontal,
   LogOut,
+  Coffee,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
@@ -35,25 +36,22 @@ import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useAuth } from '../../../hooks/useAuth';
 import { useProfileStore } from '../../../store/profileStore';
 import { useTheme } from '../../../hooks/useTheme';
-import { useStaffQueueStore } from '../../../store/staffQueueStore';
+import { useStaffQueueStore } from '../../../store/queueStore';
 import type {
   AppointmentFull,
   AppointmentStatus,
   CancelReason,
 } from '../../../types/appointment';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
-import { staffQueueService } from '../api/staffQueueService';
+import { queueService } from '../../../services/queueService';
+import { centerService } from '../../../services/centerService';
 import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
-import {
-  subscribeToAppointments,
-  unsubscribeAppointments,
-} from '../../queue/api/queueService';
 import { getAppointmentStatusState } from '../../../services/bookingService';
 
 import { getDisplayName } from '../../../utils/getDisplayName';
 import { toastService } from '../../../services/toastService';
 
-type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service';
+type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
 
 const cancelReasons: CancelReason[] = [
   'Patient Requested',
@@ -79,7 +77,7 @@ const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
       return ['start_service', 'cancel'];
     case 'called':
     case 'in_progress':
-      return ['complete_service'];
+      return ['complete_service', 'no_show'];
     default:
       return [];
   }
@@ -95,7 +93,28 @@ const StaffDashboardScreen = () => {
     if (user?.id && (!profile || profile.id !== user.id)) {
       fetchProfile(user.id);
     }
-  }, [user?.id, profile?.id, fetchProfile]);
+  }, [user?.id, profile, fetchProfile]);
+
+  const [centerName, setCenterName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (profile?.role === 'staff' && profile?.center_id) {
+      const centerId = profile.center_id;
+      const fetchCenterName = async () => {
+        try {
+          const data = await centerService.getCenterById(centerId);
+          if (data?.name) {
+            setCenterName(data.name);
+          }
+        } catch (err) {
+          console.warn('Failed to fetch assigned center name:', err);
+        }
+      };
+      fetchCenterName();
+    } else {
+      setCenterName(null);
+    }
+  }, [profile]);
 
   const staffName = useMemo(() => {
     return getDisplayName(profile);
@@ -115,9 +134,67 @@ const StaffDashboardScreen = () => {
   >('queue');
   const isFocused = useIsFocused();
 
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  const [doctorSettings, setDoctorSettings] = useState<any>(null);
+
+  const loadCenterSettings = useCallback(async () => {
+    if (!profile?.center_id) return;
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const settings = await queueService.fetchCenterSettings(profile.center_id, todayStr);
+      setDoctorSettings(settings);
+    } catch (err) {
+      console.warn('Failed to load center settings:', err);
+    }
+  }, [profile?.center_id]);
+
+  useEffect(() => {
+    loadCenterSettings();
+  }, [loadCenterSettings]);
+
+  const handleToggleBreak = async () => {
+    if (!profile?.center_id) return;
+    try {
+      const nextBreakState = !doctorSettings?.is_on_break;
+      const start = nextBreakState ? new Date().toISOString() : null;
+      const end = nextBreakState ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : null;
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      const updated = await queueService.setCenterBreak(
+        profile.center_id,
+        todayStr,
+        nextBreakState,
+        start,
+        end,
+      );
+      setDoctorSettings(updated);
+      toastService.success(nextBreakState ? 'Center queue is now on break.' : 'Center queue is back from break.');
+      queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+    } catch (err: any) {
+      toastService.error(err.message || 'Failed to update break settings.');
+    }
+  };
+
+  const handleUpdateAvgTime = async (mins: number) => {
+    if (!profile?.center_id) return;
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const updated = await queueService.updateCenterAverageConsultationTime(
+        profile.center_id,
+        todayStr,
+        mins,
+      );
+      setDoctorSettings(updated);
+      toastService.success(`Average consultation time updated to ${mins} mins.`);
+      queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+    } catch (err: any) {
+      toastService.error(err.message || 'Failed to update average time.');
+    }
+  };
+
   const { data, error, isError, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ['staff-dashboard', 'today'],
-    queryFn: () => staffQueueService.fetchDashboard('today'),
+    queryFn: () => queueService.fetchDashboard('today'),
     refetchOnMount: 'always',
     staleTime: 0,
   });
@@ -127,6 +204,32 @@ const StaffDashboardScreen = () => {
     [data?.appointments],
   );
   const stats = data?.stats;
+
+  const uniqueDoctors = useMemo(() => {
+    const map = new Map<string, string>();
+    appointments.forEach(item => {
+      if (item.doctor_id) {
+        map.set(item.doctor_id, item.doctor_name || 'Doctor');
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [appointments]);
+
+  const getNextPatientToCall = () => {
+    const list = selectedDoctorId
+      ? appointments.filter(item => item.doctor_id === selectedDoctorId)
+      : appointments;
+
+    const checkedIn = list.find(item => item.status === 'checked_in');
+    if (checkedIn) return checkedIn;
+
+    const confirmed = list.find(item => item.status === 'confirmed');
+    if (confirmed) return confirmed;
+
+    return null;
+  };
+
+  const nextPatient = getNextPatientToCall();
 
   const hasActiveService = useMemo(
     () =>
@@ -155,7 +258,7 @@ const StaffDashboardScreen = () => {
   useEffect(() => {
     if (!isFocused) return;
 
-    const channel = subscribeToAppointments({
+    const channel = queueService.subscribeToAppointments({
       channelName: `staff-dashboard-today-${Date.now()}`,
       onChange: () => {
         queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
@@ -163,7 +266,7 @@ const StaffDashboardScreen = () => {
     });
 
     return () => {
-      unsubscribeAppointments(channel);
+      queueService.unsubscribeAppointments(channel);
     };
   }, [queryClient, isFocused]);
 
@@ -182,21 +285,25 @@ const StaffDashboardScreen = () => {
       reason?: CancelReason;
     }) => {
       if (action === 'confirm') {
-        return staffQueueService.confirmAppointment(appointment);
+        return queueService.confirmAppointment(appointment);
       }
 
       if (action === 'cancel') {
-        return staffQueueService.cancelAppointment(
+        return queueService.cancelAppointment(
           appointment,
           reason ?? 'Other',
         );
       }
 
       if (action === 'start_service') {
-        return staffQueueService.startService(appointment);
+        return queueService.startService(appointment);
       }
 
-      return staffQueueService.completeAppointment(appointment);
+      if (action === 'no_show') {
+        return queueService.noShowAppointment(appointment);
+      }
+
+      return queueService.completeAppointment(appointment);
     },
     onSuccess: (data, variables) => {
       setCancelTarget(null);
@@ -208,6 +315,8 @@ const StaffDashboardScreen = () => {
         successMsg = 'Appointment cancelled successfully.';
       } else if (variables.action === 'start_service') {
         successMsg = 'Appointment service started.';
+      } else if (variables.action === 'no_show') {
+        successMsg = 'Appointment marked as No Show.';
       } else if (variables.action === 'complete_service') {
         successMsg = 'Appointment completed successfully.';
       }
@@ -219,6 +328,10 @@ const StaffDashboardScreen = () => {
     onError: (error) => {
       const message = error instanceof Error ? error.message : 'Action failed. Please try again.';
       toastService.error(message);
+      if (message.includes('already updated')) {
+        queryClient.invalidateQueries({ queryKey: ['staff-dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      }
     },
   });
 
@@ -231,19 +344,14 @@ const StaffDashboardScreen = () => {
     [appointments],
   );
 
-  const queueAppointments = useMemo(
-    () =>
-      appointments.filter(item => {
-        const { resolvedStatus } = getAppointmentStatusState(item);
-        return ['confirmed', 'checked_in', 'called', 'in_progress'].includes(
-          resolvedStatus,
-        );
-      }),
-    [appointments],
-  );
 
   const filteredQueueAppointments = useMemo(() => {
     return appointments.filter(item => {
+      // 0. Filter by doctor
+      if (selectedDoctorId && item.doctor_id !== selectedDoctorId) {
+        return false;
+      }
+
       const { resolvedStatus } = getAppointmentStatusState(item);
 
       // 1. Filter by status
@@ -284,7 +392,7 @@ const StaffDashboardScreen = () => {
 
       return true;
     });
-  }, [appointments, statusFilter, searchQuery]);
+  }, [appointments, statusFilter, searchQuery, selectedDoctorId]);
 
   const renderActionButton = (
     action: QueueAction,
@@ -295,6 +403,7 @@ const StaffDashboardScreen = () => {
       cancel: 'Cancel',
       start_service: 'Call',
       complete_service: 'Complete',
+      no_show: 'No Show',
     };
 
     const isCancel = action === 'cancel';
@@ -311,7 +420,7 @@ const StaffDashboardScreen = () => {
         key={action}
         title={labels[action]}
         variant={
-          isCancel ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
+          isCancel || action === 'no_show' ? 'danger' : action === 'confirm' ? 'primary' : 'outline'
         }
         loading={isBusy}
         disabled={runActionMutation.isPending || isCallBlocked}
@@ -356,7 +465,7 @@ const StaffDashboardScreen = () => {
           styles.itemContainer,
           index > 0 && {
             borderTopWidth: 1,
-            borderTopColor: colors.border,
+            borderTopColor: colors.border + '50',
             paddingTop: spacing.md,
             marginTop: spacing.md,
           },
@@ -370,7 +479,7 @@ const StaffDashboardScreen = () => {
                 style={[
                   styles.tokenPill,
                   {
-                    backgroundColor: `${colors.primary}15`,
+                    backgroundColor: `${colors.primary}10`,
                     borderColor: `${colors.primary}30`,
                     borderWidth: 1,
                   },
@@ -379,7 +488,7 @@ const StaffDashboardScreen = () => {
                 <Text
                   style={[
                     styles.tokenText,
-                    { color: colors.primary, fontSize: typography.sizes.md },
+                    { color: colors.primary, fontSize: typography.sizes.sm },
                   ]}
                 >
                   {typeof item.token_number === 'number'
@@ -402,11 +511,11 @@ const StaffDashboardScreen = () => {
                 {
                   color: colors.textSecondary,
                   fontSize: typography.sizes.sm,
-                  marginTop: scaleFont(2),
+                  marginTop: scaleFont(4),
                 },
               ]}
             >
-              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)}
+              {item.service_name ?? 'Service'} • {getAppointmentTimeLabel(item)} • {item.doctor_name ? `Dr. ${item.doctor_name}` : 'Any Available'}
             </Text>
           </View>
           {!isPendingSection && (
@@ -429,7 +538,7 @@ const StaffDashboardScreen = () => {
               },
             ]}
           >
-            <CheckCircle2 color={colors.success} size={scaleFont(13)} />
+            <CheckCircle2 color={colors.success} size={scaleFont(12)} />
             <Text
               style={{
                 color: colors.success,
@@ -453,7 +562,7 @@ const StaffDashboardScreen = () => {
               },
             ]}
           >
-            <BellRing color={colors.info} size={scaleFont(13)} />
+            <BellRing color={colors.info} size={scaleFont(12)} />
             <Text
               style={{
                 color: colors.info,
@@ -494,9 +603,9 @@ const StaffDashboardScreen = () => {
           </Text>
         </View>
         <View style={{ gap: spacing.md }}>
-          <Skeleton height={120} />
-          <Skeleton height={150} />
-          <Skeleton height={150} />
+          <Skeleton height={120} borderRadius={radius.lg} />
+          <Skeleton height={150} borderRadius={radius.lg} />
+          <Skeleton height={150} borderRadius={radius.lg} />
         </View>
       </ScreenWrapper>
     );
@@ -564,7 +673,7 @@ const StaffDashboardScreen = () => {
           <Text
             style={[
               styles.title,
-              { color: colors.text, fontSize: typography.sizes.xxl },
+              { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' },
             ]}
           >
             Welcome, {staffName}
@@ -575,10 +684,11 @@ const StaffDashboardScreen = () => {
               {
                 color: colors.textSecondary,
                 fontSize: typography.sizes.sm,
+                fontWeight: '500',
               },
             ]}
           >
-            Today's Queue Control
+            {centerName ? `Center: ${centerName}` : "Today's Queue Control"}
           </Text>
         </View>
         <Pressable
@@ -591,12 +701,12 @@ const StaffDashboardScreen = () => {
           style={({ pressed }) => [
             styles.logoutIconButton,
             {
-              backgroundColor: pressed ? colors.border + '30' : 'transparent',
+              backgroundColor: pressed ? colors.border + '30' : colors.surface,
               borderColor: colors.border,
             },
           ]}
         >
-          <LogOut color={colors.text} size={20} />
+          <LogOut color={colors.text} size={18} />
         </Pressable>
       </View>
 
@@ -614,7 +724,7 @@ const StaffDashboardScreen = () => {
               <View
                 style={[
                   styles.cardTitleIconPill,
-                  { backgroundColor: `${colors.primary}12` },
+                  { backgroundColor: `${colors.primary}10` },
                 ]}
               >
                 <Activity size={scaleFont(16)} color={colors.primary} />
@@ -624,7 +734,7 @@ const StaffDashboardScreen = () => {
                   styles.cardTitle,
                   {
                     color: colors.text,
-                    fontSize: typography.sizes.lg,
+                    fontSize: typography.sizes.md,
                     marginLeft: spacing.sm,
                   },
                 ]}
@@ -642,11 +752,11 @@ const StaffDashboardScreen = () => {
                     style={[
                       styles.statGridItem,
                       {
-                        backgroundColor: item.color + '08',
-                        borderColor: item.color + '25',
-                        borderRadius: scaleFont(10),
+                        backgroundColor: colors.border + '08',
+                        borderColor: colors.border,
+                        borderRadius: radius.lg,
                         borderWidth: 1,
-                        borderTopWidth: 3,
+                        borderTopWidth: 3.5,
                         borderTopColor: item.color,
                         overflow: 'hidden',
                       },
@@ -656,7 +766,7 @@ const StaffDashboardScreen = () => {
                       <View
                         style={[
                           styles.statGridIconPill,
-                          { backgroundColor: item.color + '20' },
+                          { backgroundColor: item.color + '12' },
                         ]}
                       >
                         <Icon size={scaleFont(13)} color={item.color} />
@@ -665,7 +775,7 @@ const StaffDashboardScreen = () => {
                     <Text
                       style={[
                         styles.statGridValue,
-                        { color: item.color, fontSize: typography.sizes.xl },
+                        { color: item.color, fontSize: typography.sizes.xl, fontWeight: '800' },
                       ]}
                     >
                       {item.value}
@@ -687,7 +797,7 @@ const StaffDashboardScreen = () => {
                           progress={queueProgress}
                           color={item.color}
                           height={scaleFont(3)}
-                          trackColor={item.color + '20'}
+                          trackColor={item.color + '12'}
                         />
                       </View>
                     )}
@@ -699,6 +809,68 @@ const StaffDashboardScreen = () => {
         </View>
       </CardFadeIn>
 
+      {/* Doctor Break Settings Card */}
+      {profile?.role === 'staff' && (
+        <CardFadeIn delay={100}>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Card variant="elevated" style={styles.cardContent}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.warning}10` }]}>
+                    <Coffee size={scaleFont(16)} color={colors.warning} />
+                  </View>
+                  <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.sm }]}>
+                    Service Break & Settings
+                  </Text>
+                </View>
+                <StatusChip
+                  status={doctorSettings?.is_on_break ? 'cancelled' : 'confirmed'}
+                  label={doctorSettings?.is_on_break ? 'On Break' : 'Active'}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
+                <AppButton
+                  title={doctorSettings?.is_on_break ? 'Resume Work' : 'Go On Break'}
+                  variant={doctorSettings?.is_on_break ? 'primary' : 'outline'}
+                  onPress={handleToggleBreak}
+                  style={{ flex: 1, minWidth: 140 }}
+                />
+                
+                <View style={{ flex: 1, minWidth: 160 }}>
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 4, fontWeight: '600' }}>
+                    Avg Service Time (mins):
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    {[10, 15, 20, 30].map(mins => (
+                      <Pressable
+                        key={mins}
+                        onPress={() => handleUpdateAvgTime(mins)}
+                        style={({ pressed }) => [
+                          {
+                            paddingHorizontal: 10,
+                            paddingVertical: 5,
+                            borderRadius: radius.sm,
+                            borderWidth: 1.5,
+                            borderColor: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.border,
+                            backgroundColor: doctorSettings?.avg_consultation_mins === mins ? `${colors.primary}10` : 'transparent',
+                            opacity: pressed ? 0.7 : 1,
+                          }
+                        ]}
+                      >
+                        <Text style={{ color: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
+                          {mins}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </View>
+        </CardFadeIn>
+      )}
+
       {/* Card 2: Pending Appointments */}
       <CardFadeIn delay={60}>
         <View style={{ marginBottom: spacing.lg }}>
@@ -708,7 +880,7 @@ const StaffDashboardScreen = () => {
                 styles.cardTitle,
                 {
                   color: colors.text,
-                  fontSize: typography.sizes.lg,
+                  fontSize: typography.sizes.md,
                   marginBottom: spacing.md,
                 },
               ]}
@@ -732,8 +904,78 @@ const StaffDashboardScreen = () => {
 
       {/* Card 3: Queue List */}
       <CardFadeIn delay={120}>
-        <View style={{ marginBottom: spacing.lg }}>
+        <View style={{ marginBottom: spacing.xl }}>
           <Card variant="elevated" style={styles.cardContent}>
+            {/* Doctor Filter Tabs */}
+            {uniqueDoctors.length > 1 && (
+              <View style={{ marginBottom: spacing.md }}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 6, fontWeight: '600' }}>
+                  Filter by Doctor:
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: spacing.xs }}
+                >
+                  <Pressable
+                    onPress={() => setSelectedDoctorId(null)}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                      borderWidth: 1.5,
+                      borderColor: selectedDoctorId === null ? colors.primary : colors.border,
+                      backgroundColor: selectedDoctorId === null ? `${colors.primary}10` : 'transparent',
+                    }}
+                  >
+                    <Text style={{ color: selectedDoctorId === null ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
+                      All Doctors
+                    </Text>
+                  </Pressable>
+                  {uniqueDoctors.map(({ id: docId, name: docName }) => (
+                    <Pressable
+                      key={docId}
+                      onPress={() => setSelectedDoctorId(docId)}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        borderWidth: 1.5,
+                        borderColor: selectedDoctorId === docId ? colors.primary : colors.border,
+                        backgroundColor: selectedDoctorId === docId ? `${colors.primary}10` : 'transparent',
+                      }}
+                    >
+                      <Text style={{ color: selectedDoctorId === docId ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
+                        {docName}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Auto Call Next Button */}
+            {nextPatient && (
+              <AppButton
+                title={`Call Next: Token #${nextPatient.token_number} (${getDisplayName(nextPatient)})`}
+                variant="primary"
+                onPress={() => {
+                  Alert.alert(
+                    'Call Next Client',
+                    `Are you sure you want to call Token #${nextPatient.token_number} (${getDisplayName(nextPatient)}) to the counter?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Call Client',
+                        onPress: () => runActionMutation.mutate({ action: 'start_service', appointment: nextPatient }),
+                      },
+                    ]
+                  );
+                }}
+                style={{ marginBottom: spacing.md }}
+              />
+            )}
+
             <View
               style={{
                 flexDirection: 'row',
@@ -745,7 +987,7 @@ const StaffDashboardScreen = () => {
               <Text
                 style={[
                   styles.cardTitle,
-                  { color: colors.text, fontSize: typography.sizes.lg },
+                  { color: colors.text, fontSize: typography.sizes.md },
                 ]}
               >
                 Queue List
@@ -754,7 +996,7 @@ const StaffDashboardScreen = () => {
                 style={[
                   styles.cardTitleIconPill,
                   {
-                    backgroundColor: `${colors.textSecondary}12`,
+                    backgroundColor: `${colors.textSecondary}10`,
                     width: scaleFont(32),
                     height: scaleFont(32),
                   },
@@ -765,7 +1007,7 @@ const StaffDashboardScreen = () => {
             </View>
 
             {/* Search Input */}
-            <View style={{ marginBottom: spacing.md }}>
+            <View style={{ marginBottom: spacing.sm }}>
               <AppInput
                 placeholder="Search patient, service, or token..."
                 value={searchQuery}
@@ -821,7 +1063,7 @@ const StaffDashboardScreen = () => {
                       {
                         borderColor: isSelected ? filterColor : colors.border,
                         backgroundColor: isSelected
-                          ? filterColor + '15'
+                          ? filterColor + '10'
                           : colors.surface,
                         borderRadius: radius.full,
                         borderWidth: 1,
@@ -890,15 +1132,22 @@ const StaffDashboardScreen = () => {
               styles.modalCard,
               {
                 backgroundColor: colors.card,
-                borderRadius: radius.lg,
+                borderRadius: radius.xl,
                 padding: spacing.lg,
+                borderColor: colors.border,
+                borderWidth: Platform.OS === 'ios' ? 0 : 1,
+                elevation: 10,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.25,
+                shadowRadius: 20,
               },
             ]}
           >
             <Text
               style={[
                 styles.modalTitle,
-                { color: colors.text, fontSize: typography.sizes.lg },
+                { color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800' },
               ]}
             >
               Cancel Appointment
@@ -906,7 +1155,7 @@ const StaffDashboardScreen = () => {
             <Text
               style={[
                 styles.modalText,
-                { color: colors.textSecondary, fontSize: typography.sizes.sm },
+                { color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.md },
               ]}
             >
               Choose a cancellation reason.
@@ -921,8 +1170,10 @@ const StaffDashboardScreen = () => {
                     borderRadius: radius.md,
                     padding: spacing.md,
                     backgroundColor: pressed
-                      ? colors.background
+                      ? colors.border + '15'
                       : colors.surface,
+                    borderWidth: 1.5,
+                    marginBottom: spacing.xs,
                   },
                 ]}
                 onPress={() => {
@@ -938,7 +1189,7 @@ const StaffDashboardScreen = () => {
                 }}
               >
                 <Text
-                  style={{ color: colors.text, fontSize: typography.sizes.md }}
+                  style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}
                 >
                   {reason}
                 </Text>
@@ -968,22 +1219,20 @@ const styles = StyleSheet.create({
     marginBottom: hp(2.4),
   },
   title: {
-    fontWeight: 'bold',
     marginBottom: 2,
   },
   subtitle: {
-    fontWeight: '500',
   },
   logoutIconButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    borderWidth: 1,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardContent: {
-    padding: wp(4),
+    padding: wp(4.5),
   },
   cardTitle: {
     fontWeight: '700',
@@ -991,7 +1240,7 @@ const styles = StyleSheet.create({
   cardTitleIconPill: {
     width: scaleFont(30),
     height: scaleFont(30),
-    borderRadius: scaleFont(15),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1004,7 +1253,7 @@ const styles = StyleSheet.create({
     flexBasis: '30%',
     flexGrow: 1,
     paddingHorizontal: wp(2.5),
-    paddingVertical: hp(1),
+    paddingVertical: hp(1.2),
   },
   statGridHeader: {
     alignItems: 'flex-start',
@@ -1013,15 +1262,14 @@ const styles = StyleSheet.create({
   statGridIconPill: {
     width: scaleFont(26),
     height: scaleFont(26),
-    borderRadius: scaleFont(13),
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   statGridValue: {
-    fontWeight: 'bold',
   },
   statGridLabel: {
-    fontWeight: '500',
+    fontWeight: '600',
     marginTop: scaleFont(2),
   },
   itemContainer: {
@@ -1042,12 +1290,12 @@ const styles = StyleSheet.create({
     gap: scaleFont(8),
   },
   tokenPill: {
-    borderRadius: scaleFont(6),
+    borderRadius: scaleFont(8),
     paddingHorizontal: scaleFont(8),
     paddingVertical: scaleFont(3),
   },
   tokenText: {
-    fontWeight: 'bold',
+    fontWeight: '800',
   },
   patientName: {
     fontWeight: '700',
@@ -1075,7 +1323,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: wp(5),
@@ -1086,14 +1334,10 @@ const styles = StyleSheet.create({
     maxWidth: wp(92),
   },
   modalText: {
-    marginBottom: hp(1.4),
   },
   modalTitle: {
-    fontWeight: '700',
     marginBottom: hp(0.5),
   },
   reasonButton: {
-    borderWidth: 1,
-    marginBottom: hp(1),
   },
 });

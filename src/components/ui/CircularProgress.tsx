@@ -24,11 +24,11 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   progress,
   size = 120,
   strokeWidth = 10,
-  color = '#2E7DFF',
+  color = '#0F766E',
   trackColor = '#E2E8F0',
   centerLabel,
   centerCaption,
-  centerLabelColor = '#1E293B',
+  centerLabelColor = '#12233E',
   centerCaptionColor = '#64748B',
 }) => {
   const animatedValue = useRef(new Animated.Value(0)).current;

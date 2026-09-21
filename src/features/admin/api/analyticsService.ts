@@ -43,24 +43,49 @@ export type SystemOverviewData = {
   dbConnected: boolean;
 };
 
+export type BusiestServiceItem = {
+  service_name: string;
+  count: number;
+};
+
+export type BusiestCenterItem = {
+  center_name: string;
+  count: number;
+};
+
+export type StaffPerformanceItem = {
+  staff_name: string;
+  completed_count: number;
+  avg_time_minutes: number;
+};
+
+export type BookingsTrendItem = {
+  booking_date: string;
+  count: number;
+};
+
 export type AdminDashboardAnalytics = DashboardStats & {
   weeklyStats: WeeklyAppointmentStat[];
   statusDistribution: StatusDistributionStat[];
   recentActivity: RecentActivityItem[];
   systemOverview: SystemOverviewData;
+  busiestServices: BusiestServiceItem[];
+  busiestCenters: BusiestCenterItem[];
+  staffPerformance: StaffPerformanceItem[];
+  bookingsTrend: BookingsTrendItem[];
 };
 
 const statusColors: Record<AppointmentStatus, string> = {
   pending: '#F59E0B',
-  confirmed: '#2E7DFF',
+  confirmed: '#0F766E',
   checked_in: '#10B981',
-  called: '#8B5CF6',
+  called: '#3B82F6',
   in_progress: '#3B82F6',
   completed: '#22C55E',
   cancelled: '#EF4444',
   expired: '#6B7280',
-  no_show: '#EC4899',
-  skipped: '#F97316',
+  no_show: '#EF4444',
+  skipped: '#EF4444',
 };
 
 const toDateKey = (date: Date) => {
@@ -89,6 +114,7 @@ const getLastSevenDateKeys = () => {
 const getAppointmentCount = async (filters?: {
   status?: AppointmentStatus;
   appointmentDate?: string;
+  startDate?: string;
 }) => {
   let query = supabase
     .from('appointments')
@@ -100,6 +126,10 @@ const getAppointmentCount = async (filters?: {
 
   if (filters?.appointmentDate) {
     query = query.eq('appointment_date', filters.appointmentDate);
+  }
+
+  if (filters?.startDate) {
+    query = query.gte('scheduled_at', filters.startDate);
   }
 
   const { count, error } = await query;
@@ -296,7 +326,7 @@ const getSystemOverview = async (): Promise<SystemOverviewData> => {
 };
 
 export const analyticsService = {
-  async getDashboardStats(): Promise<AdminDashboardAnalytics> {
+  async getDashboardStats(dateRange: 'today' | 'week' | 'month' | 'all' = 'all'): Promise<AdminDashboardAnalytics> {
     try {
       await supabase.rpc('cleanup_stale_appointments');
     } catch (cleanupError) {
@@ -317,6 +347,21 @@ export const analyticsService = {
 
     const todayKey = toDateKey(new Date());
 
+    let startDate: string | undefined;
+    if (dateRange === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      startDate = today.toISOString();
+    } else if (dateRange === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      startDate = weekAgo.toISOString();
+    } else if (dateRange === 'month') {
+      const monthAgo = new Date();
+      monthAgo.setDate(monthAgo.getDate() - 30);
+      startDate = monthAgo.toISOString();
+    }
+
     const [
       totalAppointments,
       pendingCount,
@@ -329,18 +374,26 @@ export const analyticsService = {
       weeklyStats,
       recentActivity,
       systemOverview,
+      busiestServicesRes,
+      busiestCentersRes,
+      staffPerformanceRes,
+      bookingsTrendRes,
     ] = await Promise.all([
-      getAppointmentCount(),
-      getAppointmentCount({ status: 'pending' }),
-      getAppointmentCount({ status: 'confirmed' }),
-      getAppointmentCount({ status: 'completed' }),
-      getAppointmentCount({ status: 'cancelled' }),
-      getAppointmentCount({ status: 'expired' }),
-      getAppointmentCount({ status: 'no_show' }),
+      getAppointmentCount({ startDate }),
+      getAppointmentCount({ status: 'pending', startDate }),
+      getAppointmentCount({ status: 'confirmed', startDate }),
+      getAppointmentCount({ status: 'completed', startDate }),
+      getAppointmentCount({ status: 'cancelled', startDate }),
+      getAppointmentCount({ status: 'expired', startDate }),
+      getAppointmentCount({ status: 'no_show', startDate }),
       getAppointmentCount({ appointmentDate: todayKey }),
       getWeeklyStats(),
       getRecentActivity(),
       getSystemOverview(),
+      supabase.rpc('busiest_services', { p_range: dateRange }),
+      supabase.rpc('busiest_centers', { p_range: dateRange }),
+      supabase.rpc('staff_performance', { p_range: dateRange }),
+      supabase.rpc('bookings_per_day', { p_range: dateRange }),
     ]);
 
     return {
@@ -355,6 +408,10 @@ export const analyticsService = {
       weeklyStats,
       recentActivity,
       systemOverview,
+      busiestServices: busiestServicesRes.data || [],
+      busiestCenters: busiestCentersRes.data || [],
+      staffPerformance: staffPerformanceRes.data || [],
+      bookingsTrend: bookingsTrendRes.data || [],
       statusDistribution: [
         {
           name: 'Pending',

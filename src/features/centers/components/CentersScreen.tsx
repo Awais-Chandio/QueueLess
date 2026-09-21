@@ -4,7 +4,7 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  TouchableOpacity,
+  Image,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
@@ -12,22 +12,23 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import Loader from '../../../components/ui/Loader';
-import EmptyState from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
+import EmptyState from '../../../components/ui/EmptyState';
+import Badge from '../../../components/ui/Badge';
+import Card from '../../../components/ui/Card';
+import { Hospital, MapPin, Star } from 'lucide-react-native';
 
-import { colors, radius, spacing, typography } from '../../../theme';
+import { useTheme } from '../../../hooks/useTheme';
 
 import type { AppStackParamList } from '../../../navigation/types';
 
 import { useCentersStore } from '../../../store/centersStore';
 
-type NavigationProp = NativeStackNavigationProp<
-  AppStackParamList,
-  'CenterDetails'
->;
+type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const CentersScreen = () => {
   const navigation = useNavigation<NavigationProp>();
+  const { colors, radius, spacing, typography } = useTheme();
 
   const {
     centers,
@@ -52,7 +53,7 @@ const CentersScreen = () => {
     return (
       <ScreenWrapper>
         <ErrorState
-          title="Failed To Load Centers"
+          title="Failed To Load Clinics"
           message={error}
           buttonTitle="Retry"
           onRetry={fetchCenters}
@@ -65,8 +66,8 @@ const CentersScreen = () => {
     return (
       <ScreenWrapper>
         <EmptyState
-          title="No Centers Found"
-          subtitle="No centers available right now"
+          title="No Clinics Found"
+          subtitle="No clinics available right now"
           buttonTitle="Reload"
           onButtonPress={fetchCenters}
         />
@@ -77,19 +78,17 @@ const CentersScreen = () => {
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={styles.title}>
-          Service Centers
+        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.lg }]}>
+          Clinics
         </Text>
 
         <FlatList
           data={centers}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: spacing.xl }}
           renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              activeOpacity={0.8}
+            <Card
               onPress={() =>
                 navigation.navigate(
                   'CenterDetails',
@@ -97,25 +96,50 @@ const CentersScreen = () => {
                     centerId: item.id,
                   },
                 )
-              }>
-              <Text style={styles.name}>
-                {item.name}
-              </Text>
-
-              {!!item.category && (
-                <Text style={styles.category}>
-                  {item.category}
-                </Text>
+              }
+              variant="elevated"
+              style={[
+                styles.card,
+                {
+                  padding: spacing.md,
+                },
+              ]}
+              containerStyle={{ marginBottom: spacing.md }}
+            >
+              {item.image_url ? (
+                <Image source={{ uri: item.image_url }} style={[styles.clinicImage, { borderRadius: radius.lg }]} />
+              ) : (
+                <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.lg }]}>
+                  <Hospital size={36} color={colors.primary} />
+                </View>
               )}
 
-              <Text style={styles.meta}>
-                {item.city}
-              </Text>
+              <View style={[styles.infoContainer, { marginTop: spacing.sm }]}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={[styles.name, { color: colors.text, fontSize: typography.sizes.md }]}>
+                    {item.name}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Star size={12} color="#FBBF24" fill="#FBBF24" />
+                    <Text style={{ fontSize: typography.sizes.xs, color: colors.text, fontWeight: '700' }}>4.8</Text>
+                  </View>
+                </View>
 
-              <Text style={styles.meta}>
-                {item.address}
-              </Text>
-            </TouchableOpacity>
+                <View style={[styles.addressContainer, { marginTop: spacing.xs }]}>
+                  <MapPin size={14} color={colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                  <Text style={[styles.address, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
+                    {item.address}, {item.city}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: spacing.sm, flexWrap: 'wrap' }}>
+                  {!!item.category && <Badge label={item.category} variant="info" />}
+                  {!!item.open_time && !!item.close_time && (
+                    <Badge label={`${item.open_time} - ${item.close_time}`} variant="success" />
+                  )}
+                </View>
+              </View>
+            </Card>
           )}
         />
       </View>
@@ -129,47 +153,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
   title: {
-    fontSize: typography.h1,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: spacing.lg,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-
-  listContent: {
-    paddingBottom: spacing.xl,
-  },
-
   card: {
-    backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    marginBottom: spacing.md,
+    flexDirection: 'column',
   },
-
+  clinicImage: {
+    width: '100%',
+    height: 140,
+  },
+  clinicImagePlaceholder: {
+    width: '100%',
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  infoContainer: {
+    flexDirection: 'column',
+  },
   name: {
-    fontSize: typography.body,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: spacing.xs,
+    fontWeight: '800',
   },
-
-  category: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderRadius: radius.full,
-    color: colors.primary,
-    fontSize: typography.caption,
-    fontWeight: '700',
-    marginBottom: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+  addressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-
-  meta: {
-    fontSize: typography.small,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
+  address: {
+    fontWeight: '500',
   },
 });

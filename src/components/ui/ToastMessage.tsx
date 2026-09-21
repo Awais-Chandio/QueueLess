@@ -2,7 +2,10 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToastStore } from '../../store/toastStore';
-import { colors, radius, spacing, typography } from '../../theme';
+import { colors } from '../../theme/colors';
+import { radius } from '../../theme/radius';
+import { spacing } from '../../theme/spacing';
+import { typography } from '../../theme/typography';
 import { scaleFont, wp } from '../../utils/responsive';
 
 const toastColors = {

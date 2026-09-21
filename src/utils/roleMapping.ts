@@ -1,7 +1,7 @@
-export type UserRole = 'client' | 'staff' | 'admin';
-export type UserRoute = 'PatientNavigator' | 'StaffNavigator' | 'AdminNavigator';
+export type UserRole = 'client' | 'staff' | 'admin' | 'doctor';
+export type UserRoute = 'PatientNavigator' | 'StaffNavigator' | 'AdminNavigator' | 'DoctorNavigator';
 
-const userRoles: UserRole[] = ['client', 'staff', 'admin'];
+const userRoles: UserRole[] = ['client', 'staff', 'admin', 'doctor'];
 
 export const normalizeUserRole = (role: unknown): UserRole => {
   if (typeof role === 'string' && userRoles.includes(role as UserRole)) {
@@ -22,6 +22,10 @@ export const getUserRoute = (role: unknown): UserRoute => {
     return 'StaffNavigator';
   }
 
+  if (normalizedRole === 'doctor') {
+    return 'DoctorNavigator';
+  }
+
   return 'PatientNavigator';
 };
 
@@ -34,6 +38,10 @@ export const getRoleUiName = (role: unknown) => {
 
   if (normalizedRole === 'staff') {
     return 'Receptionist';
+  }
+
+  if (normalizedRole === 'doctor') {
+    return 'Doctor';
   }
 
   return 'Patient';
