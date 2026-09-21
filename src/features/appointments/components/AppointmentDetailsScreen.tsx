@@ -17,6 +17,10 @@ import { useAppointmentsStore } from '../../../stores/appointmentStore';
 import { useToastStore } from '../../../stores/toastStore';
 import { useNotifications } from '../../../hooks/useNotifications';
 import { useNotificationsStore } from '../../../stores/notificationStore';
+import { useAuthStore } from '../../../store/authStore';
+import { useAppointmentReview, useSubmitReview } from '../../../hooks/useReviews';
+import { StarRating } from '../../../components/ui/StarRating';
+import RateVisitSheet from './RateVisitSheet';
 import type { AppStackParamList } from '../../../navigation/types';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../../services/bookingService';
 import {
@@ -26,6 +30,7 @@ import {
   Clock,
   Hash,
   MapPin,
+  Star,
   XCircle,
   ChevronLeft,
   Stethoscope,
@@ -52,11 +57,21 @@ const AppointmentDetailsScreen = () => {
   );
   const checkingInId = useAppointmentsStore(state => state.checkingInId);
   const queryClient = useQueryClient();
+  const userId = useAuthStore(state => state.user?.id);
+  const [ratingSheetVisible, setRatingSheetVisible] = React.useState(false);
   const { data: appointment, isLoading, isError, refetch } = useQuery({
     queryKey: ['appointment', appointmentId],
     queryFn: () => appointmentService.fetchAppointmentById(appointmentId!),
     enabled: !!appointmentId,
   });
+  // Only a completed appointment with a known doctor can be reviewed; the
+  // database enforces the same rule, this just avoids a pointless query.
+  const isReviewable = appointment?.status === 'completed' && !!appointment.doctor_id;
+  const { data: review, isSuccess: reviewLoaded } = useAppointmentReview(
+    appointmentId,
+    isReviewable,
+  );
+  const submitReview = useSubmitReview();
 
   React.useEffect(() => {
     if (appointment && (appointment.status === 'confirmed' || appointment.status === 'pending')) {
@@ -114,6 +129,23 @@ const AppointmentDetailsScreen = () => {
   const isCheckedIn = appointment.status === 'checked_in';
   const isCheckingIn = checkingInId === appointmentId;
   const { label: statusLabel } = getStatusDisplayProperties(resolvedStatus);
+
+  const submitRating = (rating: number, comment: string) => {
+    if (!userId || !appointment.doctor_id) {
+      return;
+    }
+
+    submitReview.mutate(
+      {
+        appointmentId,
+        doctorId: appointment.doctor_id,
+        patientId: userId,
+        rating,
+        comment,
+      },
+      { onSuccess: () => setRatingSheetVisible(false) },
+    );
+  };
 
   const confirmCancel = () => {
     Alert.alert('Cancel Appointment', 'Are you sure you want to cancel this appointment?', [
@@ -256,6 +288,45 @@ const AppointmentDetailsScreen = () => {
         </CardFadeIn>
       )}
 
+      {isReviewable && reviewLoaded && (
+        <CardFadeIn delay={80}>
+          <Card style={{ marginBottom: spacing.md, padding: spacing.md }}>
+            <View style={styles.detailRow}>
+              <View style={[styles.detailIconPill, { backgroundColor: '#FBBF2418' }]}>
+                <Star color="#FBBF24" size={scaleFont(16)} />
+              </View>
+              <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }}>
+                {review ? 'Your review' : 'Rate your visit'}
+              </Text>
+            </View>
+            {review ? (
+              <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+                <StarRating rating={review.rating} reviewCount={1} size={16} variant="full" showCount={false} />
+                {!!review.comment && (
+                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, lineHeight: 18 }}>
+                    {review.comment}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <>
+                <Text style={{ color: colors.textSecondary, marginTop: spacing.sm, fontSize: typography.sizes.sm, lineHeight: 18 }}>
+                  {appointment.doctor_name
+                    ? `Tell other patients about your visit with ${appointment.doctor_name}.`
+                    : 'Tell other patients about your visit.'}
+                </Text>
+                <AppButton
+                  title="Rate your visit"
+                  variant="outline"
+                  onPress={() => setRatingSheetVisible(true)}
+                  containerStyle={{ marginTop: spacing.md }}
+                />
+              </>
+            )}
+          </Card>
+        </CardFadeIn>
+      )}
+
       <AppButton
         title="View Queue Status"
         variant="primary"
@@ -311,6 +382,14 @@ const AppointmentDetailsScreen = () => {
           });
         }}
         style={{ marginTop: spacing.md, marginBottom: spacing.lg }}
+      />
+
+      <RateVisitSheet
+        visible={ratingSheetVisible}
+        doctorName={appointment.doctor_name}
+        submitting={submitReview.isPending}
+        onClose={() => setRatingSheetVisible(false)}
+        onSubmit={submitRating}
       />
     </ScreenWrapper>
   );

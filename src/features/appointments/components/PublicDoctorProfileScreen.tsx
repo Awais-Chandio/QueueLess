@@ -9,7 +9,8 @@ import AppButton from '../../../components/ui/AppButton';
 import Card from '../../../components/ui/Card';
 import { useTheme } from '../../../hooks/useTheme';
 import { doctorService } from '../../../services/doctorService';
-import { getDoctorMockData } from '../../../utils/doctorMockHelper';
+import { StarRating } from '../../../components/ui/StarRating';
+import { useDoctorReviews } from '../../../hooks/useReviews';
 import type { AppStackParamList } from '../../../navigation/types';
 
 type PublicDoctorProfileRouteProp = RouteProp<AppStackParamList, 'PublicDoctorProfile'>;
@@ -25,7 +26,7 @@ const PublicDoctorProfileScreen = () => {
   const [doctor, setDoctor] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  const mockData = getDoctorMockData(doctorId);
+  const { data: reviews = [] } = useDoctorReviews(doctorId);
 
   useEffect(() => {
     const loadDoctorDetails = async () => {
@@ -137,20 +138,12 @@ const PublicDoctorProfileScreen = () => {
 
           {/* Rating Summary */}
           <View style={styles.ratingRow}>
-            <View style={styles.starsWrapper}>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <Star
-                  key={i}
-                  size={14}
-                  color={i < Math.floor(mockData.rating) ? '#FBBF24' : '#E5E7EB'}
-                  fill={i < Math.floor(mockData.rating) ? '#FBBF24' : 'transparent'}
-                  style={{ marginRight: 2 }}
-                />
-              ))}
-            </View>
-            <Text style={[styles.ratingVal, { color: colors.text }]}>
-              {mockData.rating} <Text style={{ color: colors.textSecondary, fontWeight: '500' }}>({mockData.reviewsCount} reviews)</Text>
-            </Text>
+            <StarRating
+              variant="full"
+              size={14}
+              rating={doctor.avg_rating}
+              reviewCount={doctor.review_count}
+            />
           </View>
         </View>
 
@@ -222,43 +215,57 @@ const PublicDoctorProfileScreen = () => {
             <View style={styles.reviewCountBadge}>
               <MessageSquare size={12} color={colors.primary} style={{ marginRight: 4 }} />
               <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '800' }}>
-                {mockData.reviewsCount}
+                {doctor.review_count ?? 0}
               </Text>
             </View>
           </View>
 
-          <View style={{ gap: spacing.md, marginTop: spacing.xs }}>
-            {mockData.reviews.map((rev) => (
-              <View
-                key={rev.id}
-                style={[
-                  styles.reviewItem,
-                  {
-                    borderBottomColor: colors.border + '50',
-                  }
-                ]}
-              >
-                <View style={styles.reviewHeader}>
-                  <Text style={[styles.reviewUser, { color: colors.text }]}>{rev.userName}</Text>
-                  <Text style={[styles.reviewDate, { color: colors.textSecondary }]}>{rev.date}</Text>
+          {reviews.length === 0 ? (
+            <Text style={[styles.reviewComment, { color: colors.textSecondary, marginTop: spacing.xs }]}>
+              No reviews yet. Patients can rate a doctor after a completed visit.
+            </Text>
+          ) : (
+            <View style={{ gap: spacing.md, marginTop: spacing.xs }}>
+              {reviews.map((rev) => (
+                <View
+                  key={rev.id}
+                  style={[
+                    styles.reviewItem,
+                    {
+                      borderBottomColor: colors.border + '50',
+                    }
+                  ]}
+                >
+                  <View style={styles.reviewHeader}>
+                    <Text style={[styles.reviewUser, { color: colors.text }]}>Verified patient</Text>
+                    <Text style={[styles.reviewDate, { color: colors.textSecondary }]}>
+                      {new Date(rev.created_at).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </Text>
+                  </View>
+                  <View style={styles.reviewStars}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        size={10}
+                        color={i < rev.rating ? '#FBBF24' : '#E5E7EB'}
+                        fill={i < rev.rating ? '#FBBF24' : 'transparent'}
+                        style={{ marginRight: 2 }}
+                      />
+                    ))}
+                  </View>
+                  {!!rev.comment && (
+                    <Text style={[styles.reviewComment, { color: colors.textSecondary }]}>
+                      {rev.comment}
+                    </Text>
+                  )}
                 </View>
-                <View style={styles.reviewStars}>
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      size={10}
-                      color={i < rev.rating ? '#FBBF24' : '#E5E7EB'}
-                      fill={i < rev.rating ? '#FBBF24' : 'transparent'}
-                      style={{ marginRight: 2 }}
-                    />
-                  ))}
-                </View>
-                <Text style={[styles.reviewComment, { color: colors.textSecondary }]}>
-                  {rev.comment}
-                </Text>
-              </View>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Spacer for bottom sticky button */}
@@ -331,14 +338,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 8,
-  },
-  starsWrapper: {
-    flexDirection: 'row',
-    marginRight: 6,
-  },
-  ratingVal: {
-    fontSize: 12,
-    fontWeight: '800',
   },
   badgesRow: {
     flexDirection: 'row',

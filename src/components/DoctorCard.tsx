@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, StyleSheet, Text, Image } from 'react-native';
-import { Stethoscope, Calendar, Clock, Award, Star, MapPin } from 'lucide-react-native';
+import { Stethoscope, Calendar, Clock, Award, MapPin } from 'lucide-react-native';
 import Card from './ui/Card';
 import AppButton from './ui/AppButton';
 import { useTheme } from '../hooks/useTheme';
 import AvailabilityBadge from './AvailabilityBadge';
+import { StarRating } from './ui/StarRating';
 import type { Doctor, DoctorAvailability } from '../types/doctor';
 import { scaleFont, wp } from '../utils/responsive';
 import { getDoctorMockData } from '../utils/doctorMockHelper';
@@ -74,12 +75,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, availability, on
 
           {/* Rating & Experience */}
           <View style={styles.metaRow}>
-            <View style={styles.ratingBadge}>
-              <Star size={12} color="#FBBF24" fill="#FBBF24" style={{ marginRight: 3 }} />
-              <Text style={[styles.ratingText, { color: colors.text, fontSize: typography.sizes.xs }]}>
-                {mockData.rating} <Text style={{ color: colors.textSecondary, fontWeight: '500' }}>({mockData.reviewsCount})</Text>
-              </Text>
-            </View>
+            <StarRating rating={doctor.avg_rating} reviewCount={doctor.review_count} />
             <View style={[styles.bullet, { backgroundColor: colors.textSecondary + '40' }]} />
             <View style={styles.expBadge}>
               <Award size={12} color={colors.textSecondary} style={{ marginRight: 3 }} />
@@ -175,13 +171,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontWeight: '800',
   },
   bullet: {
     width: 4,

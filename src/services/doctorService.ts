@@ -62,6 +62,8 @@ export interface Doctor {
   is_active: boolean;
   is_on_break: boolean;
   created_at: string;
+  avg_rating?: number | null;
+  review_count?: number | null;
   profile_id?: string | null;
   employee_code?: string | null;
   license_number?: string | null;
