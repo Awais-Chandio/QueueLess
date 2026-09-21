@@ -51,7 +51,9 @@ import { toastService } from '../../../services/toastService';
 import { AppointmentRow } from '../components/AppointmentRow';
 import type { StaffStackParamList } from '../navigation/StaffNavigator';
 
-export type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'complete_service' | 'no_show';
+// Staff never complete a visit -- only the assigned doctor can (see the
+// restrict_appointment_completion_to_doctor migration).
+export type QueueAction = 'confirm' | 'cancel' | 'start_service' | 'no_show';
 
 const cancelReasons: CancelReason[] = [
   'Patient Requested',
@@ -280,15 +282,11 @@ const StaffDashboardScreen = () => {
         );
       }
 
-      if (action === 'start_service') {
-        return queueService.startService(appointment);
-      }
-
       if (action === 'no_show') {
         return queueService.noShowAppointment(appointment);
       }
 
-      return queueService.completeAppointment(appointment);
+      return queueService.startService(appointment);
     },
     onSuccess: (data, variables) => {
       setCancelTarget(null);
@@ -302,8 +300,6 @@ const StaffDashboardScreen = () => {
         successMsg = 'Appointment service started.';
       } else if (variables.action === 'no_show') {
         successMsg = 'Appointment marked as No Show.';
-      } else if (variables.action === 'complete_service') {
-        successMsg = 'Appointment completed successfully.';
       }
       toastService.success(successMsg);
 
@@ -385,7 +381,6 @@ const StaffDashboardScreen = () => {
         confirm: 'Confirm',
         cancel: 'Cancel',
         start_service: 'Call',
-        complete_service: 'Complete',
         no_show: 'No Show',
       };
       const actionLabel = labels[action];
@@ -411,10 +406,6 @@ const StaffDashboardScreen = () => {
   );
   const handleCall = useCallback(
     (appointment: AppointmentFull) => confirmAction('start_service', appointment),
-    [confirmAction],
-  );
-  const handleComplete = useCallback(
-    (appointment: AppointmentFull) => confirmAction('complete_service', appointment),
     [confirmAction],
   );
   const handleNoShow = useCallback(
@@ -448,7 +439,6 @@ const StaffDashboardScreen = () => {
       onConfirm={handleConfirm}
       onCancel={handleCancel}
       onCall={handleCall}
-      onComplete={handleComplete}
       onNoShow={handleNoShow}
     />
   );

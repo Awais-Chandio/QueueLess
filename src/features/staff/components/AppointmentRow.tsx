@@ -16,17 +16,18 @@ const statusLabel = (status: string) =>
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+// Completing a visit is the doctor's action, so staff are never offered it.
 export const getAvailableActions = (status: AppointmentStatus): QueueAction[] => {
   switch (status) {
     case 'pending':
       return ['confirm', 'cancel'];
     case 'confirmed':
-      return ['start_service', 'complete_service', 'cancel'];
+      return ['start_service', 'cancel'];
     case 'checked_in':
       return ['start_service', 'cancel'];
     case 'called':
     case 'in_progress':
-      return ['complete_service', 'no_show'];
+      return ['no_show'];
     default:
       return [];
   }
@@ -36,7 +37,6 @@ const actionLabels: Record<QueueAction, string> = {
   confirm: 'Confirm',
   cancel: 'Cancel',
   start_service: 'Call',
-  complete_service: 'Complete',
   no_show: 'No Show',
 };
 
@@ -50,7 +50,6 @@ interface AppointmentRowProps {
   onConfirm: (appointment: AppointmentFull) => void;
   onCancel: (appointment: AppointmentFull) => void;
   onCall: (appointment: AppointmentFull) => void;
-  onComplete: (appointment: AppointmentFull) => void;
   onNoShow: (appointment: AppointmentFull) => void;
 }
 
@@ -64,7 +63,6 @@ const AppointmentRowComponent = ({
   onConfirm,
   onCancel,
   onCall,
-  onComplete,
   onNoShow,
 }: AppointmentRowProps) => {
   const { colors, spacing, typography } = useTheme();
@@ -79,8 +77,6 @@ const AppointmentRowComponent = ({
         return () => onCancel(appointment);
       case 'start_service':
         return () => onCall(appointment);
-      case 'complete_service':
-        return () => onComplete(appointment);
       case 'no_show':
         return () => onNoShow(appointment);
     }
