@@ -129,6 +129,7 @@ export function useDoctorQueue() {
 
     const channel = queueService.subscribeToAppointments({
       channelName: `doctor-queue-today-${Date.now()}`,
+      doctorId,
       onChange: () => {
         queryClient.invalidateQueries({ queryKey: ['doctor-queue', 'today', doctorId] });
       },

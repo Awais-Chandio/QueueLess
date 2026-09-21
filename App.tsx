@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { queryPersister } from "./src/lib/queryPersister";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { queryClient } from "./src/lib/react-query";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -17,32 +17,6 @@ import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
 import { supabase, supabaseConfig } from "./src/lib/supabase";
 import { hp, scaleFont, wp } from "./src/utils/responsive";
-
-const persister = {
-  persistClient: async (client: any) => {
-    try {
-      await AsyncStorage.setItem('REACT_QUERY_OFFLINE_CACHE', JSON.stringify(client));
-    } catch (e) {
-      console.warn('Failed to persist react-query cache:', e);
-    }
-  },
-  restoreClient: async () => {
-    try {
-      const cache = await AsyncStorage.getItem('REACT_QUERY_OFFLINE_CACHE');
-      return cache ? JSON.parse(cache) : undefined;
-    } catch (e) {
-      console.warn('Failed to restore react-query cache:', e);
-      return undefined;
-    }
-  },
-  removeClient: async () => {
-    try {
-      await AsyncStorage.removeItem('REACT_QUERY_OFFLINE_CACHE');
-    } catch (e) {
-      console.warn('Failed to remove react-query cache:', e);
-    }
-  },
-};
 
 const linking = {
   prefixes: ["queueless://"],
@@ -271,7 +245,9 @@ const App = ()=>{
     <GestureHandlerRootView style={styles.container}>
       <PersistQueryClientProvider
         client={queryClient}
-        persistOptions={{ persister }}
+        // Bump the buster when a query's cached shape changes, so old
+        // persisted data is dropped instead of crashing a screen.
+        persistOptions={{ persister: queryPersister, buster: "2026-09-perf" }}
       >
         <SafeAreaProvider>
           <BottomSheetModalProvider>

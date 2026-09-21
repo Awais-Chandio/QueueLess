@@ -305,6 +305,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
 
     const channel = subscribeToAppointmentsRealtime({
       channelName: `appointments-store-${userId ?? 'all'}-${Date.now()}`,
+      userId,
       onChange: () => {
         if (onChange) {
           onChange();

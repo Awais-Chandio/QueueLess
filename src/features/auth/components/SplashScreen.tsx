@@ -65,9 +65,27 @@ const SplashScreen = ({
   const [introFinished, setIntroFinished] = useState(false);
 
   useEffect(() => {
+    // Every looping animation and the heartbeat timer are tracked and stopped
+    // on unmount. They used to run forever, and because this screen mounts
+    // again as the overlay on each sign-in and sign-out, every visit added
+    // more background loops and timers and the app got slower over time.
+    const running: Animated.CompositeAnimation[] = [];
+    let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
+    let cancelled = false;
+    const track = (animation: Animated.CompositeAnimation) => {
+      running.push(animation);
+      animation.start();
+      return animation;
+    };
+    const stopAll = () => {
+      cancelled = true;
+      if (heartbeatTimer) clearTimeout(heartbeatTimer);
+      running.forEach(animation => animation.stop());
+    };
+
     // 1. Brand signal animations
     const runCircleAnim = (xVal: Animated.Value, yVal: Animated.Value, xMax: number, yMax: number, duration: number) => {
-      Animated.loop(
+      track(Animated.loop(
         Animated.sequence([
           Animated.parallel([
             Animated.timing(xVal, {
@@ -98,7 +116,7 @@ const SplashScreen = ({
             }),
           ]),
         ])
-      ).start();
+      ));
     };
 
     runCircleAnim(circle1X, circle1Y, wp(15), hp(10), 12000);
@@ -106,7 +124,7 @@ const SplashScreen = ({
 
     // 2. Rising Particles Loop
     const runParticleAnim = (yVal: Animated.Value, startDelay: number, startY: number, destY: number, duration: number) => {
-      Animated.loop(
+      track(Animated.loop(
         Animated.sequence([
           Animated.delay(startDelay),
           Animated.timing(yVal, {
@@ -121,7 +139,7 @@ const SplashScreen = ({
             useNativeDriver: true,
           }),
         ])
-      ).start();
+      ));
     };
 
     runParticleAnim(particle1Y, 0, SCREEN_HEIGHT, -50, 9000);
@@ -146,7 +164,7 @@ const SplashScreen = ({
         useNativeDriver: true,
       }).start();
 
-      const loop = Animated.loop(
+      track(Animated.loop(
         Animated.sequence([
           Animated.timing(logoScale, {
             toValue: 1.05,
@@ -161,9 +179,8 @@ const SplashScreen = ({
             useNativeDriver: true,
           }),
         ])
-      );
-      loop.start();
-      return () => loop.stop();
+      ));
+      return stopAll;
     }
 
     // Logo intro sequence
@@ -184,6 +201,7 @@ const SplashScreen = ({
 
     // Heartbeat sequence loop
     const runHeartbeat = () => {
+      if (cancelled) return;
       Animated.sequence([
         Animated.timing(heartbeatAnim, {
           toValue: 1.06,
@@ -205,9 +223,9 @@ const SplashScreen = ({
           duration: 150,
           useNativeDriver: true,
         }),
-      ]).start(() => {
+      ]).start(({ finished }) => {
         // Schedule next heartbeat pulse in 1.8 seconds
-        setTimeout(runHeartbeat, 1800);
+        if (finished && !cancelled) heartbeatTimer = setTimeout(runHeartbeat, 1800);
       });
     };
 
@@ -243,15 +261,17 @@ const SplashScreen = ({
     // 400ms: Heartbeat pulse begins, title fades
     // 800ms: Tagline fades
     // 2000ms: Intro finished
-    Animated.sequence([
+    const intro = Animated.sequence([
       logoIntro,
       Animated.delay(100),
       text1Intro,
       Animated.delay(300),
       text2Intro,
       Animated.delay(800),
-    ]).start(() => {
-      setIntroFinished(true);
+    ]);
+    running.push(intro);
+    intro.start(({ finished }) => {
+      if (finished) setIntroFinished(true);
     });
 
     // Start heartbeat pulse loop
@@ -274,10 +294,9 @@ const SplashScreen = ({
       ])
     );
     loadingLoop.start();
+    running.push(loadingLoop);
 
-    return () => {
-      loadingLoop.stop();
-    };
+    return stopAll;
   }, [
     circle1X,
     circle1Y,
