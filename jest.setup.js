@@ -27,6 +27,9 @@ jest.mock('react-native-reanimated', () => {
     FlatList: ReactNative.FlatList,
     SectionList: ReactNative.SectionList,
     createAnimatedComponent: component => component,
+    // @gorhom/bottom-sheet registers its own UI props at import time.
+    addWhitelistedUIProps: jest.fn(),
+    addWhitelistedNativeProps: jest.fn(),
   };
 
   return {
@@ -37,13 +40,40 @@ jest.mock('react-native-reanimated', () => {
       linear: passthrough,
       out: passthrough,
       inOut: passthrough,
+      bezier: () => passthrough,
     },
+    // Reduce-motion is reported as off so animated components take their normal
+    // path under test; the reduced path is asserted separately where it matters.
+    useReducedMotion: () => false,
+    ReduceMotion: { System: 'system', Always: 'always', Never: 'never' },
     useAnimatedStyle: updater => (typeof updater === 'function' ? updater() : {}),
+    useAnimatedProps: updater => (typeof updater === 'function' ? updater() : {}),
+    useAnimatedRef: () => ({ current: null }),
+    useAnimatedReaction: jest.fn(),
+    useAnimatedScrollHandler: () => jest.fn(),
+    useDerivedValue: updater => ({
+      value: typeof updater === 'function' ? updater() : updater,
+    }),
     useSharedValue: value => ({ value }),
+    makeMutable: value => ({ value }),
+    cancelAnimation: jest.fn(),
+    measure: () => null,
+    scrollTo: jest.fn(),
+    runOnJS: fn => fn,
+    runOnUI: fn => fn,
+    interpolate: value => value,
+    interpolateColor: () => 'transparent',
+    Extrapolation: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
+    Extrapolate: { CLAMP: 'clamp', EXTEND: 'extend', IDENTITY: 'identity' },
     withDelay: (_delay, value) => value,
     withRepeat: value => value,
     withSequence: (...values) => values[values.length - 1],
+    withSpring: value => value,
     withTiming: value => value,
+    withDecay: value => value,
+    FadeIn: { duration: () => ({}) },
+    FadeOut: { duration: () => ({}) },
+    Layout: { duration: () => ({}) },
   };
 });
 

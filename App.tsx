@@ -2,44 +2,21 @@ import { useEffect, useState } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { queryPersister } from "./src/lib/queryPersister";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { queryClient } from "./src/lib/react-query";
-import { SafeAreaProvider } from "react-native-safe-area-context"; 
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useAuth } from "./src/hooks/useAuth";
 
 import ToastMessage from "./src/components/ui/ToastMessage";
+import RealtimeIndicator from "./src/components/ui/RealtimeIndicator";
 import { authService } from "./src/features/auth/api/authService";
 import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
 import { supabase, supabaseConfig } from "./src/lib/supabase";
 import { hp, scaleFont, wp } from "./src/utils/responsive";
-
-const persister = {
-  persistClient: async (client: any) => {
-    try {
-      await AsyncStorage.setItem('REACT_QUERY_OFFLINE_CACHE', JSON.stringify(client));
-    } catch (e) {
-      console.warn('Failed to persist react-query cache:', e);
-    }
-  },
-  restoreClient: async () => {
-    try {
-      const cache = await AsyncStorage.getItem('REACT_QUERY_OFFLINE_CACHE');
-      return cache ? JSON.parse(cache) : undefined;
-    } catch (e) {
-      console.warn('Failed to restore react-query cache:', e);
-      return undefined;
-    }
-  },
-  removeClient: async () => {
-    try {
-      await AsyncStorage.removeItem('REACT_QUERY_OFFLINE_CACHE');
-    } catch (e) {
-      console.warn('Failed to remove react-query cache:', e);
-    }
-  },
-};
 
 const linking = {
   prefixes: ["queueless://"],
@@ -244,40 +221,49 @@ const App = ()=>{
 
   if (!supabaseConfig.isValid) {
     return (
-      <SafeAreaProvider>
-        <View style={styles.startupErrorContainer}>
-          <Text style={styles.startupErrorTitle}>Configuration error</Text>
-          <Text style={styles.startupErrorMessage}>
-            {supabaseConfig.errorMessage}
-          </Text>
-          <Text style={styles.startupErrorHint}>
-            Please rebuild the app with Supabase URL and anon key configured.
-          </Text>
-        </View>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={styles.container}>
+        <SafeAreaProvider>
+          <View style={styles.startupErrorContainer}>
+            <Text style={styles.startupErrorTitle}>Configuration error</Text>
+            <Text style={styles.startupErrorMessage}>
+              {supabaseConfig.errorMessage}
+            </Text>
+            <Text style={styles.startupErrorHint}>
+              Please rebuild the app with Supabase URL and anon key configured.
+            </Text>
+          </View>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
 
   return(
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister }}
-    >
-      <SafeAreaProvider>
-        <View style={styles.container}>
-          <NavigationContainer linking={linking}>
-            <RootNavigator/>
-          </NavigationContainer>
-          
-          <View style={[
-            styles.connectionDot,
-            { backgroundColor: realtimeConnected ? '#22C55E' : '#EF4444' }
-          ]} />
+    // GestureHandlerRootView has to be the outermost native view for
+    // react-native-gesture-handler to receive touches, which @gorhom/bottom-sheet
+    // depends on. Importing 'react-native-gesture-handler' in index.js alone is
+    // not enough on Android.
+    <GestureHandlerRootView style={styles.container}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        // Bump the buster when a query's cached shape changes, so old
+        // persisted data is dropped instead of crashing a screen.
+        persistOptions={{ persister: queryPersister, buster: "2026-09-perf" }}
+      >
+        <SafeAreaProvider>
+          <BottomSheetModalProvider>
+            <View style={styles.container}>
+              <NavigationContainer linking={linking}>
+                <RootNavigator/>
+              </NavigationContainer>
 
-          <ToastMessage />
-        </View>
-      </SafeAreaProvider>
-    </PersistQueryClientProvider>
+              <RealtimeIndicator connected={realtimeConnected} />
+
+              <ToastMessage />
+            </View>
+          </BottomSheetModalProvider>
+        </SafeAreaProvider>
+      </PersistQueryClientProvider>
+    </GestureHandlerRootView>
   )
 }
 
@@ -312,19 +298,5 @@ const styles = StyleSheet.create({
     fontSize: scaleFont(14),
     lineHeight: scaleFont(20),
     textAlign: "center",
-  },
-  connectionDot: {
-    position: 'absolute',
-    top: 54,
-    right: 16,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    zIndex: 9999,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
   },
 });

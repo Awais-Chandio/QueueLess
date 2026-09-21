@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   Alert,
   StyleSheet,
@@ -30,7 +30,6 @@ import { useProfileStore } from '../../../store/profileStore';
 import { useTheme } from '../../../hooks/useTheme';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { analyticsService } from '../api/analyticsService';
-import { getDisplayName } from '../../../utils/getDisplayName';
 
 const AdminManageScreen = () => {
   const { colors, spacing, typography, radius } = useTheme();
@@ -43,11 +42,7 @@ const AdminManageScreen = () => {
     if (user?.id && (!profile || profile.id !== user.id)) {
       fetchProfile(user.id);
     }
-  }, [user?.id, profile?.id, fetchProfile]);
-
-  const adminName = useMemo(() => {
-    return getDisplayName(profile);
-  }, [profile]);
+  }, [user?.id, profile, fetchProfile]);
 
   const {
     data: analytics,
@@ -201,7 +196,7 @@ const AdminManageScreen = () => {
                 { label: 'Clinics', value: analytics?.systemOverview?.totalCenters ?? 0, color: colors.primary, icon: Building },
                 { label: 'Departments', value: analytics?.systemOverview?.totalServices ?? 0, color: colors.info, icon: Stethoscope },
                 { label: 'Registered Users', value: analytics?.systemOverview?.totalUsers ?? 0, color: colors.success, icon: UserCheck },
-              ].map((item, idx) => {
+              ].map(item => {
                 const MetricIcon = item.icon;
                 return (
                   <View key={item.label} style={[styles.systemMetricItem, { borderColor: colors.border + '50', borderRadius: radius.lg, borderWidth: 0.5 }]}>
@@ -239,15 +234,21 @@ const AdminManageScreen = () => {
                 style={{ borderRadius: radius.md }}
               />
               <AppButton
+                title="Manage Staff"
+                variant="outline"
+                onPress={() => navigation.navigate('ManageStaff')}
+                style={{ borderColor: colors.border, borderRadius: radius.md }}
+              />
+              <AppButton
                 title="Manage Clinics & Departments"
                 variant="outline"
-                onPress={() => (navigation as any).navigate('ManageCenters')}
+                onPress={() => navigation.navigate('ManageCenters')}
                 style={{ borderColor: colors.border, borderRadius: radius.md }}
               />
               <AppButton
                 title="Manage Doctors"
                 variant="outline"
-                onPress={() => (navigation as any).navigate('ManageDoctors')}
+                onPress={() => navigation.navigate('ManageDoctors')}
                 style={{ borderColor: colors.border, borderRadius: radius.md, marginTop: spacing.xs }}
               />
             </View>

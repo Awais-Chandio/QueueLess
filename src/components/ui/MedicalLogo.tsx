@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import Svg, { Circle, Path, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Path, Rect, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { useTheme } from '../../hooks/useTheme';
 
 interface MedicalLogoProps {
@@ -10,6 +10,19 @@ interface MedicalLogoProps {
   crossColor?: string;
 }
 
+/**
+ * The MediQ mark — "Check M": the M's centre valley is drawn as an asymmetric
+ * checkmark and tinted in the accent, so "confirmed / your turn" sits inside
+ * the monogram.
+ *
+ * This is the same geometry as the launcher icon (see
+ * scripts/generate-app-icons.js). If the mark changes, change it in both places
+ * so the in-app logo and the home-screen icon do not drift apart.
+ *
+ * The `qColor` / `crossColor` prop names predate this mark and are kept so the
+ * existing call sites keep working: `qColor` is the letterform, `crossColor`
+ * the accent check.
+ */
 export const MedicalLogo: React.FC<MedicalLogoProps> = ({
   size = 80,
   showBackground = false,
@@ -18,82 +31,38 @@ export const MedicalLogo: React.FC<MedicalLogoProps> = ({
 }) => {
   const { colors } = useTheme();
 
-  const finalQColor = qColor || (showBackground ? '#FFFFFF' : colors.primary);
-  const finalCrossColor = crossColor || (showBackground ? '#A5F3FC' : colors.accent);
+  const strokeColor = qColor || (showBackground ? '#FFFFFF' : colors.primary);
+  // On the primary gradient the mid-tone accent is too close in value to read,
+  // so the lighter tint is used there — the same one the app icon's check uses.
+  const checkColor = crossColor || (showBackground ? '#5EEAD4' : colors.accent);
 
   return (
     <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-      <Svg width={size} height={size} viewBox="0 0 100 100" fill="none">
+      <Svg width={size} height={size} viewBox="0 0 1024 1024" fill="none">
         <Defs>
-          <LinearGradient id="bgGradient" x1="0" y1="0" x2="1" y2="1">
+          <LinearGradient id="logoBg" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0%" stopColor={colors.gradients.primary[0]} />
             <Stop offset="100%" stopColor={colors.gradients.primary[1]} />
-          </LinearGradient>
-          <LinearGradient id="pinGradient" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={showBackground ? 0.96 : 0} />
-            <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={showBackground ? 0.7 : 0} />
           </LinearGradient>
         </Defs>
 
         {showBackground ? (
-          <Rect
-            x="2"
-            y="2"
-            width="96"
-            height="96"
-            rx="24"
-            fill="url(#bgGradient)"
-          />
+          <Rect x="0" y="0" width="1024" height="1024" rx="228" fill="url(#logoBg)" />
         ) : null}
 
-        {showBackground ? (
-          <Circle cx="50" cy="44" r="26" fill="url(#pinGradient)" opacity="0.16" />
-        ) : null}
-
-        {/* QueueLess mark: location pin + queue tail */}
         <Path
-          d="M50 15C65.5 15 78 27.6 78 43.1C78 61.8 50 84 50 84C50 84 22 61.8 22 43.1C22 27.6 34.5 15 50 15Z"
-          stroke={finalQColor}
-          strokeWidth="6.5"
+          d="M316 700V372L474 588L708 312V700"
+          stroke={strokeColor}
+          strokeWidth="76"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <Path
-          d="M66 65C72 70.5 77 76.4 84 80"
-          stroke={finalQColor}
-          strokeWidth="6.5"
-          strokeLinecap="round"
-        />
-
-        {/* Appointment node */}
-        <Circle cx="50" cy="43" r="18" fill="none" stroke={finalQColor} strokeWidth="4" opacity={showBackground ? 0.7 : 0.34} />
-
-        {/* Medical cross */}
-        <Path
-          d="M50 31V55M38 43H62"
-          stroke={finalCrossColor}
-          strokeWidth="5.5"
-          strokeLinecap="round"
-        />
-
-        {/* Heartbeat and queue flow */}
-        <Path
-          d="M30 60H40L44 52L50 68L56 44L61 60H70"
-          stroke={finalCrossColor}
-          strokeWidth="4.8"
+          d="M316 372L474 588L708 312"
+          stroke={checkColor}
+          strokeWidth="76"
           strokeLinecap="round"
           strokeLinejoin="round"
-        />
-
-        {/* Connected queue dots */}
-        <Circle cx="32" cy="60" r="3" fill={finalCrossColor} />
-        <Circle cx="70" cy="60" r="3" fill={finalCrossColor} />
-        <Path
-          d="M36 72H50H64"
-          stroke={finalQColor}
-          strokeWidth="4"
-          strokeLinecap="round"
-          opacity={showBackground ? 0.72 : 0.38}
         />
       </Svg>
     </View>

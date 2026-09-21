@@ -6,6 +6,8 @@ import ManageCentersScreen from '../features/admin/components/ManageCentersScree
 import ManageDoctorsScreen from '../features/admin/components/ManageDoctorsScreen';
 import AddDoctorScreen from '../features/admin/components/AddDoctorScreen';
 import EditDoctorScreen from '../features/admin/components/EditDoctorScreen';
+import ManageStaffScreen from '../features/admin/components/ManageStaffScreen';
+import EditStaffScreen from '../features/admin/components/EditStaffScreen';
 
 export type AdminStackParamList = {
   AdminDashboard: undefined;
@@ -14,6 +16,8 @@ export type AdminStackParamList = {
   ManageDoctors: undefined;
   AddDoctor: undefined;
   EditDoctor: { doctorId: string };
+  ManageStaff: undefined;
+  EditStaff: { staffId: string };
 };
 
 const Stack = createNativeStackNavigator<AdminStackParamList>();
@@ -26,6 +30,8 @@ const AdminNavigator = () => (
     <Stack.Screen name="ManageDoctors" component={ManageDoctorsScreen} />
     <Stack.Screen name="AddDoctor" component={AddDoctorScreen} />
     <Stack.Screen name="EditDoctor" component={EditDoctorScreen} />
+    <Stack.Screen name="ManageStaff" component={ManageStaffScreen} />
+    <Stack.Screen name="EditStaff" component={EditStaffScreen} />
   </Stack.Navigator>
 );
 

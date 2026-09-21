@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
 import {
   doctorDashboardService,
@@ -9,78 +9,70 @@ import {
 } from '../services/doctorDashboardService';
 import type { Doctor } from '../../../types/doctor';
 
+interface DashboardExtras {
+  todayAppointments: TodayAppointment[];
+  recentPatients: RecentPatient[];
+  incomeSummary: IncomeSummary;
+  schedule: DoctorSchedule[];
+}
+
 export function useDoctorDashboard() {
-  const { user } = useAuthStore();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const userId = useAuthStore(state => state.user?.id);
+  // Resolved at sign-in (get_my_staff_context). Using it lets today's data load
+  // in parallel with the profile instead of waiting for it first.
+  const authDoctorId = useAuthStore(state => state.doctorId);
 
-  const [doctorProfile, setDoctorProfile] = useState<(Doctor & { center_name?: string; email?: string; phone?: string }) | null>(null);
-  const [todayAppointments, setTodayAppointments] = useState<TodayAppointment[]>([]);
-  const [availability, setAvailability] = useState<{ status: string; tokens_ahead: number; estimated_wait_minutes: number } | null>(null);
-  const [recentPatients, setRecentPatients] = useState<RecentPatient[]>([]);
-  const [incomeSummary, setIncomeSummary] = useState<IncomeSummary | null>(null);
-  const [schedule, setSchedule] = useState<DoctorSchedule[]>([]);
+  const profileQuery = useQuery({
+    queryKey: ['doctor-profile', userId],
+    queryFn: () => doctorDashboardService.getDoctorProfile(userId!),
+    enabled: !!userId,
+  });
 
-  const loadData = useCallback(async (showLoading = true) => {
-    if (!user?.id) {
-      setError('User not logged in.');
-      setIsLoading(false);
-      return;
-    }
+  const doctorId = authDoctorId ?? profileQuery.data?.id;
 
-    if (showLoading) setIsLoading(true);
-    setError(null);
+  const extrasQuery = useQuery<DashboardExtras>({
+    queryKey: ['doctor-dashboard-extras', doctorId],
+    queryFn: async () => {
+      // get_doctor_availability is not called: it reads a doctor_availability
+      // table that does not exist, so it always errored. Live queue numbers are
+      // derived from today's appointments instead.
+      const [appointmentsData, patientsData, incomeData, scheduleData] =
+        await Promise.all([
+          doctorDashboardService.getTodayAppointments(doctorId!),
+          doctorDashboardService.getRecentPatients(doctorId!),
+          doctorDashboardService.getIncomeSummary(doctorId!),
+          doctorDashboardService.getDoctorSchedule(doctorId!),
+        ]);
 
-    try {
-      const profile = await doctorDashboardService.getDoctorProfile(user.id);
-      setDoctorProfile(profile);
+      return {
+        todayAppointments: appointmentsData,
+        recentPatients: patientsData,
+        incomeSummary: incomeData,
+        schedule: scheduleData,
+      };
+    },
+    enabled: !!doctorId,
+  });
 
-      const doctorId = profile.id;
+  const isLoading = profileQuery.isLoading || (!!doctorId && extrasQuery.isLoading);
 
-      const [
-        appointmentsData,
-        availData,
-        patientsData,
-        incomeData,
-        scheduleData,
-      ] = await Promise.all([
-        doctorDashboardService.getTodayAppointments(doctorId),
-        doctorDashboardService.getDoctorAvailability(doctorId),
-        doctorDashboardService.getRecentPatients(doctorId),
-        doctorDashboardService.getIncomeSummary(doctorId),
-        doctorDashboardService.getDoctorSchedule(doctorId),
-      ]);
+  const error = profileQuery.error ?? extrasQuery.error ?? null;
 
-      setTodayAppointments(appointmentsData);
-      setAvailability(availData);
-      setRecentPatients(patientsData);
-      setIncomeSummary(incomeData);
-      setSchedule(scheduleData);
-    } catch (err: any) {
-      console.error('[useDoctorDashboard] Error loading data:', err);
-      setError(err?.message || 'Failed to load dashboard data. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  const refresh = useCallback(() => {
-    return loadData(false);
-  }, [loadData]);
+  const refresh = async () => {
+    await Promise.all([profileQuery.refetch(), extrasQuery.refetch()]);
+  };
 
   return {
     isLoading,
+    isRefetching: profileQuery.isRefetching || extrasQuery.isRefetching,
     error,
-    doctorProfile,
-    todayAppointments,
-    availability,
-    recentPatients,
-    incomeSummary,
-    schedule,
+    doctorProfile: (profileQuery.data ?? null) as
+      | (Doctor & { center_name?: string; email?: string; phone?: string })
+      | null,
+    todayAppointments: extrasQuery.data?.todayAppointments ?? [],
+    recentPatients: extrasQuery.data?.recentPatients ?? [],
+    incomeSummary: extrasQuery.data?.incomeSummary ?? null,
+    schedule: extrasQuery.data?.schedule ?? [],
     refresh,
   };
 }

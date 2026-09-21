@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, View, StyleSheet, Text, Pressable, Platform, FlatList, Image, ActivityIndicator } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, Clock, MapPin, Bell, Stethoscope, ChevronRight, Star, Heart, ArrowRight, Search, Hospital } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, Bell, Stethoscope, ChevronRight, Heart, ArrowRight, Search, Hospital } from 'lucide-react-native';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import Card from '../../components/ui/Card';
 import AppButton from '../../components/ui/AppButton';
@@ -10,9 +10,13 @@ import AnimatedHeader from '../../components/ui/AnimatedHeader';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuthStore } from '../../store/authStore';
 import { useProfileStore } from '../../store/profileStore';
-import { useCentersStore } from '../../store/queueStore';
+import { useCenterStore } from '../../store/centerStore';
+import { locationService } from '../../services/location/locationService';
+import { centerService } from '../../services/centerService';
+import type { Center } from '../../types/center';
 import { useDashboardStats } from '../../features/home/hooks/useDashboardStats';
 import { getDisplayName } from '../../utils/getDisplayName';
+import Wordmark from '../../components/ui/Wordmark';
 import { hp, scaleFont, wp } from '../../utils/responsive';
 import LinearGradient from 'react-native-linear-gradient';
 import type { AppStackParamList } from '../../navigation/types';
@@ -29,8 +33,20 @@ const HomeScreen = () => {
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
   
-  const { centers, fetchCenters } = useCentersStore();
   const { refetch } = useDashboardStats();
+
+  const nearbyCenters = useCenterStore(state => state.centers);
+  const nearbyLoading = useCenterStore(state => state.loading);
+  const areaLabel = useCenterStore(state => state.areaLabel);
+  const setUserLocation = useCenterStore(state => state.setUserLocation);
+  const fetchNearbyCenters = useCenterStore(state => state.fetchNearbyCenters);
+  const fetchAreaLabel = useCenterStore(state => state.fetchAreaLabel);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [locationLoading, setLocationLoading] = useState(true);
+
+  const [popularCenters, setPopularCenters] = useState<(Center & { bookingCount: number })[]>([]);
+  const [popularLoading, setPopularLoading] = useState(true);
+  const [popularError, setPopularError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id && (!profile || profile.id !== user.id)) {
@@ -39,14 +55,64 @@ const HomeScreen = () => {
   }, [user?.id, profile, fetchProfile]);
 
   useEffect(() => {
-    fetchCenters();
-  }, [fetchCenters]);
-
-  useEffect(() => {
     if (isFocused) {
       refetch();
     }
   }, [isFocused, refetch]);
+
+  const loadNearbyByLocation = React.useCallback(async () => {
+    setLocationLoading(true);
+    setLocationError(null);
+    try {
+      const location = await locationService.getCurrentUserLocation();
+      setUserLocation(location);
+      await fetchNearbyCenters();
+      // Best-effort: the header falls back to the nearest center's city if
+      // this doesn't resolve, so it never blocks the nearby-clinics load.
+      fetchAreaLabel();
+    } catch (error) {
+      setLocationError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to access your current location.',
+      );
+    } finally {
+      setLocationLoading(false);
+    }
+  }, [fetchAreaLabel, fetchNearbyCenters, setUserLocation]);
+
+  useEffect(() => {
+    loadNearbyByLocation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    setPopularLoading(true);
+    setPopularError(null);
+    centerService
+      .getPopularCenters(6)
+      .then(result => {
+        if (active) {
+          setPopularCenters(result);
+        }
+      })
+      .catch(error => {
+        if (active) {
+          setPopularError(
+            error instanceof Error ? error.message : 'Failed to load popular clinics.',
+          );
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setPopularLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const displayName = useMemo(() => {
     return getDisplayName(profile);
@@ -78,7 +144,7 @@ const HomeScreen = () => {
             title={displayName}
             subtitle={`${greeting},`}
             avatarUri={profile?.avatar_url}
-            location={centers[0]?.city ? `${centers[0]?.city}, Pakistan` : 'Karachi, Pakistan'}
+            location={areaLabel ?? nearbyCenters[0]?.city ?? undefined}
             onPressAvatar={() => (navigation as any).navigate('Profile')}
             onPressNotifications={() => (navigation as any).navigate('Notifications')}
           />
@@ -113,7 +179,7 @@ const HomeScreen = () => {
             style={[styles.heroCard, { borderRadius: radius.xl }]}
           >
             <View style={styles.heroContent}>
-              <Text style={[styles.heroTitle, { fontSize: typography.sizes.lg }]}>QueueLess Care</Text>
+              <Wordmark size={18} tone="onColor" suffix="Care" style={styles.heroTitle} />
               <Text style={styles.heroSubtitle}>
                 Skip the waiting rooms. Book slot locks, track live queue token numbers, and consult instantly.
               </Text>
@@ -239,18 +305,39 @@ const HomeScreen = () => {
             </Pressable>
           </View>
 
-          {centers.length === 0 ? (
-            <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>No clinics currently configured.</Text>
+          {locationError ? (
+            <View
+              style={[
+                styles.locationPrompt,
+                { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.xl, padding: spacing.md },
+              ]}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: spacing.sm }}>
+                {locationError}
+              </Text>
+              <AppButton
+                title="Enable Location"
+                onPress={() => loadNearbyByLocation()}
+                style={{ paddingVertical: 8, minHeight: 36 }}
+                textStyle={{ fontSize: 12 }}
+              />
+            </View>
+          ) : locationLoading || (nearbyLoading && nearbyCenters.length === 0) ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : nearbyCenters.length === 0 ? (
+            <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>
+              No clinics found near your current location.
+            </Text>
           ) : (
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={centers.slice(0, 4)}
+              data={nearbyCenters.slice(0, 4)}
               keyExtractor={(item) => `nearby-${item.id}`}
               contentContainerStyle={{ paddingVertical: spacing.xs, gap: spacing.md }}
-              renderItem={({ item, index }) => {
-                const distance = (1.2 + (index % 4) * 0.5).toFixed(1);
-                const rating = (4.6 + (index % 3) * 0.1).toFixed(1);
+              renderItem={({ item }) => {
                 return (
                   <View
                     style={[
@@ -275,12 +362,14 @@ const HomeScreen = () => {
                         {item.name}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, gap: 4 }}>
-                        <Star size={11} color="#FBBF24" fill="#FBBF24" />
-                        <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.text, fontWeight: '800' }}>{rating}</Text>
+                        <MapPin size={11} color={colors.primary} />
+                        <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.primary, fontWeight: '800' }}>
+                          {item.distance.toFixed(1)} km
+                        </Text>
                         <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary }} numberOfLines={1}>• {item.address || item.city}</Text>
                       </View>
                       <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary, marginBottom: spacing.md }}>
-                        {item.open_time && item.close_time ? `${item.open_time} - ${item.close_time}` : '09:00 AM - 05:00 PM'}
+                        {item.open_time && item.close_time ? `${item.open_time} - ${item.close_time}` : 'Hours not listed'}
                       </Text>
                       <AppButton
                         title="View Clinic"
@@ -308,17 +397,22 @@ const HomeScreen = () => {
             </Pressable>
           </View>
 
-          {centers.length === 0 ? (
+          {popularError ? (
+            <Text style={{ color: colors.error, marginLeft: spacing.sm }}>{popularError}</Text>
+          ) : popularLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : popularCenters.length === 0 ? (
             <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>No clinics currently configured.</Text>
           ) : (
             <FlatList
               horizontal
               showsHorizontalScrollIndicator={false}
-              data={centers.slice(2, 6).concat(centers.slice(0, 2))}
+              data={popularCenters}
               keyExtractor={(item) => `pop-${item.id}`}
               contentContainerStyle={{ paddingVertical: spacing.xs, gap: spacing.md }}
-              renderItem={({ item, index }) => {
-                const rating = (4.7 + (index % 3) * 0.1).toFixed(1);
+              renderItem={({ item }) => {
                 return (
                   <View
                     style={[
@@ -343,12 +437,14 @@ const HomeScreen = () => {
                         {item.name}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, gap: 4 }}>
-                        <Star size={11} color="#FBBF24" fill="#FBBF24" />
-                        <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.text, fontWeight: '800' }}>{rating}</Text>
+                        <Calendar size={11} color={colors.primary} />
+                        <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.text, fontWeight: '800' }}>
+                          {item.bookingCount} booking{item.bookingCount === 1 ? '' : 's'}
+                        </Text>
                         <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary }}>• {item.category || 'OPD'}</Text>
                       </View>
                       <Text style={{ fontSize: typography.sizes.xs - 1, color: colors.textSecondary, marginBottom: spacing.md }}>
-                        {item.open_time && item.close_time ? `${item.open_time} - ${item.close_time}` : '09:00 AM - 05:00 PM'}
+                        {item.open_time && item.close_time ? `${item.open_time} - ${item.close_time}` : 'Hours not listed'}
                       </Text>
                       <AppButton
                         title="View Clinic"
@@ -386,9 +482,8 @@ const styles = StyleSheet.create({
     maxWidth: '80%',
   },
   heroTitle: {
-    color: '#FFFFFF',
-    fontWeight: '900',
     marginBottom: 6,
+    textAlign: 'left',
   },
   heroSubtitle: {
     color: 'rgba(255, 255, 255, 0.85)',
@@ -462,6 +557,11 @@ const styles = StyleSheet.create({
     height: 100,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  locationPrompt: {
+    borderWidth: 1.2,
+    marginHorizontal: 2,
+    alignItems: 'flex-start',
   },
   searchBarContainer: {
     borderWidth: 1.2,

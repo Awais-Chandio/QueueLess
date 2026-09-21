@@ -86,7 +86,7 @@ const SettingsScreen = () => {
         <Card style={{ padding: 0, marginBottom: spacing.xl, overflow: 'hidden' }}>
           <SettingRow title="Privacy Policy" icon={Shield} color={colors.success} onPress={() => navigation.navigate("PrivacyPolicy")} />
           <SettingRow title="Terms & Conditions" icon={FileText} color={colors.primary} onPress={() => navigation.navigate("Terms")} />
-          <SettingRow title="About QueueLess" icon={Info} color={colors.textSecondary} isLast onPress={() => navigation.navigate("About")} />
+          <SettingRow title="About MediQ" icon={Info} color={colors.textSecondary} isLast onPress={() => navigation.navigate("About")} />
         </Card>
       </CardFadeIn>
 

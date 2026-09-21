@@ -1,391 +1,238 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  TouchableOpacity,
-  Platform,
-  Alert,
-} from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, StyleSheet, Alert } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { CalendarOff, ChevronRight } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
-import { useDoctorAvailability } from '../hooks/useDoctorAvailability';
+import ScreenWrapper from '../../../components/ui/ScreenWrapper';
+import AppText from '../../../components/ui/AppText';
+import { Card } from '../../../components/ui/Card';
+import ErrorState from '../../../components/ui/ErrorState';
+import { Skeleton } from '../../../components/ui/Skeleton';
+import { toastService } from '../../../services/toastService';
+import { useDoctorAvailability, ScheduleRow } from '../hooks/useDoctorAvailability';
 import { AvailabilityCard } from '../components/AvailabilityCard';
 import { DayScheduleCard } from '../components/DayScheduleCard';
-import { useNavigation } from '@react-navigation/native';
-import { AlertCircle, Calendar, X } from 'lucide-react-native';
+import { DayHoursSheet, DayHoursValue } from '../components/DayHoursSheet';
+import type { AvailabilityStackParamList } from '../navigation/DoctorNavigator';
+import { WEEKDAYS, WEEKDAY_ORDER, formatDateKey, parseDateKey, todayKey } from '../utils/doctorFormat';
 
-interface EditingDay {
-  id: string;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  slotDuration: number;
-}
+const DEFAULT_HOURS: DayHoursValue = { start_time: '09:00:00', end_time: '17:00:00', slot_duration: 15 };
 
 export default function AvailabilityScreen() {
-  const { colors, spacing, typography, radius } = useTheme();
-  const navigation = useNavigation<any>();
+  const { colors, spacing, radius } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<AvailabilityStackParamList>>();
   const {
     isLoading,
+    isRefetching,
     error,
     isOnBreak,
+    isTogglingBreak,
     schedule,
+    leaves,
+    bookingCounts,
     toggleBreakMode,
-    updateDaySchedule,
+    saveDay,
     refresh,
   } = useDoctorAvailability();
 
-  const [editingDay, setEditingDay] = useState<EditingDay | null>(null);
-  const [startTimeInput, setStartTimeInput] = useState('');
-  const [endTimeInput, setEndTimeInput] = useState('');
-  const [slotDurationInput, setSlotDurationInput] = useState('');
-  const [saveLoading, setSaveLoading] = useState(false);
+  const [editingDay, setEditingDay] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const handleRefresh = React.useCallback(async () => {
-    await refresh();
-  }, [refresh]);
+  const byDay = useMemo(() => {
+    const map = new Map<number, ScheduleRow>();
+    schedule.forEach(row => map.set(row.day_of_week, row));
+    return map;
+  }, [schedule]);
 
-  const handleOpenEdit = (day: typeof schedule[0]) => {
-    setEditingDay({
-      id: day.id,
-      dayOfWeek: day.day_of_week,
-      startTime: day.start_time || '09:00:00',
-      endTime: day.end_time || '17:00:00',
-      slotDuration: day.slot_duration || 15,
-    });
-    // Truncate seconds from time strings for input (e.g. 09:00:00 -> 09:00)
-    setStartTimeInput((day.start_time || '09:00:00').substring(0, 5));
-    setEndTimeInput((day.end_time || '17:00:00').substring(0, 5));
-    setSlotDurationInput((day.slot_duration || 15).toString());
+  const today = todayKey();
+  const upcomingLeaves = leaves.filter(leave => leave.leave_date >= today);
+  const workingDays = schedule.filter(row => row.is_available).length;
+
+  const hoursFor = (day: number): DayHoursValue => {
+    const row = byDay.get(day);
+    return row
+      ? {
+          start_time: row.start_time || DEFAULT_HOURS.start_time,
+          end_time: row.end_time || DEFAULT_HOURS.end_time,
+          slot_duration: row.slot_duration || DEFAULT_HOURS.slot_duration,
+        }
+      : DEFAULT_HOURS;
   };
 
-  const handleSaveHours = async () => {
-    if (!editingDay) return;
-    
-    // Quick validation of HH:MM format
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(startTimeInput) || !timeRegex.test(endTimeInput)) {
-      Alert.alert('Error', 'Please enter valid times in 24-hour HH:MM format (e.g., 09:00, 13:00).');
+  const handleBreak = async (value: boolean) => {
+    try {
+      await toggleBreakMode(value);
+      toastService.success(value ? 'Break started. Your queue shows you as on break.' : 'Welcome back. You are active again.');
+    } catch (err) {
+      toastService.error('Could not update break status.', err instanceof Error ? err.message : undefined);
+    }
+  };
+
+  const persistDay = async (day: number, updates: DayHoursValue & { is_available: boolean }, message: string) => {
+    try {
+      await saveDay(day, updates);
+      toastService.success(message);
+      return true;
+    } catch (err) {
+      toastService.error(`Could not update ${WEEKDAYS[day]}.`, err instanceof Error ? err.message : undefined);
+      return false;
+    }
+  };
+
+  const handleToggleDay = (day: number, value: boolean) => {
+    const hours = hoursFor(day);
+    if (value) {
+      persistDay(day, { ...hours, is_available: true }, `${WEEKDAYS[day]} is now open for booking.`);
       return;
     }
 
-    const duration = parseInt(slotDurationInput, 10);
-    if (isNaN(duration) || duration <= 0) {
-      Alert.alert('Error', 'Please enter a valid slot duration in minutes.');
+    // Closing a day does not cancel what is already booked on it — say so.
+    const booked = Object.entries(bookingCounts)
+      .filter(([key]) => parseDateKey(key).getDay() === day)
+      .reduce((sum, [, count]) => sum + count, 0);
+
+    const close = () =>
+      persistDay(day, { ...hours, is_available: false }, `${WEEKDAYS[day]} is now marked off.`);
+
+    if (booked > 0) {
+      Alert.alert(
+        `Turn off ${WEEKDAYS[day]}s?`,
+        `You have ${booked} active booking${booked === 1 ? '' : 's'} on upcoming ${WEEKDAYS[day]}s. They will not be cancelled automatically — new bookings will stop.`,
+        [
+          { text: 'Keep open', style: 'cancel' },
+          { text: 'Turn off', style: 'destructive', onPress: close },
+        ],
+      );
       return;
     }
-
-    try {
-      setSaveLoading(true);
-      await updateDaySchedule(editingDay.id, {
-        start_time: `${startTimeInput}:00`,
-        end_time: `${endTimeInput}:00`,
-        slot_duration: duration,
-        is_available: true,
-      });
-      setEditingDay(null);
-    } catch {
-      Alert.alert('Error', 'Failed to update schedule hours. Please try again.');
-    } finally {
-      setSaveLoading(false);
-    }
+    close();
   };
 
-  const handleToggleDay = async (day: typeof schedule[0], value: boolean) => {
-    try {
-      await updateDaySchedule(day.id, {
-        start_time: day.start_time || '09:00:00',
-        end_time: day.end_time || '17:00:00',
-        slot_duration: day.slot_duration || 15,
-        is_available: value,
-      });
-    } catch {
-      Alert.alert('Error', 'Failed to update availability. Please try again.');
-    }
+  const handleSaveHours = async (value: DayHoursValue) => {
+    if (editingDay === null) return;
+    setSaving(true);
+    const ok = await persistDay(editingDay, { ...value, is_available: true }, `${WEEKDAYS[editingDay]} hours saved.`);
+    setSaving(false);
+    if (ok) setEditingDay(null);
   };
-
-  if (isLoading && schedule.length === 0) {
-    return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
 
   if (error && schedule.length === 0) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background, padding: spacing.lg }]}>
-        <AlertCircle size={48} color={colors.error} style={{ marginBottom: spacing.md }} />
-        <Text style={[styles.errorText, { color: colors.text, fontSize: typography.sizes.sm }]}>
-          {error}
-        </Text>
-      </View>
+      <ScreenWrapper edges={['top']}>
+        <ErrorState
+          title="Couldn't load your availability"
+          message={error}
+          fallbackMessage="Check your connection and try again."
+          onRetry={refresh}
+        />
+      </ScreenWrapper>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView
-        contentContainerStyle={[styles.contentContainer, { paddingBottom: spacing.xl * 2 }]}
-        refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} colors={[colors.primary]} />
-        }
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.lg }]}>
-            Availability Management
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-            Set your real-time clinic status and weekly working schedule.
-          </Text>
+    <ScreenWrapper scrollable edges={['top']} onRefresh={refresh} refreshing={isRefetching}>
+      <View style={{ marginBottom: spacing.lg }}>
+        <AppText variant="heading">Availability</AppText>
+        <AppText variant="label" tone="secondary">
+          Your live status, weekly hours and time off.
+        </AppText>
+      </View>
+
+      {isLoading ? (
+        <View style={{ gap: spacing.md }}>
+          <Skeleton height={88} borderRadius={radius.card} />
+          <Skeleton height={72} borderRadius={radius.card} />
+          <Skeleton height={420} borderRadius={radius.card} />
         </View>
+      ) : (
+        <>
+          <AvailabilityCard isOnBreak={isOnBreak} busy={isTogglingBreak} onToggleBreak={handleBreak} />
 
-        {/* Break Mode Card */}
-        <AvailabilityCard
-          isOnBreak={isOnBreak}
-          onToggleBreak={toggleBreakMode}
-        />
-
-        {/* Leaves Shortcut Button */}
-        <TouchableOpacity
-          style={[styles.leavesButton, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '20', borderRadius: radius.xl }]}
-          onPress={() => navigation.navigate('LeaveManagement')}
-        >
-          <Calendar size={18} color={colors.primary} style={{ marginRight: spacing.sm }} />
-          <Text style={[styles.leavesButtonText, { color: colors.primary, fontSize: typography.sizes.sm }]}>
-            Manage Leaves / Off Days
-          </Text>
-        </TouchableOpacity>
-
-        {/* Weekly Schedule Title */}
-        <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.sm }]}>
-          Weekly Consultation Schedule
-        </Text>
-
-        {/* Days List */}
-        {schedule.map(day => (
-          <DayScheduleCard
-            key={day.id}
-            dayOfWeek={day.day_of_week}
-            startTime={day.start_time || ''}
-            endTime={day.end_time || ''}
-            slotDuration={day.slot_duration}
-            isAvailable={day.is_available}
-            onToggle={(val) => handleToggleDay(day, val)}
-            onEdit={() => handleOpenEdit(day)}
-          />
-        ))}
-      </ScrollView>
-
-      {/* Edit Hours Modal */}
-      <Modal
-        visible={editingDay !== null}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setEditingDay(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: colors.surface, borderRadius: radius.xl }]}>
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
-                Configure Hours
-              </Text>
-              <TouchableOpacity onPress={() => setEditingDay(null)} style={styles.closeButton}>
-                <X size={20} color={colors.textSecondary} />
-              </TouchableOpacity>
+          <Card
+            variant="outlined"
+            padding="md"
+            onPress={() => navigation.navigate('LeaveManagement')}
+            accessibilityLabel="Time off"
+            style={{ marginBottom: spacing.lg }}
+          >
+            <View style={styles.row}>
+              <View style={[styles.icon, { backgroundColor: colors.tint.error, borderRadius: radius.pill }]}>
+                <CalendarOff size={20} color={colors.error} />
+              </View>
+              <View style={styles.flex}>
+                <AppText variant="bodyStrong">Time off</AppText>
+                <AppText variant="caption" tone="secondary">
+                  {upcomingLeaves.length === 0
+                    ? 'No upcoming leave scheduled'
+                    : `${upcomingLeaves.length} upcoming day${upcomingLeaves.length === 1 ? '' : 's'} · next ${formatDateKey(upcomingLeaves[0].leave_date)}`}
+                </AppText>
+              </View>
+              <ChevronRight size={20} color={colors.textTertiary} />
             </View>
+          </Card>
 
-            {/* Start Time */}
-            <View style={styles.formRow}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                Start Time (24h format - HH:MM)
-              </Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border, borderRadius: radius.md }]}
-                value={startTimeInput}
-                onChangeText={setStartTimeInput}
-                placeholder="09:00"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* End Time */}
-            <View style={styles.formRow}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                End Time (24h format - HH:MM)
-              </Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border, borderRadius: radius.md }]}
-                value={endTimeInput}
-                onChangeText={setEndTimeInput}
-                placeholder="13:00"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* Slot Duration */}
-            <View style={styles.formRow}>
-              <Text style={[styles.inputLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
-                Slot Duration (Minutes)
-              </Text>
-              <TextInput
-                style={[styles.input, { color: colors.text, borderColor: colors.border, borderRadius: radius.md }]}
-                value={slotDurationInput}
-                onChangeText={setSlotDurationInput}
-                keyboardType="numeric"
-                placeholder="15"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            {/* Actions */}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.cancelBtn, { borderColor: colors.border, borderRadius: radius.lg }]}
-                onPress={() => setEditingDay(null)}
-              >
-                <Text style={[styles.cancelBtnText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.saveBtn, { backgroundColor: colors.primary, borderRadius: radius.lg }]}
-                onPress={handleSaveHours}
-                disabled={saveLoading}
-              >
-                {saveLoading ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                  <Text style={[styles.saveBtnText, { fontSize: typography.sizes.sm }]}>
-                    Save Changes
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
+          <View style={[styles.sectionHeader, { marginBottom: spacing.sm }]}>
+            <AppText variant="subtitle">Weekly hours</AppText>
+            <AppText variant="caption" tone="secondary">
+              {workingDays} working day{workingDays === 1 ? '' : 's'}
+            </AppText>
           </View>
-        </View>
-      </Modal>
-    </View>
+          <Card variant="elevated" padding="none" style={{ paddingHorizontal: spacing.lg }}>
+            {WEEKDAY_ORDER.map((day, index) => {
+              const row = byDay.get(day);
+              return (
+                <DayScheduleCard
+                  key={day}
+                  dayOfWeek={day}
+                  startTime={row?.start_time}
+                  endTime={row?.end_time}
+                  slotDuration={row?.slot_duration}
+                  isAvailable={row?.is_available ?? false}
+                  isToday={new Date().getDay() === day}
+                  isLast={index === WEEKDAY_ORDER.length - 1}
+                  onToggle={value => handleToggleDay(day, value)}
+                  onEdit={() => setEditingDay(day)}
+                />
+              );
+            })}
+          </Card>
+          <AppText variant="caption" tone="tertiary" style={{ marginTop: spacing.sm }}>
+            Existing appointments are not changed or cancelled when you edit your hours.
+          </AppText>
+        </>
+      )}
+
+      <DayHoursSheet
+        dayOfWeek={editingDay}
+        initial={editingDay !== null ? hoursFor(editingDay) : DEFAULT_HOURS}
+        saving={saving}
+        onClose={() => setEditingDay(null)}
+        onSave={handleSaveHours}
+      />
+    </ScreenWrapper>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: {
     flex: 1,
   },
-  contentContainer: {
-    padding: 16,
-    paddingTop: Platform.OS === 'ios' ? 50 : 20,
-  },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  errorText: {
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  header: {
-    marginBottom: 20,
-  },
-  title: {
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontWeight: '500',
-  },
-  leavesButton: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    paddingVertical: 14,
-    marginBottom: 20,
   },
-  leavesButtonText: {
-    fontWeight: '700',
-  },
-  sectionTitle: {
-    fontWeight: '700',
-    marginBottom: 12,
-    marginLeft: 2,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  icon: {
+    width: 40,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    marginRight: 12,
   },
-  modalContent: {
-    width: '100%',
-    maxWidth: 360,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  modalHeader: {
+  sectionHeader: {
     flexDirection: 'row',
+    alignItems: 'baseline',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontWeight: '800',
-  },
-  closeButton: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  formRow: {
-    marginBottom: 14,
-  },
-  inputLabel: {
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  input: {
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontWeight: '600',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 16,
-  },
-  cancelBtn: {
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  cancelBtnText: {
-    fontWeight: '600',
-  },
-  saveBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 110,
-  },
-  saveBtnText: {
-    color: '#ffffff',
-    fontWeight: '700',
   },
 });
+

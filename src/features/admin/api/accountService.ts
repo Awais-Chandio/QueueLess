@@ -17,7 +17,7 @@ export const accountService = {
           data: {
             full_name: payload.name,
             role: payload.role,
-            center_id: (payload.role === 'staff' || payload.role === 'doctor') ? payload.centerId : undefined,
+            center_id: payload.role === 'doctor' ? payload.centerId : undefined,
           },
         },
       });
@@ -31,20 +31,45 @@ export const accountService = {
         throw new Error('Failed to retrieve new user ID.');
       }
 
-      // 2. Insert or update the profile with the specified role and center
-      // Usually, a trigger might create the profile on sign up, so we upsert it.
+      // signUp signs the client in as the new user when email confirmation is off.
+      // Restore the admin session now so the writes below run with admin RLS.
+      if (currentSession && signUpData.session) {
+        const { error: restoreError } = await supabase.auth.setSession({
+          access_token: currentSession.access_token,
+          refresh_token: currentSession.refresh_token,
+        });
+        if (restoreError) {
+          throw new Error(`Account created, but admin session could not be restored: ${restoreError.message}`);
+        }
+      }
+
+      // 2. handle_new_user() has already created the profile row; update it as admin.
       const { error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: newUserId,
+        .update({
           full_name: payload.name,
           email: payload.email,
           role: payload.role,
-          center_id: (payload.role === 'staff' || payload.role === 'doctor') ? (payload.centerId || null) : null,
-        });
+          // Staff centers live only in staff_centers; profiles.center_id is doctor-only.
+          center_id: payload.role === 'doctor' ? payload.centerId ?? null : null,
+          ...(payload.phone ? { phone: payload.phone } : {}),
+        })
+        .eq('id', newUserId)
+        .select('id')
+        .single();
 
       if (profileError) {
         throw new Error(`Failed to assign role: ${profileError.message}`);
+      }
+
+      if (payload.role === 'staff') {
+        const centerIds = [...new Set(payload.centerIds ?? [])];
+        const { error: assignmentError } = await supabase.from('staff_centers').insert(
+          centerIds.map(centerId => ({ profile_id: newUserId, center_id: centerId })),
+        );
+        if (assignmentError) {
+          throw new Error(`Staff account created, but center assignment failed: ${assignmentError.message}`);
+        }
       }
 
       return {

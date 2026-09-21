@@ -26,6 +26,7 @@ import { toastService } from "../../../services/toastService";
 import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import DoctorConsultationAnimation from "../../../components/animations/DoctorConsultationAnimation";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
+import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
 
 type SignupScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "Signup">;
 
@@ -51,10 +52,7 @@ const SignupScreen = () => {
     const passValid = password.length >= 6;
     const confirmValid = password === confirmPassword && confirmPassword.length > 0;
 
-    // Mount animations
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(40)).current;
-    const logoScale = useRef(new Animated.Value(0.8)).current;
+    const { fadeAnim, slideAnim, logoScale } = useAuthEntranceAnimation();
 
     // Wizard slider animation
     const stepAnim = useRef(new Animated.Value(0)).current; // 0 for Step 1, 1 for Step 2
@@ -64,26 +62,6 @@ const SignupScreen = () => {
     const bgAnim2 = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        Animated.parallel([
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 600,
-                useNativeDriver: true,
-            }),
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                friction: 8,
-                tension: 40,
-                useNativeDriver: true,
-            }),
-            Animated.spring(logoScale, {
-                toValue: 1,
-                friction: 5,
-                tension: 30,
-                useNativeDriver: true,
-            })
-        ]).start();
-
         // Start floating background shapes
         Animated.loop(
             Animated.sequence([
@@ -97,7 +75,7 @@ const SignupScreen = () => {
                 Animated.timing(bgAnim2, { toValue: 0, duration: 5500, useNativeDriver: true }),
             ])
         ).start();
-    }, []);
+    }, [bgAnim1, bgAnim2]);
 
     const goToStep2 = () => {
         if (!name.trim()) {
@@ -236,7 +214,7 @@ const SignupScreen = () => {
 
                         <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" crossColor="#14B8A6" />
+                                <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" />
                             </View>
                         </Animated.View>
 
@@ -259,7 +237,7 @@ const SignupScreen = () => {
                         <View style={styles.mainContent}>
                             {/* Premium Healthcare Welcome Illustration */}
                             <DoctorConsultationAnimation />
-                            <Text style={styles.illustrationText}>Join QueueLess to Skip Waiting Lines</Text>
+                            <Text style={styles.illustrationText}>Join MediQ to Skip Waiting Lines</Text>
 
                             {/* Glassmorphic Wizard Card */}
                             <View style={[
@@ -412,19 +390,19 @@ const SignupScreen = () => {
                                 </View>
                             </View>
 
-                            {errorMessage ? <Text style={styles.errorMessage}>{errorMessage}</Text> : null}
-                            {successMessage ? <Text style={styles.successMessage}>{successMessage}</Text> : null}
+                            {errorMessage ? <Text style={[styles.errorMessage, { color: colors.error }]}>{errorMessage}</Text> : null}
+                            {successMessage ? <Text style={[styles.successMessage, { color: colors.success }]}>{successMessage}</Text> : null}
                         </View>
 
                         {/* Security & Support Badges to fill space */}
                         <View style={styles.badgeRow}>
-                            <View style={[styles.badge, { backgroundColor: isDarkMode ? 'rgba(0, 194, 168, 0.12)' : '#E6FDF9' }]}>
-                                <CheckCircle2 size={scaleFont(11)} color="#14B8A6" style={{ marginRight: 4 }} />
-                                <Text style={[styles.badgeText, { color: '#14B8A6' }]}>Zero Wait Time</Text>
+                            <View style={[styles.badge, { backgroundColor: colors.tint.accent }]}>
+                                <CheckCircle2 size={scaleFont(11)} color={colors.accent} style={styles.badgeIcon} />
+                                <Text style={[styles.badgeText, { color: colors.accent }]}>Zero Wait Time</Text>
                             </View>
-                            <View style={[styles.badge, { backgroundColor: isDarkMode ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7' }]}>
-                                <Activity size={scaleFont(11)} color="#D97706" style={{ marginRight: 4 }} />
-                                <Text style={[styles.badgeText, { color: '#D97706' }]}>Live Tracking</Text>
+                            <View style={[styles.badge, { backgroundColor: colors.tint.warning }]}>
+                                <Activity size={scaleFont(11)} color={colors.warning} style={styles.badgeIcon} />
+                                <Text style={[styles.badgeText, { color: colors.warning }]}>Live Tracking</Text>
                             </View>
                         </View>
 
@@ -582,7 +560,6 @@ const styles = StyleSheet.create({
         fontSize: scaleFont(14),
     },
     errorMessage: {
-        color: '#EF4444',
         textAlign: 'center',
         marginTop: hp(1.5),
         fontSize: scaleFont(13),
@@ -590,7 +567,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: wp(4),
     },
     successMessage: {
-        color: '#22C55E',
         textAlign: 'center',
         marginTop: hp(1.5),
         fontSize: scaleFont(13),
@@ -635,5 +611,8 @@ const styles = StyleSheet.create({
     badgeText: {
         fontSize: scaleFont(10.5),
         fontWeight: '700',
+    },
+    badgeIcon: {
+        marginRight: 4,
     },
 });

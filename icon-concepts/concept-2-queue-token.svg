@@ -1,0 +1,18 @@
+<!-- MediQ icon concept 2 — "Queue Token"
+     A solid token/coin with the M reversed out of it, inside a concentric
+     accent ring. Shapes: 1 ring + 1 disc carrying the M.
+     Highest legibility of the three at 48px. -->
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0E7490"/>
+      <stop offset="1" stop-color="#0891B2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="228" fill="url(#bg2)"/>
+  <circle cx="512" cy="500" r="300" fill="none" stroke="#14B8A6" stroke-width="40"/>
+  <circle cx="512" cy="500" r="246" fill="#FFFFFF"/>
+  <path d="M400 600V404L512 512L624 404V600"
+        fill="none" stroke="#0E7490" stroke-width="58"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

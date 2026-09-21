@@ -79,5 +79,39 @@ export const centerService = {
     if (error) {
       throw new Error(error.message);
     }
-  }
+  },
+
+  async getPopularCenters(limit = 6): Promise<(Center & { bookingCount: number })[]> {
+    const [{ data: centers, error: centersError }, { data: appointments, error: appointmentsError }] =
+      await Promise.all([
+        supabase.from('service_centers').select('*'),
+        supabase.from('appointments').select('center_id'),
+      ]);
+
+    if (centersError) {
+      throw new Error(centersError.message);
+    }
+    if (appointmentsError) {
+      throw new Error(appointmentsError.message);
+    }
+
+    const bookingCounts = new Map<string, number>();
+    (appointments ?? []).forEach(appointment => {
+      if (!appointment.center_id) {
+        return;
+      }
+      bookingCounts.set(
+        appointment.center_id,
+        (bookingCounts.get(appointment.center_id) ?? 0) + 1,
+      );
+    });
+
+    return (centers ?? [])
+      .map(center => ({
+        ...center,
+        bookingCount: bookingCounts.get(center.id) ?? 0,
+      }))
+      .sort((a, b) => b.bookingCount - a.bookingCount)
+      .slice(0, limit);
+  },
 };

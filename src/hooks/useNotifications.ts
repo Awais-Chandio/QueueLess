@@ -17,14 +17,16 @@ import type { Notification } from '../types/notification';
 import type { AppStackParamList } from '../navigation/types';
 
 export const useNotifications = () => {
-    const { user } = useAuthStore();
+    // This hook runs in RootNavigator, so subscribing to whole stores here
+    // re-rendered the whole app on every notification or auth store change.
+    // Only the user id matters: a token refresh replaces the user object and
+    // used to re-run FCM setup and the Supabase token sync each time.
+    const userId = useAuthStore(state => state.user?.id ?? null);
     const navigation = useNavigation<NativeStackNavigationProp<AppStackParamList>>();
-    const {
-        setFcmToken,
-        setPermissionGranted,
-        upsertNotification,
-        fcmToken
-    } = useNotificationsStore();
+    const setFcmToken = useNotificationsStore(state => state.setFcmToken);
+    const setPermissionGranted = useNotificationsStore(state => state.setPermissionGranted);
+    const upsertNotification = useNotificationsStore(state => state.upsertNotification);
+    const fcmToken = useNotificationsStore(state => state.fcmToken);
 
     /**
      * Updates the fcm_token in Supabase device_tokens table via service
@@ -33,7 +35,7 @@ export const useNotifications = () => {
         if (!token) return;
 
         try {
-            const activeUserId = user?.id;
+            const activeUserId = userId;
 
             if (!activeUserId) {
                 if (__DEV__) console.log('[useNotifications] No active authenticated user found for FCM sync.');
@@ -50,7 +52,7 @@ export const useNotifications = () => {
                 console.warn('[useNotifications] Failed to sync FCM token to Supabase:', error);
             }
         }
-    }, [user]);
+    }, [userId]);
 
     /**
      * Initializes FCM, requests permissions contextually, and retrieves token
@@ -86,10 +88,10 @@ export const useNotifications = () => {
         const token = await fcmService.getToken();
         setFcmToken(token);
 
-        if (token && user) {
+        if (token && userId) {
             await updateTokenInSupabase(token);
         }
-    }, [user, setFcmToken, setPermissionGranted, updateTokenInSupabase]);
+    }, [userId, setFcmToken, setPermissionGranted, updateTokenInSupabase]);
 
     const requestPermission = useCallback(async () => {
         await initializeFCM(true);
@@ -112,7 +114,7 @@ export const useNotifications = () => {
         // Listen to token refreshes
         const unsubscribeTokenRefresh = fcmService.onTokenRefresh(async (newToken) => {
             setFcmToken(newToken);
-            if (user) {
+            if (userId) {
                 await updateTokenInSupabase(newToken);
             }
         });
@@ -129,7 +131,7 @@ export const useNotifications = () => {
             // Add to Zustand store using standard Notification type
             const newNotif: Notification = {
                 id: remoteMessage.messageId || Math.random().toString(36).substring(7),
-                user_id: user?.id || 'anonymous',
+                user_id: userId || 'anonymous',
                 type: (remoteMessage.data?.type as string) || 'push',
                 title,
                 message: body,
@@ -171,7 +173,7 @@ export const useNotifications = () => {
             unsubscribeOnMessage();
             unsubscribeOnNotificationOpened();
         };
-    }, [user, initializeFCM, setFcmToken, upsertNotification, updateTokenInSupabase, handleNotificationClick]);
+    }, [userId, initializeFCM, setFcmToken, upsertNotification, updateTokenInSupabase, handleNotificationClick]);
 
     return {
         fcmToken,

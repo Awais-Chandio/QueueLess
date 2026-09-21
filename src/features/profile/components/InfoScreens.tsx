@@ -3,11 +3,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Card } from '../../../components/ui/Card';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { useTheme } from '../../../hooks/useTheme';
+import Wordmark from '../../../components/ui/Wordmark';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 
 type InfoSection = {
   title: string;
   body: string;
+  /** Renders the title as the MediQ logotype instead of a plain heading. */
+  brand?: boolean;
 };
 
 type InfoScreenProps = {
@@ -49,18 +52,26 @@ const InfoScreen = ({ title, subtitle, sections }: InfoScreenProps) => {
 
       {sections.map(section => (
         <Card key={section.title} variant="outlined" style={[styles.sectionCard, { marginBottom: hp(1.6) }]}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              {
-                color: colors.text,
-                fontSize: typography.sizes.lg,
-                marginBottom: spacing.sm,
-              },
-            ]}
-          >
-            {section.title}
-          </Text>
+          {section.brand ? (
+            <Wordmark
+              size={18}
+              tone="onSurface"
+              style={[styles.sectionTitle, styles.brandTitle, { marginBottom: spacing.sm }]}
+            />
+          ) : (
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color: colors.text,
+                  fontSize: typography.sizes.lg,
+                  marginBottom: spacing.sm,
+                },
+              ]}
+            >
+              {section.title}
+            </Text>
+          )}
           <Text
             style={[
               styles.sectionBody,
@@ -82,7 +93,7 @@ const InfoScreen = ({ title, subtitle, sections }: InfoScreenProps) => {
 const privacySections: InfoSection[] = [
   {
     title: 'Information We Use',
-    body: 'QueueLess uses your profile details, appointments, queue status, and notification preferences to provide booking and queue updates.',
+    body: 'MediQ uses your profile details, appointments, queue status, and notification preferences to provide booking and queue updates.',
   },
   {
     title: 'How It Helps',
@@ -96,8 +107,9 @@ const privacySections: InfoSection[] = [
 
 const aboutSections: InfoSection[] = [
   {
-    title: 'QueueLess',
-    body: 'QueueLess helps patients book appointments, track queue progress, and receive timely service updates from participating centers.',
+    title: 'MediQ',
+    brand: true,
+    body: 'MediQ helps patients book appointments, track queue progress, and receive timely service updates from participating centers.',
   },
   {
     title: 'For Centers',
@@ -112,7 +124,7 @@ const aboutSections: InfoSection[] = [
 const termsSections: InfoSection[] = [
   {
     title: 'Use of Service',
-    body: 'Use QueueLess for genuine appointment booking and queue tracking. Keep your account details accurate so centers can serve you correctly.',
+    body: 'Use MediQ for genuine appointment booking and queue tracking. Keep your account details accurate so centers can serve you correctly.',
   },
   {
     title: 'Appointments',
@@ -127,14 +139,14 @@ const termsSections: InfoSection[] = [
 export const PrivacyPolicyScreen = () => (
   <InfoScreen
     title="Privacy Policy"
-    subtitle="How QueueLess handles app data."
+    subtitle="How MediQ handles app data."
     sections={privacySections}
   />
 );
 
 export const AboutScreen = () => (
   <InfoScreen
-    title="About QueueLess"
+    title="About MediQ"
     subtitle="A cleaner appointment and queue experience."
     sections={aboutSections}
   />
@@ -143,7 +155,7 @@ export const AboutScreen = () => (
 export const TermsScreen = () => (
   <InfoScreen
     title="Terms of Service"
-    subtitle="Basic terms for using QueueLess."
+    subtitle="Basic terms for using MediQ."
     sections={termsSections}
   />
 );
@@ -157,6 +169,10 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     width: '100%',
+  },
+  // Wordmark centres by default; section headings are left-aligned.
+  brandTitle: {
+    textAlign: 'left',
   },
   sectionTitle: {
     fontWeight: '700',
