@@ -1,0 +1,200 @@
+import { useCallback } from "react";
+import { authService } from '../features/auth/api/authService';
+import { useAuthStore } from '../store/authStore';
+import { useProfileStore } from '../store/profileStore';
+import { LoginPayload, SignupPayload } from '../types/auth';
+import { profileService } from '../features/profile/api/profileService';
+
+const toAuthError = (error: unknown, fallbackMessage: string) => {
+  if (error instanceof Error) {
+    return error;
+  }
+
+  return new Error(fallbackMessage);
+};
+
+const fetchVerifiedProfileRole = async (
+  userId: string,
+  fallbackProfile: {
+    full_name: string;
+    email: string;
+  },
+) => {
+  const { data: profile, error: profileError } =
+    await profileService.getProfileById(userId);
+
+  if (!profileError) {
+    await useProfileStore.getState().fetchProfile(userId);
+    return profile?.role ?? useProfileStore.getState().profile?.role ?? 'client';
+  }
+
+  await profileService.createProfile({
+    id: userId,
+    full_name: fallbackProfile.full_name,
+    email: fallbackProfile.email,
+  });
+  await useProfileStore.getState().fetchProfile(userId);
+
+  return useProfileStore.getState().profile?.role ?? 'client';
+};
+
+export const useAuth = () => {
+  const {
+    session,
+    user,
+    role,
+    isAuthenticated,
+    isLoading,
+    setSession,
+    setRole,
+    clearAuth,
+    setLoading,
+  } = useAuthStore();
+
+  const restoreSession = useCallback(async () => {
+    if (__DEV__) console.log('[AUTH] restoreSession started');
+    setLoading(true);
+
+    try {
+      const { data, error } = await authService.getSession();
+      if (__DEV__) {
+        console.log('[AUTH] getSession result:', { sessionExists: !!data.session, error: error?.message });
+      }
+
+      if (error || !data.session) {
+        clearAuth();
+        useProfileStore.getState().clearProfile();
+        return;
+      }
+
+      const currentSession = data.session;
+      setSession(currentSession);
+
+      // Verify authorization role from profiles table, not JWT claims.
+      try {
+        const verifiedRole = await fetchVerifiedProfileRole(
+          currentSession.user.id,
+          {
+            full_name: currentSession.user.user_metadata?.full_name || '',
+            email: currentSession.user.email || '',
+          },
+        );
+        setRole(verifiedRole);
+        if (__DEV__) console.log('[AUTH] restoreSession complete');
+      } catch (e) {
+        if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
+        setRole('client');
+      }
+    } catch {
+      clearAuth();
+      useProfileStore.getState().clearProfile();
+    }
+  }, [clearAuth, setRole, setSession, setLoading]);
+
+  const login = useCallback(async (payload: LoginPayload) => {
+    if (__DEV__) console.log('[AUTH] login started');
+    setLoading(true);
+
+    try {
+      const { data, error } = await authService.signIn(payload);
+      if (__DEV__) {
+        console.log('[AUTH] login result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
+      }
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data.session || !data.user) {
+        throw new Error('Login failed. Please check your email and password.');
+      }
+
+      setSession(data.session);
+
+      // Verify authorization role from profiles table, not JWT claims.
+      try {
+        const verifiedRole = await fetchVerifiedProfileRole(data.user.id, {
+          full_name: data.user.user_metadata?.full_name || '',
+          email: data.user.email || '',
+        });
+        setRole(verifiedRole);
+        if (__DEV__) console.log('[AUTH] login complete');
+      } catch (e) {
+        if (__DEV__) console.warn('[LOGIN] Profile fetch/restore warning:', e);
+        setRole('client');
+      }
+    } catch (error) {
+      clearAuth();
+      throw toAuthError(error, 'Login failed. Please try again.');
+    }
+  }, [clearAuth, setRole, setSession, setLoading]);
+
+  const signup = useCallback(async (payload: SignupPayload) => {
+    if (__DEV__) console.log('[AUTH] signup started');
+    setLoading(true);
+
+    try {
+      const { data, error } = await authService.signUp(payload);
+      if (__DEV__) {
+        console.log('[AUTH] signup result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
+      }
+
+      if (error) {
+        throw error;
+      }
+
+      if (data.session && data.user) {
+        if (__DEV__) console.log('[AUTH] signup success — setting auth');
+        setSession(data.session);
+        try {
+          const verifiedRole = await fetchVerifiedProfileRole(data.user.id, {
+            full_name: data.user.user_metadata?.full_name || '',
+            email: data.user.email || '',
+          });
+          setRole(verifiedRole);
+        } catch (e) {
+          if (__DEV__) console.warn('[SIGNUP] Profile fetch warning:', e);
+          setRole('client');
+        }
+        return;
+      }
+
+      setLoading(false);
+    } catch (error) {
+      clearAuth();
+      throw toAuthError(error, 'Signup failed. Please try again.');
+    }
+  }, [clearAuth, setRole, setSession, setLoading]);
+
+  const logout = useCallback(async () => {
+    if (__DEV__) console.log('[AUTH] logout started');
+    setLoading(true);
+
+    try {
+      const { error } = await authService.signOut();
+
+      if (error) {
+        throw error;
+      }
+
+      clearAuth();
+      useProfileStore.getState().clearProfile();
+      if (__DEV__) console.log('[AUTH] logout complete, profile cleared');
+    } catch (error) {
+      setLoading(false);
+      throw toAuthError(error, 'Logout failed. Please try again.');
+    }
+  }, [clearAuth, setLoading]);
+
+  return {
+    session,
+    user,
+    role,
+    isAuthenticated,
+    isLoading,
+    restoreSession,
+    login,
+    signup,
+    logout,
+  };
+};

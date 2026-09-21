@@ -1,0 +1,56 @@
+import { create } from 'zustand';
+import { Session, User } from '@supabase/supabase-js';
+import {
+  UserRole,
+  normalizeUserRole,
+} from '../utils/roleMapping';
+
+export type AuthRole = UserRole;
+
+interface AuthState {
+  session: Session | null;
+  user: User | null;
+  role: AuthRole | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  setSession: (session: Session | null) => void;
+  setRole: (role: unknown) => void;
+  clearAuth: () => void;
+  setLoading: (isLoading: boolean) => void;
+}
+
+export const useAuthStore = create<AuthState>(set => ({
+  session: null,
+  user: null,
+  role: null,
+  isAuthenticated: false,
+  isLoading: true,
+
+  setSession: session =>
+    set({
+      session,
+      user: session?.user ?? null,
+      role: null,
+      isAuthenticated: !!session,
+      isLoading: false,
+    }),
+
+  setRole: role =>
+    set({
+      role: normalizeUserRole(role),
+    }),
+
+  clearAuth: () =>
+    set({
+      session: null,
+      user: null,
+      role: null,
+      isAuthenticated: false,
+      isLoading: false,
+    }),
+
+  setLoading: isLoading =>
+    set({
+      isLoading,
+    }),
+}));

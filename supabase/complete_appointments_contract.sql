@@ -35,7 +35,17 @@ BEGIN
   ) THEN
     ALTER TABLE public.appointments
       ADD CONSTRAINT appointments_status_check
-      CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled'))
+      CHECK (
+        status IN (
+          'pending',
+          'confirmed',
+          'checked_in',
+          'called',
+          'in_progress',
+          'completed',
+          'cancelled'
+        )
+      )
       NOT VALID;
   END IF;
 END;

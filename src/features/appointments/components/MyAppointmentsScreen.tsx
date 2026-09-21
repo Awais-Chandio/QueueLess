@@ -1,92 +1,185 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  ScrollView,
+  TextStyle,
+} from 'react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
-import { Card } from '../../../components/ui/Card';
-import { Badge, BadgeVariant } from '../../../components/ui/Badge';
 import { EmptyState } from '../../../components/ui/EmptyState';
-import { Skeleton } from '../../../components/ui/Skeleton';
+import ErrorState from '../../../components/ui/ErrorState';
+import { SkeletonLoader } from '../../../components/animations/SkeletonLoader';
+import AppointmentTile from '../../../components/ui/AppointmentTile';
 import { useTheme } from '../../../hooks/useTheme';
-import { useAppointments } from '../hooks/useAppointments';
+import { useAppointments } from '../../../hooks/useAppointments';
+import { useAuthStore } from '../../../store/authStore';
 import type { AppStackParamList } from '../../../navigation/types';
-import type { AppointmentStatus } from '../../../types/appointment';
-import { Calendar, Clock, MapPin, SearchX } from 'lucide-react-native';
+import { getAppointmentStatusState } from '../../../services/bookingService';
+import { SearchX } from 'lucide-react-native';
 import { scaleFont } from '../../../utils/responsive';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
-type StatusFilter = 'all' | AppointmentStatus;
+type StatusFilter = 'active_upcoming' | 'past_completed';
 
-const statusFilters: StatusFilter[] = ['all', 'pending', 'confirmed', 'completed', 'cancelled'];
+const statusFilters = [
+  { key: 'active_upcoming' as const, label: 'Active / Upcoming', dotColor: '#3B82F6' },
+  { key: 'past_completed' as const, label: 'Past / Completed', dotColor: '#10B981' },
+];
 
 const MyAppointmentsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { colors, spacing, typography, radius } = useTheme();
-  const { data: appointments = [], isLoading, isRefetching, refetch } = useAppointments();
-  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('all');
+  const userId = useAuthStore(state => state.user?.id);
+  const {
+    data: appointments = [],
+    error,
+    isError,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useAppointments();
+  const [selectedStatus, setSelectedStatus] = useState<StatusFilter>('active_upcoming');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const filteredAppointments = selectedStatus === 'all' 
-    ? appointments 
-    : appointments.filter(item => item.status === selectedStatus);
+  useFocusEffect(
+    useCallback(() => {
+      if (userId) {
+        refetch();
+      }
+    }, [refetch, userId]),
+  );
 
-  const formatStatus = (status: AppointmentStatus) => status.charAt(0).toUpperCase() + status.slice(1);
-
-  const getStatusVariant = (status: AppointmentStatus): BadgeVariant => {
-    switch (status) {
-      case 'confirmed': return 'success';
-      case 'cancelled': return 'error';
-      case 'completed': return 'default';
-      case 'pending':
-      default: return 'warning';
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setIsRefreshing(false);
     }
-  };
+  }, [refetch]);
+
+  const filteredAppointments = appointments.filter(item => {
+    const { resolvedStatus } = getAppointmentStatusState(item);
+    if (selectedStatus === 'active_upcoming') {
+      return ['pending', 'confirmed', 'checked_in', 'called', 'in_progress'].includes(resolvedStatus);
+    }
+    if (selectedStatus === 'past_completed') {
+      return ['completed', 'cancelled', 'expired', 'no_show'].includes(resolvedStatus);
+    }
+    return false;
+  });
+
+  const skeletonContainerStyle = { paddingBottom: spacing.xl };
 
   const renderSkeleton = () => (
-    <View style={{ gap: spacing.md, paddingBottom: spacing.xl }}>
-      <Skeleton height={140} />
-      <Skeleton height={140} />
-      <Skeleton height={140} />
+    <View style={skeletonContainerStyle}>
+      <SkeletonLoader height={140} count={3} gap={spacing.md} />
     </View>
   );
+
+  // Dynamic Styles
+  const titleStyle = [
+    styles.title,
+    {
+      color: colors.text,
+      fontSize: typography.sizes.xxl,
+      marginBottom: spacing.lg,
+    },
+  ];
+
+  const filterListStyle = [
+    styles.filterList,
+    { marginBottom: spacing.md },
+  ];
+
+  const filterListContentStyle = {
+    gap: spacing.sm,
+    paddingRight: spacing.lg,
+  };
+
+  const listContentStyle = [
+    styles.listContent,
+    { paddingBottom: spacing.xl },
+  ];
 
   return (
     <ScreenWrapper>
       <View style={styles.container}>
-        <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.lg }]}>
+        <Text style={titleStyle}>
           My Appointments
         </Text>
 
-        <View style={[styles.filterRow, { marginBottom: spacing.md, gap: spacing.sm }]}>
-          {statusFilters.map(status => {
-            const isSelected = selectedStatus === status;
+        {/* Status filter chips with dot indicators */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={filterListStyle}
+          contentContainerStyle={filterListContentStyle}
+        >
+          {statusFilters.map(filter => {
+            const isSelected = selectedStatus === filter.key;
+            const dotColor = filter.dotColor;
+
+            const filterButtonStyle = [
+              styles.filterButton,
+              {
+                borderColor: isSelected ? dotColor : colors.border,
+                backgroundColor: isSelected ? dotColor + '18' : colors.surface,
+                borderRadius: radius.full,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.xs,
+              },
+            ];
+
+            const dotStyle = [
+              styles.filterDot,
+              {
+                backgroundColor: isSelected ? dotColor : colors.textSecondary + '60',
+              },
+            ];
+
+            const filterButtonTextStyle = {
+              color: isSelected ? dotColor : colors.textSecondary,
+              fontSize: typography.sizes.sm,
+              fontWeight: (isSelected ? '700' : '500') as TextStyle['fontWeight'],
+            };
+
             return (
               <Pressable
-                key={status}
-                onPress={() => setSelectedStatus(status)}
-                style={[
-                  styles.filterButton,
-                  {
-                    borderColor: isSelected ? colors.primary : colors.border,
-                    backgroundColor: isSelected ? colors.primary : colors.surface,
-                    borderRadius: radius.full,
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: spacing.xs,
-                  }
+                key={filter.key}
+                onPress={() => setSelectedStatus(filter.key)}
+                style={({ pressed }) => [
+                  filterButtonStyle,
+                  pressed && styles.pressedEffect,
                 ]}
               >
-                <Text style={{
-                  color: isSelected ? '#FFF' : colors.textSecondary,
-                  fontSize: typography.sizes.sm,
-                  fontWeight: '600'
-                }}>
-                  {status === 'all' ? 'All' : formatStatus(status)}
+                <View style={dotStyle} />
+                <Text style={filterButtonTextStyle}>
+                  {filter.label}
                 </Text>
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
 
-        {isLoading ? (
+        {isError ? (
+          <ErrorState
+            title="Failed To Load Appointments"
+            message={
+              error instanceof Error
+                ? error.message
+                : 'Please try again.'
+            }
+            buttonTitle="Retry"
+            onRetry={handleRefresh}
+          />
+        ) : isLoading && appointments.length === 0 ? (
           renderSkeleton()
         ) : (
           <FlatList
@@ -96,9 +189,14 @@ const MyAppointmentsScreen = () => {
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={5}
-            contentContainerStyle={{ paddingBottom: spacing.xl, flexGrow: 1 }}
-            onRefresh={refetch}
-            refreshing={isRefetching}
+            contentContainerStyle={listContentStyle}
+            refreshControl={
+              <RefreshControl
+                tintColor={colors.primary}
+                refreshing={isRefreshing || isRefetching}
+                onRefresh={handleRefresh}
+              />
+            }
             ListEmptyComponent={
               <EmptyState
                 Icon={SearchX}
@@ -106,58 +204,21 @@ const MyAppointmentsScreen = () => {
                 subtitle="No appointments found for this status."
               />
             }
-            renderItem={({ item }) => (
-              <Pressable onPress={() => navigation.navigate('AppointmentDetails', { appointmentId: item.id })}>
-                <Card style={{ marginBottom: spacing.md }}>
-                  <View style={styles.cardHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '700' }}>
-                        {item.service_name ?? 'Service'}
-                      </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs }}>
-                        <MapPin size={scaleFont(14)} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs, flex: 1 }}>
-                          {item.center_name ?? 'Center'}
-                        </Text>
-                      </View>
-                    </View>
-                    <Badge label={formatStatus(item.status as AppointmentStatus)} variant={getStatusVariant(item.status as AppointmentStatus)} />
-                  </View>
-
-                  <View style={[styles.divider, { backgroundColor: colors.border, marginVertical: spacing.md }]} />
-
-                  <View style={styles.detailsRow}>
-                    <View style={styles.detailItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
-                        <Calendar size={scaleFont(14)} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Date</Text>
-                      </View>
-                      <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                        {new Date(item.scheduled_at).toLocaleDateString()}
-                      </Text>
-                    </View>
-
-                    <View style={styles.detailItem}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xs / 2 }}>
-                        <Clock size={scaleFont(14)} color={colors.textSecondary} />
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginLeft: spacing.xs }}>Time</Text>
-                      </View>
-                      <Text style={{ color: colors.text, fontSize: typography.sizes.md, fontWeight: '600' }}>
-                        {new Date(item.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
-
-                    {typeof item.token_number === 'number' && (
-                      <View style={styles.detailItem}>
-                        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, marginBottom: spacing.xs / 2 }}>Token</Text>
-                        <Text style={{ color: colors.primary, fontSize: typography.sizes.md, fontWeight: 'bold' }}>
-                          #{item.token_number}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                </Card>
-              </Pressable>
+            renderItem={({ item, index }) => (
+              <AppointmentTile
+                item={item}
+                index={index}
+                onPress={() =>
+                  navigation.navigate('AppointmentDetails', {
+                    appointmentId: item.id,
+                  })
+                }
+                onPressQueue={() =>
+                  navigation.navigate('QueueStatus', {
+                    appointmentId: item.id,
+                  })
+                }
+              />
             )}
           />
         )}
@@ -173,32 +234,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontWeight: 'bold',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  filterList: {
+    maxHeight: scaleFont(44),
   },
   filterButton: {
-    borderWidth: 1,
-  },
-  cardHeader: {
+    borderWidth: 1.2,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: scaleFont(8),
+    alignItems: 'center',
+    gap: scaleFont(5),
+    height: scaleFont(30),
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
+  filterDot: {
+    width: scaleFont(6),
+    height: scaleFont(6),
+    borderRadius: scaleFont(3),
   },
-  detailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: scaleFont(12),
+  pressedEffect: {
+    opacity: 0.75,
   },
-  detailItem: {
-    flex: 1,
-    minWidth: '28%',
-  }
+  listContent: {
+    flexGrow: 1,
+  },
 });

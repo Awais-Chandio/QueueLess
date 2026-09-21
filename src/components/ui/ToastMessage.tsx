@@ -1,72 +1,165 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import Toast, {
+  type ToastConfig,
+  type ToastConfigParams,
+} from 'react-native-toast-message';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  Info,
+  X,
+  type LucideIcon,
+} from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useToastStore } from '../../store/toastStore';
-import { colors, radius, spacing, typography } from '../../theme';
-import { scaleFont, wp } from '../../utils/responsive';
+import { useTheme } from '../../hooks/useTheme';
+import type { ToastType } from '../../services/toastService';
 
-const toastColors = {
-  success: colors.success,
-  error: colors.error,
-  info: colors.primary,
+/**
+ * The app-wide toast surface.
+ *
+ * Replaces a hand-rolled toast that imported the *static light* palette, so
+ * every toast rendered as light-on-white in dark mode, and that signalled its
+ * kind with background colour alone — unreadable for anyone who cannot
+ * distinguish the hues. Each toast now carries an icon and a text label as well
+ * as the colour, and reads its colours from the active theme.
+ *
+ * Presentation only: `toastService` is unchanged, so all ~110 existing call
+ * sites keep working.
+ */
+
+const ICONS: Record<ToastType, LucideIcon> = {
+  success: CheckCircle2,
+  error: XCircle,
+  warning: AlertTriangle,
+  info: Info,
 };
 
-const ToastMessage = () => {
-  const { visible, message, type } = useToastStore();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const insets = useSafeAreaInsets();
+const DEFAULT_TITLES: Record<ToastType, string> = {
+  success: 'Done',
+  error: 'Something went wrong',
+  warning: 'Heads up',
+  info: 'Info',
+};
 
-  useEffect(() => {
-    if (visible) {
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, fadeAnim]);
+const ToastCard: React.FC<ToastConfigParams<unknown> & { kind: ToastType }> = ({
+  text1,
+  text2,
+  kind,
+  onPress,
+}) => {
+  const { colors, spacing, radius, shadows, typography, sizing } = useTheme();
+  const { width } = useWindowDimensions();
 
-  if (!visible) return null;
+  const tone = colors.status[kind];
+  const Icon = ICONS[kind];
 
+  // A toast is a surface with a coloured accent, not a block of saturated
+  // colour: the message has to stay readable, and a full-bleed error red at the
+  // top of a clinical screen reads as an alarm.
   return (
-    <Animated.View
+    <View
+      accessible
+      accessibilityRole="alert"
+      accessibilityLabel={`${text1 ?? DEFAULT_TITLES[kind]}. ${text2 ?? ''}`.trim()}
       style={[
-        styles.container,
-        { backgroundColor: toastColors[type], opacity: fadeAnim, top: insets.top + spacing.sm },
+        styles.card,
+        shadows.lg,
+        {
+          width: Math.min(width - spacing.lg * 2, 520),
+          backgroundColor: colors.surface,
+          borderRadius: radius.card,
+          borderColor: colors.border,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.md,
+        },
       ]}
     >
-      <Text style={styles.text}>{message}</Text>
-    </Animated.View>
+      <View style={[styles.accent, { backgroundColor: tone.dot, borderTopLeftRadius: radius.card, borderBottomLeftRadius: radius.card }]} />
+
+      <View style={[styles.iconWell, { backgroundColor: tone.bg, borderRadius: radius.sm }]}>
+        <Icon size={sizing.icon.md} color={tone.dot} />
+      </View>
+
+      <View style={styles.body}>
+        <Text
+          style={[typography.roles.label, { color: colors.text, fontWeight: '600' }]}
+          numberOfLines={1}
+        >
+          {text1 ?? DEFAULT_TITLES[kind]}
+        </Text>
+        {text2 ? (
+          <Text
+            style={[typography.roles.caption, { color: colors.textSecondary, marginTop: 2 }]}
+            numberOfLines={3}
+          >
+            {text2}
+          </Text>
+        ) : null}
+      </View>
+
+      <Pressable
+        onPress={onPress ?? (() => Toast.hide())}
+        hitSlop={sizing.hitSlop}
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss notification"
+        style={styles.dismiss}
+      >
+        <X size={sizing.icon.sm} color={colors.textTertiary} />
+      </Pressable>
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    left: wp(4),
-    right: wp(4),
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    zIndex: 999,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: scaleFont(2) },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-  },
-  text: {
-    color: '#fff',
-    fontSize: typography.body,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-});
+const ToastMessage = () => {
+  const insets = useSafeAreaInsets();
+  const { spacing } = useTheme();
+
+  const config = useMemo<ToastConfig>(
+    () => ({
+      success: props => <ToastCard {...props} kind="success" />,
+      error: props => <ToastCard {...props} kind="error" />,
+      warning: props => <ToastCard {...props} kind="warning" />,
+      info: props => <ToastCard {...props} kind="info" />,
+    }),
+    [],
+  );
+
+  // Clears the status bar, notch and Dynamic Island on every device rather
+  // than assuming a fixed offset.
+  return <Toast config={config} topOffset={insets.top + spacing.sm} />;
+};
 
 export default ToastMessage;
+
+const styles = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+  },
+  accent: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+  },
+  iconWell: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  body: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  dismiss: {
+    paddingTop: 2,
+  },
+});

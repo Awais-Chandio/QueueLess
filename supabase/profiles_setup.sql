@@ -8,11 +8,22 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     full_name TEXT NOT NULL,
     email TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'client',
     phone TEXT,
     avatar_url TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'client';
+
+ALTER TABLE public.profiles
+  DROP CONSTRAINT IF EXISTS profiles_role_check;
+
+ALTER TABLE public.profiles
+  ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('client', 'staff', 'admin'));
 
 -- 2. Enable RLS (idempotent)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -51,11 +62,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, email, created_at, updated_at)
+  INSERT INTO public.profiles (id, full_name, email, role, created_at, updated_at)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
     NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'role', 'client'),
     NOW(),
     NOW()
   )
@@ -72,11 +84,12 @@ CREATE TRIGGER on_auth_user_created
   EXECUTE FUNCTION public.handle_new_user();
 
 -- 9. Backfill profiles for existing auth users that don't have one
-INSERT INTO public.profiles (id, full_name, email, created_at, updated_at)
+INSERT INTO public.profiles (id, full_name, email, role, created_at, updated_at)
 SELECT 
   id,
   COALESCE(raw_user_meta_data->>'full_name', email) as full_name,
   email,
+  COALESCE(raw_user_meta_data->>'role', 'client') as role,
   NOW(),
   NOW()
 FROM auth.users

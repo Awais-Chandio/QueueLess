@@ -1,9 +1,13 @@
-export interface QueueUpdate {
-    id: string;
-    appointment_id: string;
-    current_position: number;
-    people_ahead: number;
-    estimated_wait_mins: number;
-    status: string;
-    created_at: string;
+export interface QueueSnapshot {
+  currentToken: number;
+  nextToken?: number | null;
+  yourToken?: number | null;
+  peopleAhead: number;
+  estimatedWaitMins: number;
+  currentPosition: number;
+  averageConsultationTime?: number | null;
+  isOnBreak?: boolean;
+  breakStart?: string | null;
+  breakEnd?: string | null;
+  queueStatus?: string | null;
 }

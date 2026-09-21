@@ -5,3 +5,5 @@ declare const process: {
   };
 };
 
+declare module 'react-native-chart-kit';
+
