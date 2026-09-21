@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Alert, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -47,6 +47,7 @@ import {
 } from 'lucide-react-native';
 import { Image } from 'react-native';
 import { supabase } from '../../../lib/supabase';
+import { subscribeToAppointments, unsubscribeAppointments } from '../../../services/queueService';
 import type { DoctorAvailabilityStatus } from '../../../types/doctor';
 import { scaleFont, wp } from '../../../utils/responsive';
 import { toastService } from '../../../services/toastService';
@@ -100,46 +101,42 @@ const QueueStatusScreen = () => {
   const [doctorAvailability, setDoctorAvailability] = useState<any>(null);
   const [doctorLoading, setDoctorLoading] = useState(!!doctorId);
 
+  const hasDoctorDataRef = useRef(false);
+
   const fetchDoctorQueueData = useCallback(async () => {
     const isUuid = typeof doctorId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doctorId);
     if (!isUuid) {
-      console.warn("fetchDoctorQueueData skipped: doctorId is not a valid UUID:", doctorId);
+      if (__DEV__) console.warn('fetchDoctorQueueData skipped: doctorId is not a valid UUID:', doctorId);
       return;
     }
+    // Only the first load replaces the screen with a loader. Realtime refreshes
+    // used to set it on every event, so the whole preview blinked out each time
+    // anyone's appointment changed.
+    if (!hasDoctorDataRef.current) setDoctorLoading(true);
     try {
-      setDoctorLoading(true);
-      // Fetch Doctor Details
-      const { data: docData, error: docErr } = await supabase
-        .from('doctors')
-        .select('*')
-        .eq('id', doctorId)
-        .single();
-      if (docErr) throw docErr;
-      setDoctor(docData);
-
-      // Fetch Doctor Queue Snapshot
-      console.log("RPC: get_doctor_queue_snapshot");
-      console.log("RPC:", doctorId);
-      const { data: qData, error: qErr } = await supabase
-        .rpc('get_doctor_queue_snapshot', {
+      // The three reads are independent; they used to run one after another.
+      const [docRes, queueRes, availRes] = await Promise.all([
+        supabase.from('doctors').select('*').eq('id', doctorId).single(),
+        supabase.rpc('get_doctor_queue_snapshot', {
           p_doctor_id: doctorId,
-          p_queue_date: getPakistanTodayDateString()
-        });
-      console.log(qData, qErr);
-      if (qErr) throw qErr;
-      setDoctorQueue(qData);
+          p_queue_date: getPakistanTodayDateString(),
+        }),
+        supabase.rpc('get_doctor_availability', { p_doctor_id: doctorId }),
+      ]);
+      if (docRes.error) throw docRes.error;
+      if (queueRes.error) throw queueRes.error;
+      setDoctor(docRes.data);
+      setDoctorQueue(queueRes.data);
+      hasDoctorDataRef.current = true;
 
-      // Fetch Doctor Availability
-      console.log("RPC: get_doctor_availability");
-      console.log("RPC:", doctorId);
-      const { data: availData, error: availErr } = await supabase
-        .rpc('get_doctor_availability', {
-          p_doctor_id: doctorId
-        });
-      console.log(availData, availErr);
-      if (availErr) throw availErr;
-      setDoctorAvailability(availData && availData.length > 0 ? availData[0] : null);
-
+      // Availability is optional: without it the screen falls back to
+      // "Available", so its failure must not hide the live queue.
+      if (availRes.error) {
+        if (__DEV__) console.warn('get_doctor_availability failed:', availRes.error.message);
+      } else {
+        const availData = availRes.data as any[] | null;
+        setDoctorAvailability(availData && availData.length > 0 ? availData[0] : null);
+      }
     } catch (err) {
       console.error('Failed to fetch doctor queue preview:', err);
     } finally {
@@ -151,25 +148,16 @@ const QueueStatusScreen = () => {
     if (doctorId && isFocused) {
       fetchDoctorQueueData();
 
-      // Realtime subscription on appointments for this doctor to auto-refresh queue
-      const channel = supabase
-        .channel(`doctor-queue-realtime-${doctorId}`)
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'appointments', filter: `doctor_id=eq.${doctorId}` },
-          () => fetchDoctorQueueData()
-        )
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'doctors', filter: `id=eq.${doctorId}` },
-          () => fetchDoctorQueueData()
-        )
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'queue_updates' },
-          () => fetchDoctorQueueData()
-        )
-        .subscribe();
+      // Scoped to this doctor and debounced; this used to also listen to every
+      // queue_updates row in the database and refetch on each event.
+      const channel = subscribeToAppointments({
+        channelName: `doctor-queue-realtime-${doctorId}-${Date.now()}`,
+        doctorId,
+        onChange: fetchDoctorQueueData,
+      });
 
       return () => {
-        supabase.removeChannel(channel);
+        unsubscribeAppointments(channel);
       };
     }
   }, [doctorId, isFocused, fetchDoctorQueueData]);

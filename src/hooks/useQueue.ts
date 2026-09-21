@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import {
@@ -23,6 +23,8 @@ const getQueueErrorMessage = (error: unknown) => {
   return 'Failed to load queue status';
 };
 
+const POLL_MS = 30_000;
+
 export const useQueue = (
   myToken: number | null,
   onAppointmentChange?: () => void,
@@ -35,6 +37,11 @@ export const useQueue = (
   const [queueData, setQueueData] = useState<QueueSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoadedRef = useRef(false);
+  const inFlightRef = useRef(false);
+  const rerunRef = useRef(false);
+  const onChangeRef = useRef(onAppointmentChange);
+  onChangeRef.current = onAppointmentChange;
 
   const loadInitialData = useCallback(async () => {
     if (myToken == null) {
@@ -42,9 +49,18 @@ export const useQueue = (
       setLoading(false);
       return;
     }
+    // Realtime, polling and app-resume can all fire together. Run one request
+    // at a time and fold anything that arrives meanwhile into one follow-up.
+    if (inFlightRef.current) {
+      rerunRef.current = true;
+      return;
+    }
+    inFlightRef.current = true;
 
     try {
-      setLoading(true);
+      // Only the first load shows a loading state. Background refreshes used
+      // to flip it on every realtime event and poll, making the screen flicker.
+      if (!hasLoadedRef.current) setLoading(true);
 
       const data = await getQueueSnapshot(myToken, {
         appointmentId: scopeAppointmentId,
@@ -52,14 +68,23 @@ export const useQueue = (
         scheduledAt: scopeScheduledAt,
       });
 
+      hasLoadedRef.current = true;
       setQueueData(data);
       setError(null);
     } catch (err) {
       setError(getQueueErrorMessage(err));
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
+      if (rerunRef.current) {
+        rerunRef.current = false;
+        loadRef.current();
+      }
     }
   }, [myToken, scopeAppointmentId, scopeCenterId, scopeScheduledAt]);
+
+  const loadRef = useRef(loadInitialData);
+  loadRef.current = loadInitialData;
 
   useEffect(() => {
     if (!isActive) return;
@@ -68,32 +93,34 @@ export const useQueue = (
 
     const queueChannel = subscribeToAppointments({
       channelName: `queue-live-${myToken ?? 'unknown'}-${Date.now()}`,
+      centerId: scopeCenterId,
+      appointmentId: scopeAppointmentId,
       onChange: () => {
         loadInitialData();
-        onAppointmentChange?.();
+        onChangeRef.current?.();
       },
     });
 
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState === 'active') {
-        console.log('[REALTIME] App returned to active/foreground, refetching queue...');
         loadInitialData();
-        onAppointmentChange?.();
+        onChangeRef.current?.();
       }
     };
 
     const appStateSub = AppState.addEventListener('change', handleAppStateChange);
 
+    // Fallback in case a realtime event is missed; skipped while backgrounded.
     const refreshTimer = setInterval(() => {
-      loadInitialData();
-    }, 20000);
+      if (AppState.currentState === 'active') loadInitialData();
+    }, POLL_MS);
 
     return () => {
       clearInterval(refreshTimer);
       unsubscribeAppointments(queueChannel);
       appStateSub.remove();
     };
-  }, [loadInitialData, onAppointmentChange, isActive, myToken]);
+  }, [loadInitialData, isActive, myToken, scopeCenterId, scopeAppointmentId]);
 
   return {
     queueData,

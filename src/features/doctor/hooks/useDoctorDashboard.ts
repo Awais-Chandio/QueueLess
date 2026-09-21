@@ -17,15 +17,18 @@ interface DashboardExtras {
 }
 
 export function useDoctorDashboard() {
-  const { user } = useAuthStore();
+  const userId = useAuthStore(state => state.user?.id);
+  // Resolved at sign-in (get_my_staff_context). Using it lets today's data load
+  // in parallel with the profile instead of waiting for it first.
+  const authDoctorId = useAuthStore(state => state.doctorId);
 
   const profileQuery = useQuery({
-    queryKey: ['doctor-profile', user?.id],
-    queryFn: () => doctorDashboardService.getDoctorProfile(user!.id),
-    enabled: !!user?.id,
+    queryKey: ['doctor-profile', userId],
+    queryFn: () => doctorDashboardService.getDoctorProfile(userId!),
+    enabled: !!userId,
   });
 
-  const doctorId = profileQuery.data?.id;
+  const doctorId = authDoctorId ?? profileQuery.data?.id;
 
   const extrasQuery = useQuery<DashboardExtras>({
     queryKey: ['doctor-dashboard-extras', doctorId],

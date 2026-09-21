@@ -29,6 +29,7 @@ const statusLabel = (status: string) =>
     .join(' ');
 
 export default function DashboardScreen() {
+  console.log('[TMP] Dashboard render');
   const { colors, spacing, radius } = useTheme();
   const navigation = useNavigation<BottomTabNavigationProp<DoctorTabParamList>>();
   const { isLoading, isRefetching, error, doctorProfile, todayAppointments, recentPatients, incomeSummary, refresh } =

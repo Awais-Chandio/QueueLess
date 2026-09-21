@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useShallow } from 'zustand/react/shallow';
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import { User } from '@supabase/supabase-js';
 import { authService } from '../services/authService';
@@ -11,6 +12,9 @@ import { fcmService } from '../services/fcmService';
 import { useNotificationsStore } from '../stores/notificationStore';
 import { supabase } from '../lib/supabase';
 import { normalizeUserRole } from '../utils/roleMapping';
+import { queryClient } from '../lib/react-query';
+import { queryPersister } from '../lib/queryPersister';
+import { useAppointmentsStore } from '../stores/appointmentStore';
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -40,9 +44,24 @@ const setAuthState = (payload: {
 //   Do NOT convert a client account into a staff account by changing the role field.
 //   The client's historical appointments would remain attached to that user_id,
 //   giving the staff member access to their own client appointment history.
+const fetchStaffDoctorId = async (): Promise<string | null> => {
+  try {
+    const __t = Date.now(); console.log('[TMP] staff ctx start');
+    const { data } = await supabase.rpc('get_my_staff_context');
+    console.log('[TMP] staff ctx done', Date.now() - __t);
+    return (data as any)?.[0]?.doctor_id ?? null;
+  } catch (err) {
+    if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
+    return null;
+  }
+};
+
 const fetchVerifiedProfileRole = async (
   user: User,
 ) => {
+  // Started alongside the profile read instead of after it, so doctors and
+  // staff wait for one round trip at sign-in rather than two.
+  const staffContext = fetchStaffDoctorId();
   const { data: profile } =
     await profileService.getProfileById(user.id);
 
@@ -101,22 +120,18 @@ const fetchVerifiedProfileRole = async (
 
   const profileToUse = finalProfile || { id: user.id, role: 'client' };
 
-  let doctorId = null;
-  if (profileToUse.role === 'doctor' || profileToUse.role === 'staff' || profileToUse.role === 'admin') {
-    try {
-      const { data } = await supabase.rpc('get_my_staff_context');
-      doctorId = data?.[0]?.doctor_id ?? null;
-    } catch (err) {
-      if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
-    }
-  }
+  const isStaffRole =
+    profileToUse.role === 'doctor' || profileToUse.role === 'staff' || profileToUse.role === 'admin';
+  const doctorId = isStaffRole ? await staffContext : null;
 
+  console.log('[TMP] before setAuthState');
   setAuthState({
     profile: profileToUse,
     role: profileToUse.role,
     doctorId,
   });
 
+  console.log('[TMP] after setAuthState');
   return profileToUse.role ?? 'client';
 };
 
@@ -132,23 +147,26 @@ export const useAuth = () => {
     setRole,
     clearAuth,
     setLoading,
-  } = useAuthStore();
+  } = useAuthStore(
+    // Shallow-selected: App.tsx calls this hook at the root, and taking the
+    // whole store re-rendered the entire app on every auth store change.
+    useShallow(state => ({
+      session: state.session,
+      user: state.user,
+      role: state.role,
+      doctorId: state.doctorId,
+      isAuthenticated: state.isAuthenticated,
+      isLoading: state.isLoading,
+      setSession: state.setSession,
+      setRole: state.setRole,
+      clearAuth: state.clearAuth,
+      setLoading: state.setLoading,
+    })),
+  );
 
   const restoreSession = useCallback(async () => {
     if (__DEV__) console.log('[AUTH] restoreSession started');
     setLoading(true);
-    const startTime = Date.now();
-    const isJest = Boolean((process.env as Record<string, string | undefined>).JEST_WORKER_ID);
-    const minimumSplashMs = isJest ? 0 : 2000;
-
-    const delayIfNeeded = async () => {
-      const elapsed = Date.now() - startTime;
-      const remaining = minimumSplashMs - elapsed;
-      if (remaining > 0) {
-        await new Promise<void>(resolve => setTimeout(() => resolve(), remaining));
-      }
-    };
-
     try {
       const { data, error } = await authService.getSession();
       if (__DEV__) {
@@ -165,44 +183,22 @@ export const useAuth = () => {
         // Verify authorization role from profiles table, not JWT claims.
         try {
           const verifiedRole = await fetchVerifiedProfileRole(currentSession.user);
+          // fetchVerifiedProfileRole already stored the profile and doctorId.
           setRole(verifiedRole);
-          console.log('PROFILE_LOADED');
-
-          const profile = useProfileStore.getState().profile;
-          if (profile) {
-            let doctorId = null;
-            if (profile.role === 'doctor' || profile.role === 'staff' || profile.role === 'admin') {
-              try {
-                const { data } = await supabase.rpc('get_my_staff_context');
-                doctorId = data?.[0]?.doctor_id ?? null;
-              } catch (err) {
-                if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
-              }
-            }
-            setAuthState({
-              profile,
-              role: profile.role,
-              doctorId,
-            });
-          }
-
-          console.log('ROLE_SET');
           if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
           if (__DEV__) console.log('[AUTH] restoreSession complete');
         } catch (e) {
           if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
           setRole('client');
-          console.log('ROLE_SET');
         }
       }
     } catch {
       clearAuth();
       useProfileStore.getState().clearProfile();
     } finally {
-      await delayIfNeeded();
+      // The splash screen enforces its own intro length, so there is no
+      // artificial minimum here; it only delayed Google sign-in and reloads.
       setLoading(false);
-      console.log('SET_LOADING_FALSE');
-      console.log('RESTORE_COMPLETE');
     }
   }, [clearAuth, setRole, setSession, setLoading]);
 
@@ -366,48 +362,52 @@ export const useAuth = () => {
   const logout = useCallback(async () => {
     if (__DEV__) console.log('[AUTH] logout started');
     setLoading(true);
+    const userId = user?.id;
 
     try {
-      // Clear token in Supabase profiles (while user is still authenticated)
-      if (user) {
-        try {
-          await supabase
-            .from('profiles')
-            .update({ fcm_token: null } as any)
-            .eq('id', user.id);
-        } catch (dbError) {
-          if (__DEV__) console.warn('[useAuth] Failed to clear FCM token from profiles on logout:', dbError);
-        }
+      // These used to run one after another (profile update, FCM delete,
+      // Supabase sign-out, Firebase sign-out), so sign-out waited on four
+      // network calls. The token clear and the sign-out now run together:
+      // the profile update is sent with the current access token, which stays
+      // valid until it expires even after the refresh token is revoked.
+      const clearServerToken = userId
+        ? Promise.resolve(
+            supabase.from('profiles').update({ fcm_token: null } as any).eq('id', userId),
+          ).catch(dbError => {
+            if (__DEV__) console.warn('[useAuth] Failed to clear FCM token from profiles on logout:', dbError);
+          })
+        : Promise.resolve();
+
+      const [, signOutResult] = await Promise.all([clearServerToken, authService.signOut()]);
+      if (signOutResult.error) {
+        throw signOutResult.error;
       }
 
-      // Delete local FCM token
-      try {
-        await fcmService.deleteToken();
-        useNotificationsStore.getState().setFcmToken(null);
-      } catch (fcmError) {
-        if (__DEV__) console.warn('[useAuth] Failed to delete FCM token on logout:', fcmError);
-      }
-
-      const { error } = await authService.signOut();
-      if (error) {
-        throw error;
-      }
-
-      // Also sign out of Firebase Auth to ensure clean state
-      try {
-        await firebasePhoneAuth.logoutFirebase();
-      } catch (fbSignOutError) {
+      // Device-local cleanup does not need to hold the UI.
+      // The notifications store reset below already clears the token in state.
+      fcmService
+        .deleteToken()
+        .catch(fcmError => {
+          if (__DEV__) console.warn('[useAuth] Failed to delete FCM token on logout:', fcmError);
+        });
+      firebasePhoneAuth.logoutFirebase().catch(fbSignOutError => {
         if (__DEV__) console.warn('[AUTH] Firebase sign out error:', fbSignOutError);
-      }
+      });
 
       clearAuth();
       useProfileStore.getState().clearProfile();
+      useNotificationsStore.getState().reset();
+      useAppointmentsStore.getState().reset();
+      // Drop the previous user's cached queries in memory and on disk, so the
+      // next account neither sees them nor pays to rehydrate them.
+      queryClient.clear();
+      queryPersister.removeClient();
       if (__DEV__) console.log('[AUTH] logout complete, profile cleared');
     } catch (error) {
       setLoading(false);
       throw toAuthError(error, 'Logout failed. Please try again.');
     }
-  }, [user, clearAuth, setLoading]);
+  }, [user?.id, clearAuth, setLoading]);
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
     if (__DEV__) console.log('[AUTH] sendPhoneOtp (Firebase) started', phone);
