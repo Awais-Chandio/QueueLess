@@ -31,9 +31,10 @@ const NearbyClinicsScreen = () => {
   } = useNearbyClinics();
 
   // Callback to navigate to center details (memoized)
-  const handlePressBook = useCallback((centerId: string) => {
+  const handlePressBook = useCallback((center: NearbyCenter) => {
     navigation.navigate('CenterDetails', {
-      centerId,
+      centerId: center.id,
+      center,
     });
   }, [navigation]);
 
@@ -42,7 +43,7 @@ const NearbyClinicsScreen = () => {
     <NearbyClinicCard
       item={item}
       index={index}
-      onPressBook={() => handlePressBook(item.id)}
+      onPressBook={() => handlePressBook(item)}
     />
   ), [handlePressBook]);
 

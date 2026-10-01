@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, View, StyleSheet, Text, Pressable, Platform, FlatList, Image, ActivityIndicator } from 'react-native';
+import { Animated, View, StyleSheet, Text, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, Clock, MapPin, Bell, Stethoscope, ChevronRight, Heart, ArrowRight, Search, Hospital } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, Bell, Stethoscope, ChevronRight, ArrowRight, Search } from 'lucide-react-native';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import Card from '../../components/ui/Card';
 import AppButton from '../../components/ui/AppButton';
@@ -20,6 +20,7 @@ import Wordmark from '../../components/ui/Wordmark';
 import { hp, scaleFont, wp } from '../../utils/responsive';
 import LinearGradient from 'react-native-linear-gradient';
 import type { AppStackParamList } from '../../navigation/types';
+import ClinicImage from '../../components/ui/ClinicImage';
 
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
@@ -350,13 +351,11 @@ const HomeScreen = () => {
                       },
                     ]}
                   >
-                    {item.image_url ? (
-                      <Image source={{ uri: item.image_url }} style={[styles.clinicImage, { borderRadius: radius.lg }]} />
-                    ) : (
-                      <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.lg }]}>
-                        <Hospital size={36} color={colors.primary} />
-                      </View>
-                    )}
+                    <ClinicImage
+                      centerId={item.id}
+                      imageUrl={item.image_url}
+                      style={[styles.clinicImage, { borderRadius: radius.lg }]}
+                    />
                     <View style={{ flex: 1, marginTop: spacing.sm }}>
                       <Text style={[styles.clinicNameText, { color: colors.text, fontSize: typography.sizes.sm, fontWeight: '800' }]} numberOfLines={1}>
                         {item.name}
@@ -373,7 +372,7 @@ const HomeScreen = () => {
                       </Text>
                       <AppButton
                         title="View Clinic"
-                        onPress={() => navigation.navigate('CenterDetails', { centerId: item.id })}
+                        onPress={() => navigation.navigate('CenterDetails', { centerId: item.id, center: item })}
                         style={{ paddingVertical: 6, minHeight: 32 }}
                         textStyle={{ fontSize: 12 }}
                       />
@@ -425,13 +424,11 @@ const HomeScreen = () => {
                       },
                     ]}
                   >
-                    {item.image_url ? (
-                      <Image source={{ uri: item.image_url }} style={[styles.clinicImage, { borderRadius: radius.lg }]} />
-                    ) : (
-                      <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.lg }]}>
-                        <Hospital size={36} color={colors.primary} />
-                      </View>
-                    )}
+                    <ClinicImage
+                      centerId={item.id}
+                      imageUrl={item.image_url}
+                      style={[styles.clinicImage, { borderRadius: radius.lg }]}
+                    />
                     <View style={{ flex: 1, marginTop: spacing.sm }}>
                       <Text style={[styles.clinicNameText, { color: colors.text, fontSize: typography.sizes.sm, fontWeight: '800' }]} numberOfLines={1}>
                         {item.name}
@@ -448,7 +445,7 @@ const HomeScreen = () => {
                       </Text>
                       <AppButton
                         title="View Clinic"
-                        onPress={() => navigation.navigate('CenterDetails', { centerId: item.id })}
+                        onPress={() => navigation.navigate('CenterDetails', { centerId: item.id, center: item })}
                         style={{ paddingVertical: 6, minHeight: 32 }}
                         textStyle={{ fontSize: 12 }}
                       />

@@ -292,8 +292,11 @@ const MapScreen = () => {
   );
 
   const handleViewDetails = useCallback(
-    (centerId: string) => {
-      navigation.navigate('CenterDetails', { centerId });
+    (center: NearbyCenter) => {
+      navigation.navigate('CenterDetails', {
+        centerId: center.id,
+        center,
+      });
     },
     [navigation],
   );
@@ -626,4 +629,3 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
 });
-

@@ -15,14 +15,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
   Clock,
-  XCircle,
   ClipboardList,
-  Activity,
   Search,
-  LogOut,
   Coffee,
   ClipboardCheck,
   CheckCircle2,
+  MapPin,
 } from 'lucide-react-native';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
@@ -49,6 +47,7 @@ import { getAppointmentStatusState } from '../../../services/bookingService';
 import { getDisplayName } from '../../../utils/getDisplayName';
 import { toastService } from '../../../services/toastService';
 import { AppointmentRow } from '../components/AppointmentRow';
+import StaffLogoutButton from '../components/StaffLogoutButton';
 import type { StaffStackParamList } from '../navigation/StaffNavigator';
 
 // Staff never complete a visit -- only the assigned doctor can (see the
@@ -65,7 +64,7 @@ const cancelReasons: CancelReason[] = [
 
 const StaffDashboardScreen = () => {
   const { colors, spacing, typography, radius } = useTheme();
-  const { logout, user } = useAuth();
+  const { user } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<StaffStackParamList>>();
   const profile = useProfileStore(state => state.profile);
   const fetchProfile = useProfileStore(state => state.fetchProfile);
@@ -455,6 +454,7 @@ const StaffDashboardScreen = () => {
           >
             Staff Dashboard
           </Text>
+          <StaffLogoutButton />
         </View>
         <View style={{ gap: spacing.md }}>
           <Skeleton height={120} borderRadius={radius.lg} />
@@ -468,6 +468,17 @@ const StaffDashboardScreen = () => {
   if (isError) {
     return (
       <ScreenWrapper scrollable>
+        <View style={styles.header}>
+          <Text
+            style={[
+              styles.title,
+              { color: colors.text, fontSize: typography.sizes.xxl },
+            ]}
+          >
+            Staff Dashboard
+          </Text>
+          <StaffLogoutButton />
+        </View>
         <ErrorState
           title="Dashboard Unavailable"
           message={error instanceof Error ? error.message : 'Please try again.'}
@@ -484,7 +495,7 @@ const StaffDashboardScreen = () => {
 
   const statItems = [
     {
-      label: 'Total Today',
+      label: 'Appointments',
       value: totalToday,
       color: colors.primary,
       Icon: ClipboardList,
@@ -508,12 +519,6 @@ const StaffDashboardScreen = () => {
       color: colors.success,
       Icon: CheckCircle2,
     },
-    {
-      label: 'Cancelled',
-      value: stats?.cancelled ?? 0,
-      color: colors.error,
-      Icon: XCircle,
-    },
   ];
 
   return (
@@ -523,14 +528,15 @@ const StaffDashboardScreen = () => {
       refreshing={isRefetching}
     >
       <View style={styles.header}>
-        <View>
+        <View style={[styles.headerCopy, { marginRight: spacing.sm }]}>
           <Text
             style={[
               styles.title,
-              { color: colors.text, fontSize: typography.sizes.xxl, fontWeight: '800' },
+              { color: colors.text, ...typography.roles.heading },
             ]}
+            numberOfLines={1}
           >
-            Welcome, {staffName}
+            Staff Dashboard
           </Text>
           <Text
             style={[
@@ -541,41 +547,12 @@ const StaffDashboardScreen = () => {
                 fontWeight: '500',
               },
             ]}
+            numberOfLines={1}
           >
-            {centerName ? `Center: ${centerName}` : "Today's Queue Control"}
+            Hi {staffName} · Today’s queue
           </Text>
         </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Pressable
-            onPress={() => navigation.navigate('CheckIn')}
-            style={({ pressed }) => [
-              styles.logoutIconButton,
-              {
-                backgroundColor: pressed ? colors.border + '30' : colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <ClipboardCheck color={colors.text} size={18} />
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              Alert.alert('Logout', 'Are you sure you want to logout?', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Logout', style: 'destructive', onPress: logout },
-              ]);
-            }}
-            style={({ pressed }) => [
-              styles.logoutIconButton,
-              {
-                backgroundColor: pressed ? colors.border + '30' : colors.surface,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <LogOut color={colors.text} size={18} />
-          </Pressable>
-        </View>
+        <StaffLogoutButton />
       </View>
 
       {profile?.role === 'staff' && !centersLoading && assignedCenters.length === 0 && (
@@ -587,246 +564,259 @@ const StaffDashboardScreen = () => {
         </View>
       )}
 
-      {assignedCenters.length > 1 && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: spacing.lg }}
-          contentContainerStyle={{ gap: spacing.xs }}
-        >
-          {assignedCenters.map(center => {
-            const selected = center.id === selectedCenterId;
-            return (
-              <Pressable
-                key={center.id}
-                onPress={() => setSelectedCenterId(center.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                style={[
-                  styles.centerChip,
-                  {
-                    borderRadius: radius.full,
-                    borderColor: selected ? colors.primary : colors.border,
-                    backgroundColor: selected ? colors.primary : colors.surface,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: selected ? colors.onPrimary : colors.text,
-                    fontSize: typography.sizes.sm,
-                    fontWeight: '700',
-                  }}
-                >
-                  {center.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      )}
-
-      {/* Card 1: Today's Stats */}
+      {/* Current workplace and the staff's most common action. */}
       <CardFadeIn delay={0}>
         <View style={{ marginBottom: spacing.lg }}>
-          <Card variant="elevated" style={styles.cardContent}>
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                marginBottom: spacing.md,
-              }}
-            >
+          <Card variant="outlined" style={styles.centerCard}>
+            <View style={styles.centerHeaderRow}>
               <View
                 style={[
-                  styles.cardTitleIconPill,
-                  { backgroundColor: `${colors.primary}10` },
-                ]}
-              >
-                <Activity size={scaleFont(16)} color={colors.primary} />
-              </View>
-              <Text
-                style={[
-                  styles.cardTitle,
+                  styles.centerIcon,
                   {
-                    color: colors.text,
-                    fontSize: typography.sizes.md,
-                    marginLeft: spacing.sm,
+                    backgroundColor: colors.tint.primary,
+                    borderRadius: radius.md,
+                    marginRight: spacing.sm,
                   },
                 ]}
               >
-                Today's Stats
-              </Text>
+                <MapPin size={20} color={colors.primary} />
+              </View>
+              <View style={styles.centerCopy}>
+                <Text style={[styles.eyebrow, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>MANAGING CENTER</Text>
+                <Text style={[styles.centerName, { color: colors.text, fontSize: typography.sizes.md }]} numberOfLines={2}>
+                  {centerName ?? (centersLoading ? 'Loading center…' : 'No center selected')}
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.statsGrid}>
-              {statItems.map(item => {
-                const Icon = item.Icon;
-                return (
-                  <View
-                    key={item.label}
-                    style={[
-                      styles.statGridItem,
-                      {
-                        backgroundColor: colors.border + '08',
-                        borderColor: colors.border,
-                        borderRadius: radius.lg,
-                        borderWidth: 1,
-                        borderTopWidth: 3.5,
-                        borderTopColor: item.color,
-                        overflow: 'hidden',
-                      },
-                    ]}
-                  >
-                    <View style={styles.statGridHeader}>
-                      <View
-                        style={[
-                          styles.statGridIconPill,
-                          { backgroundColor: item.color + '12' },
+            {assignedCenters.length > 1 && (
+              <View style={[styles.centerOptions, { marginTop: spacing.md }]}>
+                <Text style={[styles.helperLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>Switch center</Text>
+                <View style={[styles.centerGrid, { gap: spacing.xs, marginTop: spacing.xs }]}>
+                  {assignedCenters.map(center => {
+                    const selected = center.id === selectedCenterId;
+                    return (
+                      <Pressable
+                        key={center.id}
+                        onPress={() => setSelectedCenterId(center.id)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        style={({ pressed }) => [
+                          styles.centerOption,
+                          {
+                            borderRadius: radius.md,
+                            borderColor: selected ? colors.primary : colors.border,
+                            backgroundColor: selected ? colors.tint.primary : colors.surface,
+                            opacity: pressed ? 0.75 : 1,
+                          },
                         ]}
                       >
-                        <Icon size={scaleFont(13)} color={item.color} />
-                      </View>
-                    </View>
-                    <Text
-                      style={[
-                        styles.statGridValue,
-                        { color: item.color, fontSize: typography.sizes.xl, fontWeight: '800' },
-                      ]}
-                    >
-                      {item.value}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.statGridLabel,
-                        {
-                          color: colors.textSecondary,
-                          fontSize: typography.caption,
-                        },
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                    {(item as any).showProgress && totalToday > 0 && (
-                      <View style={{ marginTop: scaleFont(4) }}>
-                        <ProgressBar
-                          progress={queueProgress}
-                          color={item.color}
-                          height={scaleFont(3)}
-                          trackColor={item.color + '12'}
-                        />
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
+                        <View style={[styles.selectionDot, { borderColor: selected ? colors.primary : colors.textTertiary }]}>
+                          {selected && <View style={[styles.selectionDotFill, { backgroundColor: colors.primary }]} />}
+                        </View>
+                        <Text
+                          style={{
+                            flex: 1,
+                            color: selected ? colors.primary : colors.text,
+                            fontSize: typography.sizes.xs,
+                            fontWeight: selected ? '700' : '600',
+                          }}
+                          numberOfLines={2}
+                        >
+                          {center.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+
+            <AppButton
+              title="Open Patient Check-In"
+              variant="primary"
+              size="sm"
+              leftIcon={<ClipboardCheck color={colors.onPrimary} size={17} />}
+              onPress={() => navigation.navigate('CheckIn')}
+              containerStyle={{ marginTop: spacing.md }}
+            />
           </Card>
         </View>
       </CardFadeIn>
 
-      {/* Doctor Break Settings Card */}
-      {profile?.role === 'staff' && (
-        <CardFadeIn delay={100}>
-          <View style={{ marginBottom: spacing.lg }}>
-            <Card variant="elevated" style={styles.cardContent}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={[styles.cardTitleIconPill, { backgroundColor: `${colors.warning}10` }]}>
-                    <Coffee size={scaleFont(16)} color={colors.warning} />
-                  </View>
-                  <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.sm }]}>
-                    Service Break & Settings
-                  </Text>
-                </View>
-                <StatusChip
-                  status={doctorSettings?.is_on_break ? 'cancelled' : 'confirmed'}
-                  label={doctorSettings?.is_on_break ? 'On Break' : 'Active'}
-                />
-              </View>
+      <View style={[styles.sectionHeader, { marginBottom: spacing.sm }]}>
+        <Text style={[styles.sectionTitle, { color: colors.text, ...typography.roles.section }]}>Today at a glance</Text>
+        <Text style={[styles.sectionHint, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>Live</Text>
+      </View>
 
-              <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
-                <AppButton
-                  title={doctorSettings?.is_on_break ? 'Resume Work' : 'Go On Break'}
-                  variant={doctorSettings?.is_on_break ? 'primary' : 'outline'}
-                  onPress={handleToggleBreak}
-                  style={{ flex: 1, minWidth: 140 }}
-                />
-                
-                <View style={{ flex: 1, minWidth: 160 }}>
-                  <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 4, fontWeight: '600' }}>
-                    Avg Service Time (mins):
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                    {[10, 15, 20, 30].map(mins => (
-                      <Pressable
-                        key={mins}
-                        onPress={() => handleUpdateAvgTime(mins)}
-                        style={({ pressed }) => [
-                          {
-                            paddingHorizontal: 10,
-                            paddingVertical: 5,
-                            borderRadius: radius.sm,
-                            borderWidth: 1.5,
-                            borderColor: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.border,
-                            backgroundColor: doctorSettings?.avg_consultation_mins === mins ? `${colors.primary}10` : 'transparent',
-                            opacity: pressed ? 0.7 : 1,
-                          }
-                        ]}
-                      >
-                        <Text style={{ color: doctorSettings?.avg_consultation_mins === mins ? colors.primary : colors.text, fontSize: 12, fontWeight: '700' }}>
-                          {mins}
-                        </Text>
-                      </Pressable>
-                    ))}
+      <CardFadeIn delay={40}>
+        <View style={[styles.statsGrid, { gap: spacing.sm, marginBottom: spacing.lg }]}>
+          {statItems.map(item => {
+            const Icon = item.Icon;
+            return (
+              <View
+                key={item.label}
+                style={[
+                  styles.statGridItem,
+                  {
+                    backgroundColor: colors.card,
+                    borderColor: colors.border,
+                    borderRadius: radius.lg,
+                    padding: spacing.md,
+                  },
+                ]}
+              >
+                <View style={styles.statTopRow}>
+                  <View style={[styles.statGridIconPill, { backgroundColor: item.color + '12' }]}>
+                    <Icon size={scaleFont(14)} color={item.color} />
                   </View>
+                  <Text style={[styles.statGridValue, { color: item.color, fontSize: typography.sizes.xl }]}>{item.value}</Text>
                 </View>
+                <Text
+                  style={[styles.statGridLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}
+                  numberOfLines={2}
+                >
+                  {item.label}
+                </Text>
+                {(item as any).showProgress && totalToday > 0 && (
+                  <View style={{ marginTop: spacing.xs }}>
+                    <ProgressBar progress={queueProgress} color={item.color} height={3} trackColor={item.color + '12'} />
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </CardFadeIn>
+
+      {nextPatient && (
+        <CardFadeIn delay={60}>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Card
+              variant="outlined"
+              style={[
+                styles.nextPatientCard,
+                { backgroundColor: colors.tint.primary, borderColor: colors.primary + '55' },
+              ]}
+            >
+              <Text style={[styles.eyebrow, { color: colors.primary, fontSize: typography.sizes.xs }]}>NEXT PATIENT</Text>
+              <View style={[styles.nextPatientRow, { marginTop: spacing.xs }]}>
+                <View style={styles.nextPatientCopy}>
+                  <Text style={[styles.nextToken, { color: colors.text, fontSize: typography.sizes.xl }]}>Token #{nextPatient.token_number ?? '—'}</Text>
+                  <Text style={[styles.nextPatientName, { color: colors.textSecondary, fontSize: typography.sizes.sm }]} numberOfLines={1}>
+                    {getDisplayName(nextPatient)}
+                  </Text>
+                </View>
+                <AppButton
+                  title={hasActiveService ? 'In Service' : 'Call Now'}
+                  variant="primary"
+                  size="sm"
+                  fullWidth={false}
+                  disabled={hasActiveService || runActionMutation.isPending}
+                  onPress={() => {
+                    Alert.alert(
+                      'Call Next Patient',
+                      `Call Token #${nextPatient.token_number} (${getDisplayName(nextPatient)}) now?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Call Patient',
+                          onPress: () => runActionMutation.mutate({ action: 'start_service', appointment: nextPatient }),
+                        },
+                      ],
+                    );
+                  }}
+                />
               </View>
             </Card>
           </View>
         </CardFadeIn>
       )}
 
-      {/* Card 2: Pending Appointments */}
-      <CardFadeIn delay={60}>
+      {pendingAppointments.length > 0 && (
+        <CardFadeIn delay={80}>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Card variant="elevated" style={styles.cardContent}>
+              <View style={[styles.sectionHeader, { marginBottom: spacing.md }]}>
+                <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.md }]}>Needs confirmation</Text>
+                <View style={[styles.countBadge, { backgroundColor: colors.tint.warning, borderRadius: radius.full }]}>
+                  <Text style={{ color: colors.status.pending.fg, fontSize: typography.sizes.xs, fontWeight: '800' }}>{pendingAppointments.length}</Text>
+                </View>
+              </View>
+              {pendingAppointments.map((appt, idx) => renderAppointmentItem(appt, idx, true))}
+            </Card>
+          </View>
+        </CardFadeIn>
+      )}
+
+      {/* Main operational queue */}
+      <CardFadeIn delay={100}>
         <View style={{ marginBottom: spacing.lg }}>
           <Card variant="elevated" style={styles.cardContent}>
-            <Text
-              style={[
-                styles.cardTitle,
-                {
-                  color: colors.text,
-                  fontSize: typography.sizes.md,
-                  marginBottom: spacing.md,
-                },
-              ]}
-            >
-              Pending Appointments
-            </Text>
-            {pendingAppointments.length === 0 ? (
-              <EmptyState
-                Icon={ClipboardList}
-                title="All Clear"
-                subtitle="No pending appointments today."
-              />
-            ) : (
-              pendingAppointments.map((appt, idx) =>
-                renderAppointmentItem(appt, idx, true),
-              )
-            )}
-          </Card>
-        </View>
-      </CardFadeIn>
+            <View style={[styles.sectionHeader, { marginBottom: spacing.md }]}>
+              <View>
+                <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.md }]}>Today’s Queue</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2 }}>
+                  Search and manage patient status
+                </Text>
+              </View>
+              <View style={[styles.countBadge, { backgroundColor: colors.tint.neutral, borderRadius: radius.full }]}>
+                <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, fontWeight: '800' }}>{filteredQueueAppointments.length}</Text>
+              </View>
+            </View>
 
-      {/* Card 3: Queue List */}
-      <CardFadeIn delay={120}>
-        <View style={{ marginBottom: spacing.xl }}>
-          <Card variant="elevated" style={styles.cardContent}>
-            {/* Doctor Filter Tabs */}
+            <View style={{ marginBottom: spacing.sm }}>
+              <AppInput
+                placeholder="Search patient, service, or token"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                leftIcon={Search}
+              />
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={{ maxHeight: 44, marginBottom: spacing.md }}
+              contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.lg }}
+            >
+              {[
+                { key: 'queue' as const, label: 'Active', color: colors.primary },
+                { key: 'checked_in' as const, label: 'Checked In', color: colors.success },
+                { key: 'serving' as const, label: 'Serving', color: colors.warning },
+                { key: 'completed' as const, label: 'Completed', color: colors.info },
+                { key: 'cancelled' as const, label: 'Cancelled', color: colors.error },
+              ].map(filter => {
+                const isSelected = statusFilter === filter.key;
+                return (
+                  <Pressable
+                    key={filter.key}
+                    onPress={() => setStatusFilter(filter.key)}
+                    style={({ pressed }) => [
+                      styles.filterChip,
+                      {
+                        borderColor: isSelected ? filter.color : colors.border,
+                        backgroundColor: isSelected ? filter.color + '12' : colors.surface,
+                        borderRadius: radius.full,
+                        opacity: pressed ? 0.75 : 1,
+                      },
+                    ]}
+                  >
+                    <View style={[styles.filterDot, { backgroundColor: isSelected ? filter.color : colors.textTertiary }]} />
+                    <Text
+                      style={{ color: isSelected ? filter.color : colors.textSecondary, fontSize: typography.sizes.xs, fontWeight: isSelected ? '700' : '600' }}
+                    >
+                      {filter.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
             {uniqueDoctors.length > 1 && (
               <View style={{ marginBottom: spacing.md }}>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginBottom: 6, fontWeight: '600' }}>
-                  Filter by Doctor:
+                  Doctor
                 </Text>
                 <ScrollView
                   horizontal
@@ -870,153 +860,6 @@ const StaffDashboardScreen = () => {
               </View>
             )}
 
-            {/* Auto Call Next Button */}
-            {nextPatient && (
-              <AppButton
-                title={`Call Next: Token #${nextPatient.token_number} (${getDisplayName(nextPatient)})`}
-                variant="primary"
-                onPress={() => {
-                  Alert.alert(
-                    'Call Next Client',
-                    `Are you sure you want to call Token #${nextPatient.token_number} (${getDisplayName(nextPatient)}) to the counter?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      {
-                        text: 'Call Client',
-                        onPress: () => runActionMutation.mutate({ action: 'start_service', appointment: nextPatient }),
-                      },
-                    ]
-                  );
-                }}
-                style={{ marginBottom: spacing.md }}
-              />
-            )}
-
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: spacing.md,
-              }}
-            >
-              <Text
-                style={[
-                  styles.cardTitle,
-                  { color: colors.text, fontSize: typography.sizes.md },
-                ]}
-              >
-                Queue List
-              </Text>
-              <View
-                style={[
-                  styles.cardTitleIconPill,
-                  {
-                    backgroundColor: `${colors.textSecondary}10`,
-                    width: scaleFont(32),
-                    height: scaleFont(32),
-                  },
-                ]}
-              >
-                <Clock size={scaleFont(16)} color={colors.textSecondary} />
-              </View>
-            </View>
-
-            {/* Search Input */}
-            <View style={{ marginBottom: spacing.sm }}>
-              <AppInput
-                placeholder="Search patient, service, or token..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                leftIcon={Search}
-              />
-            </View>
-
-            {/* Status Filter Chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ maxHeight: scaleFont(44), marginBottom: spacing.md }}
-              contentContainerStyle={{
-                gap: spacing.sm,
-                paddingRight: spacing.lg,
-              }}
-            >
-              {[
-                {
-                  key: 'queue' as const,
-                  label: 'Active Queue',
-                  color: colors.primary,
-                },
-                {
-                  key: 'checked_in' as const,
-                  label: 'Checked In',
-                  color: colors.success,
-                },
-                {
-                  key: 'serving' as const,
-                  label: 'Serving',
-                  color: colors.warning,
-                },
-                {
-                  key: 'completed' as const,
-                  label: 'Completed',
-                  color: colors.info,
-                },
-                {
-                  key: 'cancelled' as const,
-                  label: 'Cancelled',
-                  color: colors.error,
-                },
-              ].map(filter => {
-                const isSelected = statusFilter === filter.key;
-                const filterColor = filter.color;
-                return (
-                  <Pressable
-                    key={filter.key}
-                    onPress={() => setStatusFilter(filter.key)}
-                    style={({ pressed }) => [
-                      {
-                        borderColor: isSelected ? filterColor : colors.border,
-                        backgroundColor: isSelected
-                          ? filterColor + '10'
-                          : colors.surface,
-                        borderRadius: radius.full,
-                        borderWidth: 1,
-                        paddingHorizontal: spacing.md,
-                        paddingVertical: spacing.xs,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: scaleFont(5),
-                        height: scaleFont(30),
-                      },
-                      pressed && { opacity: 0.75 },
-                    ]}
-                  >
-                    <View
-                      style={{
-                        width: scaleFont(6),
-                        height: scaleFont(6),
-                        borderRadius: scaleFont(3),
-                        backgroundColor: isSelected
-                          ? filterColor
-                          : colors.textSecondary + '60',
-                      }}
-                    />
-                    <Text
-                      style={{
-                        color: isSelected ? filterColor : colors.textSecondary,
-                        fontSize: typography.sizes.sm,
-                        fontWeight: isSelected ? '700' : '500',
-                      }}
-                    >
-                      {filter.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-
             {filteredQueueAppointments.length === 0 ? (
               <EmptyState
                 Icon={Search}
@@ -1035,6 +878,61 @@ const StaffDashboardScreen = () => {
           </Card>
         </View>
       </CardFadeIn>
+
+      {/* Less frequent controls stay below the daily queue work. */}
+      {profile?.role === 'staff' && (
+        <CardFadeIn delay={120}>
+          <View style={{ marginBottom: spacing.xl }}>
+            <Card variant="outlined" style={styles.cardContent}>
+              <View style={[styles.sectionHeader, { marginBottom: spacing.md }]}>
+                <View style={styles.settingsTitleRow}>
+                  <View style={[styles.cardTitleIconPill, { backgroundColor: colors.tint.warning, marginRight: spacing.sm }]}>
+                    <Coffee size={scaleFont(16)} color={colors.warning} />
+                  </View>
+                  <View>
+                    <Text style={[styles.cardTitle, { color: colors.text, fontSize: typography.sizes.md }]}>Queue Settings</Text>
+                    <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginTop: 2 }}>Break mode and service time</Text>
+                  </View>
+                </View>
+                <StatusChip
+                  status={doctorSettings?.is_on_break ? 'cancelled' : 'confirmed'}
+                  label={doctorSettings?.is_on_break ? 'On Break' : 'Active'}
+                />
+              </View>
+
+              <Text style={[styles.helperLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>Average service time</Text>
+              <View style={[styles.timeOptions, { gap: spacing.xs, marginTop: spacing.xs, marginBottom: spacing.md }]}>
+                {[10, 15, 20, 30].map(mins => {
+                  const selected = doctorSettings?.avg_consultation_mins === mins;
+                  return (
+                    <Pressable
+                      key={mins}
+                      onPress={() => handleUpdateAvgTime(mins)}
+                      style={({ pressed }) => [
+                        styles.timeOption,
+                        {
+                          borderRadius: radius.md,
+                          borderColor: selected ? colors.primary : colors.border,
+                          backgroundColor: selected ? colors.tint.primary : colors.surface,
+                          opacity: pressed ? 0.7 : 1,
+                        },
+                      ]}
+                    >
+                      <Text style={{ color: selected ? colors.primary : colors.text, fontSize: typography.sizes.sm, fontWeight: '700' }}>{mins} min</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <AppButton
+                title={doctorSettings?.is_on_break ? 'Resume Queue' : 'Pause Queue for Break'}
+                variant={doctorSettings?.is_on_break ? 'primary' : 'outline'}
+                onPress={handleToggleBreak}
+              />
+            </Card>
+          </View>
+        </CardFadeIn>
+      )}
 
       <Modal
         animationType="fade"
@@ -1128,32 +1026,97 @@ const StaffDashboardScreen = () => {
 export default StaffDashboardScreen;
 
 const styles = StyleSheet.create({
-  centerChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: hp(2.4),
+    marginBottom: scaleFont(16),
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
   },
   title: {
     marginBottom: 2,
   },
   subtitle: {
   },
-  logoutIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  centerCard: {
+    padding: scaleFont(16),
+  },
+  centerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  centerIcon: {
+    width: scaleFont(42),
+    height: scaleFont(42),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  eyebrow: {
+    fontWeight: '800',
+    letterSpacing: 0.7,
+  },
+  centerName: {
+    fontWeight: '700',
+    marginTop: 2,
+  },
+  centerOptions: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(100, 116, 139, 0.24)',
+    paddingTop: scaleFont(12),
+  },
+  helperLabel: {
+    fontWeight: '700',
+  },
+  centerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  centerOption: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    minHeight: scaleFont(46),
+    borderWidth: 1,
+    paddingHorizontal: scaleFont(10),
+    paddingVertical: scaleFont(8),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleFont(7),
+  },
+  selectionDot: {
+    width: scaleFont(16),
+    height: scaleFont(16),
+    borderRadius: scaleFont(8),
     borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  selectionDotFill: {
+    width: scaleFont(8),
+    height: scaleFont(8),
+    borderRadius: scaleFont(4),
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    flex: 1,
+  },
+  sectionHint: {
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   cardContent: {
-    padding: wp(4.5),
+    padding: scaleFont(16),
   },
   cardTitle: {
     fontWeight: '700',
@@ -1168,17 +1131,17 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: wp(2),
   },
   statGridItem: {
-    flexBasis: '30%',
+    flexBasis: '47%',
     flexGrow: 1,
-    paddingHorizontal: wp(2.5),
-    paddingVertical: hp(1.2),
+    minHeight: scaleFont(88),
+    borderWidth: 1,
   },
-  statGridHeader: {
-    alignItems: 'flex-start',
-    marginBottom: scaleFont(4),
+  statTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   statGridIconPill: {
     width: scaleFont(26),
@@ -1188,10 +1151,70 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   statGridValue: {
+    fontWeight: '800',
   },
   statGridLabel: {
     fontWeight: '600',
-    marginTop: scaleFont(2),
+    marginTop: scaleFont(8),
+  },
+  nextPatientCard: {
+    padding: scaleFont(16),
+    borderWidth: 1,
+  },
+  nextPatientRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleFont(12),
+  },
+  nextPatientCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nextToken: {
+    fontWeight: '800',
+  },
+  nextPatientName: {
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  countBadge: {
+    minWidth: scaleFont(30),
+    height: scaleFont(30),
+    paddingHorizontal: scaleFont(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChip: {
+    minHeight: scaleFont(34),
+    borderWidth: 1,
+    paddingHorizontal: scaleFont(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: scaleFont(6),
+  },
+  filterDot: {
+    width: scaleFont(6),
+    height: scaleFont(6),
+    borderRadius: scaleFont(3),
+  },
+  settingsTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  timeOption: {
+    flexBasis: '22%',
+    flexGrow: 1,
+    minHeight: scaleFont(44),
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: scaleFont(6),
   },
   modalBackdrop: {
     alignItems: 'center',

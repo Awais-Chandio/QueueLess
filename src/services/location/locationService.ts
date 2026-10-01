@@ -15,6 +15,10 @@ export type UserLocation = {
   heading: number | null;
 };
 
+type CurrentLocationOptions = {
+  forceFresh?: boolean;
+};
+
 type LocationUpdateHandler = (location: UserLocation) => void;
 type LocationErrorHandler = (error: Error) => void;
 
@@ -78,7 +82,7 @@ export const haversineDistanceMeters = (
 // Rejects a watched fix that implies travel faster than is physically
 // plausible between two consecutive readings — a classic symptom of a GPS
 // glitch (a momentary bad satellite solve) rather than real movement.
-const isImplausibleJump = (
+export const isImplausibleLocationJump = (
   previous: { latitude: number; longitude: number; timestamp: number },
   next: { latitude: number; longitude: number; timestamp: number },
 ): boolean => {
@@ -102,6 +106,12 @@ const isImplausibleJump = (
     distanceMeters / timeDeltaSec > LOCATION_CONFIG.GPS_MAX_PLAUSIBLE_SPEED_MPS
   );
 };
+
+export const shouldRejectTrackedLocation = (
+  previous: { latitude: number; longitude: number; timestamp: number },
+  next: { latitude: number; longitude: number; timestamp: number },
+  isMocked = false,
+) => !isMocked && isImplausibleLocationJump(previous, next);
 
 const toUserLocation = (position: GeoPosition): UserLocation => ({
   latitude: position.coords.latitude,
@@ -153,7 +163,9 @@ export const locationService = {
     return false;
   },
 
-  async getCurrentUserLocation(): Promise<UserLocation> {
+  async getCurrentUserLocation(
+    options: CurrentLocationOptions = {},
+  ): Promise<UserLocation> {
     const hasPermission = await this.requestLocationPermission();
 
     if (!hasPermission) {
@@ -167,10 +179,12 @@ export const locationService = {
     // This keeps the common case fast while giving a bad first fix — common
     // right after a cold start or indoors — one real chance to improve
     // before we give up and ask the user to retry.
-    const attempts = [
-      { maximumAge: LOCATION_CONFIG.CACHED_FIX_MAX_AGE_MS },
-      { maximumAge: 0 },
-    ];
+    const attempts = options.forceFresh
+      ? [{ maximumAge: 0 }]
+      : [
+          { maximumAge: LOCATION_CONFIG.CACHED_FIX_MAX_AGE_MS },
+          { maximumAge: 0 },
+        ];
 
     let lastError: Error = new Error(
       'Unable to determine your current location.',
@@ -254,11 +268,11 @@ export const locationService = {
           }
 
           if (
-            isImplausibleJump(lastAccepted, {
+            shouldRejectTrackedLocation(lastAccepted, {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
               timestamp,
-            })
+            }, position.mocked)
           ) {
             return;
           }
@@ -287,4 +301,3 @@ export const locationService = {
     };
   },
 };
-

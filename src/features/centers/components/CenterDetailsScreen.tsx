@@ -5,13 +5,14 @@ import React, {
   useState,
 } from 'react';
 import {
+  ActivityIndicator,
   View,
   StyleSheet,
   Text,
   FlatList,
   Pressable,
-  Image,
   Alert,
+  InteractionManager,
 } from 'react-native';
 
 import {
@@ -48,7 +49,6 @@ import {
   Activity,
   Info,
   Phone,
-  Hospital,
   Navigation,
 } from 'lucide-react-native';
 import {
@@ -62,17 +62,21 @@ import { useTheme } from '../../../hooks/useTheme';
 
 import type { AppStackParamList } from '../../../navigation/types';
 
-import { centersService } from '../api/centersService';
+import ClinicImage from '../../../components/ui/ClinicImage';
 
 import type {
   Center,
-  CenterService,
 } from '../../../types/center';
+import {
+  useCenterDetails,
+  useCenterServices,
+} from '../../../hooks/useCenters';
 import { MAP_STYLE_URL } from '../../../config/map';
 import {
   calculateDistanceKm,
 } from '../../../services/centers/centerService';
 import { locationService } from '../../../services/location/locationService';
+import type { UserLocation } from '../../../services/location/locationService';
 import { openMapNavigation } from '../../../services/location/mapNavigationService';
 import { useCenterStore } from '../../../store/centerStore';
 import {
@@ -111,40 +115,46 @@ const CenterDetailsScreen = () => {
   const route = useRoute<CenterDetailsRouteProp>();
   const { colors, radius, spacing, typography } = useTheme();
 
-  const { centerId } = route.params as { centerId: string };
-
-  const [center, setCenter] = useState<Center | null>(null);
-  const [services, setServices] = useState<CenterService[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { centerId, center: routeCenter } = route.params;
+  const initialCenter = useMemo<Center | undefined>(
+    () =>
+      routeCenter
+        ? {
+            ...routeCenter,
+            created_at: routeCenter.created_at ?? '',
+          }
+        : undefined,
+    [routeCenter],
+  );
+  const centerQuery = useCenterDetails(centerId, initialCenter);
+  const servicesQuery = useCenterServices(centerId);
+  const center = centerQuery.data ?? null;
+  const services = servicesQuery.data ?? [];
+  const loading = centerQuery.isLoading;
+  const error = !center && centerQuery.error
+    ? centerQuery.error instanceof Error
+      ? centerQuery.error.message
+      : 'Failed to load clinic details'
+    : null;
   const [locationError, setLocationError] = useState<string | null>(null);
-  const userLocation = useCenterStore(state => state.userLocation);
+  const [currentLocation, setCurrentLocation] = useState<UserLocation | null>(
+    null,
+  );
+  const [shouldRenderMap, setShouldRenderMap] = useState(false);
   const setUserLocation = useCenterStore(state => state.setUserLocation);
 
-  const fetchCenterDetails = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const centerData = await centersService.getCenterById(centerId);
-      const servicesData = await centersService.getCenterServices(centerId);
-
-      setCenter(centerData);
-      setServices(servicesData);
-    } catch (loadError) {
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'Failed to load clinic details',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [centerId]);
+  const fetchCenterDetails = useCallback(() => {
+    void Promise.all([centerQuery.refetch(), servicesQuery.refetch()]);
+  }, [centerQuery, servicesQuery]);
 
   useEffect(() => {
-    fetchCenterDetails();
-  }, [fetchCenterDetails]);
+    setShouldRenderMap(false);
+    const interactionTask = InteractionManager.runAfterInteractions(() => {
+      setShouldRenderMap(true);
+    });
+
+    return () => interactionTask.cancel();
+  }, [centerId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -152,19 +162,24 @@ const CenterDetailsScreen = () => {
       let stopTracking: (() => void) | undefined;
 
       const beginTracking = async () => {
+        setCurrentLocation(null);
+        setLocationError(null);
+
         try {
           const currentLocation =
-            await locationService.getCurrentUserLocation();
+            await locationService.getCurrentUserLocation({ forceFresh: true });
           if (!active) {
             return;
           }
 
+          setCurrentLocation(currentLocation);
           setUserLocation(currentLocation);
           setLocationError(null);
 
           stopTracking = await locationService.watchLiveLocation(
             location => {
               if (active) {
+                setCurrentLocation(location);
                 setUserLocation(location);
                 setLocationError(null);
               }
@@ -204,18 +219,18 @@ const CenterDetailsScreen = () => {
       !center ||
       center.latitude == null ||
       center.longitude == null ||
-      !userLocation
+      !currentLocation
     ) {
       return null;
     }
 
     return calculateDistanceKm(
-      userLocation.latitude,
-      userLocation.longitude,
+      currentLocation.latitude,
+      currentLocation.longitude,
       center.latitude,
       center.longitude,
     );
-  }, [center, userLocation]);
+  }, [center, currentLocation]);
 
   const centerPoint = useMemo(
     () =>
@@ -234,20 +249,20 @@ const CenterDetailsScreen = () => {
 
   const userPoint = useMemo(
     () =>
-      userLocation
+      currentLocation
         ? {
             type: 'Feature' as const,
             geometry: {
               type: 'Point' as const,
               coordinates: [
-                userLocation.longitude,
-                userLocation.latitude,
+                currentLocation.longitude,
+                currentLocation.latitude,
               ],
             },
             properties: {},
           }
         : null,
-    [userLocation],
+    [currentLocation],
   );
 
   const handleNavigate = useCallback(async () => {
@@ -333,13 +348,15 @@ const CenterDetailsScreen = () => {
         ListHeaderComponent={
           <View style={{ marginBottom: spacing.lg }}>
             {/* Clinic Image */}
-            {center.image_url ? (
-              <Image source={{ uri: center.image_url }} style={[styles.clinicImage, { borderRadius: radius.xl, marginBottom: spacing.md }]} />
-            ) : (
-              <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.xl, marginBottom: spacing.md }]}>
-                <Hospital size={48} color={colors.primary} />
-              </View>
-            )}
+            <ClinicImage
+              centerId={center.id}
+              imageUrl={center.image_url}
+              style={[
+                styles.clinicImage,
+                { borderRadius: radius.xl, marginBottom: spacing.md },
+              ]}
+              iconSize={48}
+            />
 
             <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xxl, marginBottom: spacing.xs }]}>
               {center.name}
@@ -416,19 +433,21 @@ const CenterDetailsScreen = () => {
                       Location
                     </Text>
                   </View>
-                  {distance != null && (
-                    <Text
-                      style={[
-                        styles.liveDistance,
-                        {
-                          color: colors.primary,
-                          fontSize: typography.sizes.sm,
-                        },
-                      ]}
-                    >
-                      {formatDistance(distance)} away
-                    </Text>
-                  )}
+                  <Text
+                    style={[
+                      styles.liveDistance,
+                      {
+                        color: colors.primary,
+                        fontSize: typography.sizes.sm,
+                      },
+                    ]}
+                  >
+                    {distance != null
+                      ? `${formatDistance(distance)} away`
+                      : locationError
+                        ? 'Distance unavailable'
+                        : 'Locating…'}
+                  </Text>
                 </View>
 
                 <View
@@ -440,58 +459,73 @@ const CenterDetailsScreen = () => {
                     },
                   ]}
                 >
-                  <MapLibreMap
-                    style={styles.map}
-                    mapStyle={MAP_STYLE_URL}
-                    dragPan={false}
-                    touchZoom={false}
-                    touchRotate={false}
-                    touchPitch={false}
-                    attributionPosition={{ bottom: 4, right: 4 }}
-                    logoPosition={{ bottom: 4, left: 4 }}
-                  >
-                    <Camera
-                      initialViewState={{
-                        center: [
-                          center.longitude as number,
-                          center.latitude as number,
-                        ],
-                        zoom: 14,
-                      }}
-                    />
-                    <GeoJSONSource
-                      id={`details-center-${center.id}`}
-                      data={centerPoint}
+                  {shouldRenderMap ? (
+                    <MapLibreMap
+                      style={styles.map}
+                      mapStyle={MAP_STYLE_URL}
+                      dragPan={false}
+                      touchZoom={false}
+                      touchRotate={false}
+                      touchPitch={false}
+                      attributionPosition={{ bottom: 4, right: 4 }}
+                      logoPosition={{ bottom: 4, left: 4 }}
                     >
-                      <Layer
-                        id={`details-center-marker-${center.id}`}
-                        type="circle"
-                        paint={{
-                          'circle-color': colors.primary,
-                          'circle-radius': 11,
-                          'circle-stroke-color': '#FFFFFF',
-                          'circle-stroke-width': 3,
+                      <Camera
+                        initialViewState={{
+                          center: [
+                            center.longitude as number,
+                            center.latitude as number,
+                          ],
+                          zoom: 14,
                         }}
                       />
-                    </GeoJSONSource>
-                    {userPoint && (
                       <GeoJSONSource
-                        id="details-user-location"
-                        data={userPoint}
+                        id={`details-center-${center.id}`}
+                        data={centerPoint}
                       >
                         <Layer
-                          id="details-user-location-dot"
+                          id={`details-center-marker-${center.id}`}
                           type="circle"
                           paint={{
-                            'circle-color': '#2563EB',
-                            'circle-radius': 7,
+                            'circle-color': colors.primary,
+                            'circle-radius': 11,
                             'circle-stroke-color': '#FFFFFF',
                             'circle-stroke-width': 3,
                           }}
                         />
                       </GeoJSONSource>
-                    )}
-                  </MapLibreMap>
+                      {userPoint && (
+                        <GeoJSONSource
+                          id="details-user-location"
+                          data={userPoint}
+                        >
+                          <Layer
+                            id="details-user-location-dot"
+                            type="circle"
+                            paint={{
+                              'circle-color': '#2563EB',
+                              'circle-radius': 7,
+                              'circle-stroke-color': '#FFFFFF',
+                              'circle-stroke-width': 3,
+                            }}
+                          />
+                        </GeoJSONSource>
+                      )}
+                    </MapLibreMap>
+                  ) : (
+                    <View style={styles.mapLoading}>
+                      <ActivityIndicator color={colors.primary} />
+                      <Text
+                        style={{
+                          color: colors.textSecondary,
+                          fontSize: typography.sizes.xs,
+                          marginTop: spacing.xs,
+                        }}
+                      >
+                        Loading map…
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 <AppButton
@@ -589,10 +623,32 @@ const CenterDetailsScreen = () => {
           );
         }}
         ListEmptyComponent={
-          <EmptyState
-            title="No Departments Found"
-            subtitle="No departments available for this clinic"
-          />
+          servicesQuery.isLoading ? (
+            <View style={styles.departmentsLoading}>
+              <ActivityIndicator color={colors.primary} />
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  fontSize: typography.sizes.xs,
+                  marginTop: spacing.sm,
+                }}
+              >
+                Loading departments…
+              </Text>
+            </View>
+          ) : servicesQuery.isError ? (
+            <ErrorState
+              title="Departments Unavailable"
+              message="We couldn't load this clinic's departments."
+              buttonTitle="Retry"
+              onRetry={() => void servicesQuery.refetch()}
+            />
+          ) : (
+            <EmptyState
+              title="No Departments Found"
+              subtitle="No departments available for this clinic"
+            />
+          )
         }
       />
 
@@ -600,6 +656,8 @@ const CenterDetailsScreen = () => {
       <View style={[styles.stickyFooter, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <AppButton
           title="View Doctors"
+          loading={servicesQuery.isLoading}
+          disabled={services.length === 0}
           onPress={() => {
             if (services.length > 0) {
               navigation.navigate('DoctorList', {
@@ -753,6 +811,16 @@ const styles = StyleSheet.create({
   },
   map: {
     flex: 1,
+  },
+  mapLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  departmentsLoading: {
+    minHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   locationError: {
     lineHeight: 16,

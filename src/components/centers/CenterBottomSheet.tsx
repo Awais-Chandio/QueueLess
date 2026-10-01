@@ -29,7 +29,7 @@ type CenterBottomSheetProps = {
   center: NearbyCenter | null;
   visible: boolean;
   onClose: () => void;
-  onViewDetails: (centerId: string) => void;
+  onViewDetails: (center: NearbyCenter) => void;
 };
 
 const CenterBottomSheet = ({
@@ -46,7 +46,7 @@ const CenterBottomSheet = ({
     }
 
     onClose();
-    onViewDetails(center.id);
+    onViewDetails(center);
   }, [center, onClose, onViewDetails]);
 
   const handleNavigate = useCallback(async () => {
@@ -232,4 +232,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-

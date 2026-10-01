@@ -13,6 +13,13 @@ export interface Center {
   longitude: number | null;
 }
 
+// The clinic cards already have everything the details screen needs to paint
+// its first frame. `created_at` is intentionally optional because nearby
+// queries do not select it.
+export type CenterPreview = Omit<Center, 'created_at'> & {
+  created_at?: string;
+};
+
 export interface CenterService {
   id: string;
   center_id: string;

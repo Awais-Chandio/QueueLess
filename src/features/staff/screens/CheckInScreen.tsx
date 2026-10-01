@@ -25,6 +25,7 @@ import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTim
 import { toastService } from '../../../services/toastService';
 import type { AppointmentFull } from '../../../types/appointment';
 import { QrScannerView } from '../components/QrScannerView';
+import StaffLogoutButton from '../components/StaffLogoutButton';
 import { validateScannedAppointment } from '../utils/qrCheckIn';
 
 type CheckInMode = 'list' | 'scan';
@@ -146,8 +147,13 @@ const CheckInScreen = () => {
         >
           <ChevronLeft size={scaleFont(24)} color={colors.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Patient Check-In Desk</Text>
-        <View style={{ width: 40 }} />
+        <Text
+          numberOfLines={1}
+          style={[styles.headerTitle, { color: colors.text }]}
+        >
+          Patient Check-In Desk
+        </Text>
+        <StaffLogoutButton />
       </View>
 
       <View style={[styles.modeToggle, { backgroundColor: colors.surface, marginBottom: spacing.md }]}>
@@ -380,8 +386,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '800',
+    marginHorizontal: 8,
   },
   modeToggle: {
     flexDirection: 'row',

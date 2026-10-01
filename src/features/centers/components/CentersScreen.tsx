@@ -4,7 +4,6 @@ import {
   StyleSheet,
   Text,
   FlatList,
-  Image,
 } from 'react-native';
 
 import { useNavigation } from '@react-navigation/native';
@@ -16,7 +15,8 @@ import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
 import Badge from '../../../components/ui/Badge';
 import Card from '../../../components/ui/Card';
-import { Hospital, MapPin, Star } from 'lucide-react-native';
+import { MapPin, Star } from 'lucide-react-native';
+import ClinicImage from '../../../components/ui/ClinicImage';
 
 import { useTheme } from '../../../hooks/useTheme';
 
@@ -38,10 +38,12 @@ const CentersScreen = () => {
   } = useCentersStore();
 
   useEffect(() => {
-    fetchCenters();
-  }, [fetchCenters]);
+    if (centers.length === 0) {
+      fetchCenters();
+    }
+  }, [centers.length, fetchCenters]);
 
-  if (loading) {
+  if (loading && centers.length === 0) {
     return (
       <ScreenWrapper>
         <Loader />
@@ -49,7 +51,7 @@ const CentersScreen = () => {
     );
   }
 
-  if (error) {
+  if (error && centers.length === 0) {
     return (
       <ScreenWrapper>
         <ErrorState
@@ -94,6 +96,7 @@ const CentersScreen = () => {
                   'CenterDetails',
                   {
                     centerId: item.id,
+                    center: item,
                   },
                 )
               }
@@ -106,13 +109,11 @@ const CentersScreen = () => {
               ]}
               containerStyle={{ marginBottom: spacing.md }}
             >
-              {item.image_url ? (
-                <Image source={{ uri: item.image_url }} style={[styles.clinicImage, { borderRadius: radius.lg }]} />
-              ) : (
-                <View style={[styles.clinicImagePlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.lg }]}>
-                  <Hospital size={36} color={colors.primary} />
-                </View>
-              )}
+              <ClinicImage
+                centerId={item.id}
+                imageUrl={item.image_url}
+                style={[styles.clinicImage, { borderRadius: radius.lg }]}
+              />
 
               <View style={[styles.infoContainer, { marginTop: spacing.sm }]}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

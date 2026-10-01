@@ -17,6 +17,7 @@ import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
 import { supabase, supabaseConfig } from "./src/lib/supabase";
 import { hp, scaleFont, wp } from "./src/utils/responsive";
+import { isGoogleSession, parseOAuthCallback } from "./src/utils/oauthCallback";
 
 const persister = {
   persistClient: async (client: any) => {
@@ -170,12 +171,12 @@ const App = ()=>{
 
         try {
           useAuthStore.getState().setLoading(true);
-          const urlToParse = url.includes('#') ? url.replace('#', '?') : url;
-          const parsedUrl = new URL(urlToParse);
-          
-          const code = parsedUrl.searchParams.get('code');
-          const accessToken = parsedUrl.searchParams.get('access_token');
-          const refreshToken = parsedUrl.searchParams.get('refresh_token');
+          const { code, accessToken, refreshToken, errorMessage } =
+            parseOAuthCallback(url);
+
+          if (errorMessage) {
+            throw new Error(errorMessage);
+          }
 
           if (code) {
             const { error } = await authService.exchangeCodeForSession(code);
@@ -185,11 +186,19 @@ const App = ()=>{
             if (error) throw error;
           }
 
+          const sessionResult = await authService.getSession();
+          if (sessionResult.error) throw sessionResult.error;
+          if (!isGoogleSession(sessionResult.data.session)) {
+            throw new Error(
+              "Google sign-in did not complete. Please select a Google account and try again.",
+            );
+          }
+
           await restoreSession();
           return true;
         } catch (error) {
           const sessionResult = await authService.getSession();
-          if (sessionResult.data.session) {
+          if (isGoogleSession(sessionResult.data.session)) {
             await restoreSession();
             return true;
           }

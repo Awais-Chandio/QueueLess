@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, StyleSheet, Text, Image, Pressable } from 'react-native';
-import { Hospital, MapPin, Stethoscope, Users, Clock } from 'lucide-react-native';
+import { View, StyleSheet, Text } from 'react-native';
+import { MapPin, Stethoscope } from 'lucide-react-native';
 import { Card } from '../../../components/ui/Card';
 import { Badge } from '../../../components/ui/Badge';
 import AppButton from '../../../components/ui/AppButton';
@@ -8,6 +8,7 @@ import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useTheme } from '../../../hooks/useTheme';
 import { NearbyCenter } from '../../../hooks/useNearbyClinics';
 import { scaleFont } from '../../../utils/responsive';
+import ClinicImage from '../../../components/ui/ClinicImage';
 
 interface NearbyClinicCardProps {
   item: NearbyCenter;
@@ -31,7 +32,7 @@ const isCenterOpen = (openTime: string | null, closeTime: string | null): boolea
     const closeVal = closeH * 60 + (closeM || 0);
 
     return currentVal >= openVal && currentVal <= closeVal;
-  } catch (e) {
+  } catch {
     return true;
   }
 };
@@ -59,16 +60,12 @@ const NearbyClinicCardComponent: React.FC<NearbyClinicCardProps> = ({ item, inde
       >
         {/* Top Section: Logo, Name, Distance & Rating */}
         <View style={styles.topSection}>
-          {item.image_url ? (
-            <Image
-              source={{ uri: item.image_url }}
-              style={[styles.logo, { borderRadius: radius.lg }]}
-            />
-          ) : (
-            <View style={[styles.logoPlaceholder, { backgroundColor: colors.primary + '10', borderRadius: radius.lg }]}>
-              <Hospital size={30} color={colors.primary} />
-            </View>
-          )}
+          <ClinicImage
+            centerId={item.id}
+            imageUrl={item.image_url}
+            style={[styles.logo, { borderRadius: radius.lg }]}
+            iconSize={30}
+          />
 
           <View style={styles.infoSection}>
             {/* Title & Distance */}

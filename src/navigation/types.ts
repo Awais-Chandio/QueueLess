@@ -1,8 +1,9 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { CenterPreview } from '../types/center';
 
 export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<AppTabParamList> | undefined;
-  CenterDetails: { centerId?: string };
+  CenterDetails: { centerId: string; center?: CenterPreview };
   DoctorList: { centerId: string; serviceId: string; serviceName?: string };
   BookAppointment: { centerId?: string; serviceId?: string; doctorId?: string };
   AppointmentDetails: { appointmentId?: string };

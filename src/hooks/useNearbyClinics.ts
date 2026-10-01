@@ -23,6 +23,90 @@ export interface NearbyCenter {
   estimatedWait: number;
 }
 
+const enrichCentersWithLiveStats = async (
+  centers: Awaited<ReturnType<typeof getNearbyCenters>>,
+): Promise<NearbyCenter[]> => {
+  if (centers.length === 0) {
+    return [];
+  }
+
+  const centerIds = centers.map(center => center.id);
+  const today = new Date().toISOString().split('T')[0];
+  const [doctorsResult, appointmentsResult] = await Promise.all([
+    supabase
+      .from('doctors')
+      .select('center_id')
+      .in('center_id', centerIds)
+      .eq('is_active', true),
+    supabase
+      .from('appointments')
+      .select('center_id, status, token_number')
+      .in('center_id', centerIds)
+      .eq('appointment_date', today),
+  ]);
+
+  if (doctorsResult.error) {
+    console.warn('Unable to load nearby clinic doctor counts', doctorsResult.error);
+  }
+  if (appointmentsResult.error) {
+    console.warn('Unable to load nearby clinic queue stats', appointmentsResult.error);
+  }
+
+  const doctorCounts = new Map<string, number>();
+  (doctorsResult.data ?? []).forEach(doctor => {
+    if (doctor.center_id) {
+      doctorCounts.set(
+        doctor.center_id,
+        (doctorCounts.get(doctor.center_id) ?? 0) + 1,
+      );
+    }
+  });
+
+  const appointmentsByCenter = new Map<
+    string,
+    Array<{ status: string; token_number: number | null }>
+  >();
+  (appointmentsResult.data ?? []).forEach(appointment => {
+    if (!appointment.center_id) {
+      return;
+    }
+    const current = appointmentsByCenter.get(appointment.center_id) ?? [];
+    current.push({
+      status: appointment.status,
+      token_number: appointment.token_number,
+    });
+    appointmentsByCenter.set(appointment.center_id, current);
+  });
+
+  return centers.map(center => {
+    const appointments = appointmentsByCenter.get(center.id) ?? [];
+    const servingTokens = appointments
+      .filter(item => ['called', 'in_progress'].includes(item.status))
+      .map(item => item.token_number)
+      .filter((token): token is number => typeof token === 'number');
+    const completedTokens = appointments
+      .filter(item => item.status === 'completed')
+      .map(item => item.token_number)
+      .filter((token): token is number => typeof token === 'number');
+    const activeTokens =
+      servingTokens.length > 0 ? servingTokens : completedTokens;
+    const waitingCount = appointments.filter(item =>
+      ['confirmed', 'checked_in'].includes(item.status),
+    ).length;
+
+    return {
+      ...center,
+      distance_km: center.distance.toFixed(2),
+      doctorCount: doctorCounts.get(center.id) ?? 0,
+      currentToken:
+        activeTokens.length > 0 ? Math.max(...activeTokens) : 0,
+      hasActiveToken: activeTokens.length > 0,
+      waitingCount,
+      estimatedWait: waitingCount * 5,
+    };
+  });
+};
+
 export const useNearbyClinics = () => {
   const [loading, setLoading] = useState(true);
   const [centers, setCenters] = useState<NearbyCenter[]>([]);
@@ -32,77 +116,6 @@ export const useNearbyClinics = () => {
   const [radiusSearched, setRadiusSearched] = useState<number>(10);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Helper to enrich a single center with real, live queue stats. No fields
-  // here are fabricated: everything defaults to a genuine zero/empty state
-  // when there's no real data, rather than a fake "looks busy" placeholder.
-  const enrichCenter = async (center: any): Promise<NearbyCenter> => {
-    let doctorCount = 0;
-    let currentToken = 0;
-    let hasActiveToken = false;
-    let waitingCount = 0;
-    let estimatedWait = 0;
-
-    try {
-      const { count: docCount, error: docError } = await supabase
-        .from('doctors')
-        .select('id', { count: 'exact', head: true })
-        .eq('center_id', center.id)
-        .eq('is_active', true);
-
-      if (!docError && typeof docCount === 'number') {
-        doctorCount = docCount;
-      }
-    } catch (e) {
-      console.warn('Error fetching doctor count for center', center.id, e);
-    }
-
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const { data: appointments, error: apptError } = await supabase
-        .from('appointments')
-        .select('status, token_number')
-        .eq('center_id', center.id)
-        .eq('appointment_date', todayStr);
-
-      if (!apptError && appointments) {
-        const serving = appointments
-          .filter(a => ['called', 'in_progress'].includes(a.status))
-          .map(a => a.token_number)
-          .filter((t): t is number => typeof t === 'number');
-
-        if (serving.length > 0) {
-          currentToken = Math.max(...serving);
-          hasActiveToken = true;
-        } else {
-          const completed = appointments
-            .filter(a => a.status === 'completed')
-            .map(a => a.token_number)
-            .filter((t): t is number => typeof t === 'number');
-          if (completed.length > 0) {
-            currentToken = Math.max(...completed);
-            hasActiveToken = true;
-          }
-        }
-
-        waitingCount = appointments.filter(a =>
-          ['confirmed', 'checked_in'].includes(a.status),
-        ).length;
-        estimatedWait = waitingCount * 5; // 5 mins average consultation
-      }
-    } catch (e) {
-      console.warn('Error fetching appointments for center', center.id, e);
-    }
-
-    return {
-      ...center,
-      doctorCount,
-      currentToken,
-      hasActiveToken,
-      waitingCount,
-      estimatedWait,
-    };
-  };
 
   const checkPermissionAndFetch = useCallback(async (isRefreshCall = false) => {
     if (isRefreshCall) {
@@ -125,14 +138,9 @@ export const useNearbyClinics = () => {
           ? 'No clinics found within 10 km. Showing nearest clinics within 15 km.'
           : null;
 
-      const enriched = await Promise.all(
-        results.map(center =>
-          enrichCenter({
-            ...center,
-            distance_km: center.distance.toFixed(2),
-          }),
-        ),
-      );
+      // Two batched requests replace the previous two-requests-per-clinic
+      // pattern, which was the main source of latency on this screen.
+      const enriched = await enrichCentersWithLiveStats(results);
 
       setCenters(enriched);
       setRadiusSearched(radius);

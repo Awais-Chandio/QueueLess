@@ -11,6 +11,7 @@ import { fcmService } from '../services/fcmService';
 import { useNotificationsStore } from '../stores/notificationStore';
 import { supabase } from '../lib/supabase';
 import { normalizeUserRole } from '../utils/roleMapping';
+import { isGoogleSession, parseOAuthCallback } from '../utils/oauthCallback';
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -280,8 +281,15 @@ export const useAuth = () => {
   const loginWithGoogle = useCallback(async () => {
     if (__DEV__) console.log('[AUTH] loginWithGoogle started');
     setLoading(true);
+    let initialAccessToken: string | null = null;
 
     try {
+      const initialSessionResult = await authService.getSession();
+      if (initialSessionResult.error) {
+        throw initialSessionResult.error;
+      }
+      initialAccessToken = initialSessionResult.data.session?.access_token ?? null;
+
       const { data, error } = await authService.signInWithGoogle();
       if (error) {
         throw error;
@@ -320,11 +328,12 @@ export const useAuth = () => {
         );
 
         if (result.type === 'success' && result.url) {
-          const urlToParse = result.url.includes('#') ? result.url.replace('#', '?') : result.url;
-          const parsedUrl = new URL(urlToParse);
-          const code = parsedUrl.searchParams.get('code');
-          const accessToken = parsedUrl.searchParams.get('access_token');
-          const refreshToken = parsedUrl.searchParams.get('refresh_token');
+          const { code, accessToken, refreshToken, errorMessage } =
+            parseOAuthCallback(result.url);
+
+          if (errorMessage) {
+            throw new Error(errorMessage);
+          }
 
           if (code) {
             const { error: exchangeError } = await authService.exchangeCodeForSession(code);
@@ -338,21 +347,45 @@ export const useAuth = () => {
             }
           }
 
-          await restoreSession();
-        } else {
-          // If browser flow completed or was dismissed, check if we got a session anyway
           const sessionResult = await authService.getSession();
-          if (sessionResult.data.session) {
-            await restoreSession();
+          if (sessionResult.error) {
+            throw sessionResult.error;
           }
+          if (!isGoogleSession(sessionResult.data.session)) {
+            throw new Error(
+              'Google sign-in did not complete. Please select a Google account and try again.',
+            );
+          }
+
+          await restoreSession();
+          return;
+        } else {
+          // A deep-link listener can finish just before the in-app browser reports
+          // dismissal. Only accept a genuinely new Google session in that race.
+          const sessionResult = await authService.getSession();
+          const currentSession = sessionResult.data.session;
+          if (
+            isGoogleSession(currentSession) &&
+            currentSession.access_token !== initialAccessToken
+          ) {
+            await restoreSession();
+            return;
+          }
+
+          throw new Error('Google sign-in was cancelled.');
         }
       } else {
         throw new Error('In-app browser is not supported on this device.');
       }
     } catch (error) {
-      // Check if session was successfully established (e.g. via deep link listener) before throwing
+      // The app-level deep-link listener may have completed the exchange first.
+      // Do not treat an old/stale session as proof that this attempt succeeded.
       const sessionResult = await authService.getSession();
-      if (sessionResult.data.session) {
+      const currentSession = sessionResult.data.session;
+      if (
+        isGoogleSession(currentSession) &&
+        currentSession.access_token !== initialAccessToken
+      ) {
         if (__DEV__) console.log('[AUTH] Google Sign-In caught error but session exists, restoring session.');
         await restoreSession();
       } else {
