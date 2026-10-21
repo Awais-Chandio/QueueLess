@@ -109,6 +109,7 @@ WHERE id IN (
 --   doctor   doctor.b@mediq.test      B
 --   client   patient.1@mediq.test     -
 --   client   patient.2@mediq.test     -
+--   client   owner.a@mediq.test       owner of center A's organization (Phase 1A)
 -- ---------------------------------------------------------------------------
 
 INSERT INTO auth.users (
@@ -128,7 +129,8 @@ FROM (VALUES
   ('a0000000-0000-4000-8000-000000000004'::uuid, 'doctor.a@mediq.test',  'Dr. A'),
   ('a0000000-0000-4000-8000-000000000005'::uuid, 'doctor.b@mediq.test',  'Dr. B'),
   ('a0000000-0000-4000-8000-000000000006'::uuid, 'patient.1@mediq.test', 'Patient One'),
-  ('a0000000-0000-4000-8000-000000000007'::uuid, 'patient.2@mediq.test', 'Patient Two')
+  ('a0000000-0000-4000-8000-000000000007'::uuid, 'patient.2@mediq.test', 'Patient Two'),
+  ('a0000000-0000-4000-8000-000000000009'::uuid, 'owner.a@mediq.test',   'Owner A')
 ) AS u (id, email, full_name);
 
 INSERT INTO auth.identities (id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at)
@@ -153,6 +155,14 @@ WHERE p.id = v.id;
 INSERT INTO public.staff_centers (profile_id, center_id) VALUES
   ('a0000000-0000-4000-8000-000000000002', '521f1349-05c4-4417-9fa5-5289963af7db'),
   ('a0000000-0000-4000-8000-000000000003', 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481');
+
+-- Phase 1A: centers got a default organization each (service_centers trigger).
+-- Owner A owns center A's organization; staff/doctor memberships come from the
+-- staff_centers / doctors sync triggers.
+INSERT INTO public.org_members (organization_id, user_id, role)
+SELECT organization_id, 'a0000000-0000-4000-8000-000000000009', 'owner'
+FROM public.service_centers WHERE id = '521f1349-05c4-4417-9fa5-5289963af7db'
+ON CONFLICT DO NOTHING;
 
 INSERT INTO public.services (id, center_id, name, duration_minutes, price) VALUES
   ('50000000-0000-4000-8000-00000000000a', '521f1349-05c4-4417-9fa5-5289963af7db', 'General OPD', 15, 500),
