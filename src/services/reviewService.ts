@@ -3,8 +3,10 @@ import type { DoctorReview, SubmitReviewPayload } from '../types/review';
 
 export const REVIEW_COMMENT_MAX = 500;
 
+// patient_id is deliberately not selectable by clients (column grant): reviews
+// are visible to every signed-in user and must not reveal who saw which doctor.
 const reviewSelect =
-  'id, appointment_id, patient_id, doctor_id, rating, comment, created_at';
+  'id, appointment_id, doctor_id, rating, comment, created_at';
 
 export const reviewService = {
   /** The review left for one appointment, or null if the patient has not rated it yet. */

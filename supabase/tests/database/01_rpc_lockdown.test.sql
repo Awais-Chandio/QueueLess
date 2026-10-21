@@ -51,7 +51,9 @@ $$, ARRAY[
   'get_doctors_availability_batch(uuid[])', 'get_my_staff_context()', 'is_admin()', 'is_staff()',
   'lock_slot(uuid,uuid,date,text)', 'people_ahead(uuid)', 'release_slot(uuid)',
   'set_center_break(uuid,date,timestamp with time zone,timestamp with time zone,boolean)',
-  'staff_performance(text)', 'update_center_average_consultation_time(uuid,date,numeric)'
+  'staff_performance(text)', 'update_center_average_consultation_time(uuid,date,numeric)',
+  -- 0.6
+  'save_visit_summary(uuid,text,text,date,jsonb)', 'busiest_services(text)', 'busiest_centers(text)', 'bookings_per_day(text)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$

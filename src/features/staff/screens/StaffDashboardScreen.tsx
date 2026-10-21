@@ -179,6 +179,7 @@ const StaffDashboardScreen = () => {
     queryFn: () => queueService.fetchDashboard('today'),
     refetchOnMount: 'always',
     staleTime: 0,
+    refetchInterval: 20_000, // fallback poll in case a realtime event is missed
   });
 
   // The server already limits staff to all assigned centers; narrow to the one being managed.
