@@ -7,6 +7,7 @@ import { useProfileStore } from '../stores/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
 import { profileService } from '../services/profileService';
 import { firebasePhoneAuth } from '../services/firebasePhoneAuth';
+import { assertPhoneLoginEnabled } from '../config/featureFlags';
 import { fcmService } from '../services/fcmService';
 import { useNotificationsStore } from '../stores/notificationStore';
 import { supabase } from '../lib/supabase';
@@ -443,6 +444,7 @@ export const useAuth = () => {
   }, [user, clearAuth, setLoading]);
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
+    assertPhoneLoginEnabled();
     if (__DEV__) console.log('[AUTH] sendPhoneOtp (Firebase) started', phone);
     try {
       await firebasePhoneAuth.sendOTP(phone);
@@ -453,6 +455,7 @@ export const useAuth = () => {
   }, []);
 
   const verifyPhoneOtp = useCallback(async (phone: string, token: string) => {
+    assertPhoneLoginEnabled();
     if (__DEV__) console.log('[AUTH] verifyPhoneOtp (Firebase) started', phone);
     setLoading(true);
     try {
@@ -493,6 +496,7 @@ export const useAuth = () => {
   }, [clearAuth, setRole, setSession, setLoading]);
 
   const loginWithPhone = useCallback(async (phone: string) => {
+    assertPhoneLoginEnabled();
     if (__DEV__) console.log('[AUTH] loginWithPhone started', phone);
     try {
       const success = await firebasePhoneAuth.sendOTP(phone);
@@ -503,6 +507,7 @@ export const useAuth = () => {
   }, []);
 
   const verifyPhoneOTP = useCallback(async (code: string) => {
+    assertPhoneLoginEnabled();
     if (__DEV__) console.log('[AUTH] verifyPhoneOTP started', code);
     try {
       const userCredential = await firebasePhoneAuth.verifyOTP(code);

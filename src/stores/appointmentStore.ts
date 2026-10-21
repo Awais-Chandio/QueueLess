@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Appointment, AppointmentFull } from '../types/appointment';
+import { AppointmentFull } from '../types/appointment';
 import { appointmentService } from '../services/appointmentService';
 import {
   subscribeToAppointments as subscribeToAppointmentsRealtime,
@@ -13,12 +13,6 @@ const sortAppointments = (appointments: AppointmentFull[]) =>
       new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime(),
   );
 
-const toAppointmentFull = (appointment: Appointment): AppointmentFull => ({
-  ...appointment,
-  center_name: undefined,
-  service_name: undefined,
-});
-
 let appointmentsRealtimeChannel: ReturnType<
   typeof subscribeToAppointmentsRealtime
 > | null = null;
@@ -28,15 +22,6 @@ interface AppointmentsState {
 
   loading: boolean;
   error: string | null;
-
-  createAppointment: (payload: {
-    user_id: string;
-    center_id: string;
-    service_id: string;
-    scheduled_at: string;
-    appointment_date?: string;
-    appointment_time?: string;
-  }) => Promise<Appointment>;
 
   fetchUserAppointments: (userId: string) => Promise<AppointmentFull[]>;
 
@@ -64,44 +49,6 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
   checkingInId: null,
   cancellingId: null,
   callingId: null,
-
-  createAppointment: async payload => {
-    try {
-      console.log('[DEBUG] Store: Creating appointment with payload:', payload);
-      set({ loading: true, error: null });
-
-      const newAppointment = await appointmentService.createAppointment(
-        payload,
-      );
-
-      set(state => ({
-        appointments: sortAppointments([
-          toAppointmentFull(newAppointment),
-          ...state.appointments.filter(
-            appointment => appointment.id !== newAppointment.id,
-          ),
-        ]),
-        loading: false,
-      }));
-      console.log('[DEBUG] Store: Appointment created:', newAppointment.id);
-      return newAppointment;
-    } catch (error: any) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to create appointment';
-
-      console.error('[DEBUG] Store: Failed to create appointment:', message);
-      set({
-        loading: false,
-        error: message,
-      });
-
-      const storeError = new Error(message);
-      if (error && typeof error === 'object' && 'code' in error) {
-        (storeError as any).code = error.code;
-      }
-      throw storeError;
-    }
-  },
 
   fetchUserAppointments: async userId => {
     try {

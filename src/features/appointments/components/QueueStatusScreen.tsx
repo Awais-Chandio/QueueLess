@@ -408,11 +408,13 @@ const QueueStatusScreen = () => {
                 title={canBook ? "Book Token" : "Booking Unavailable"}
                 disabled={!canBook}
                 onPress={() => {
-                  navigation.navigate('BookAppointment', {
-                    centerId,
-                    serviceId,
-                    doctorId,
-                  });
+                  // Normal booking flow. Without a known clinic + service the
+                  // doctor profile resolves them (or asks) before SelectSlot.
+                  if (centerId && serviceId) {
+                    navigation.navigate('SelectSlot', { doctorId, centerId, serviceId });
+                  } else {
+                    navigation.navigate('PublicDoctorProfile', { doctorId, centerId, serviceId });
+                  }
                 }}
                 style={{ marginTop: spacing.lg }}
               />

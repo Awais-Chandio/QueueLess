@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AppTabs from "./AppTabs";
 import CentersScreen from "../features/centers/components/CentersScreen";
 import CenterDetailsScreen from "../features/centers/components/CenterDetailsScreen";
-import BookAppointmentScreen from "../features/appointments/components/BookAppointmentScreen";
 import SelectSlotScreen from "../features/appointments/components/SelectSlotScreen";
 import PatientDetailsScreen from "../features/appointments/components/PatientDetailsScreen";
 import ConfirmBookingScreen from "../features/appointments/components/ConfirmBookingScreen";
@@ -61,11 +60,6 @@ const AppNavigator = () => {
         name="DoctorList"
         component={DoctorListScreen}
         options={{ title: "Select Doctor", headerShown: false }}
-      />
-      <Stack.Screen
-        name="BookAppointment"
-        component={BookAppointmentScreen}
-        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="Centers"

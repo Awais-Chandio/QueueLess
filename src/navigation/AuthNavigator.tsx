@@ -8,6 +8,7 @@ import ResetPasswordScreen from "../features/auth/components/ResetPasswordScreen
 import PhoneLoginScreen from "../features/auth/components/PhoneLoginScreen";
 import OTPVerificationScreen from "../features/auth/components/OTPVerificationScreen";
 import { useAuthStore } from "../store/authStore";
+import { PHONE_LOGIN_ENABLED } from "../config/featureFlags";
 
 export type AuthStackParamList = {
     Onboarding: undefined;
@@ -32,8 +33,12 @@ const AuthNavigator = () => {
             <Stack.Screen name="Signup" component={SignupScreen} />
             <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-            <Stack.Screen name="PhoneLogin" component={PhoneLoginScreen} />
-            <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
+            {PHONE_LOGIN_ENABLED && (
+                <>
+                    <Stack.Screen name="PhoneLogin" component={PhoneLoginScreen} />
+                    <Stack.Screen name="OTPVerification" component={OTPVerificationScreen} />
+                </>
+            )}
         </Stack.Navigator>
     )
 }

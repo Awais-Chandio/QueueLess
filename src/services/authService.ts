@@ -1,5 +1,6 @@
 import { LoginPayload, SignupPayload } from "../types/auth";
 import { supabase } from "../lib/supabase";
+import { assertPhoneLoginEnabled } from "../config/featureFlags";
 
 export const PASSWORD_RESET_REDIRECT_URL = 'queueless://reset-password';
 
@@ -86,6 +87,9 @@ export const authService = {
     },
 
     async bridgeFirebaseUserToSupabase(uid: string, phoneNumber: string | null, displayName: string | null = null) {
+        // Insecure by design (client-derivable password); see config/featureFlags.ts.
+        assertPhoneLoginEnabled();
+
         if (!phoneNumber) {
             throw new Error('Phone number is missing from Firebase credential.');
         }

@@ -5,7 +5,6 @@ export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<AppTabParamList> | undefined;
   CenterDetails: { centerId: string; center?: CenterPreview };
   DoctorList: { centerId: string; serviceId: string; serviceName?: string };
-  BookAppointment: { centerId?: string; serviceId?: string; doctorId?: string };
   AppointmentDetails: { appointmentId?: string };
   QueueStatus: {
     appointmentId?: string;
