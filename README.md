@@ -24,6 +24,17 @@ using [`@react-native-community/cli`](https://github.com/react-native-community/
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
+## Step 0: Environment config
+
+Copy `.env.example` to `.env` and fill in the Supabase URL and anon key
+(read at build time by `react-native-config`; rebuild the native app after
+changing it). `.env` is git-ignored. Only the anon/publishable key may go in
+the app; never the service_role key.
+
+```sh
+cp .env.example .env
+```
+
 ## Step 1: Start Metro
 
 First, you will need to run **Metro**, the JavaScript build tool for React Native.

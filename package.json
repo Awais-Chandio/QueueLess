@@ -6,7 +6,6 @@
     "android": "react-native run-android",
     "ios": "react-native run-ios",
     "lint": "eslint .",
-    "accounts:production": "node scripts/manage-production-accounts.js",
     "start": "react-native start",
     "test": "jest"
   },
@@ -34,6 +33,7 @@
     "react-hook-form": "^7.74.0",
     "react-native": "0.84.1",
     "react-native-chart-kit": "^6.12.3",
+    "react-native-config": "^1.7.2",
     "react-native-geolocation-service": "^5.3.1",
     "react-native-gesture-handler": "^2.31.0",
     "react-native-haptic-feedback": "^3.0.0",

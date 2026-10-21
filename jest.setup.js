@@ -16,6 +16,11 @@ global.window.dispatchEvent = global.window.dispatchEvent || jest.fn();
 
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage);
 
+jest.mock('react-native-config', () => ({
+  SUPABASE_URL: 'http://127.0.0.1:54321',
+  SUPABASE_ANON_KEY: 'test-anon-key',
+}));
+
 jest.mock('react-native-reanimated', () => {
   const ReactNative = require('react-native');
   const passthrough = value => value;
