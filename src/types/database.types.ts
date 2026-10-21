@@ -211,6 +211,36 @@ export type Database = {
           },
         ]
       }
+      center_displays: {
+        Row: {
+          center_id: string
+          created_at: string
+          display_key: string
+          rotated_at: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          center_id: string
+          created_at?: string
+          display_key?: string
+          rotated_at?: string | null
+        }
+        Update: {
+          center_id?: string
+          created_at?: string
+          display_key?: string
+          rotated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'center_displays_center_id_fkey'
+            columns: ['center_id']
+            isOneToOne: true
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       center_queue_settings: {
         Row: {
           appointment_date: string
@@ -500,6 +530,7 @@ export type Database = {
           profile_id: string | null
           qualification: string | null
           review_count: number
+          room: string | null
           specialty: string
           status: string | null
           updated_at: string | null
@@ -523,6 +554,7 @@ export type Database = {
           profile_id?: string | null
           qualification?: string | null
           review_count?: number
+          room?: string | null
           specialty: string
           status?: string | null
           updated_at?: string | null
@@ -545,6 +577,7 @@ export type Database = {
           profile_id?: string | null
           qualification?: string | null
           review_count?: number
+          room?: string | null
           specialty?: string
           status?: string | null
           updated_at?: string | null
@@ -747,6 +780,58 @@ export type Database = {
             columns: ['plan_id']
             isOneToOne: false
             referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      org_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          center_id: string
+          created_at: string
+          email: string
+          id: string
+          invited_by: string | null
+          organization_id: string
+          role: string
+        }
+        ComputedFields: never
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          center_id: string
+          created_at?: string
+          email: string
+          id?: string
+          invited_by?: string | null
+          organization_id: string
+          role?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          center_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          invited_by?: string | null
+          organization_id?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'org_invites_center_id_fkey'
+            columns: ['center_id']
+            isOneToOne: false
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'org_invites_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
             referencedColumns: ['id']
           },
         ]
@@ -1110,6 +1195,7 @@ export type Database = {
           name: string
           open_time: string | null
           organization_id: string
+          slug: string
         }
         ComputedFields: never
         Insert: {
@@ -1126,6 +1212,7 @@ export type Database = {
           name: string
           open_time?: string | null
           organization_id: string
+          slug: string
         }
         Update: {
           address?: string
@@ -1141,6 +1228,7 @@ export type Database = {
           name?: string
           open_time?: string | null
           organization_id?: string
+          slug?: string
         }
         Relationships: [
           {
@@ -1513,11 +1601,9 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invites: { Args: Record<PropertyKey, never>; Returns: number }
       admin_delete_staff_account: { Args: { staff_profile_id: string }; Returns: undefined }
-      book_appointment: {
-        Args: { p_lock_id: string; p_notes?: string; p_service_id: string }
-        Returns: string
-      }
+      book_appointment: { Args: { p_lock_id: string; p_notes?: string; p_service_id: string }; Returns: string }
       bookings_per_day: {
         Args: { p_range: string }
         Returns: {
@@ -1579,6 +1665,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      call_next: {
+        Args: { p_doctor_id: string }
+        Returns: {
+          appointment_id: string
+          patient_name: string
+          token_number: number
+        }[]
       }
       cancel_appointment: {
         Args: { p_appointment_id: string; p_reason: string }
@@ -1729,17 +1823,28 @@ export type Database = {
         }
         Returns: string
       }
+      create_organization: {
+        Args: {
+          p_address: string
+          p_center_name: string
+          p_city: string
+          p_close_time?: string
+          p_doctors?: Json
+          p_open_time?: string
+          p_org_name: string
+          p_timezone?: string
+        }
+        Returns: Json
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       generate_token_number: { Args: { p_center_id: string }; Returns: number }
       get_appointment_queue_snapshot: { Args: { p_appointment_id: string }; Returns: Json }
       get_available_slots: { Args: { p_date: string; p_doctor_id: string }; Returns: string[] }
-      get_center_queue_snapshot: {
-        Args: { p_center_id: string; p_queue_date?: string }
-        Returns: Json
-      }
+      get_center_queue_snapshot: { Args: { p_center_id: string; p_queue_date?: string }; Returns: Json }
       get_current_token:
         | { Args: Record<PropertyKey, never>; Returns: number }
         | { Args: { p_center_id: string; p_queue_date?: string }; Returns: number }
+      get_display_snapshot: { Args: { p_display_key: string }; Returns: Json }
       get_doctor_availability: {
         Args: { p_doctor_id: string }
         Returns: {
@@ -1756,10 +1861,7 @@ export type Database = {
           total_fee: number
         }[]
       }
-      get_doctor_queue_snapshot: {
-        Args: { p_doctor_id: string; p_queue_date?: string }
-        Returns: Json
-      }
+      get_doctor_queue_snapshot: { Args: { p_doctor_id: string; p_queue_date?: string }; Returns: Json }
       get_doctor_recent_patients: {
         Args: { p_doctor_id: string }
         Returns: {
@@ -1804,6 +1906,7 @@ export type Database = {
           role: string
         }[]
       }
+      get_my_workspaces: { Args: Record<PropertyKey, never>; Returns: Json }
       get_nearby_centers: {
         Args: { p_lat: number; p_lng: number; p_radius_km?: number }
         Returns: {
@@ -1820,6 +1923,9 @@ export type Database = {
         }[]
       }
       get_next_token: { Args: { p_appointment_date: string; p_center_id: string }; Returns: number }
+      get_org_settings: { Args: { p_org_id: string }; Returns: Json }
+      get_public_center: { Args: { p_slug: string }; Returns: Json }
+      get_reception_queue: { Args: { p_center_id: string }; Returns: Json }
       get_token_status: {
         Args: { p_public_code: string }
         Returns: {
@@ -1832,9 +1938,20 @@ export type Database = {
         }[]
       }
       get_user_role: { Args: Record<PropertyKey, never>; Returns: string }
+      invite_staff: { Args: { p_center_id: string; p_email: string }; Returns: string }
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_doctor: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_staff: { Args: Record<PropertyKey, never>; Returns: boolean }
+      issue_public_token: {
+        Args: { p_center_slug?: string; p_doctor_id: string; p_name: string; p_phone: string; p_source?: string }
+        Returns: {
+          appointment_id: string
+          eta_minutes: number
+          people_ahead: number
+          public_code: string
+          token_number: number
+        }[]
+      }
       issue_token: {
         Args: { p_doctor_id: string; p_name: string; p_phone: string; p_source?: string }
         Returns: {
@@ -1845,24 +1962,20 @@ export type Database = {
           token_number: number
         }[]
       }
-      lock_slot: {
-        Args: { p_center_id: string; p_date: string; p_doctor_id: string; p_time: string }
-        Returns: string
-      }
+      lock_slot: { Args: { p_center_id: string; p_date: string; p_doctor_id: string; p_time: string }; Returns: string }
+      mark_no_show: { Args: { p_appointment_id: string }; Returns: undefined }
       people_ahead:
         | { Args: { my_token: number }; Returns: number }
         | { Args: { p_appointment_id: string }; Returns: number }
-      queue_appointment_date: {
-        Args: { p_appointment_date: string; p_scheduled_at: string }
-        Returns: string
-      }
+      queue_appointment_date: { Args: { p_appointment_date: string; p_scheduled_at: string }; Returns: string }
       recalculate_doctor_average: { Args: { p_doctor_id: string }; Returns: number }
-      refresh_live_queue: {
-        Args: { p_doctor_id: string; p_queue_date: string }
-        Returns: undefined
-      }
+      recall_token: { Args: { p_appointment_id: string }; Returns: undefined }
+      refresh_live_queue: { Args: { p_doctor_id: string; p_queue_date: string }; Returns: undefined }
       release_slot: { Args: { p_lock_id: string }; Returns: undefined }
+      remove_staff: { Args: { p_center_id: string; p_user_id: string }; Returns: undefined }
       reset_center_tokens: { Args: Record<PropertyKey, never>; Returns: undefined }
+      revoke_invite: { Args: { p_invite_id: string }; Returns: undefined }
+      rotate_display_key: { Args: { p_center_id: string }; Returns: string }
       save_visit_summary: {
         Args: {
           p_appointment_id: string
@@ -1883,6 +1996,8 @@ export type Database = {
         }
         Returns: Json
       }
+      set_doctor_break: { Args: { p_doctor_id: string; p_on_break: boolean }; Returns: undefined }
+      skip_token: { Args: { p_appointment_id: string }; Returns: undefined }
       staff_performance: {
         Args: { p_range: string }
         Returns: {
@@ -1932,11 +2047,34 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      update_center: {
+        Args: {
+          p_address: string
+          p_center_id: string
+          p_city: string
+          p_close_time: string
+          p_name: string
+          p_open_time: string
+        }
+        Returns: undefined
+      }
       update_center_average_consultation_time: {
         Args: { p_avg_mins: number; p_center_id: string; p_queue_date: string }
         Returns: Json
       }
       update_user_fcm_token: { Args: { p_token: string }; Returns: undefined }
+      upsert_doctor: {
+        Args: {
+          p_average_minutes?: number
+          p_center_id: string
+          p_doctor_id: string
+          p_is_active?: boolean
+          p_name: string
+          p_room: string
+          p_specialty: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
@@ -1977,9 +2115,7 @@ export type Tables<
   : never
 
 export type TablesInsert<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -2000,9 +2136,7 @@ export type TablesInsert<
   : never
 
 export type TablesUpdate<
-  DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables'] | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -2023,9 +2157,7 @@ export type TablesUpdate<
   : never
 
 export type Enums<
-  DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema['Enums']
-    | { schema: keyof DatabaseWithoutInternals },
+  DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums'] | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }

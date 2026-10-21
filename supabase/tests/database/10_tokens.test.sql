@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO anon, authenticated;
 CREATE SCHEMA tests;
-GRANT USAGE ON SCHEMA tests TO anon, authenticated;
+GRANT USAGE ON SCHEMA tests TO anon, authenticated, service_role;
 CREATE FUNCTION tests.login(p_user uuid) RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated')::text, true),
          set_config('role', 'authenticated', true);
@@ -13,6 +13,12 @@ $$;
 CREATE FUNCTION tests.login_anon() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '{"role":"anon"}', true),
          set_config('role', 'anon', true);
+$$;
+-- Phase 1B: public joins come from the web server (service role) after it
+-- verified the captcha, through issue_public_token.
+CREATE FUNCTION tests.login_join_server() RETURNS void LANGUAGE sql AS $$
+  SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true),
+         set_config('role', 'service_role', true);
 $$;
 CREATE FUNCTION tests.logout() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '', true), set_config('role', 'postgres', true);
@@ -22,20 +28,26 @@ CREATE FUNCTION tests.today() RETURNS date LANGUAGE sql STABLE AS $$ SELECT (now
 CREATE FUNCTION tests.next_token(p_doctor uuid) RETURNS integer LANGUAGE sql STABLE SECURITY DEFINER AS $$
   SELECT COALESCE(MAX(token_number), 0) + 1 FROM public.appointments WHERE doctor_id = p_doctor AND appointment_date = tests.today()
 $$;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;
 
 -- Results of issue_token calls made under other roles, for checks as postgres.
 CREATE TABLE tests.issued (label text PRIMARY KEY, appointment_id uuid, public_code text, token_number integer,
                            people_ahead integer, eta_minutes integer, expected_token integer);
-GRANT ALL ON tests.issued TO anon, authenticated;
+GRANT ALL ON tests.issued TO anon, authenticated, service_role;
 CREATE FUNCTION tests.issue(p_label text, p_doctor uuid, p_name text, p_phone text, p_source text) RETURNS void
-LANGUAGE sql AS $$
-  INSERT INTO tests.issued
-  -- next_token is STABLE: it sees the statement's snapshot, from before
-  -- issue_token inserted, so it is the number the new token should get.
-  SELECT p_label, t.*, tests.next_token(p_doctor) FROM public.issue_token(p_doctor, p_name, p_phone, p_source) t
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_expected integer := tests.next_token(p_doctor);
+BEGIN
+  -- The web server's public join (1B) or a signed-in caller's issue_token.
+  IF current_setting('role') = 'service_role' THEN
+    INSERT INTO tests.issued SELECT p_label, t.*, v_expected FROM public.issue_public_token(p_doctor, p_name, p_phone, p_source) t;
+  ELSE
+    INSERT INTO tests.issued SELECT p_label, t.*, v_expected FROM public.issue_token(p_doctor, p_name, p_phone, p_source) t;
+  END IF;
+END
 $$;
-GRANT EXECUTE ON FUNCTION tests.issue(text, uuid, text, text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION tests.issue(text, uuid, text, text, text) TO anon, authenticated, service_role;
 CREATE FUNCTION tests.appt(p_label text) RETURNS public.appointments LANGUAGE sql STABLE AS $$
   SELECT a.* FROM public.appointments a JOIN tests.issued i ON i.public_code = a.public_code WHERE i.label = p_label
 $$;
@@ -45,7 +57,7 @@ $$;
 INSERT INTO public.doctors (id, center_id, name, specialty, is_active)
 VALUES ('d0000000-0000-4000-8000-0000000000c1', '521f1349-05c4-4417-9fa5-5289963af7db', 'Dr. Retired', 'GP', false);
 
-SELECT plan(44);
+SELECT plan(47);
 
 -- ---------------------------------------------------------------------------
 -- Columns and codes
@@ -64,16 +76,16 @@ SELECT is((SELECT count(DISTINCT c)::int FROM (SELECT private.generate_public_co
 -- ---------------------------------------------------------------------------
 -- Anonymous QR join
 -- ---------------------------------------------------------------------------
-SELECT tests.login_anon();
+SELECT tests.login_join_server();
 SELECT lives_ok($$SELECT tests.issue('qr1', 'd0000000-0000-4000-8000-00000000000a', '  Ali   Khan ', '+92 300 1112233', 'qr')$$,
-                'anon: QR join succeeds');
+                'public join (server, after captcha): QR join succeeds');
 SELECT tests.logout();
 
 SELECT is((SELECT token_number FROM tests.issued WHERE label = 'qr1'), (SELECT expected_token FROM tests.issued WHERE label = 'qr1'),
           'QR token takes the doctor''s next token number');
-SELECT is((SELECT appointment_id FROM tests.issued WHERE label = 'qr1'), NULL, 'anon is not given the appointment id');
+SELECT is((SELECT appointment_id FROM tests.issued WHERE label = 'qr1'), NULL, 'a public join is not given the appointment id');
 SELECT ok((SELECT public_code ~ '^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{8}$' FROM tests.issued WHERE label = 'qr1'),
-          'anon gets the public code');
+          'a public join gets the public code');
 SELECT is((SELECT row(a.source, a.status, a.user_id IS NULL, a.appointment_time IS NULL, a.appointment_date, a.checked_in_at IS NOT NULL)::text
            FROM tests.appt('qr1') a),
           row('qr', 'checked_in', true, true, tests.today(), true)::text,
@@ -86,15 +98,15 @@ SELECT is((SELECT people_ahead FROM tests.issued WHERE label = 'qr1'),
            AND token_number < (SELECT token_number FROM tests.issued WHERE label = 'qr1')),
           'people_ahead = waiting tokens with a lower number');
 
-SELECT tests.login_anon();
+SELECT tests.login_join_server();
 SELECT tests.issue('qr2', 'd0000000-0000-4000-8000-00000000000a', 'ali khan', '00923001112233', 'qr');
 SELECT tests.issue('qr3', 'd0000000-0000-4000-8000-00000000000a', 'Sara Khan', '+923001112233', 'qr');
 SELECT throws_ok($$SELECT tests.issue('qr4', 'd0000000-0000-4000-8000-00000000000a', 'Third Kid', '+923001112233', 'qr')$$,
-                 'PT429', NULL, 'anon: 4th join from the same phone at the same clinic today is refused');
+                 'PT429', NULL, 'public join: 4th join from the same phone at the same clinic today is refused');
 SELECT lives_ok($$SELECT tests.issue('qr5', 'd0000000-0000-4000-8000-00000000000b', 'Ali Khan', '+923001112233', 'qr')$$,
-                'anon: same phone at another clinic is allowed');
+                'public join: same phone at another clinic is allowed');
 SELECT lives_ok($$SELECT tests.issue('qr6', 'd0000000-0000-4000-8000-00000000000a', 'Other Person', '+923009998877', 'qr')$$,
-                'anon: another phone at the same clinic is allowed');
+                'public join: another phone at the same clinic is allowed');
 SELECT tests.logout();
 
 SELECT is((tests.appt('qr2')).patient_id, (tests.appt('qr1')).patient_id, 'same phone + same name (any case) reuses the guest record');
@@ -103,32 +115,44 @@ SELECT is((SELECT token_number FROM tests.issued WHERE label = 'qr2'), (SELECT t
           'consecutive tokens get consecutive numbers');
 
 -- ---------------------------------------------------------------------------
--- What anon may not do
+-- What a public join may not do (and anon may not call at all)
 -- ---------------------------------------------------------------------------
 SELECT tests.login_anon();
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'walk_in')$$,
-                 '42501', NULL, 'anon: cannot issue walk-in tokens');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'app')$$,
-                 '42501', NULL, 'anon: cannot use the app source');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', 'X', NULL, 'qr')$$,
-                 '22023', NULL, 'anon: phone required');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', 'X', 'not a phone', 'qr')$$,
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'qr')$$,
+                 '42501', NULL, 'public join: cannot call issue_token directly (public joins go through the captcha-checked server)');
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'qr')$$,
+                 '42501', NULL, 'public join: cannot call issue_public_token');
+SELECT tests.logout();
+SELECT tests.login('a0000000-0000-4000-8000-000000000006');
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'qr')$$,
+                 '42501', NULL, 'signed-in patient: cannot call issue_public_token');
+SELECT tests.logout();
+SELECT tests.login_join_server();
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'walk_in')$$,
+                 '42501', NULL, 'public join: cannot issue walk-in tokens');
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'app')$$,
+                 '42501', NULL, 'public join: cannot use the app source');
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', NULL, 'qr')$$,
+                 '22023', NULL, 'public join: phone required');
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', 'not a phone', 'qr')$$,
                  '22023', NULL, 'invalid phone refused');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', '   ', '+923001230000', 'qr')$$,
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', '   ', '+923001230000', 'qr')$$,
                  '22023', NULL, 'empty name refused');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'sms')$$,
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'X', '+923001230000', 'sms')$$,
                  '22023', NULL, 'unknown source refused');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-0000000000ee', 'X', '+923001230000', 'qr')$$,
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-0000000000ee', 'X', '+923001230000', 'qr')$$,
                  'PT404', NULL, 'unknown doctor refused');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-0000000000c1', 'X', '+923001230000', 'qr')$$,
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-0000000000c1', 'X', '+923001230000', 'qr')$$,
                  'PT404', NULL, 'inactive doctor refused');
+SELECT tests.logout();
+SELECT tests.login_anon();
 SELECT is_empty($$SELECT 1 FROM public.appointments$$, 'anon: still cannot read appointments');
 SELECT tests.logout();
 
 INSERT INTO public.doctor_leaves (doctor_id, leave_date) VALUES ('d0000000-0000-4000-8000-00000000000b', tests.today());
-SELECT tests.login_anon();
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'X', '+923001230001', 'qr')$$,
-                 'PT409', NULL, 'anon: no QR join while the doctor is on leave');
+SELECT tests.login_join_server();
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000b', 'X', '+923001230001', 'qr')$$,
+                 'PT409', NULL, 'public join: no QR join while the doctor is on leave');
 SELECT tests.logout();
 
 -- ---------------------------------------------------------------------------

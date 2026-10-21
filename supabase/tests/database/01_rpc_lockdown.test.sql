@@ -37,11 +37,12 @@ SELECT is_empty($$
     AND aclcontains(COALESCE(p.proacl, acldefault('f', p.proowner)), makeaclitem(0, p.proowner, 'EXECUTE', false))
 $$, 'no public function is executable by PUBLIC');
 
--- Phase 1A: the public token RPCs are the only ones anon can call.
+-- Phase 1A/1B: public, read-only RPCs are the only ones anon can call.
 SELECT set_eq($$
   SELECT p.oid::regprocedure::text FROM pg_proc p
   WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('anon', p.oid, 'EXECUTE')
-$$, ARRAY['issue_token(uuid,text,text,text)', 'get_token_status(text)'], 'anon can execute only the public token RPCs');
+$$, ARRAY['get_token_status(text)', 'get_public_center(text)', 'get_display_snapshot(text)'],
+   'anon can execute only the public read RPCs (1B: joins go through the web server)');
 
 SELECT set_eq($$
   SELECT p.oid::regprocedure::text FROM pg_proc p
@@ -60,7 +61,16 @@ $$, ARRAY[
   -- 0.6
   'save_visit_summary(uuid,text,text,date,jsonb)', 'busiest_services(text)', 'busiest_centers(text)', 'bookings_per_day(text)',
   -- 1A
-  'issue_token(uuid,text,text,text)', 'get_token_status(text)'
+  'issue_token(uuid,text,text,text)', 'get_token_status(text)',
+  -- 1B (web app)
+  'get_public_center(text)', 'get_display_snapshot(text)', 'rotate_display_key(uuid)',
+  'get_my_workspaces()', 'get_reception_queue(uuid)', 'call_next(uuid)', 'skip_token(uuid)',
+  'mark_no_show(uuid)', 'recall_token(uuid)', 'set_doctor_break(uuid,boolean)',
+  'upsert_doctor(uuid,uuid,text,text,text,numeric,boolean)',
+  'update_center(uuid,text,text,text,time without time zone,time without time zone)',
+  'invite_staff(uuid,text)', 'revoke_invite(uuid)', 'accept_invites()', 'remove_staff(uuid,uuid)',
+  'create_organization(text,text,text,text,jsonb,text,time without time zone,time without time zone)',
+  'get_org_settings(uuid)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$

@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO anon, authenticated;
 CREATE SCHEMA tests;
-GRANT USAGE ON SCHEMA tests TO anon, authenticated;
+GRANT USAGE ON SCHEMA tests TO anon, authenticated, service_role;
 CREATE FUNCTION tests.login(p_user uuid) RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated')::text, true),
          set_config('role', 'authenticated', true);
@@ -14,22 +14,28 @@ CREATE FUNCTION tests.login_anon() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '{"role":"anon"}', true),
          set_config('role', 'anon', true);
 $$;
+-- Phase 1B: public joins come from the web server (service role) after it
+-- verified the captcha, through issue_public_token.
+CREATE FUNCTION tests.login_join_server() RETURNS void LANGUAGE sql AS $$
+  SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true),
+         set_config('role', 'service_role', true);
+$$;
 CREATE FUNCTION tests.logout() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '', true), set_config('role', 'postgres', true);
 $$;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;
 
 CREATE TABLE tests.codes (label text PRIMARY KEY, code text);
-GRANT ALL ON tests.codes TO anon, authenticated;
+GRANT ALL ON tests.codes TO anon, authenticated, service_role;
 CREATE FUNCTION tests.code(p_label text) RETURNS text LANGUAGE sql STABLE AS 'SELECT code FROM tests.codes WHERE label = p_label';
 CREATE FUNCTION tests.id(p_label text) RETURNS uuid LANGUAGE sql STABLE SECURITY DEFINER AS
   'SELECT a.id FROM public.appointments a WHERE a.public_code = tests.code(p_label)';
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;
 
--- Two guests join doctor A by QR (anon).
-SELECT tests.login_anon();
-INSERT INTO tests.codes SELECT 'first', public_code FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', 'Zainab Secret', '+923331234567', 'qr');
-INSERT INTO tests.codes SELECT 'second', public_code FROM public.issue_token('d0000000-0000-4000-8000-00000000000a', 'Hamza Hidden', '+923339876543', 'qr');
+-- Two guests join doctor A by QR (the join page's server call).
+SELECT tests.login_join_server();
+INSERT INTO tests.codes SELECT 'first', public_code FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'Zainab Secret', '+923331234567', 'qr');
+INSERT INTO tests.codes SELECT 'second', public_code FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000a', 'Hamza Hidden', '+923339876543', 'qr');
 SELECT tests.logout();
 
 SELECT plan(19);
