@@ -41,7 +41,7 @@ $$, 'no public function is executable by PUBLIC');
 SELECT set_eq($$
   SELECT p.oid::regprocedure::text FROM pg_proc p
   WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('anon', p.oid, 'EXECUTE')
-$$, ARRAY['issue_token(uuid,text,text,text)'], 'anon can execute only the public token RPCs');
+$$, ARRAY['issue_token(uuid,text,text,text)', 'get_token_status(text)'], 'anon can execute only the public token RPCs');
 
 SELECT set_eq($$
   SELECT p.oid::regprocedure::text FROM pg_proc p
@@ -60,7 +60,7 @@ $$, ARRAY[
   -- 0.6
   'save_visit_summary(uuid,text,text,date,jsonb)', 'busiest_services(text)', 'busiest_centers(text)', 'bookings_per_day(text)',
   -- 1A
-  'issue_token(uuid,text,text,text)'
+  'issue_token(uuid,text,text,text)', 'get_token_status(text)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$
