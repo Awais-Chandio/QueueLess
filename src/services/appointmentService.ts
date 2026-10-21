@@ -394,7 +394,7 @@ export const appointmentService = {
   async createAppointment(
     payload: CreateAppointmentPayload,
   ): Promise<Appointment> {
-    const authenticatedUserId = await getAuthenticatedUserId(payload.user_id);
+    await getAuthenticatedUserId(payload.user_id);
     const appointmentDate = payload.appointment_date;
     const appointmentTime = payload.appointment_time;
 
@@ -426,66 +426,50 @@ export const appointmentService = {
       }
     }
 
-    const insertPayload = {
-      user_id: authenticatedUserId,
-      center_id: payload.center_id,
-      service_id: payload.service_id,
-      scheduled_at: new Date(payload.scheduled_at).toISOString(),
-      appointment_date: payload.appointment_date || null,
-      appointment_time: payload.appointment_time || null,
-      doctor_id: payload.doctor_id || null,
-      notes: payload.notes || null,
-    };
-
-    console.log('[DEBUG USER]', authenticatedUserId);
-    console.log('[DEBUG PAYLOAD]', insertPayload);
-
-    const response = await supabase
-      .from('appointments')
-      .insert(insertPayload)
-      .select(
-        'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at',
-      )
-      .single();
-
-    let data = response.data as Appointment | null;
-    let error = response.error;
-
-    if (error?.code === '42703') {
-      const fallbackPayload = {
-        user_id: authenticatedUserId,
-        center_id: payload.center_id,
-        service_id: payload.service_id,
-        scheduled_at: new Date(payload.scheduled_at).toISOString(),
-        appointment_date: payload.appointment_date || null,
-        appointment_time: payload.appointment_time || null,
-        doctor_id: payload.doctor_id || null,
-        notes: payload.notes || null,
-      };
-
-      const fallback = await supabase
-        .from('appointments')
-        .insert(fallbackPayload)
-        .select(
-          'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at',
-        )
-        .single();
-
-      data = fallback.data as Appointment | null;
-      error = fallback.error;
+    if (!appointmentDate || !appointmentTime) {
+      throw new Error('Please select a time slot.');
     }
 
-    if (error) {
-      if (
-        error.code === '23505' ||
-        error.message.toLowerCase().includes('duplicate')
-      ) {
+    // Direct INSERTs into appointments are blocked by RLS; booking goes through
+    // the same RPCs as the main flow: lock the slot, then book the lock.
+    const { data: lockId, error: lockError } = await supabase.rpc('lock_slot', {
+      p_doctor_id: payload.doctor_id || null,
+      p_center_id: payload.center_id,
+      p_date: appointmentDate,
+      p_time: appointmentTime,
+    });
+
+    if (lockError || !lockId) {
+      const message = lockError?.message ?? 'Failed to lock slot.';
+      if (/already booked|locked by someone else/i.test(message)) {
         const err = new Error('Slot just taken');
         (err as any).code = '23505';
         throw err;
       }
+      throw new Error(message);
+    }
 
-      console.error('[DEBUG] Failed to create appointment:', error.message);
+    const { data: appointmentId, error: bookError } = await supabase.rpc('book_appointment', {
+      p_lock_id: lockId,
+      p_service_id: payload.service_id,
+      p_notes: payload.notes || null,
+    });
+
+    if (bookError || !appointmentId) {
+      await supabase.rpc('release_slot', { p_lock_id: lockId });
+      console.error('[DEBUG] Failed to create appointment:', bookError?.message);
+      throw new Error(bookError?.message ?? 'Failed to book appointment.');
+    }
+
+    const { data, error } = await supabase
+      .from('appointments')
+      .select(
+        'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at',
+      )
+      .eq('id', appointmentId)
+      .single();
+
+    if (error) {
       throw new Error(error.message);
     }
 
