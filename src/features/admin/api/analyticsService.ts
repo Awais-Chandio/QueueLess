@@ -327,24 +327,6 @@ const getSystemOverview = async (): Promise<SystemOverviewData> => {
 
 export const analyticsService = {
   async getDashboardStats(dateRange: 'today' | 'week' | 'month' | 'all' = 'all'): Promise<AdminDashboardAnalytics> {
-    try {
-      await supabase.rpc('cleanup_stale_appointments');
-    } catch (cleanupError) {
-      const err = cleanupError as {
-        code?: string;
-        message?: string;
-        details?: string;
-      } | null;
-      console.warn(
-        '[ANALYTICS CLEANUP] Failed to trigger stale appointments cleanup:',
-        {
-          code: err?.code ?? 'UNKNOWN',
-          message: err?.message ?? String(cleanupError),
-          details: err?.details ?? null,
-        },
-      );
-    }
-
     const todayKey = toDateKey(new Date());
 
     let startDate: string | undefined;

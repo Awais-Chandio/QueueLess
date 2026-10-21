@@ -1,2 +1,2 @@
 # The DB baseline keeps production's exact bytes (some function bodies use CRLF).
-supabase/migrations/20261021120000_remote_baseline.sql -text
+supabase/migrations/20261021000000_remote_baseline.sql -text

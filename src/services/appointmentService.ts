@@ -223,17 +223,6 @@ const getBookedSlotsByDate = async (
 };
 
 export const appointmentService = {
-  async triggerCleanup(): Promise<void> {
-    try {
-      await supabase.rpc('cleanup_stale_appointments');
-    } catch (cleanupError) {
-      console.warn(
-        '[CLEANUP] Failed to trigger stale appointments cleanup:',
-        cleanupError,
-      );
-    }
-  },
-
   async getAvailableSlots(
     appointmentDate: string,
     centerId?: string,
@@ -244,8 +233,6 @@ export const appointmentService = {
       centerId: centerId ?? null,
       doctorId: doctorId ?? null,
     });
-
-    await appointmentService.triggerCleanup();
 
     let openMin = 0;
     let closeMin = 1440; // End of day
@@ -513,8 +500,6 @@ export const appointmentService = {
     const authenticatedUserId = await getAuthenticatedUserId(userId);
     console.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
 
-    await appointmentService.triggerCleanup();
-
     const response = await supabase
       .from('appointments_full')
       .select(appointmentFullSelect)
@@ -560,8 +545,6 @@ export const appointmentService = {
     appointmentId: string,
   ): Promise<AppointmentFull | null> {
     console.log('[DEBUG] Fetching appointment by id:', appointmentId);
-
-    await appointmentService.triggerCleanup();
 
     const response = await supabase
       .from('appointments_full')
