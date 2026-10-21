@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Notification } from '../types/notification';
+import { logger } from '../utils/logger';
 
 export const notificationService = {
   async fetchNotifications(userId: string): Promise<Notification[]> {
@@ -9,7 +10,7 @@ export const notificationService = {
     const { data: userData, error: userError } = await supabase.auth.getUser();
 
     if (__DEV__) {
-      console.log('[NOTIFICATIONS] auth session:', {
+      logger.log('[NOTIFICATIONS] auth session:', {
         sessionExists: !!sessionData.session,
         sessionUserId: sessionData.session?.user.id,
         hasAccessToken: !!sessionData.session?.access_token,
@@ -18,7 +19,7 @@ export const notificationService = {
     }
 
     if (sessionError || userError || !sessionData.session || !userData.user) {
-      console.error('[NOTIFICATIONS] auth context missing:', {
+      logger.error('[NOTIFICATIONS] auth context missing:', {
         sessionError: sessionError?.message,
         userError: userError?.message,
         sessionExists: !!sessionData.session,
@@ -29,7 +30,7 @@ export const notificationService = {
 
     const authenticatedUserId = userData.user.id;
     if (authenticatedUserId !== userId) {
-      console.warn('[NOTIFICATIONS] auth user mismatch:', {
+      logger.warn('[NOTIFICATIONS] auth user mismatch:', {
         requestedUserId: userId,
         authenticatedUserId,
       });
@@ -52,7 +53,7 @@ export const notificationService = {
         attemptWithAllColumns.error.code === 'PGRST111'
       ) {
         if (__DEV__) {
-          console.warn('[NOTIFICATIONS] Schema mismatch detected, falling back to query without type/data columns');
+          logger.warn('[NOTIFICATIONS] Schema mismatch detected, falling back to query without type/data columns');
         }
         const attemptFallback = await supabase
           .from('notifications')
@@ -70,7 +71,7 @@ export const notificationService = {
     }
 
     if (error) {
-      console.error('[NOTIFICATIONS] fetch error:', {
+      logger.error('[NOTIFICATIONS] fetch error:', {
         userId: authenticatedUserId,
         code: error.code,
         message: error.message,
@@ -79,7 +80,7 @@ export const notificationService = {
       throw new Error(error.message);
     }
 
-    console.log('[NOTIFICATIONS] fetched count:', data?.length ?? 0);
+    logger.log('[NOTIFICATIONS] fetched count:', data?.length ?? 0);
     return (data ?? []).map(n => ({
       id: n?.id,
       user_id: n?.user_id,
@@ -100,7 +101,7 @@ export const notificationService = {
       .eq('id', notificationId);
 
     if (error) {
-      console.error('[NOTIFICATIONS] markAsRead error:', {
+      logger.error('[NOTIFICATIONS] markAsRead error:', {
         notificationId,
         code: error.code,
         message: error.message,
@@ -118,7 +119,7 @@ export const notificationService = {
       .eq('is_read', false);
 
     if (error) {
-      console.error('[NOTIFICATIONS] markAllAsRead error:', {
+      logger.error('[NOTIFICATIONS] markAllAsRead error:', {
         userId,
         code: error.code,
         message: error.message,
@@ -139,12 +140,12 @@ export const notificationService = {
       }, { onConflict: 'fcm_token' });
 
     if (!tokenError) {
-      if (__DEV__) console.log('[notificationService] FCM token synced successfully via device_tokens table.');
+      if (__DEV__) logger.log('[notificationService] FCM token synced successfully via device_tokens table.');
       return;
     }
 
     if (__DEV__) {
-      console.warn('[notificationService] device_tokens upsert failed, trying direct profiles fallback:', tokenError.message);
+      logger.warn('[notificationService] device_tokens upsert failed, trying direct profiles fallback:', tokenError.message);
     }
 
     const { error: updateError } = await supabase
@@ -153,14 +154,14 @@ export const notificationService = {
       .eq('id', userId);
 
     if (updateError) {
-      console.error('[notificationService] Direct profile update for FCM token failed:', {
+      logger.error('[notificationService] Direct profile update for FCM token failed:', {
         code: updateError.code,
         message: updateError.message,
       });
       throw updateError;
     }
 
-    if (__DEV__) console.log('[notificationService] FCM token synced successfully via direct profiles update.');
+    if (__DEV__) logger.log('[notificationService] FCM token synced successfully via direct profiles update.');
   },
 
   async clearFcmToken(userId: string): Promise<void> {
@@ -170,7 +171,7 @@ export const notificationService = {
       .eq('id', userId);
 
     if (error && __DEV__) {
-      console.warn('[notificationService] Failed to clear FCM token from profiles on logout:', error);
+      logger.warn('[notificationService] Failed to clear FCM token from profiles on logout:', error);
     }
   }
 };

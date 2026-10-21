@@ -5,6 +5,7 @@ import {
     UploadAvatarPayload,
     UpdateProfilePayload,
 } from "../types/profile";
+import { logger } from '../utils/logger';
 
 export async function getStaffContext() {
     const { data, error } = await supabase.rpc('get_my_staff_context');
@@ -14,9 +15,9 @@ export async function getStaffContext() {
 
 export const profileService = {
     async getProfileById(userId: string) {
-        if (__DEV__) console.log('[profileService.getProfileById] userId:', userId);
+        if (__DEV__) logger.log('[profileService.getProfileById] userId:', userId);
         const result = await supabase.from('profiles').select('*').eq('id', userId).single();
-        if (__DEV__) console.log('[profileService.getProfileById] result:', { data: result.data, error: result.error?.message });
+        if (__DEV__) logger.log('[profileService.getProfileById] result:', { data: result.data, error: result.error?.message });
         return result;
     },
 
@@ -30,18 +31,18 @@ export const profileService = {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
         };
-        if (__DEV__) console.log('[profileService.createProfile] insert payload:', insertPayload);
+        if (__DEV__) logger.log('[profileService.createProfile] insert payload:', insertPayload);
         const result = await supabase
             .from('profiles')
             .insert(insertPayload)
             .select()
             .single();
-        if (__DEV__) console.log('[profileService.createProfile] supabase result:', { data: result.data, error: result.error?.message, status: result.status });
+        if (__DEV__) logger.log('[profileService.createProfile] supabase result:', { data: result.data, error: result.error?.message, status: result.status });
         return result;
     },
     
     async updateProfile(userId: string, payload: UpdateProfilePayload) {
-        if (__DEV__) console.log('[profileService.updateProfile] userId:', userId, 'payload:', payload);
+        if (__DEV__) logger.log('[profileService.updateProfile] userId:', userId, 'payload:', payload);
         const result = await supabase
             .from('profiles')
             .update({
@@ -51,7 +52,7 @@ export const profileService = {
             .eq('id', userId)
             .select()
             .single();
-        if (__DEV__) console.log('[profileService.updateProfile] result:', { data: result.data, error: result.error?.message });
+        if (__DEV__) logger.log('[profileService.updateProfile] result:', { data: result.data, error: result.error?.message });
         return result;
     },
 

@@ -40,7 +40,11 @@ local.properties
 node_modules/
 npm-debug.log
 yarn-error.log
-.env.local
+
+# Environment config: never commit real values; .env.example is the template
+.env
+.env.*
+!.env.example
 
 # fastlane
 #

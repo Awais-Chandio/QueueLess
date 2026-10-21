@@ -14,6 +14,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import { useDoctorsByService } from '../../../hooks/useDoctorsByService';
 import type { AppStackParamList } from '../../../navigation/types';
 import { supabase } from '../../../lib/supabase';
+import { logger } from '../../../utils/logger';
 
 type DoctorListRouteProp = RouteProp<AppStackParamList, 'DoctorList'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'DoctorList'>;
@@ -50,7 +51,7 @@ export const DoctorListScreen = () => {
         }
         setAvailabilityMap(mapping);
       } catch (err) {
-        console.warn('[DoctorList] Error fetching batch availability:', err);
+        logger.warn('[DoctorList] Error fetching batch availability:', err);
       } finally {
         setAvailabilityLoading(false);
       }

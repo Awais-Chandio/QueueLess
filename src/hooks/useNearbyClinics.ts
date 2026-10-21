@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { getNearbyCenters } from '../services/centers/centerService';
 import { locationService } from '../services/location/locationService';
+import { logger } from '../utils/logger';
 
 export interface NearbyCenter {
   id: string;
@@ -46,10 +47,10 @@ const enrichCentersWithLiveStats = async (
   ]);
 
   if (doctorsResult.error) {
-    console.warn('Unable to load nearby clinic doctor counts', doctorsResult.error);
+    logger.warn('Unable to load nearby clinic doctor counts', doctorsResult.error);
   }
   if (appointmentsResult.error) {
-    console.warn('Unable to load nearby clinic queue stats', appointmentsResult.error);
+    logger.warn('Unable to load nearby clinic queue stats', appointmentsResult.error);
   }
 
   const doctorCounts = new Map<string, number>();
@@ -146,7 +147,7 @@ export const useNearbyClinics = () => {
       setRadiusSearched(radius);
       setBannerMessage(banner);
     } catch (err) {
-      console.warn('[useNearbyClinics] Permission request error:', err);
+      logger.warn('[useNearbyClinics] Permission request error:', err);
       const message =
         err instanceof Error ? err.message : 'Unable to load nearby clinics.';
       if (message.toLowerCase().includes('permission')) {

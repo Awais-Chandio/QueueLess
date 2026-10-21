@@ -1,15 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { Appointment, AppointmentFull } from '../types/appointment';
-import {
-  APPOINTMENT_SLOT_LABELS,
-  getScheduledAtFromSlot,
-  isPastAppointmentDate,
-  isPastAppointmentSlot,
-  normalizeAppointmentTimeSlot,
-  timeToMinutes,
-  getPakistanDayOfWeek,
-} from '../features/appointments/utils/appointmentTime';
+import { logger } from '../utils/logger';
 
 const appointmentFullSelect =
   'id, user_id, patient_name, center_id, service_id, doctor_id, doctor_name, center_name, service_name, scheduled_at, appointment_date, appointment_time, status, token_number, created_at, estimated_wait_mins, estimated_wait_time, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, skipped_at, duration_minutes, current_position, queue_position, people_ahead, queue_status, current_serving_token, current_token, doctor_average_time, average_consultation_time, is_on_break, break_start, break_end';
@@ -22,17 +14,6 @@ const appointmentSelect =
 
 const appointmentLegacySelect =
   'id, user_id, center_id, service_id, scheduled_at, status, token_number, created_at';
-
-type CreateAppointmentPayload = {
-  user_id: string;
-  center_id: string;
-  service_id: string;
-  scheduled_at: string;
-  appointment_date?: string;
-  appointment_time?: string;
-  doctor_id?: string;
-  notes?: string;
-};
 
 const shouldFallbackFromAppointmentsFull = (code?: string) =>
   code === '42703' || code === '42501' || code === 'PGRST205';
@@ -172,348 +153,10 @@ const fetchAppointmentFromTable = async (
   return appointment ?? null;
 };
 
-const minutesToSlotLabel = (mins: number): string => {
-  const hours = Math.floor(mins / 60);
-  const minutes = mins % 60;
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
-  const displayMin = `${minutes}`.padStart(2, '0');
-  const displayHrStr = `${displayHour}`.padStart(2, '0');
-  return `${displayHrStr}:${displayMin} ${period}`;
-};
-
-const getBookedSlotsByDate = async (
-  appointmentDate: string,
-  centerId?: string,
-  doctorId?: string,
-) => {
-  const start = getScheduledAtFromSlot(appointmentDate, '12:00 AM');
-  const end = new Date(`${appointmentDate}T00:00:00`);
-  end.setDate(end.getDate() + 1);
-
-  let fallbackQuery = supabase
-    .from('appointments')
-    .select('scheduled_at, status')
-    .gte('scheduled_at', start)
-    .lt('scheduled_at', end.toISOString())
-    .neq('status', 'cancelled');
-
-  if (doctorId) {
-    fallbackQuery = fallbackQuery.eq('doctor_id', doctorId);
-  } else if (centerId) {
-    fallbackQuery = fallbackQuery.eq('center_id', centerId);
-  }
-
-  const fallback = await fallbackQuery;
-
-  if (fallback.error) {
-    throw new Error(fallback.error.message);
-  }
-
-  return new Set(
-    (fallback.data ?? []).map(item => {
-      const slot = new Date(item.scheduled_at).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-
-      return normalizeAppointmentTimeSlot(slot) ?? slot;
-    }),
-  );
-};
-
 export const appointmentService = {
-  async triggerCleanup(): Promise<void> {
-    try {
-      await supabase.rpc('cleanup_stale_appointments');
-    } catch (cleanupError) {
-      console.warn(
-        '[CLEANUP] Failed to trigger stale appointments cleanup:',
-        cleanupError,
-      );
-    }
-  },
-
-  async getAvailableSlots(
-    appointmentDate: string,
-    centerId?: string,
-    doctorId?: string,
-  ): Promise<string[]> {
-    console.log('[SLOTS] Fetching available slots:', {
-      appointmentDate,
-      centerId: centerId ?? null,
-      doctorId: doctorId ?? null,
-    });
-
-    await appointmentService.triggerCleanup();
-
-    let openMin = 0;
-    let closeMin = 1440; // End of day
-    let doctorSlots: string[] | null = null;
-
-    if (doctorId) {
-      const dayOfWeek = getPakistanDayOfWeek(appointmentDate);
-      try {
-        const { data: doctorData, error: docErr } = await supabase
-          .from('doctors')
-          .select(`
-            id,
-            status,
-            is_active,
-            doctor_schedules (
-              start_time,
-              end_time,
-              day_of_week,
-              slot_duration_minutes
-            )
-          `)
-          .eq('id', doctorId)
-          .eq('status', 'active')
-          .eq('is_active', true)
-          .maybeSingle();
-
-        if (docErr) {
-          console.warn('[SLOTS] Failed to load doctor availability:', docErr);
-        } else if (doctorData) {
-          // Find the availability for the day of week
-          const availabilityList = (doctorData.doctor_schedules || []) as any[];
-          const todayAvail = availabilityList.find(avail => avail.day_of_week === dayOfWeek);
-
-          if (todayAvail) {
-            const startMin = timeToMinutes(todayAvail.start_time);
-            const endMin = timeToMinutes(todayAvail.end_time);
-            const duration = todayAvail.slot_duration_minutes || 30; // default 30 mins slot
-            
-            const generated: string[] = [];
-            for (let min = startMin; min <= endMin - duration; min += duration) {
-              generated.push(minutesToSlotLabel(min));
-            }
-            doctorSlots = generated;
-          } else {
-            console.log('[SLOTS] Doctor is not working today (day of week):', dayOfWeek);
-            return [];
-          }
-        }
-      } catch (err) {
-        console.warn('[SLOTS] Exception while loading doctor availability:', err);
-      }
-    }
-
-    if (centerId && !doctorSlots) {
-      try {
-        const { data: center } = await supabase
-          .from('service_centers')
-          .select('open_time, close_time')
-          .eq('id', centerId)
-          .maybeSingle();
-
-        if (center) {
-          if (center.open_time) openMin = timeToMinutes(center.open_time);
-          if (center.close_time) closeMin = timeToMinutes(center.close_time);
-        }
-      } catch (centerErr) {
-        console.warn(
-          '[SLOTS] Failed to load center operating hours:',
-          centerErr,
-        );
-      }
-    }
-
-    const { data: sessionData } = await supabase.auth.getSession();
-    const currentUserId = sessionData?.session?.user?.id;
-
-    // Fetch other users' unexpired slot locks
-    let activeLocks: Set<string> = new Set();
-    if (centerId) {
-      try {
-        const { data: locks } = await supabase
-          .from('slot_locks')
-          .select('appointment_time, user_id')
-          .eq('center_id', centerId)
-          .eq('appointment_date', appointmentDate)
-          .gt('expires_at', new Date().toISOString());
-
-        if (locks) {
-          locks.forEach(lock => {
-            if (lock.user_id !== currentUserId) {
-              activeLocks.add(lock.appointment_time);
-            }
-          });
-        }
-      } catch (lockError) {
-        console.warn('[SLOTS] Failed to fetch active slot locks:', lockError);
-      }
-    }
-
-    const bookedSlots = await getBookedSlotsByDate(appointmentDate, centerId, doctorId);
-    
-    const slotsSource = doctorSlots ?? (APPOINTMENT_SLOT_LABELS as readonly string[]);
-
-    const availableSlots = slotsSource.filter(slot => {
-      const slotMin = timeToMinutes(slot);
-      const isWithinHours = doctorSlots ? true : (slotMin >= openMin && slotMin <= closeMin);
-      return (
-        isWithinHours &&
-        !bookedSlots.has(slot) &&
-        !activeLocks.has(slot) &&
-        !isPastAppointmentDate(appointmentDate) &&
-        !isPastAppointmentSlot(appointmentDate, slot)
-      );
-    });
-
-    console.log('[SLOTS] Available slots calculated:', {
-      appointmentDate,
-      bookedSlots: [...bookedSlots],
-      activeLocks: [...activeLocks],
-      availableSlots,
-    });
-
-    return availableSlots;
-  },
-
-  async lockSlot(
-    centerId: string,
-    appointmentDate: string,
-    appointmentTime: string,
-  ): Promise<void> {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData?.session?.user?.id;
-    if (!userId) throw new Error('Please login to lock a slot.');
-
-    // 1. Delete any existing locks for this user to prevent multiple slots locking
-    await supabase.from('slot_locks').delete().eq('user_id', userId);
-
-    // 2. Insert new lock
-    const { error } = await supabase.from('slot_locks').insert({
-      user_id: userId,
-      center_id: centerId,
-      appointment_date: appointmentDate,
-      appointment_time: appointmentTime,
-    });
-
-    if (error) {
-      throw new Error('Failed to lock slot: ' + error.message);
-    }
-  },
-
-  async unlockSlot(): Promise<void> {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const userId = sessionData?.session?.user?.id;
-    if (userId) {
-      await supabase.from('slot_locks').delete().eq('user_id', userId);
-    }
-  },
-
-  async createAppointment(
-    payload: CreateAppointmentPayload,
-  ): Promise<Appointment> {
-    const authenticatedUserId = await getAuthenticatedUserId(payload.user_id);
-    const appointmentDate = payload.appointment_date;
-    const appointmentTime = payload.appointment_time;
-
-    if (appointmentDate && appointmentTime) {
-      if (
-        isPastAppointmentDate(appointmentDate) ||
-        isPastAppointmentSlot(appointmentDate, appointmentTime)
-      ) {
-        console.warn('[SLOTS] Past slot booking prevented:', {
-          centerId: payload.center_id,
-          appointmentDate,
-          appointmentTime,
-        });
-        throw new Error('Please select a future time slot.');
-      }
-
-      const availableSlots = await this.getAvailableSlots(
-        appointmentDate,
-        payload.center_id,
-      );
-
-      if (!availableSlots.includes(appointmentTime)) {
-        console.warn('[SLOTS] Duplicate slot prevented before insert:', {
-          centerId: payload.center_id,
-          appointmentDate,
-          appointmentTime,
-        });
-        throw new Error('This slot is already booked.');
-      }
-    }
-
-    const insertPayload = {
-      user_id: authenticatedUserId,
-      center_id: payload.center_id,
-      service_id: payload.service_id,
-      scheduled_at: new Date(payload.scheduled_at).toISOString(),
-      appointment_date: payload.appointment_date || null,
-      appointment_time: payload.appointment_time || null,
-      doctor_id: payload.doctor_id || null,
-      notes: payload.notes || null,
-    };
-
-    console.log('[DEBUG USER]', authenticatedUserId);
-    console.log('[DEBUG PAYLOAD]', insertPayload);
-
-    const response = await supabase
-      .from('appointments')
-      .insert(insertPayload)
-      .select(
-        'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at',
-      )
-      .single();
-
-    let data = response.data as Appointment | null;
-    let error = response.error;
-
-    if (error?.code === '42703') {
-      const fallbackPayload = {
-        user_id: authenticatedUserId,
-        center_id: payload.center_id,
-        service_id: payload.service_id,
-        scheduled_at: new Date(payload.scheduled_at).toISOString(),
-        appointment_date: payload.appointment_date || null,
-        appointment_time: payload.appointment_time || null,
-        doctor_id: payload.doctor_id || null,
-        notes: payload.notes || null,
-      };
-
-      const fallback = await supabase
-        .from('appointments')
-        .insert(fallbackPayload)
-        .select(
-          'id, user_id, center_id, service_id, scheduled_at, status, token_number, estimated_wait_mins, notes, created_at',
-        )
-        .single();
-
-      data = fallback.data as Appointment | null;
-      error = fallback.error;
-    }
-
-    if (error) {
-      if (
-        error.code === '23505' ||
-        error.message.toLowerCase().includes('duplicate')
-      ) {
-        const err = new Error('Slot just taken');
-        (err as any).code = '23505';
-        throw err;
-      }
-
-      console.error('[DEBUG] Failed to create appointment:', error.message);
-      throw new Error(error.message);
-    }
-
-    // Clean up our slot lock on successful booking
-    await this.unlockSlot();
-
-    console.log('[DEBUG] Appointment created successfully:', data);
-    return data as Appointment;
-  },
-
   async fetchUserAppointments(userId: string): Promise<AppointmentFull[]> {
     const authenticatedUserId = await getAuthenticatedUserId(userId);
-    console.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
-
-    await appointmentService.triggerCleanup();
+    logger.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
 
     const response = await supabase
       .from('appointments_full')
@@ -543,25 +186,23 @@ export const appointmentService = {
       const appointments = await fetchAppointmentsFromTable(
         authenticatedUserId,
       );
-      console.log('[DEBUG] Fetched appointments count:', appointments.length);
+      logger.log('[DEBUG] Fetched appointments count:', appointments.length);
       return appointments;
     }
 
     if (error) {
-      console.error('[DEBUG] Failed to fetch appointments:', error.message);
+      logger.error('[DEBUG] Failed to fetch appointments:', error.message);
       throw new Error(error.message);
     }
 
-    console.log('[DEBUG] Fetched appointments count:', data?.length ?? 0);
+    logger.log('[DEBUG] Fetched appointments count:', data?.length ?? 0);
     return (data ?? []) as AppointmentFull[];
   },
 
   async fetchAppointmentById(
     appointmentId: string,
   ): Promise<AppointmentFull | null> {
-    console.log('[DEBUG] Fetching appointment by id:', appointmentId);
-
-    await appointmentService.triggerCleanup();
+    logger.log('[DEBUG] Fetching appointment by id:', appointmentId);
 
     const response = await supabase
       .from('appointments_full')
@@ -588,7 +229,7 @@ export const appointmentService = {
     }
 
     if (error) {
-      console.error(
+      logger.error(
         '[DEBUG] Failed to fetch appointment by id:',
         error.message,
       );
@@ -602,7 +243,7 @@ export const appointmentService = {
     const authenticatedUserId = await getAuthenticatedUserId();
     const checkedInAt = new Date().toISOString();
 
-    console.log('[CHECK_IN] Starting patient check-in:', {
+    logger.log('[CHECK_IN] Starting patient check-in:', {
       appointmentId,
       userId: authenticatedUserId,
     });
@@ -620,7 +261,7 @@ export const appointmentService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[CHECK_IN] Database update failed:', {
+      logger.error('[CHECK_IN] Database update failed:', {
         appointmentId,
         code: error.code,
         message: error.message,
@@ -644,14 +285,14 @@ export const appointmentService = {
         throw new Error('Appointment not found.');
       }
 
-      console.warn('[CHECK_IN] Invalid status transition:', {
+      logger.warn('[CHECK_IN] Invalid status transition:', {
         appointmentId,
         currentStatus: currentAppointment.status,
       });
       throw new Error('Only confirmed appointments can be checked in.');
     }
 
-    console.log('[CHECK_IN] Appointment checked in successfully:', {
+    logger.log('[CHECK_IN] Appointment checked in successfully:', {
       appointmentId,
       status: data.status,
       checkedInAt: data.checked_in_at,
@@ -663,7 +304,7 @@ export const appointmentService = {
 
   async staffCheckInAppointment(appointmentId: string): Promise<AppointmentFull> {
     const checkedInAt = new Date().toISOString();
-    console.log('[STAFF_CHECK_IN] Counter staff check-in:', { appointmentId });
+    logger.log('[STAFF_CHECK_IN] Counter staff check-in:', { appointmentId });
 
     const { data, error } = await supabase
       .from('appointments')
@@ -677,7 +318,7 @@ export const appointmentService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[STAFF_CHECK_IN] Database update failed:', error.message);
+      logger.error('[STAFF_CHECK_IN] Database update failed:', error.message);
       throw new Error(error.message);
     }
 
@@ -693,7 +334,7 @@ export const appointmentService = {
     await getAuthenticatedUserId();
     const calledAt = new Date().toISOString();
 
-    console.log('[CALL_TOKEN] Starting token call:', {
+    logger.log('[CALL_TOKEN] Starting token call:', {
       appointmentId,
       calledAt,
     });
@@ -704,11 +345,11 @@ export const appointmentService = {
     });
 
     if (!rpcError) {
-      console.log('[CALL_TOKEN] RPC call_appointment succeeded');
+      logger.log('[CALL_TOKEN] RPC call_appointment succeeded');
       const appointment = await appointmentService.fetchAppointmentById(appointmentId);
       if (appointment) return appointment;
     } else {
-      console.warn('[CALL_TOKEN] RPC call_appointment skipped or failed, using table update fallback:', rpcError.message);
+      logger.warn('[CALL_TOKEN] RPC call_appointment skipped or failed, using table update fallback:', rpcError.message);
     }
 
     // Direct table update fallback supporting confirmed, checked_in, pending
@@ -724,7 +365,7 @@ export const appointmentService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[CALL_TOKEN] Database update failed:', {
+      logger.error('[CALL_TOKEN] Database update failed:', {
         appointmentId,
         code: error.code,
         message: error.message,
@@ -747,14 +388,14 @@ export const appointmentService = {
         throw new Error('Appointment not found.');
       }
 
-      console.warn('[CALL_TOKEN] Invalid status transition:', {
+      logger.warn('[CALL_TOKEN] Invalid status transition:', {
         appointmentId,
         currentStatus: currentAppointment.status,
       });
       throw new Error(`Cannot call token from current status: ${currentAppointment.status}`);
     }
 
-    console.log('[CALL_TOKEN] Token called successfully:', {
+    logger.log('[CALL_TOKEN] Token called successfully:', {
       appointmentId,
       status: data.status,
       calledAt: data.called_at,
@@ -770,7 +411,7 @@ export const appointmentService = {
     reason?: string,
   ): Promise<AppointmentFull> {
     try {
-      console.log(
+      logger.log(
         '[DEBUG] Cancelling appointment via RPC cancel_appointment:',
         appointmentId,
       );
@@ -787,7 +428,7 @@ export const appointmentService = {
       );
 
       if (rpcError) {
-        console.warn(
+        logger.warn(
           '[DEBUG] RPC cancel_appointment failed, falling back to direct update:',
           rpcError.message,
         );
@@ -804,7 +445,7 @@ export const appointmentService = {
           .in('status', ['pending', 'confirmed', 'checked_in', 'called', 'in_progress']);
 
         if (error) {
-          console.error(
+          logger.error(
             '[DEBUG] Direct cancel fallback failed:',
             error.message,
           );
@@ -812,7 +453,7 @@ export const appointmentService = {
         }
       }
 
-      console.log('[DEBUG] Appointment cancelled successfully');
+      logger.log('[DEBUG] Appointment cancelled successfully');
       const appointment = await appointmentService.fetchAppointmentById(
         appointmentId,
       );
@@ -820,7 +461,7 @@ export const appointmentService = {
         throw new Error('Appointment not found after cancellation');
       return appointment;
     } catch (err: any) {
-      console.error('[APPOINTMENTS] Cancel error:', err.message);
+      logger.error('[APPOINTMENTS] Cancel error:', err.message);
       throw err;
     }
   },

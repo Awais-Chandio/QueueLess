@@ -49,6 +49,7 @@ import { toastService } from '../../../services/toastService';
 import { AppointmentRow } from '../components/AppointmentRow';
 import StaffLogoutButton from '../components/StaffLogoutButton';
 import type { StaffStackParamList } from '../navigation/StaffNavigator';
+import { logger } from '../../../utils/logger';
 
 // Staff never complete a visit -- only the assigned doctor can (see the
 // restrict_appointment_completion_to_doctor migration).
@@ -126,7 +127,7 @@ const StaffDashboardScreen = () => {
       const settings = await queueService.fetchCenterSettings(selectedCenterId, todayStr);
       setDoctorSettings(settings);
     } catch (err) {
-      console.warn('Failed to load center settings:', err);
+      logger.warn('Failed to load center settings:', err);
     }
   }, [selectedCenterId]);
 
@@ -179,6 +180,7 @@ const StaffDashboardScreen = () => {
     queryFn: () => queueService.fetchDashboard('today'),
     refetchOnMount: 'always',
     staleTime: 0,
+    refetchInterval: 20_000, // fallback poll in case a realtime event is missed
   });
 
   // The server already limits staff to all assigned centers; narrow to the one being managed.

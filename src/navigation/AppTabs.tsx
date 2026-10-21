@@ -17,6 +17,7 @@ import { Home, Compass, MapPinned, Calendar, User } from "lucide-react-native";
 import { hp } from "../utils/responsive";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { logger } from '../utils/logger';
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 let notificationChannelInstance = 0;
@@ -178,7 +179,7 @@ const AppTabs = () => {
                     filter: `user_id=eq.${userId}`,
                 },
                 payload => {
-                    console.log('NEW NOTIFICATION:', payload.new);
+                    logger.log('NEW NOTIFICATION:', payload.new);
 
                     if (payload.eventType === 'DELETE') {
                         const notificationId = getRealtimeNotificationId(payload.old);
@@ -199,7 +200,7 @@ const AppTabs = () => {
 
                     const notification = getRealtimeNotification(payload.new);
                     if (!notification) {
-                        console.warn('[APP_TABS] Invalid notification payload:', payload);
+                        logger.warn('[APP_TABS] Invalid notification payload:', payload);
                         return;
                     }
 

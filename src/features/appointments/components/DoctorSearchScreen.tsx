@@ -10,6 +10,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import { doctorService } from '../../../services/doctorService';
 import type { AppStackParamList } from '../../../navigation/types';
 import { supabase } from '../../../lib/supabase';
+import { logger } from '../../../utils/logger';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'DoctorSearch'>;
 
@@ -43,7 +44,7 @@ const DoctorSearchScreen = () => {
         }
       }
     } catch (err) {
-      console.warn('[DoctorSearch] Error loading doctors:', err);
+      logger.warn('[DoctorSearch] Error loading doctors:', err);
     } finally {
       setLoading(false);
     }

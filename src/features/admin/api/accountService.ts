@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabase';
 import type { CreateManagedAccountPayload } from '../../../types/profile';
 import { useAuthStore } from '../../../store/authStore';
+import { logger } from '../../../utils/logger';
 
 export const accountService = {
   createManagedAccount: async (payload: CreateManagedAccountPayload) => {
@@ -86,7 +87,7 @@ export const accountService = {
         });
         
         if (restoreError) {
-           console.error('[ADMIN] Failed to restore admin session:', restoreError);
+           logger.error('[ADMIN] Failed to restore admin session:', restoreError);
         }
       }
     }

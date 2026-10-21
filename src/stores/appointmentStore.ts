@@ -1,23 +1,18 @@
 import { create } from 'zustand';
-import { Appointment, AppointmentFull } from '../types/appointment';
+import { AppointmentFull } from '../types/appointment';
 import { appointmentService } from '../services/appointmentService';
 import {
   subscribeToAppointments as subscribeToAppointmentsRealtime,
   unsubscribeAppointments,
 } from '../services/queueService';
 import { useAuthStore } from './authStore';
+import { logger } from '../utils/logger';
 
 const sortAppointments = (appointments: AppointmentFull[]) =>
   [...appointments].sort(
     (a, b) =>
       new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime(),
   );
-
-const toAppointmentFull = (appointment: Appointment): AppointmentFull => ({
-  ...appointment,
-  center_name: undefined,
-  service_name: undefined,
-});
 
 let appointmentsRealtimeChannel: ReturnType<
   typeof subscribeToAppointmentsRealtime
@@ -28,15 +23,6 @@ interface AppointmentsState {
 
   loading: boolean;
   error: string | null;
-
-  createAppointment: (payload: {
-    user_id: string;
-    center_id: string;
-    service_id: string;
-    scheduled_at: string;
-    appointment_date?: string;
-    appointment_time?: string;
-  }) => Promise<Appointment>;
 
   fetchUserAppointments: (userId: string) => Promise<AppointmentFull[]>;
 
@@ -65,47 +51,9 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
   cancellingId: null,
   callingId: null,
 
-  createAppointment: async payload => {
-    try {
-      console.log('[DEBUG] Store: Creating appointment with payload:', payload);
-      set({ loading: true, error: null });
-
-      const newAppointment = await appointmentService.createAppointment(
-        payload,
-      );
-
-      set(state => ({
-        appointments: sortAppointments([
-          toAppointmentFull(newAppointment),
-          ...state.appointments.filter(
-            appointment => appointment.id !== newAppointment.id,
-          ),
-        ]),
-        loading: false,
-      }));
-      console.log('[DEBUG] Store: Appointment created:', newAppointment.id);
-      return newAppointment;
-    } catch (error: any) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to create appointment';
-
-      console.error('[DEBUG] Store: Failed to create appointment:', message);
-      set({
-        loading: false,
-        error: message,
-      });
-
-      const storeError = new Error(message);
-      if (error && typeof error === 'object' && 'code' in error) {
-        (storeError as any).code = error.code;
-      }
-      throw storeError;
-    }
-  },
-
   fetchUserAppointments: async userId => {
     try {
-      console.log('[DEBUG] Store: Fetching appointments for user:', userId);
+      logger.log('[DEBUG] Store: Fetching appointments for user:', userId);
       set({ loading: true, error: null });
 
       const appointments = await appointmentService.fetchUserAppointments(
@@ -116,10 +64,10 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
         appointments,
         loading: false,
       });
-      console.log('[DEBUG] Store: Appointments fetched and updated in state');
+      logger.log('[DEBUG] Store: Appointments fetched and updated in state');
       return appointments;
     } catch (error) {
-      console.error('[DEBUG] Store: Failed to fetch appointments:', error);
+      logger.error('[DEBUG] Store: Failed to fetch appointments:', error);
       set({
         loading: false,
         error:
@@ -139,7 +87,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
     }
 
     try {
-      console.log('[CHECK_IN_STORE] Checking in appointment:', id);
+      logger.log('[CHECK_IN_STORE] Checking in appointment:', id);
       set({ checkingInId: id, error: null });
 
       const updatedAppointment = await appointmentService.checkInAppointment(
@@ -167,7 +115,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           error: null,
         });
 
-        console.log(
+        logger.log(
           '[CHECK_IN_STORE] Check-in completed and appointments refreshed:',
           {
             appointmentId: id,
@@ -175,7 +123,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           },
         );
       } catch (refreshError) {
-        console.warn(
+        logger.warn(
           '[CHECK_IN_STORE] Check-in succeeded but refresh failed:',
           {
             appointmentId: id,
@@ -192,7 +140,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
       const message =
         error instanceof Error ? error.message : 'Failed to check in';
 
-      console.error('[CHECK_IN_STORE] Check-in failed:', {
+      logger.error('[CHECK_IN_STORE] Check-in failed:', {
         appointmentId: id,
         message,
       });
@@ -237,7 +185,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
     }
 
     try {
-      console.log('[CALL_TOKEN_STORE] Calling appointment token:', id);
+      logger.log('[CALL_TOKEN_STORE] Calling appointment token:', id);
       set({ callingId: id, error: null });
 
       const updatedAppointment = await appointmentService.callAppointment(id);
@@ -263,7 +211,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           error: null,
         });
 
-        console.log(
+        logger.log(
           '[CALL_TOKEN_STORE] Call completed and appointments refreshed:',
           {
             appointmentId: id,
@@ -271,7 +219,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           },
         );
       } catch (refreshError) {
-        console.warn('[CALL_TOKEN_STORE] Call succeeded but refresh failed:', {
+        logger.warn('[CALL_TOKEN_STORE] Call succeeded but refresh failed:', {
           appointmentId: id,
           message:
             refreshError instanceof Error
@@ -285,7 +233,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
       const message =
         error instanceof Error ? error.message : 'Failed to call token';
 
-      console.error('[CALL_TOKEN_STORE] Call failed:', {
+      logger.error('[CALL_TOKEN_STORE] Call failed:', {
         appointmentId: id,
         message,
       });

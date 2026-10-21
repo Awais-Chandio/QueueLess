@@ -6,6 +6,7 @@ import type {
   CancelReason,
 } from '../types/appointment';
 import type { CreateAuditLogPayload } from '../types/audit';
+import { logger } from '../utils/logger';
 
 export type QueueScope = {
   appointmentId?: string | null;
@@ -228,7 +229,7 @@ const fetchScopedAppointments = async (
 ): Promise<AppointmentFull[]> => {
   const { start, end } = getTodayRange();
 
-  console.log('[STAFF_QUEUE] Fetching appointments:', {
+  logger.log('[STAFF_QUEUE] Fetching appointments:', {
     scope,
     todayStart: start,
     todayEnd: end,
@@ -250,7 +251,7 @@ const fetchScopedAppointments = async (
   // Other roles are scoped by RLS, so no center filter is applied for them.
   const centerIds = profile?.role === 'staff' ? await getStaffCenterIds(userId) : null;
   if (centerIds && centerIds.length === 0) {
-    console.warn('[STAFF_QUEUE] Staff member has no center assignments; returning empty queue.');
+    logger.warn('[STAFF_QUEUE] Staff member has no center assignments; returning empty queue.');
     return [];
   }
 
@@ -271,7 +272,7 @@ const fetchScopedAppointments = async (
   let error = response.error;
 
   if (error?.code === '42703') {
-    console.warn(
+    logger.warn(
       '[STAFF_QUEUE] appointments_full column mismatch, retrying legacy select:',
       {
         code: error.code,
@@ -298,7 +299,7 @@ const fetchScopedAppointments = async (
   }
 
   if (shouldFallback(error?.code)) {
-    console.warn('[STAFF_QUEUE] Falling back to appointments table:', {
+    logger.warn('[STAFF_QUEUE] Falling back to appointments table:', {
       code: error?.code,
       message: error?.message,
       scope,
@@ -333,7 +334,7 @@ const fetchScopedAppointments = async (
     }
 
     if (fallback.error) {
-      console.error('[STAFF_QUEUE] Staff appointments fallback failed:', {
+      logger.error('[STAFF_QUEUE] Staff appointments fallback failed:', {
         code: fallback.error.code,
         message: fallback.error.message,
         scope,
@@ -341,7 +342,7 @@ const fetchScopedAppointments = async (
       throw new Error(fallback.error.message);
     }
 
-    console.log('[STAFF_QUEUE] Fallback appointments fetched:', {
+    logger.log('[STAFF_QUEUE] Fallback appointments fetched:', {
       scope,
       count: fallback.data?.length ?? 0,
     });
@@ -349,7 +350,7 @@ const fetchScopedAppointments = async (
   }
 
   if (error) {
-    console.error('[STAFF_QUEUE] Staff appointments fetch failed:', {
+    logger.error('[STAFF_QUEUE] Staff appointments fetch failed:', {
       code: error.code,
       message: error.message,
       scope,
@@ -357,7 +358,7 @@ const fetchScopedAppointments = async (
     throw new Error(error.message);
   }
 
-  console.log('[STAFF_QUEUE] Appointments fetched:', {
+  logger.log('[STAFF_QUEUE] Appointments fetched:', {
     scope,
     count: data?.length ?? 0,
   });
@@ -382,7 +383,7 @@ const insertAuditLog = async (payload: CreateAuditLogPayload) => {
   const { error } = await supabase.from('audit_logs').insert(payload);
 
   if (error) {
-    console.warn('[STAFF_QUEUE] Audit log not recorded:', {
+    logger.warn('[STAFF_QUEUE] Audit log not recorded:', {
       action: payload.action,
       code: error.code,
       message: error.message,
@@ -433,7 +434,7 @@ const updateAppointment = async (
   }
 
   if (!data) {
-    console.warn('[STAFF_QUEUE] Mismatch or invalid status transition:', {
+    logger.warn('[STAFF_QUEUE] Mismatch or invalid status transition:', {
       appointmentId: appointment.id,
       action,
       currentStatus: appointment.status,
@@ -520,7 +521,7 @@ const getBackendQueueSnapshot = async (
       .maybeSingle();
 
     if (!qError && qUpdate) {
-      console.log('[QUEUE] Loaded directly from queue_updates table:', qUpdate);
+      logger.log('[QUEUE] Loaded directly from queue_updates table:', qUpdate);
       return {
         currentToken: qUpdate.current_serving_token ?? 0,
         nextToken: null,
@@ -536,19 +537,19 @@ const getBackendQueueSnapshot = async (
       };
     }
   } catch (err) {
-    console.warn('[QUEUE] Direct queue_updates query error:', err);
+    logger.warn('[QUEUE] Direct queue_updates query error:', err);
   }
 
   // 2. Fallback to RPC
-  console.log("RPC: get_appointment_queue_snapshot");
-  console.log("RPC:", appointmentId);
+  logger.log("RPC: get_appointment_queue_snapshot");
+  logger.log("RPC:", appointmentId);
   const { data, error } = await supabase.rpc('get_appointment_queue_snapshot', {
     p_appointment_id: appointmentId,
   });
-  console.log(data, error);
+  logger.log(data, error);
 
   if (error) {
-    console.warn('[QUEUE] Backend queue snapshot unavailable, falling back:', {
+    logger.warn('[QUEUE] Backend queue snapshot unavailable, falling back:', {
       code: error.code,
       message: error.message,
     });
@@ -585,7 +586,7 @@ const getCurrentTokenFromAppointments = async (
     .maybeSingle();
 
   if (error) {
-    console.warn('[QUEUE] Direct current token lookup failed:', {
+    logger.warn('[QUEUE] Direct current token lookup failed:', {
       code: error.code,
       message: error.message,
     });
@@ -610,16 +611,16 @@ export const getCurrentToken = async (scope?: QueueScope): Promise<number> => {
     ? scope.scheduledAt.split('T')[0]
     : new Date().toISOString().split('T')[0];
 
-  console.log("RPC: get_current_token");
-  console.log("RPC:", scope.centerId);
+  logger.log("RPC: get_current_token");
+  logger.log("RPC:", scope.centerId);
   const { data, error } = await supabase.rpc('get_current_token', {
     p_center_id: scope.centerId,
     p_queue_date: dateStr,
   });
-  console.log(data, error);
+  logger.log(data, error);
 
   if (error) {
-    console.warn('[QUEUE] RPC get_current_token failed:', error.message);
+    logger.warn('[QUEUE] RPC get_current_token failed:', error.message);
     return 0;
   }
 
@@ -636,12 +637,12 @@ export const getPeopleAhead = async (
   }
 
   if (appointmentId) {
-    console.log("RPC: people_ahead");
-    console.log("RPC:", appointmentId);
+    logger.log("RPC: people_ahead");
+    logger.log("RPC:", appointmentId);
     const { data, error } = await supabase.rpc('people_ahead', {
       p_appointment_id: appointmentId,
     });
-    console.log(data, error);
+    logger.log(data, error);
 
     if (!error && typeof data === 'number') {
       return data;
@@ -658,7 +659,7 @@ export const getQueueSnapshot = async (
   const backendSnapshot = await getBackendQueueSnapshot(scope?.appointmentId);
 
   if (backendSnapshot) {
-    console.log('[QUEUE] Backend queue snapshot loaded:', {
+    logger.log('[QUEUE] Backend queue snapshot loaded:', {
       appointmentId: scope?.appointmentId ?? null,
       currentToken: backendSnapshot.currentToken,
       peopleAhead: backendSnapshot.peopleAhead,
@@ -672,7 +673,7 @@ export const getQueueSnapshot = async (
   const currentToken = await getCurrentToken(scope);
   const peopleAhead = await getPeopleAhead(myToken, currentToken, scope?.appointmentId);
 
-  console.log('[QUEUE] Queue snapshot calculated:', {
+  logger.log('[QUEUE] Queue snapshot calculated:', {
     myToken,
     currentToken,
     peopleAhead,
@@ -707,7 +708,7 @@ export const subscribeToAppointments = ({
         table: 'appointments',
       },
       payload => {
-        console.log('[QUEUE APPOINTMENT INSERT]', payload.new?.id);
+        logger.log('[QUEUE APPOINTMENT INSERT]', payload.new?.id);
         onChange();
       },
     )
@@ -719,7 +720,7 @@ export const subscribeToAppointments = ({
         table: 'appointments',
       },
       payload => {
-        console.log('[QUEUE APPOINTMENT UPDATE]', payload.new?.id);
+        logger.log('[QUEUE APPOINTMENT UPDATE]', payload.new?.id);
         onChange();
       },
     )
@@ -731,7 +732,7 @@ export const subscribeToAppointments = ({
         table: 'queue_updates',
       },
       payload => {
-        console.log('[QUEUE QUEUE_UPDATES EVENT]', (payload.new as any)?.id);
+        logger.log('[QUEUE QUEUE_UPDATES EVENT]', (payload.new as any)?.id);
         onChange();
       },
     )
@@ -743,7 +744,7 @@ export const subscribeToAppointments = ({
         table: 'center_queue_settings',
       },
       payload => {
-        console.log('[QUEUE CENTER_SETTINGS UPDATE]', payload.new?.center_id);
+        logger.log('[QUEUE CENTER_SETTINGS UPDATE]', payload.new?.center_id);
         onChange();
       },
     )
@@ -755,17 +756,17 @@ export const subscribeToAppointments = ({
         table: 'doctor_queue_settings',
       },
       payload => {
-        console.log('[QUEUE DOCTOR_SETTINGS UPDATE]', payload.new?.doctor_id);
+        logger.log('[QUEUE DOCTOR_SETTINGS UPDATE]', payload.new?.doctor_id);
         onChange();
       },
     )
     .subscribe((status, err) => {
-      console.log(`[REALTIME_STATUS] ${channelName ?? 'appointments-live'}: ${status}`, err ? err : '');
+      logger.log(`[REALTIME_STATUS] ${channelName ?? 'appointments-live'}: ${status}`, err ? err : '');
       if (status === 'CHANNEL_ERROR') {
-        console.warn(`[REALTIME] Channel error on ${channelName}, reconnecting...`);
+        logger.warn(`[REALTIME] Channel error on ${channelName}, reconnecting...`);
       }
       if (status === 'TIMED_OUT') {
-        console.warn(`[REALTIME] Channel timed out on ${channelName}, reconnecting...`);
+        logger.warn(`[REALTIME] Channel timed out on ${channelName}, reconnecting...`);
       }
     });
 };
@@ -792,7 +793,7 @@ export const queueService = {
     const appointments = sortStaffQueueAppointments(
       await fetchScopedAppointments(scope, doctorId),
     );
-    console.log(
+    logger.log(
       '[STAFF_QUEUE] Sorted appointment order:',
       appointments.map(item => ({
         id: item.id,
@@ -838,7 +839,7 @@ export const queueService = {
 
   async startService(appointment: AppointmentFull) {
     const calledAt = new Date().toISOString();
-    console.log('[STAFF_QUEUE] Calling token:', {
+    logger.log('[STAFF_QUEUE] Calling token:', {
       appointmentId: appointment.id,
       tokenNumber: appointment.token_number,
       previousStatus: appointment.status,
@@ -850,9 +851,9 @@ export const queueService = {
     });
 
     if (!rpcError) {
-      console.log('[STAFF_QUEUE] RPC call_appointment succeeded for appointment:', appointment.id);
+      logger.log('[STAFF_QUEUE] RPC call_appointment succeeded for appointment:', appointment.id);
     } else {
-      console.warn('[STAFF_QUEUE] RPC call_appointment unavailable, using table update fallback:', rpcError.message);
+      logger.warn('[STAFF_QUEUE] RPC call_appointment unavailable, using table update fallback:', rpcError.message);
     }
 
     const updatedAppointment = await updateAppointment(
@@ -889,7 +890,7 @@ export const queueService = {
     });
 
     if (!rpcError) {
-      console.log('[STAFF_QUEUE] RPC complete_appointment succeeded for appointment:', appointment.id);
+      logger.log('[STAFF_QUEUE] RPC complete_appointment succeeded for appointment:', appointment.id);
       // The RPC already moved the row to completed, so the guarded update below
       // would match nothing and wrongly report a conflict.
       const { data, error } = await supabase
@@ -909,7 +910,7 @@ export const queueService = {
       });
       return data as unknown as AppointmentFull;
     } else {
-      console.warn('[STAFF_QUEUE] RPC complete_appointment unavailable, using table update fallback:', rpcError.message);
+      logger.warn('[STAFF_QUEUE] RPC complete_appointment unavailable, using table update fallback:', rpcError.message);
     }
 
     const updatedAppointment = await updateAppointment(
@@ -935,7 +936,7 @@ export const queueService = {
         .maybeSingle();
         
       if (error?.code === '42703' || error?.code === 'PGRST204') {
-        console.warn('[STAFF_QUEUE] appointment_date column absent in center_queue_settings, trying fallback:', error.message);
+        logger.warn('[STAFF_QUEUE] appointment_date column absent in center_queue_settings, trying fallback:', error.message);
         const fallback = await supabase
           .from('center_queue_settings')
           .select('*')
@@ -945,11 +946,11 @@ export const queueService = {
       }
 
       if (error) {
-        console.warn('[STAFF_QUEUE] Failed to fetch center settings:', error.message);
+        logger.warn('[STAFF_QUEUE] Failed to fetch center settings:', error.message);
       }
       return data;
     } catch (err: any) {
-      console.warn('[STAFF_QUEUE] Error fetching center settings:', err?.message || err);
+      logger.warn('[STAFF_QUEUE] Error fetching center settings:', err?.message || err);
       return null;
     }
   },
@@ -974,7 +975,7 @@ export const queueService = {
     }
 
     if (rpcError) {
-      console.warn('[STAFF_QUEUE] RPC set_center_break failed/unavailable, falling back to table upsert:', rpcError.message);
+      logger.warn('[STAFF_QUEUE] RPC set_center_break failed/unavailable, falling back to table upsert:', rpcError.message);
     }
 
     const payloadWithDate = {
@@ -1028,7 +1029,7 @@ export const queueService = {
     }
 
     if (rpcError) {
-      console.warn('[STAFF_QUEUE] RPC update_center_average_consultation_time failed/unavailable, falling back to table upsert:', rpcError.message);
+      logger.warn('[STAFF_QUEUE] RPC update_center_average_consultation_time failed/unavailable, falling back to table upsert:', rpcError.message);
     }
 
     const payloadWithDate = {

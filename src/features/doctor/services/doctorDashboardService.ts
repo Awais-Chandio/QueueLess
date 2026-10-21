@@ -1,5 +1,6 @@
 import { supabase } from '../../../lib/supabase';
 import type { Doctor } from '../../../types/doctor';
+import { logger } from '../../../utils/logger';
 
 export interface TodayAppointment {
   appointment_id: string;
@@ -41,7 +42,7 @@ export const doctorDashboardService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[doctorDashboardService] Error fetching profile:', error);
+      logger.error('[doctorDashboardService] Error fetching profile:', error);
       throw error;
     }
 
@@ -64,7 +65,7 @@ export const doctorDashboardService = {
     });
 
     if (error) {
-      console.error('[doctorDashboardService] Error fetching today appointments:', error);
+      logger.error('[doctorDashboardService] Error fetching today appointments:', error);
       throw error;
     }
 
@@ -77,7 +78,7 @@ export const doctorDashboardService = {
     });
 
     if (error) {
-      console.error('[doctorDashboardService] Error fetching recent patients:', error);
+      logger.error('[doctorDashboardService] Error fetching recent patients:', error);
       throw error;
     }
 
@@ -90,7 +91,7 @@ export const doctorDashboardService = {
     });
 
     if (error) {
-      console.error('[doctorDashboardService] Error fetching income summary:', error);
+      logger.error('[doctorDashboardService] Error fetching income summary:', error);
       throw error;
     }
 
@@ -107,7 +108,7 @@ export const doctorDashboardService = {
     });
 
     if (error) {
-      console.error('[doctorDashboardService] Error fetching schedule:', error);
+      logger.error('[doctorDashboardService] Error fetching schedule:', error);
       throw error;
     }
 

@@ -1,4 +1,5 @@
 import { getAuth, signInWithPhoneNumber, signOut, FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { logger } from '../utils/logger';
 
 let confirmationResult: FirebaseAuthTypes.ConfirmationResult | null = null;
 
@@ -6,14 +7,14 @@ export const firebasePhoneAuth = {
     async sendOTP(phoneNumber: string): Promise<boolean> {
         try {
             if (__DEV__) {
-                console.log('[firebasePhoneAuth] sendOTP started for:', phoneNumber);
+                logger.log('[firebasePhoneAuth] sendOTP started for:', phoneNumber);
             }
             const confirmation = await signInWithPhoneNumber(getAuth(), phoneNumber);
             confirmationResult = confirmation as any;
             return true;
         } catch (error: any) {
             if (__DEV__) {
-                console.error('[firebasePhoneAuth] Error in sendOTP:', error);
+                logger.error('[firebasePhoneAuth] Error in sendOTP:', error);
             }
             throw new Error(this.getReadableErrorMessage(error));
         }
@@ -22,7 +23,7 @@ export const firebasePhoneAuth = {
     async verifyOTP(code: string): Promise<FirebaseAuthTypes.UserCredential> {
         try {
             if (__DEV__) {
-                console.log('[firebasePhoneAuth] verifyOTP started with code:', code);
+                logger.log('[firebasePhoneAuth] verifyOTP started with code:', code);
             }
             if (!confirmationResult) {
                 throw new Error('No active verification session. Please request a new OTP.');
@@ -34,7 +35,7 @@ export const firebasePhoneAuth = {
             return userCredential;
         } catch (error: any) {
             if (__DEV__) {
-                console.error('[firebasePhoneAuth] Error in verifyOTP:', error);
+                logger.error('[firebasePhoneAuth] Error in verifyOTP:', error);
             }
             throw new Error(this.getReadableErrorMessage(error));
         }
@@ -48,11 +49,11 @@ export const firebasePhoneAuth = {
             }
             confirmationResult = null;
             if (__DEV__) {
-                console.log('[firebasePhoneAuth] Signed out from Firebase.');
+                logger.log('[firebasePhoneAuth] Signed out from Firebase.');
             }
         } catch (error: any) {
             if (__DEV__ && error?.code !== 'auth/no-current-user') {
-                console.warn('[firebasePhoneAuth] Logout info:', error?.message || error);
+                logger.warn('[firebasePhoneAuth] Logout info:', error?.message || error);
             }
         }
     },

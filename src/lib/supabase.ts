@@ -1,26 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Config from 'react-native-config';
 
-const bundledSupabaseUrl = 'https://latdblyyakjrwzgxdean.supabase.co';
-const bundledSupabaseAnonKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhdGRibHl5YWtqcnd6Z3hkZWFuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NzM1MjIsImV4cCI6MjA5MjQ0OTUyMn0.yFeA5OzkcuKdU5B4VVijI8tcqXjmYm3LORiq0DDn8C8';
-
-const readProcessEnv = (key: 'SUPABASE_URL' | 'SUPABASE_ANON_KEY') => {
-  if (typeof process === 'undefined' || !process.env) {
-    return undefined;
-  }
-
-  return process.env[key];
-};
-
+// Values come from .env via react-native-config and are compiled into the app
+// binary, so they are public. SUPABASE_ANON_KEY must only ever be the anon /
+// publishable key. Never put the service_role (or sb_secret_) key in the app:
+// it bypasses RLS and anyone who unpacks the APK/IPA could read it.
 const normalizeConfigValue = (value: string | undefined) => {
   const normalized = value?.trim();
   return normalized ? normalized : undefined;
 };
 
-const supabaseUrl = normalizeConfigValue(readProcessEnv('SUPABASE_URL')) ?? bundledSupabaseUrl;
-const supabaseAnonKey =
-  normalizeConfigValue(readProcessEnv('SUPABASE_ANON_KEY')) ?? bundledSupabaseAnonKey;
+const supabaseUrl = normalizeConfigValue(Config.SUPABASE_URL);
+const supabaseAnonKey = normalizeConfigValue(Config.SUPABASE_ANON_KEY);
 
 const missingConfig = [
   supabaseUrl ? null : 'SUPABASE_URL',

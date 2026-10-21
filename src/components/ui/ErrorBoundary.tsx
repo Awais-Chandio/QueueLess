@@ -6,6 +6,8 @@ import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { AlertTriangle } from 'lucide-react-native';
 import { scaleFont } from '../../utils/responsive';
+import { Sentry } from '../../lib/sentry';
+import { logger } from '../../utils/logger';
 
 interface Props {
   children?: ReactNode;
@@ -27,7 +29,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Uncaught error:', error, errorInfo);
+    if (__DEV__) {
+      logger.error('Uncaught error:', error, errorInfo);
+    }
+    // No-op until Sentry is initialised (production builds with a DSN).
+    Sentry.captureException(error, {
+      contexts: { react: { componentStack: errorInfo.componentStack ?? '' } },
+    });
   }
 
   private handleReset = () => {
@@ -41,7 +49,9 @@ export class ErrorBoundary extends Component<Props, State> {
           <AlertTriangle size={scaleFont(64)} color={colors.error} style={{ marginBottom: spacing.lg }} />
           <Text style={styles.title}>Oops! Something went wrong.</Text>
           <Text style={styles.subtitle}>
-            {this.state.error?.message || 'An unexpected error occurred.'}
+            {__DEV__
+              ? this.state.error?.message || 'An unexpected error occurred.'
+              : 'An unexpected error occurred. Please try again.'}
           </Text>
           <AppButton 
             title="Try Again" 

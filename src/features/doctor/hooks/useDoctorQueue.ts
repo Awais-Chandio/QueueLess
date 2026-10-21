@@ -46,6 +46,7 @@ export function useDoctorQueue() {
     enabled: !!doctorId,
     refetchOnMount: 'always',
     staleTime: 0,
+    refetchInterval: 20_000, // fallback poll in case a realtime event is missed
   });
 
   const appointments = useMemo(() => data?.appointments ?? [], [data?.appointments]);

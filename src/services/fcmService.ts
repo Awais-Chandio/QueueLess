@@ -6,6 +6,7 @@ import {
     onTokenRefresh,
     AuthorizationStatus,
 } from '@react-native-firebase/messaging';
+import { logger } from '../utils/logger';
 
 export const fcmService = {
     /**
@@ -19,12 +20,12 @@ export const fcmService = {
                 authStatus === AuthorizationStatus.PROVISIONAL;
 
             if (__DEV__) {
-                console.log('[fcmService] Notification authorization status:', authStatus);
+                logger.log('[fcmService] Notification authorization status:', authStatus);
             }
             return enabled;
         } catch (error) {
             if (__DEV__) {
-                console.warn('[fcmService] Error requesting permission:', error);
+                logger.warn('[fcmService] Error requesting permission:', error);
             }
             return false;
         }
@@ -37,12 +38,12 @@ export const fcmService = {
         try {
             const token = await getToken(getMessaging());
             if (__DEV__) {
-                console.log('[fcmService] Retrieved FCM token:', token);
+                logger.log('[fcmService] Retrieved FCM token:', token);
             }
             return token;
         } catch (error) {
             if (__DEV__) {
-                console.warn('[fcmService] Error retrieving FCM token:', error);
+                logger.warn('[fcmService] Error retrieving FCM token:', error);
             }
             return null;
         }
@@ -55,11 +56,11 @@ export const fcmService = {
         try {
             await deleteToken(getMessaging());
             if (__DEV__) {
-                console.log('[fcmService] FCM token deleted locally.');
+                logger.log('[fcmService] FCM token deleted locally.');
             }
         } catch (error) {
             if (__DEV__) {
-                console.warn('[fcmService] Error deleting FCM token:', error);
+                logger.warn('[fcmService] Error deleting FCM token:', error);
             }
         }
     },
@@ -72,7 +73,7 @@ export const fcmService = {
     onTokenRefresh(callback: (token: string) => void): () => void {
         return onTokenRefresh(getMessaging(), (token) => {
             if (__DEV__) {
-                console.log('[fcmService] FCM token refreshed:', token);
+                logger.log('[fcmService] FCM token refreshed:', token);
             }
             callback(token);
         });

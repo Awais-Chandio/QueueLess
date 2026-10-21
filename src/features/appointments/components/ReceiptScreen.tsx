@@ -14,6 +14,7 @@ import { getAppointmentDateLabel, getAppointmentTimeLabel } from '../utils/appoi
 import { buildAppointmentQrValue } from '../utils/appointmentQr';
 import type { AppStackParamList } from '../../../navigation/types';
 import { scaleFont } from '../../../utils/responsive';
+import { logger } from '../../../utils/logger';
 
 type ReceiptRouteProp = RouteProp<AppStackParamList, 'Receipt'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'Receipt'>;
@@ -36,7 +37,7 @@ const ReceiptScreen = () => {
         const data = await appointmentService.fetchAppointmentById(appointmentId);
         setAppointment(data);
       } catch (err) {
-        console.warn('Failed to load appointment receipt:', err);
+        logger.warn('Failed to load appointment receipt:', err);
       } finally {
         setLoading(false);
       }

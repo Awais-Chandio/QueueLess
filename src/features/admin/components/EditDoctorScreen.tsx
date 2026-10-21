@@ -25,6 +25,7 @@ import { centerService } from '../../../services/centerService';
 import { doctorService } from '../../../services/doctorService';
 import { toastService } from '../../../services/toastService';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
+import { logger } from '../../../utils/logger';
 
 type EditDoctorScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'EditDoctor'>;
 type EditDoctorScreenRouteProp = RouteProp<AdminStackParamList, 'EditDoctor'>;
@@ -103,7 +104,7 @@ const EditDoctorScreen = () => {
           }
         }
       } catch (err: any) {
-        console.warn('Failed to load doctor profile:', err);
+        logger.warn('Failed to load doctor profile:', err);
         toastService.error('Failed to retrieve doctor profile details.');
       } finally {
         setLoadingCenters(false);
@@ -127,7 +128,7 @@ const EditDoctorScreen = () => {
         const sorted = [...(data || [])].sort((a, b) => a.name.localeCompare(b.name));
         setServices(sorted);
       } catch (err) {
-        console.warn('Failed to load center services:', err);
+        logger.warn('Failed to load center services:', err);
         toastService.error('Failed to load clinic departments.');
       } finally {
         setLoadingServices(false);
@@ -155,7 +156,7 @@ const EditDoctorScreen = () => {
 
       const asset = result.assets?.[0];
       if (__DEV__) {
-        console.log('[EditDoctor] Image picker result', {
+        logger.log('[EditDoctor] Image picker result', {
           hasUri: Boolean(asset?.uri),
           hasBase64: Boolean(asset?.base64),
           base64Length: asset?.base64?.length ?? 0,
@@ -174,7 +175,7 @@ const EditDoctorScreen = () => {
         setAvatarMimeType(asset.type || 'image/jpeg');
       }
     } catch (err) {
-      console.warn('Image picker error:', err);
+      logger.warn('Image picker error:', err);
       toastService.error('Failed to open photo library.');
     }
   };
@@ -225,7 +226,7 @@ const EditDoctorScreen = () => {
     setIsSaving(true);
     try {
       if (__DEV__) {
-        console.log('[EditDoctor] Photo save payload', {
+        logger.log('[EditDoctor] Photo save payload', {
           hasBase64: Boolean(avatarBase64),
           base64Length: avatarBase64?.length ?? 0,
           mimeType: avatarMimeType,
