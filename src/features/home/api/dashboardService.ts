@@ -3,6 +3,7 @@ import {
   getAppointmentDateTime,
   getAppointmentTimeLabel,
 } from '../../appointments/utils/appointmentTime';
+import { logger } from '../../../utils/logger';
 
 export const fetchDashboardStats = async (userId: string) => {
   const { data: appointments, error } = await supabase
@@ -69,7 +70,7 @@ export const fetchDashboardStats = async (userId: string) => {
       ? `Scheduled for ${getAppointmentTimeLabel(activeAppointment)}`
       : null;
 
-  console.log('[DASHBOARD] Patient queue status:', {
+  logger.log('[DASHBOARD] Patient queue status:', {
     userId,
     activeAppointmentId: activeAppointment?.id ?? null,
     appointmentStatus: activeAppointment?.status ?? null,

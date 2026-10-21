@@ -14,6 +14,7 @@ import { scaleFont, wp, hp } from '../../../utils/responsive';
 import { formatAppointmentDateInput, isPastAppointmentSlot } from '../utils/appointmentTime';
 import type { AppStackParamList } from '../../../navigation/types';
 import { doctorService } from '../../../services/doctorService';
+import { logger } from '../../../utils/logger';
 
 type SelectSlotRouteProp = RouteProp<AppStackParamList, 'SelectSlot'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'SelectSlot'>;
@@ -47,7 +48,7 @@ const SelectSlotScreen = () => {
       const data = await doctorService.getDoctorById(doctorId);
       setDoctor(data);
     } catch (err) {
-      console.warn('Failed to load doctor details:', err);
+      logger.warn('Failed to load doctor details:', err);
     }
   };
 
@@ -72,7 +73,7 @@ const SelectSlotScreen = () => {
       if (error) throw error;
       setSlots(data || []);
     } catch (err: any) {
-      console.warn('Error fetching slots:', err);
+      logger.warn('Error fetching slots:', err);
       Alert.alert('Error', 'Failed to load available slots.');
     } finally {
       setLoading(false);
@@ -131,7 +132,7 @@ const SelectSlotScreen = () => {
         expiryTime,
       });
     } catch (err) {
-      console.warn('Error locking slot:', err);
+      logger.warn('Error locking slot:', err);
       Alert.alert('Error', 'Unable to lock this slot. Please try again.');
     } finally {
       setLockingSlot(null);

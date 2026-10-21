@@ -15,6 +15,7 @@ import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
 import type { Notification } from '../types/notification';
 import type { AppStackParamList } from '../navigation/types';
+import { logger } from '../utils/logger';
 
 export const useNotifications = () => {
     const { user } = useAuthStore();
@@ -36,18 +37,18 @@ export const useNotifications = () => {
             const activeUserId = user?.id;
 
             if (!activeUserId) {
-                if (__DEV__) console.log('[useNotifications] No active authenticated user found for FCM sync.');
+                if (__DEV__) logger.log('[useNotifications] No active authenticated user found for FCM sync.');
                 return;
             }
 
             if (__DEV__) {
-                console.log('[useNotifications] Syncing FCM token to Supabase...', { userId: activeUserId, tokenLength: token.length });
+                logger.log('[useNotifications] Syncing FCM token to Supabase...', { userId: activeUserId, tokenLength: token.length });
             }
 
             await notificationService.syncFcmToken(activeUserId, token);
         } catch (error) {
             if (__DEV__) {
-                console.warn('[useNotifications] Failed to sync FCM token to Supabase:', error);
+                logger.warn('[useNotifications] Failed to sync FCM token to Supabase:', error);
             }
         }
     }, [user]);
@@ -71,14 +72,14 @@ export const useNotifications = () => {
             }
         } catch (err) {
             if (__DEV__) {
-                console.warn('[useNotifications] Permission check error:', err);
+                logger.warn('[useNotifications] Permission check error:', err);
             }
         }
 
         setPermissionGranted(hasPermission);
 
         if (!hasPermission) {
-            if (__DEV__) console.log('[useNotifications] Notification permission not active/granted.');
+            if (__DEV__) logger.log('[useNotifications] Notification permission not active/granted.');
             return;
         }
 
@@ -99,7 +100,7 @@ export const useNotifications = () => {
         const appointmentId = remoteMessage?.data?.appointmentId || remoteMessage?.data?.appointment_id;
         if (appointmentId) {
             if (__DEV__) {
-                console.log('[useNotifications] App clicked notification for appointment:', appointmentId);
+                logger.log('[useNotifications] App clicked notification for appointment:', appointmentId);
             }
             navigation.navigate('QueueStatus', { appointmentId });
         }
@@ -120,7 +121,7 @@ export const useNotifications = () => {
         // Handle Foreground Notifications
         const unsubscribeOnMessage = onMessage(getMessaging(), async (remoteMessage) => {
             if (__DEV__) {
-                console.log('[useNotifications] Foreground message received:', remoteMessage);
+                logger.log('[useNotifications] Foreground message received:', remoteMessage);
             }
 
             const title = remoteMessage.notification?.title || remoteMessage.data?.title as string || 'New Notification';
@@ -147,7 +148,7 @@ export const useNotifications = () => {
         // Handle Background/Quit state notification clicks (when app is opened from notification)
         const unsubscribeOnNotificationOpened = onNotificationOpenedApp(getMessaging(), (remoteMessage) => {
             if (__DEV__) {
-                console.log('[useNotifications] App opened from background state by notification click:', remoteMessage);
+                logger.log('[useNotifications] App opened from background state by notification click:', remoteMessage);
             }
             handleNotificationClick(remoteMessage);
         });
@@ -157,13 +158,13 @@ export const useNotifications = () => {
             .then((remoteMessage) => {
                 if (remoteMessage) {
                     if (__DEV__) {
-                        console.log('[useNotifications] App opened from quit state by notification click:', remoteMessage);
+                        logger.log('[useNotifications] App opened from quit state by notification click:', remoteMessage);
                     }
                     handleNotificationClick(remoteMessage);
                 }
             })
             .catch((err) => {
-                if (__DEV__) console.warn('[useNotifications] Error getting initial notification:', err);
+                if (__DEV__) logger.warn('[useNotifications] Error getting initial notification:', err);
             });
 
         return () => {

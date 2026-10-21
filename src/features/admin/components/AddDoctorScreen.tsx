@@ -25,6 +25,7 @@ import { centerService } from '../../../services/centerService';
 import { doctorService } from '../../../services/doctorService';
 import { toastService } from '../../../services/toastService';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
+import { logger } from '../../../utils/logger';
 
 type AddDoctorScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'AddDoctor'>;
 
@@ -73,7 +74,7 @@ const AddDoctorScreen = () => {
           setSelectedCenterId(sorted[0].id);
         }
       } catch (err) {
-        console.warn('Failed to load clinics:', err);
+        logger.warn('Failed to load clinics:', err);
         toastService.error('Failed to load clinic centers.');
       } finally {
         setLoadingCenters(false);
@@ -98,7 +99,7 @@ const AddDoctorScreen = () => {
         setServices(sorted);
         setSelectedServiceIds([]); // reset services selection when center changes
       } catch (err) {
-        console.warn('Failed to load services:', err);
+        logger.warn('Failed to load services:', err);
         toastService.error('Failed to load clinic departments/services.');
       } finally {
         setLoadingServices(false);
@@ -126,7 +127,7 @@ const AddDoctorScreen = () => {
 
       const asset = result.assets?.[0];
       if (__DEV__) {
-        console.log('[AddDoctor] Image picker result', {
+        logger.log('[AddDoctor] Image picker result', {
           hasUri: Boolean(asset?.uri),
           hasBase64: Boolean(asset?.base64),
           base64Length: asset?.base64?.length ?? 0,
@@ -145,7 +146,7 @@ const AddDoctorScreen = () => {
         setAvatarMimeType(asset.type || 'image/jpeg');
       }
     } catch (err) {
-      console.warn('Image picker error:', err);
+      logger.warn('Image picker error:', err);
       toastService.error('Failed to launch photo gallery.');
     }
   };
@@ -210,7 +211,7 @@ const AddDoctorScreen = () => {
     setIsSaving(true);
     try {
       if (__DEV__) {
-        console.log('[AddDoctor] Photo save payload', {
+        logger.log('[AddDoctor] Photo save payload', {
           hasBase64: Boolean(avatarBase64),
           base64Length: avatarBase64?.length ?? 0,
           mimeType: avatarMimeType,

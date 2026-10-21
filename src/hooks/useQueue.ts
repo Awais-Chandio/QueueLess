@@ -9,6 +9,7 @@ import {
 
 import type { QueueScope } from '../services/queueService';
 import type { QueueSnapshot } from '../types/queue';
+import { logger } from '../utils/logger';
 
 const getQueueErrorMessage = (error: unknown) => {
   if (
@@ -76,7 +77,7 @@ export const useQueue = (
 
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState === 'active') {
-        console.log('[REALTIME] App returned to active/foreground, refetching queue...');
+        logger.log('[REALTIME] App returned to active/foreground, refetching queue...');
         loadInitialData();
         onAppointmentChange?.();
       }

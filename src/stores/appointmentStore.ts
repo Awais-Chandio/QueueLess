@@ -6,6 +6,7 @@ import {
   unsubscribeAppointments,
 } from '../services/queueService';
 import { useAuthStore } from './authStore';
+import { logger } from '../utils/logger';
 
 const sortAppointments = (appointments: AppointmentFull[]) =>
   [...appointments].sort(
@@ -52,7 +53,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
 
   fetchUserAppointments: async userId => {
     try {
-      console.log('[DEBUG] Store: Fetching appointments for user:', userId);
+      logger.log('[DEBUG] Store: Fetching appointments for user:', userId);
       set({ loading: true, error: null });
 
       const appointments = await appointmentService.fetchUserAppointments(
@@ -63,10 +64,10 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
         appointments,
         loading: false,
       });
-      console.log('[DEBUG] Store: Appointments fetched and updated in state');
+      logger.log('[DEBUG] Store: Appointments fetched and updated in state');
       return appointments;
     } catch (error) {
-      console.error('[DEBUG] Store: Failed to fetch appointments:', error);
+      logger.error('[DEBUG] Store: Failed to fetch appointments:', error);
       set({
         loading: false,
         error:
@@ -86,7 +87,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
     }
 
     try {
-      console.log('[CHECK_IN_STORE] Checking in appointment:', id);
+      logger.log('[CHECK_IN_STORE] Checking in appointment:', id);
       set({ checkingInId: id, error: null });
 
       const updatedAppointment = await appointmentService.checkInAppointment(
@@ -114,7 +115,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           error: null,
         });
 
-        console.log(
+        logger.log(
           '[CHECK_IN_STORE] Check-in completed and appointments refreshed:',
           {
             appointmentId: id,
@@ -122,7 +123,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           },
         );
       } catch (refreshError) {
-        console.warn(
+        logger.warn(
           '[CHECK_IN_STORE] Check-in succeeded but refresh failed:',
           {
             appointmentId: id,
@@ -139,7 +140,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
       const message =
         error instanceof Error ? error.message : 'Failed to check in';
 
-      console.error('[CHECK_IN_STORE] Check-in failed:', {
+      logger.error('[CHECK_IN_STORE] Check-in failed:', {
         appointmentId: id,
         message,
       });
@@ -184,7 +185,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
     }
 
     try {
-      console.log('[CALL_TOKEN_STORE] Calling appointment token:', id);
+      logger.log('[CALL_TOKEN_STORE] Calling appointment token:', id);
       set({ callingId: id, error: null });
 
       const updatedAppointment = await appointmentService.callAppointment(id);
@@ -210,7 +211,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           error: null,
         });
 
-        console.log(
+        logger.log(
           '[CALL_TOKEN_STORE] Call completed and appointments refreshed:',
           {
             appointmentId: id,
@@ -218,7 +219,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
           },
         );
       } catch (refreshError) {
-        console.warn('[CALL_TOKEN_STORE] Call succeeded but refresh failed:', {
+        logger.warn('[CALL_TOKEN_STORE] Call succeeded but refresh failed:', {
           appointmentId: id,
           message:
             refreshError instanceof Error
@@ -232,7 +233,7 @@ export const useAppointmentsStore = create<AppointmentsState>((set, get) => ({
       const message =
         error instanceof Error ? error.message : 'Failed to call token';
 
-      console.error('[CALL_TOKEN_STORE] Call failed:', {
+      logger.error('[CALL_TOKEN_STORE] Call failed:', {
         appointmentId: id,
         message,
       });

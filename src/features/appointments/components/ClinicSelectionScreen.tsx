@@ -9,6 +9,7 @@ import Card from '../../../components/ui/Card';
 import { useTheme } from '../../../hooks/useTheme';
 import { doctorService } from '../../../services/doctorService';
 import type { AppStackParamList } from '../../../navigation/types';
+import { logger } from '../../../utils/logger';
 
 type ClinicSelectionRouteProp = RouteProp<AppStackParamList, 'ClinicSelection'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'ClinicSelection'>;
@@ -29,7 +30,7 @@ const ClinicSelectionScreen = () => {
         const data = await doctorService.getDoctorById(doctorId);
         setDoctor(data);
       } catch (err) {
-        console.warn('[ClinicSelection] Error loading doctor:', err);
+        logger.warn('[ClinicSelection] Error loading doctor:', err);
         Alert.alert('Error', 'Failed to load doctor mapping details.');
       } finally {
         setLoading(false);

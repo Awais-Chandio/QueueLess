@@ -58,6 +58,7 @@ import {
   getMinutesUntilAppointment,
   getPakistanTodayDateString,
 } from '../utils/appointmentTime';
+import { logger } from '../../../utils/logger';
 
 type QueueStatusRouteProp = RouteProp<AppStackParamList, 'QueueStatus'>;
 
@@ -103,7 +104,7 @@ const QueueStatusScreen = () => {
   const fetchDoctorQueueData = useCallback(async () => {
     const isUuid = typeof doctorId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(doctorId);
     if (!isUuid) {
-      console.warn("fetchDoctorQueueData skipped: doctorId is not a valid UUID:", doctorId);
+      logger.warn("fetchDoctorQueueData skipped: doctorId is not a valid UUID:", doctorId);
       return;
     }
     try {
@@ -118,30 +119,30 @@ const QueueStatusScreen = () => {
       setDoctor(docData);
 
       // Fetch Doctor Queue Snapshot
-      console.log("RPC: get_doctor_queue_snapshot");
-      console.log("RPC:", doctorId);
+      logger.log("RPC: get_doctor_queue_snapshot");
+      logger.log("RPC:", doctorId);
       const { data: qData, error: qErr } = await supabase
         .rpc('get_doctor_queue_snapshot', {
           p_doctor_id: doctorId,
           p_queue_date: getPakistanTodayDateString()
         });
-      console.log(qData, qErr);
+      logger.log(qData, qErr);
       if (qErr) throw qErr;
       setDoctorQueue(qData);
 
       // Fetch Doctor Availability
-      console.log("RPC: get_doctor_availability");
-      console.log("RPC:", doctorId);
+      logger.log("RPC: get_doctor_availability");
+      logger.log("RPC:", doctorId);
       const { data: availData, error: availErr } = await supabase
         .rpc('get_doctor_availability', {
           p_doctor_id: doctorId
         });
-      console.log(availData, availErr);
+      logger.log(availData, availErr);
       if (availErr) throw availErr;
       setDoctorAvailability(availData && availData.length > 0 ? availData[0] : null);
 
     } catch (err) {
-      console.error('Failed to fetch doctor queue preview:', err);
+      logger.error('Failed to fetch doctor queue preview:', err);
     } finally {
       setDoctorLoading(false);
     }
@@ -191,7 +192,7 @@ const QueueStatusScreen = () => {
       );
       setAppointment(data);
     } catch (error) {
-      console.error('Failed to fetch appointment:', error);
+      logger.error('Failed to fetch appointment:', error);
     }
     setLoading(false);
   }, [appointmentId]);

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { profileService } from "../services/profileService";
 import { CreateProfilePayload, UpdateProfilePayload, Profile, UploadAvatarPayload } from "../types/profile";
+import { logger } from '../utils/logger';
 
 type ProfileState = {
     profile: Profile | null;
@@ -20,11 +21,11 @@ export const useProfileStore = create<ProfileState>((set) => ({
     isUploadingAvatar: false,
     error: null,
     fetchProfile: async (userId) => {
-        if (__DEV__) console.log('[profileStore.fetchProfile] fetching for userId:', userId);
+        if (__DEV__) logger.log('[profileStore.fetchProfile] fetching for userId:', userId);
         set({ isLoading: true, error: null });
         try {
             const { data, error } = await profileService.getProfileById(userId);
-            if (__DEV__) console.log('[profileStore.fetchProfile] result:', { data, error: error?.message });
+            if (__DEV__) logger.log('[profileStore.fetchProfile] result:', { data, error: error?.message });
             if (error) {
                 set({ error: error.message, isLoading: false });
                 return;
@@ -45,11 +46,11 @@ export const useProfileStore = create<ProfileState>((set) => ({
         set({ profile: data, isLoading: false });
     },
     updateProfile: async (userId, payload) => {
-        if (__DEV__) console.log('[profileStore.updateProfile] updating for userId:', userId);
+        if (__DEV__) logger.log('[profileStore.updateProfile] updating for userId:', userId);
         set({ isLoading: true, error: null });
         try {
             const { data, error } = await profileService.updateProfile(userId, payload);
-            if (__DEV__) console.log('[profileStore.updateProfile] result:', { data, error: error?.message });
+            if (__DEV__) logger.log('[profileStore.updateProfile] result:', { data, error: error?.message });
             if (error) {
                 set({ error: error.message, isLoading: false });
                 return;

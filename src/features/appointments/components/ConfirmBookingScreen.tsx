@@ -13,6 +13,7 @@ import { supabase } from '../../../lib/supabase';
 import { doctorService } from '../../../services/doctorService';
 import { centerService } from '../../../services/centerService';
 import type { AppStackParamList } from '../../../navigation/types';
+import { logger } from '../../../utils/logger';
 
 type ConfirmBookingRouteProp = RouteProp<AppStackParamList, 'ConfirmBooking'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'ConfirmBooking'>;
@@ -57,7 +58,7 @@ const ConfirmBookingScreen = () => {
     try {
       await supabase.rpc('release_slot', { p_lock_id: lockId });
     } catch (e) {
-      console.warn('Error releasing slot on timeout:', e);
+      logger.warn('Error releasing slot on timeout:', e);
     }
     Alert.alert('Lock Expired', 'Your slot lock has expired. Please select a slot again.', [
       {
@@ -71,7 +72,7 @@ const ConfirmBookingScreen = () => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
       if (shouldReleaseRef.current) {
         supabase.rpc('release_slot', { p_lock_id: lockId }).then(({ error }) => {
-          if (error) console.warn('Error releasing slot:', error);
+          if (error) logger.warn('Error releasing slot:', error);
         });
       }
     });
@@ -92,7 +93,7 @@ const ConfirmBookingScreen = () => {
       const matchedService = servicesData.find(s => s.id === serviceId);
       setService(matchedService);
     } catch (err) {
-      console.warn('Error loading details:', err);
+      logger.warn('Error loading details:', err);
     } finally {
       setLoading(false);
     }
@@ -124,7 +125,7 @@ const ConfirmBookingScreen = () => {
       });
 
       if (error || !appointmentId) {
-        console.warn('Booking error details:', error);
+        logger.warn('Booking error details:', error);
         Alert.alert('Slot expired', 'That slot timed out — please choose another.');
         shouldReleaseRef.current = false;
         navigation.navigate('SelectSlot', { doctorId, centerId, serviceId });
@@ -140,7 +141,7 @@ const ConfirmBookingScreen = () => {
 
       navigation.replace('Receipt', { appointmentId });
     } catch (err) {
-      console.warn('Confirm booking exception:', err);
+      logger.warn('Confirm booking exception:', err);
       Alert.alert('Error', 'Failed to confirm booking. Please try again.');
     } finally {
       setBooking(false);

@@ -13,6 +13,7 @@ import { useNotificationsStore } from '../stores/notificationStore';
 import { supabase } from '../lib/supabase';
 import { normalizeUserRole } from '../utils/roleMapping';
 import { isGoogleSession, parseOAuthCallback } from '../utils/oauthCallback';
+import { logger } from '../utils/logger';
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -53,8 +54,8 @@ const fetchVerifiedProfileRole = async (
   const avatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || '';
 
   if (isGoogle) {
-    console.log('GOOGLE_NAME:', fullName);
-    console.log('GOOGLE_AVATAR:', avatar);
+    logger.log('GOOGLE_NAME:', fullName);
+    logger.log('GOOGLE_AVATAR:', avatar);
   }
 
   let finalProfile = profile;
@@ -109,7 +110,7 @@ const fetchVerifiedProfileRole = async (
       const { data } = await supabase.rpc('get_my_staff_context');
       doctorId = data?.[0]?.doctor_id ?? null;
     } catch (err) {
-      if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
+      if (__DEV__) logger.warn('[useAuth] getStaffContext error:', err);
     }
   }
 
@@ -137,7 +138,7 @@ export const useAuth = () => {
   } = useAuthStore();
 
   const restoreSession = useCallback(async () => {
-    if (__DEV__) console.log('[AUTH] restoreSession started');
+    if (__DEV__) logger.log('[AUTH] restoreSession started');
     setLoading(true);
     const startTime = Date.now();
     const isJest = Boolean((process.env as Record<string, string | undefined>).JEST_WORKER_ID);
@@ -154,7 +155,7 @@ export const useAuth = () => {
     try {
       const { data, error } = await authService.getSession();
       if (__DEV__) {
-        console.log('[AUTH] getSession result:', { sessionExists: !!data.session, error: error?.message });
+        logger.log('[AUTH] getSession result:', { sessionExists: !!data.session, error: error?.message });
       }
 
       if (error || !data.session) {
@@ -168,7 +169,7 @@ export const useAuth = () => {
         try {
           const verifiedRole = await fetchVerifiedProfileRole(currentSession.user);
           setRole(verifiedRole);
-          console.log('PROFILE_LOADED');
+          logger.log('PROFILE_LOADED');
 
           const profile = useProfileStore.getState().profile;
           if (profile) {
@@ -178,7 +179,7 @@ export const useAuth = () => {
                 const { data } = await supabase.rpc('get_my_staff_context');
                 doctorId = data?.[0]?.doctor_id ?? null;
               } catch (err) {
-                if (__DEV__) console.warn('[useAuth] getStaffContext error:', err);
+                if (__DEV__) logger.warn('[useAuth] getStaffContext error:', err);
               }
             }
             setAuthState({
@@ -188,13 +189,13 @@ export const useAuth = () => {
             });
           }
 
-          console.log('ROLE_SET');
-          if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
-          if (__DEV__) console.log('[AUTH] restoreSession complete');
+          logger.log('ROLE_SET');
+          if (__DEV__) logger.log('[useAuth] Auth state changed: SIGNED_IN');
+          if (__DEV__) logger.log('[AUTH] restoreSession complete');
         } catch (e) {
-          if (__DEV__) console.warn('[AUTH] Profile fetch/restore warning:', e);
+          if (__DEV__) logger.warn('[AUTH] Profile fetch/restore warning:', e);
           setRole('client');
-          console.log('ROLE_SET');
+          logger.log('ROLE_SET');
         }
       }
     } catch {
@@ -203,19 +204,19 @@ export const useAuth = () => {
     } finally {
       await delayIfNeeded();
       setLoading(false);
-      console.log('SET_LOADING_FALSE');
-      console.log('RESTORE_COMPLETE');
+      logger.log('SET_LOADING_FALSE');
+      logger.log('RESTORE_COMPLETE');
     }
   }, [clearAuth, setRole, setSession, setLoading]);
 
   const login = useCallback(async (payload: LoginPayload) => {
-    if (__DEV__) console.log('[AUTH] login started');
+    if (__DEV__) logger.log('[AUTH] login started');
     setLoading(true);
 
     try {
       const { data, error } = await authService.signIn(payload);
       if (__DEV__) {
-        console.log('[AUTH] login result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
+        logger.log('[AUTH] login result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
       }
 
       if (error) {
@@ -232,10 +233,10 @@ export const useAuth = () => {
       try {
         const verifiedRole = await fetchVerifiedProfileRole(data.user);
         setRole(verifiedRole);
-        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
-        if (__DEV__) console.log('[AUTH] login complete');
+        if (__DEV__) logger.log('[useAuth] Auth state changed: SIGNED_IN');
+        if (__DEV__) logger.log('[AUTH] login complete');
       } catch (e) {
-        if (__DEV__) console.warn('[LOGIN] Profile fetch/restore warning:', e);
+        if (__DEV__) logger.warn('[LOGIN] Profile fetch/restore warning:', e);
         setRole('client');
       }
     } catch (error) {
@@ -245,13 +246,13 @@ export const useAuth = () => {
   }, [clearAuth, setRole, setSession, setLoading]);
 
   const signup = useCallback(async (payload: SignupPayload) => {
-    if (__DEV__) console.log('[AUTH] signup started');
+    if (__DEV__) logger.log('[AUTH] signup started');
     setLoading(true);
 
     try {
       const { data, error } = await authService.signUp(payload);
       if (__DEV__) {
-        console.log('[AUTH] signup result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
+        logger.log('[AUTH] signup result:', { userId: data.user?.id, sessionExists: !!data.session, error: error?.message });
       }
 
       if (error) {
@@ -259,14 +260,14 @@ export const useAuth = () => {
       }
 
       if (data.session && data.user) {
-        if (__DEV__) console.log('[AUTH] signup success — setting auth');
+        if (__DEV__) logger.log('[AUTH] signup success — setting auth');
         setSession(data.session);
         try {
           const verifiedRole = await fetchVerifiedProfileRole(data.user);
           setRole(verifiedRole);
-          if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN');
+          if (__DEV__) logger.log('[useAuth] Auth state changed: SIGNED_IN');
         } catch (e) {
-          if (__DEV__) console.warn('[SIGNUP] Profile fetch warning:', e);
+          if (__DEV__) logger.warn('[SIGNUP] Profile fetch warning:', e);
           setRole('client');
         }
         return;
@@ -280,7 +281,7 @@ export const useAuth = () => {
   }, [clearAuth, setRole, setSession, setLoading]);
 
   const loginWithGoogle = useCallback(async () => {
-    if (__DEV__) console.log('[AUTH] loginWithGoogle started');
+    if (__DEV__) logger.log('[AUTH] loginWithGoogle started');
     setLoading(true);
     let initialAccessToken: string | null = null;
 
@@ -387,7 +388,7 @@ export const useAuth = () => {
         isGoogleSession(currentSession) &&
         currentSession.access_token !== initialAccessToken
       ) {
-        if (__DEV__) console.log('[AUTH] Google Sign-In caught error but session exists, restoring session.');
+        if (__DEV__) logger.log('[AUTH] Google Sign-In caught error but session exists, restoring session.');
         await restoreSession();
       } else {
         throw toAuthError(error, 'Google Sign-In failed. Please try again.');
@@ -398,7 +399,7 @@ export const useAuth = () => {
   }, [restoreSession, setLoading]);
 
   const logout = useCallback(async () => {
-    if (__DEV__) console.log('[AUTH] logout started');
+    if (__DEV__) logger.log('[AUTH] logout started');
     setLoading(true);
 
     try {
@@ -410,7 +411,7 @@ export const useAuth = () => {
             .update({ fcm_token: null } as any)
             .eq('id', user.id);
         } catch (dbError) {
-          if (__DEV__) console.warn('[useAuth] Failed to clear FCM token from profiles on logout:', dbError);
+          if (__DEV__) logger.warn('[useAuth] Failed to clear FCM token from profiles on logout:', dbError);
         }
       }
 
@@ -419,7 +420,7 @@ export const useAuth = () => {
         await fcmService.deleteToken();
         useNotificationsStore.getState().setFcmToken(null);
       } catch (fcmError) {
-        if (__DEV__) console.warn('[useAuth] Failed to delete FCM token on logout:', fcmError);
+        if (__DEV__) logger.warn('[useAuth] Failed to delete FCM token on logout:', fcmError);
       }
 
       const { error } = await authService.signOut();
@@ -431,12 +432,12 @@ export const useAuth = () => {
       try {
         await firebasePhoneAuth.logoutFirebase();
       } catch (fbSignOutError) {
-        if (__DEV__) console.warn('[AUTH] Firebase sign out error:', fbSignOutError);
+        if (__DEV__) logger.warn('[AUTH] Firebase sign out error:', fbSignOutError);
       }
 
       clearAuth();
       useProfileStore.getState().clearProfile();
-      if (__DEV__) console.log('[AUTH] logout complete, profile cleared');
+      if (__DEV__) logger.log('[AUTH] logout complete, profile cleared');
     } catch (error) {
       setLoading(false);
       throw toAuthError(error, 'Logout failed. Please try again.');
@@ -445,10 +446,10 @@ export const useAuth = () => {
 
   const sendPhoneOtp = useCallback(async (phone: string) => {
     assertPhoneLoginEnabled();
-    if (__DEV__) console.log('[AUTH] sendPhoneOtp (Firebase) started', phone);
+    if (__DEV__) logger.log('[AUTH] sendPhoneOtp (Firebase) started', phone);
     try {
       await firebasePhoneAuth.sendOTP(phone);
-      if (__DEV__) console.log('[AUTH] Firebase OTP confirmation result stored');
+      if (__DEV__) logger.log('[AUTH] Firebase OTP confirmation result stored');
     } catch (error) {
       throw toAuthError(error, 'Failed to send OTP via Firebase. Please check the phone number.');
     }
@@ -456,7 +457,7 @@ export const useAuth = () => {
 
   const verifyPhoneOtp = useCallback(async (phone: string, token: string) => {
     assertPhoneLoginEnabled();
-    if (__DEV__) console.log('[AUTH] verifyPhoneOtp (Firebase) started', phone);
+    if (__DEV__) logger.log('[AUTH] verifyPhoneOtp (Firebase) started', phone);
     setLoading(true);
     try {
       const userCredential = await firebasePhoneAuth.verifyOTP(token);
@@ -466,7 +467,7 @@ export const useAuth = () => {
 
       const fbUser = userCredential.user;
       if (__DEV__) {
-        console.log('[AUTH] Firebase user authenticated:', fbUser.uid);
+        logger.log('[AUTH] Firebase user authenticated:', fbUser.uid);
       }
 
       const { data, error } = await authService.bridgeFirebaseUserToSupabase(fbUser.uid, fbUser.phoneNumber, fbUser.displayName);
@@ -482,9 +483,9 @@ export const useAuth = () => {
       try {
         const verifiedRole = await fetchVerifiedProfileRole(data.user);
         setRole(verifiedRole);
-        if (__DEV__) console.log('[useAuth] Auth state changed: SIGNED_IN (Phone/Firebase Bridge)');
+        if (__DEV__) logger.log('[useAuth] Auth state changed: SIGNED_IN (Phone/Firebase Bridge)');
       } catch (e) {
-        if (__DEV__) console.warn('[OTP VERIFY] Profile fetch/restore warning:', e);
+        if (__DEV__) logger.warn('[OTP VERIFY] Profile fetch/restore warning:', e);
         setRole('client');
       }
     } catch (error) {
@@ -497,7 +498,7 @@ export const useAuth = () => {
 
   const loginWithPhone = useCallback(async (phone: string) => {
     assertPhoneLoginEnabled();
-    if (__DEV__) console.log('[AUTH] loginWithPhone started', phone);
+    if (__DEV__) logger.log('[AUTH] loginWithPhone started', phone);
     try {
       const success = await firebasePhoneAuth.sendOTP(phone);
       return success;
@@ -508,10 +509,10 @@ export const useAuth = () => {
 
   const verifyPhoneOTP = useCallback(async (code: string) => {
     assertPhoneLoginEnabled();
-    if (__DEV__) console.log('[AUTH] verifyPhoneOTP started', code);
+    if (__DEV__) logger.log('[AUTH] verifyPhoneOTP started', code);
     try {
       const userCredential = await firebasePhoneAuth.verifyOTP(code);
-      if (__DEV__) console.log('[AUTH] verifyPhoneOTP success, returning Firebase user');
+      if (__DEV__) logger.log('[AUTH] verifyPhoneOTP success, returning Firebase user');
       return userCredential.user;
     } catch (error) {
       throw toAuthError(error, 'Failed to verify OTP via Firebase.');

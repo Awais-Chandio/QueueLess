@@ -33,6 +33,7 @@ import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import Wordmark from "../../../components/ui/Wordmark";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
+import { logger } from '../../../utils/logger';
 
 type OTPVerificationRouteProp = RouteProp<AuthStackParamList, "OTPVerification">;
 
@@ -134,7 +135,7 @@ const OTPVerificationScreen = () => {
             setIsVerifying(true);
             await verifyPhoneOtp(phone, cleanOtp);
             if (__DEV__) {
-                console.log('[OTPVerificationScreen] Verification & Supabase session bridge success');
+                logger.log('[OTPVerificationScreen] Verification & Supabase session bridge success');
             }
             
             // Trigger success animation

@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { Appointment, AppointmentFull } from '../types/appointment';
+import { logger } from '../utils/logger';
 
 const appointmentFullSelect =
   'id, user_id, patient_name, center_id, service_id, doctor_id, doctor_name, center_name, service_name, scheduled_at, appointment_date, appointment_time, status, token_number, created_at, estimated_wait_mins, estimated_wait_time, cancel_reason, cancelled_by, cancelled_at, checked_in_at, called_at, started_at, completed_at, skipped_at, duration_minutes, current_position, queue_position, people_ahead, queue_status, current_serving_token, current_token, doctor_average_time, average_consultation_time, is_on_break, break_start, break_end';
@@ -155,7 +156,7 @@ const fetchAppointmentFromTable = async (
 export const appointmentService = {
   async fetchUserAppointments(userId: string): Promise<AppointmentFull[]> {
     const authenticatedUserId = await getAuthenticatedUserId(userId);
-    console.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
+    logger.log('[DEBUG] Fetching appointments for user:', authenticatedUserId);
 
     const response = await supabase
       .from('appointments_full')
@@ -185,23 +186,23 @@ export const appointmentService = {
       const appointments = await fetchAppointmentsFromTable(
         authenticatedUserId,
       );
-      console.log('[DEBUG] Fetched appointments count:', appointments.length);
+      logger.log('[DEBUG] Fetched appointments count:', appointments.length);
       return appointments;
     }
 
     if (error) {
-      console.error('[DEBUG] Failed to fetch appointments:', error.message);
+      logger.error('[DEBUG] Failed to fetch appointments:', error.message);
       throw new Error(error.message);
     }
 
-    console.log('[DEBUG] Fetched appointments count:', data?.length ?? 0);
+    logger.log('[DEBUG] Fetched appointments count:', data?.length ?? 0);
     return (data ?? []) as AppointmentFull[];
   },
 
   async fetchAppointmentById(
     appointmentId: string,
   ): Promise<AppointmentFull | null> {
-    console.log('[DEBUG] Fetching appointment by id:', appointmentId);
+    logger.log('[DEBUG] Fetching appointment by id:', appointmentId);
 
     const response = await supabase
       .from('appointments_full')
@@ -228,7 +229,7 @@ export const appointmentService = {
     }
 
     if (error) {
-      console.error(
+      logger.error(
         '[DEBUG] Failed to fetch appointment by id:',
         error.message,
       );
@@ -242,7 +243,7 @@ export const appointmentService = {
     const authenticatedUserId = await getAuthenticatedUserId();
     const checkedInAt = new Date().toISOString();
 
-    console.log('[CHECK_IN] Starting patient check-in:', {
+    logger.log('[CHECK_IN] Starting patient check-in:', {
       appointmentId,
       userId: authenticatedUserId,
     });
@@ -260,7 +261,7 @@ export const appointmentService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[CHECK_IN] Database update failed:', {
+      logger.error('[CHECK_IN] Database update failed:', {
         appointmentId,
         code: error.code,
         message: error.message,
@@ -284,14 +285,14 @@ export const appointmentService = {
         throw new Error('Appointment not found.');
       }
 
-      console.warn('[CHECK_IN] Invalid status transition:', {
+      logger.warn('[CHECK_IN] Invalid status transition:', {
         appointmentId,
         currentStatus: currentAppointment.status,
       });
       throw new Error('Only confirmed appointments can be checked in.');
     }
 
-    console.log('[CHECK_IN] Appointment checked in successfully:', {
+    logger.log('[CHECK_IN] Appointment checked in successfully:', {
       appointmentId,
       status: data.status,
       checkedInAt: data.checked_in_at,
@@ -303,7 +304,7 @@ export const appointmentService = {
 
   async staffCheckInAppointment(appointmentId: string): Promise<AppointmentFull> {
     const checkedInAt = new Date().toISOString();
-    console.log('[STAFF_CHECK_IN] Counter staff check-in:', { appointmentId });
+    logger.log('[STAFF_CHECK_IN] Counter staff check-in:', { appointmentId });
 
     const { data, error } = await supabase
       .from('appointments')
@@ -317,7 +318,7 @@ export const appointmentService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[STAFF_CHECK_IN] Database update failed:', error.message);
+      logger.error('[STAFF_CHECK_IN] Database update failed:', error.message);
       throw new Error(error.message);
     }
 
@@ -333,7 +334,7 @@ export const appointmentService = {
     await getAuthenticatedUserId();
     const calledAt = new Date().toISOString();
 
-    console.log('[CALL_TOKEN] Starting token call:', {
+    logger.log('[CALL_TOKEN] Starting token call:', {
       appointmentId,
       calledAt,
     });
@@ -344,11 +345,11 @@ export const appointmentService = {
     });
 
     if (!rpcError) {
-      console.log('[CALL_TOKEN] RPC call_appointment succeeded');
+      logger.log('[CALL_TOKEN] RPC call_appointment succeeded');
       const appointment = await appointmentService.fetchAppointmentById(appointmentId);
       if (appointment) return appointment;
     } else {
-      console.warn('[CALL_TOKEN] RPC call_appointment skipped or failed, using table update fallback:', rpcError.message);
+      logger.warn('[CALL_TOKEN] RPC call_appointment skipped or failed, using table update fallback:', rpcError.message);
     }
 
     // Direct table update fallback supporting confirmed, checked_in, pending
@@ -364,7 +365,7 @@ export const appointmentService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[CALL_TOKEN] Database update failed:', {
+      logger.error('[CALL_TOKEN] Database update failed:', {
         appointmentId,
         code: error.code,
         message: error.message,
@@ -387,14 +388,14 @@ export const appointmentService = {
         throw new Error('Appointment not found.');
       }
 
-      console.warn('[CALL_TOKEN] Invalid status transition:', {
+      logger.warn('[CALL_TOKEN] Invalid status transition:', {
         appointmentId,
         currentStatus: currentAppointment.status,
       });
       throw new Error(`Cannot call token from current status: ${currentAppointment.status}`);
     }
 
-    console.log('[CALL_TOKEN] Token called successfully:', {
+    logger.log('[CALL_TOKEN] Token called successfully:', {
       appointmentId,
       status: data.status,
       calledAt: data.called_at,
@@ -410,7 +411,7 @@ export const appointmentService = {
     reason?: string,
   ): Promise<AppointmentFull> {
     try {
-      console.log(
+      logger.log(
         '[DEBUG] Cancelling appointment via RPC cancel_appointment:',
         appointmentId,
       );
@@ -427,7 +428,7 @@ export const appointmentService = {
       );
 
       if (rpcError) {
-        console.warn(
+        logger.warn(
           '[DEBUG] RPC cancel_appointment failed, falling back to direct update:',
           rpcError.message,
         );
@@ -444,7 +445,7 @@ export const appointmentService = {
           .in('status', ['pending', 'confirmed', 'checked_in', 'called', 'in_progress']);
 
         if (error) {
-          console.error(
+          logger.error(
             '[DEBUG] Direct cancel fallback failed:',
             error.message,
           );
@@ -452,7 +453,7 @@ export const appointmentService = {
         }
       }
 
-      console.log('[DEBUG] Appointment cancelled successfully');
+      logger.log('[DEBUG] Appointment cancelled successfully');
       const appointment = await appointmentService.fetchAppointmentById(
         appointmentId,
       );
@@ -460,7 +461,7 @@ export const appointmentService = {
         throw new Error('Appointment not found after cancellation');
       return appointment;
     } catch (err: any) {
-      console.error('[APPOINTMENTS] Cancel error:', err.message);
+      logger.error('[APPOINTMENTS] Cancel error:', err.message);
       throw err;
     }
   },

@@ -11,6 +11,7 @@ import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { useAuth } from "./src/hooks/useAuth";
 
 import ToastMessage from "./src/components/ui/ToastMessage";
+import { ErrorBoundary } from "./src/components/ui/ErrorBoundary";
 import RealtimeIndicator from "./src/components/ui/RealtimeIndicator";
 import { authService } from "./src/features/auth/api/authService";
 import { useAuthStore } from "./src/store/authStore";
@@ -18,13 +19,14 @@ import { toastService } from "./src/services/toastService";
 import { supabase, supabaseConfig } from "./src/lib/supabase";
 import { hp, scaleFont, wp } from "./src/utils/responsive";
 import { isGoogleSession, parseOAuthCallback } from "./src/utils/oauthCallback";
+import { logger } from './src/utils/logger';
 
 const persister = {
   persistClient: async (client: any) => {
     try {
       await AsyncStorage.setItem('REACT_QUERY_OFFLINE_CACHE', JSON.stringify(client));
     } catch (e) {
-      console.warn('Failed to persist react-query cache:', e);
+      logger.warn('Failed to persist react-query cache:', e);
     }
   },
   restoreClient: async () => {
@@ -32,7 +34,7 @@ const persister = {
       const cache = await AsyncStorage.getItem('REACT_QUERY_OFFLINE_CACHE');
       return cache ? JSON.parse(cache) : undefined;
     } catch (e) {
-      console.warn('Failed to restore react-query cache:', e);
+      logger.warn('Failed to restore react-query cache:', e);
       return undefined;
     }
   },
@@ -40,7 +42,7 @@ const persister = {
     try {
       await AsyncStorage.removeItem('REACT_QUERY_OFFLINE_CACHE');
     } catch (e) {
-      console.warn('Failed to remove react-query cache:', e);
+      logger.warn('Failed to remove react-query cache:', e);
     }
   },
 };
@@ -83,7 +85,7 @@ const App = ()=>{
     
     channel.subscribe((status) => {
       if (__DEV__) {
-        console.log('[REALTIME_STATUS]', status);
+        logger.log('[REALTIME_STATUS]', status);
       }
       if (status === 'SUBSCRIBED') {
         setRealtimeConnected(true);
@@ -107,7 +109,7 @@ const App = ()=>{
       if (!url) return false;
 
       if (__DEV__) {
-        console.log('[DEEP_LINK] Handling incoming link:', url);
+        logger.log('[DEEP_LINK] Handling incoming link:', url);
       }
 
       if (url.startsWith("queueless://reset-password")) {
@@ -164,7 +166,7 @@ const App = ()=>{
       if (url.startsWith("queueless://auth/callback")) {
         if (useAuthStore.getState().session) {
           if (__DEV__) {
-            console.log('[DEEP_LINK] Session already exists, ignoring duplicate callback');
+            logger.log('[DEEP_LINK] Session already exists, ignoring duplicate callback');
           }
           return true;
         }
@@ -231,7 +233,7 @@ const App = ()=>{
     const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (__DEV__) {
-          console.log(`[AUTH_EVENT] Event: ${event}, Session Exists: ${!!session}`);
+          logger.log(`[AUTH_EVENT] Event: ${event}, Session Exists: ${!!session}`);
         }
         if (event === 'SIGNED_IN' && session) {
           const currentStoreSession = useAuthStore.getState().session;
@@ -278,24 +280,27 @@ const App = ()=>{
     // depends on. Importing 'react-native-gesture-handler' in index.js alone is
     // not enough on Android.
     <GestureHandlerRootView style={styles.container}>
-      <PersistQueryClientProvider
-        client={queryClient}
-        persistOptions={{ persister }}
-      >
-        <SafeAreaProvider>
-          <BottomSheetModalProvider>
-            <View style={styles.container}>
-              <NavigationContainer linking={linking}>
-                <RootNavigator/>
-              </NavigationContainer>
+      {/* Catches render errors anywhere below, including in the providers. */}
+      <ErrorBoundary>
+        <PersistQueryClientProvider
+          client={queryClient}
+          persistOptions={{ persister }}
+        >
+          <SafeAreaProvider>
+            <BottomSheetModalProvider>
+              <View style={styles.container}>
+                <NavigationContainer linking={linking}>
+                  <RootNavigator/>
+                </NavigationContainer>
 
-              <RealtimeIndicator connected={realtimeConnected} />
+                <RealtimeIndicator connected={realtimeConnected} />
 
-              <ToastMessage />
-            </View>
-          </BottomSheetModalProvider>
-        </SafeAreaProvider>
-      </PersistQueryClientProvider>
+                <ToastMessage />
+              </View>
+            </BottomSheetModalProvider>
+          </SafeAreaProvider>
+        </PersistQueryClientProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   )
 }

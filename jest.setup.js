@@ -112,6 +112,13 @@ jest.mock('@react-native-firebase/app', () => ({
   initializeApp: jest.fn(),
 }));
 
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  wrap: component => component,
+  captureException: jest.fn(),
+  captureMessage: jest.fn(),
+}));
+
 jest.mock('@react-native-firebase/auth', () => ({
   getAuth: jest.fn(() => ({})),
   signInWithPhoneNumber: jest.fn(),

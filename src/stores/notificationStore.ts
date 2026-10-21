@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Notification } from '../types/notification';
 import { notificationService } from '../services/notificationService';
+import { logger } from '../utils/logger';
 
 type NotificationsState = {
   notifications: Notification[];
@@ -54,7 +55,7 @@ export const useNotificationsStore = create<NotificationsState>(set => ({
       const response = await notificationService.fetchNotifications(userId);
       const notificationsList = Array.isArray(response) ? response : [];
       if (__DEV__) {
-        console.log('[NOTIFICATIONS_STORE] fetched count:', notificationsList.length);
+        logger.log('[NOTIFICATIONS_STORE] fetched count:', notificationsList.length);
       }
       set({
         notifications: notificationsList,
@@ -63,7 +64,7 @@ export const useNotificationsStore = create<NotificationsState>(set => ({
       });
     } catch (error) {
       const err = error as any;
-      console.error('[NOTIFICATIONS_STORE] fetch error:', {
+      logger.error('[NOTIFICATIONS_STORE] fetch error:', {
         code: err?.code ?? 'N/A',
         message: err?.message || 'Failed to load notifications',
       });

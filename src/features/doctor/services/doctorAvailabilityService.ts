@@ -1,6 +1,7 @@
 import { supabase } from '../../../lib/supabase';
 import type { Doctor } from '../../../types/doctor';
 import type { DoctorSchedule } from './doctorDashboardService';
+import { logger } from '../../../utils/logger';
 
 export interface DoctorLeave {
   id: string;
@@ -25,7 +26,7 @@ export const doctorAvailabilityService = {
       .maybeSingle();
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error getting doctor profile:', error);
+      logger.error('[doctorAvailabilityService] Error getting doctor profile:', error);
       throw error;
     }
     if (!data) {
@@ -43,7 +44,7 @@ export const doctorAvailabilityService = {
       .eq('id', doctorId);
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error updating break mode:', error);
+      logger.error('[doctorAvailabilityService] Error updating break mode:', error);
       throw error;
     }
 
@@ -62,7 +63,7 @@ export const doctorAvailabilityService = {
       );
 
     if (settingsError) {
-      console.error('[doctorAvailabilityService] Error updating queue break settings:', settingsError);
+      logger.error('[doctorAvailabilityService] Error updating queue break settings:', settingsError);
       throw settingsError;
     }
   },
@@ -75,7 +76,7 @@ export const doctorAvailabilityService = {
       .order('day_of_week', { ascending: true });
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error fetching weekly schedule:', error);
+      logger.error('[doctorAvailabilityService] Error fetching weekly schedule:', error);
       throw error;
     }
 
@@ -102,7 +103,7 @@ export const doctorAvailabilityService = {
       .eq('id', availabilityId);
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error updating day availability:', error);
+      logger.error('[doctorAvailabilityService] Error updating day availability:', error);
       throw error;
     }
   },
@@ -126,7 +127,7 @@ export const doctorAvailabilityService = {
     );
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error saving day:', error);
+      logger.error('[doctorAvailabilityService] Error saving day:', error);
       throw error;
     }
   },
@@ -142,7 +143,7 @@ export const doctorAvailabilityService = {
       .in('status', ['pending', 'confirmed', 'checked_in', 'called', 'in_progress']);
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error counting bookings:', error);
+      logger.error('[doctorAvailabilityService] Error counting bookings:', error);
       throw error;
     }
 
@@ -162,7 +163,7 @@ export const doctorAvailabilityService = {
       .order('leave_date', { ascending: true });
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error fetching leaves:', error);
+      logger.error('[doctorAvailabilityService] Error fetching leaves:', error);
       throw error;
     }
 
@@ -184,7 +185,7 @@ export const doctorAvailabilityService = {
       .in('leave_date', dates);
 
     if (readError) {
-      console.error('[doctorAvailabilityService] Error reading leaves:', readError);
+      logger.error('[doctorAvailabilityService] Error reading leaves:', readError);
       throw readError;
     }
 
@@ -197,7 +198,7 @@ export const doctorAvailabilityService = {
 
     const { error } = await supabase.from('doctor_leaves').insert(rows);
     if (error) {
-      console.error('[doctorAvailabilityService] Error adding leave:', error);
+      logger.error('[doctorAvailabilityService] Error adding leave:', error);
       throw error;
     }
     return rows.length;
@@ -210,7 +211,7 @@ export const doctorAvailabilityService = {
       .in('id', leaveIds);
 
     if (error) {
-      console.error('[doctorAvailabilityService] Error deleting leave:', error);
+      logger.error('[doctorAvailabilityService] Error deleting leave:', error);
       throw error;
     }
   },

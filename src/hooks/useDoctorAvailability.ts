@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import type { DoctorAvailability } from '../types/doctor';
+import { logger } from '../utils/logger';
 
 export function useDoctorAvailability(doctorId: string) {
   const queryClient = useQueryClient();
@@ -34,15 +35,15 @@ export function useDoctorAvailability(doctorId: string) {
     queryFn: async () => {
       if (!isUuid) return null;
       
-      console.log("RPC: get_doctor_availability");
-      console.log("RPC:", doctorId);
+      logger.log("RPC: get_doctor_availability");
+      logger.log("RPC:", doctorId);
       const { data, error } = await supabase.rpc('get_doctor_availability', {
         p_doctor_id: doctorId,
       });
-      console.log(data, error);
+      logger.log(data, error);
       
       if (error) {
-        console.error('Error fetching doctor availability:', error);
+        logger.error('Error fetching doctor availability:', error);
         throw error;
       }
       return (data && data.length > 0 ? data[0] : null) as DoctorAvailability | null;

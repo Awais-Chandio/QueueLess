@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import type { Doctor } from '../types/doctor';
 import { getPakistanDayOfWeek } from '../features/appointments/utils/appointmentTime';
+import { logger } from '../utils/logger';
 
 export function useDoctorsByService(centerId: string, serviceId: string) {
   return useQuery({
@@ -26,7 +27,7 @@ export function useDoctorsByService(centerId: string, serviceId: string) {
         .eq('doctors.doctor_schedules.day_of_week', today);
         
       if (error) {
-        console.error('Error fetching doctors by service:', error);
+        logger.error('Error fetching doctors by service:', error);
         throw error;
       }
       

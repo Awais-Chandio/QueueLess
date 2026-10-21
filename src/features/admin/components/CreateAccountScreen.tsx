@@ -15,6 +15,7 @@ import { toastService } from '../../../services/toastService';
 import { centerService } from '../../../services/centerService';
 import { supabase } from '../../../lib/supabase';
 import { staffFormSchema } from '../../../validations/staffSchema';
+import { logger } from '../../../utils/logger';
 
 type CreateAccountScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'CreateAccount'>;
 type CreateAccountScreenRouteProp = RouteProp<AdminStackParamList, 'CreateAccount'>;
@@ -61,7 +62,7 @@ const CreateAccountScreen = () => {
             setSelectedCenterId(sortedData[0].id);
           }
         } catch (err) {
-          console.warn('Failed to load centers:', err);
+          logger.warn('Failed to load centers:', err);
         }
       };
       fetchCenters();

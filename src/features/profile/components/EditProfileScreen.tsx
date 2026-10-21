@@ -17,6 +17,7 @@ import { useToastStore } from "../../../store/toastStore";
 import { profileSchema, type ProfileFormData } from "../../../validations/profileSchema";
 import { useTheme } from "../../../hooks/useTheme";
 import { scaleFont, wp, hp } from "../../../utils/responsive";
+import { logger } from '../../../utils/logger';
 
 const EditProfileScreen = () => {
   const navigation = useNavigation();
@@ -107,7 +108,7 @@ const EditProfileScreen = () => {
 
   const onSubmit = async (data: ProfileFormData) => {
     if (!user?.id) return;
-    if (__DEV__) console.log("[EditProfileScreen] submitting update:", data);
+    if (__DEV__) logger.log("[EditProfileScreen] submitting update:", data);
     await updateProfile(user.id, {
       full_name: data.full_name.trim(),
       phone: data.phone?.trim() || null,

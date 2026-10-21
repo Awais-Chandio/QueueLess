@@ -12,6 +12,7 @@ import { doctorService } from '../../../services/doctorService';
 import { StarRating } from '../../../components/ui/StarRating';
 import { useDoctorReviews } from '../../../hooks/useReviews';
 import type { AppStackParamList } from '../../../navigation/types';
+import { logger } from '../../../utils/logger';
 
 type PublicDoctorProfileRouteProp = RouteProp<AppStackParamList, 'PublicDoctorProfile'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'PublicDoctorProfile'>;
@@ -35,7 +36,7 @@ const PublicDoctorProfileScreen = () => {
         const data = await doctorService.getDoctorById(doctorId);
         setDoctor(data);
       } catch (err) {
-        console.warn('[PublicDoctorProfile] Error loading doctor:', err);
+        logger.warn('[PublicDoctorProfile] Error loading doctor:', err);
         Alert.alert('Error', 'Failed to load doctor profile.');
       } finally {
         setLoading(false);

@@ -1,5 +1,6 @@
 import { supabase } from '../../../lib/supabase';
 import type { AppointmentStatus } from '../../../types/appointment';
+import { logger } from '../../../utils/logger';
 
 export type DashboardStats = {
   totalAppointments: number;
@@ -186,7 +187,7 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
       .limit(5);
 
     if (logsError) {
-      console.error('[ANALYTICS] Failed to fetch audit logs:', {
+      logger.error('[ANALYTICS] Failed to fetch audit logs:', {
         code: logsError.code,
         message: logsError.message,
         details: logsError.details,
@@ -213,7 +214,7 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
         .select('id, full_name')
         .in('id', staffIds);
       if (profilesError) {
-        console.warn(
+        logger.warn(
           '[ANALYTICS] Failed to fetch staff profiles for activity:',
           {
             code: profilesError.code,
@@ -232,7 +233,7 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
         .select('id, token_number')
         .in('id', appointmentIds);
       if (appointmentsError) {
-        console.warn('[ANALYTICS] Failed to fetch appointments for activity:', {
+        logger.warn('[ANALYTICS] Failed to fetch appointments for activity:', {
           code: appointmentsError.code,
           message: appointmentsError.message,
           details: appointmentsError.details,
@@ -265,7 +266,7 @@ const getRecentActivity = async (): Promise<RecentActivityItem[]> => {
       message?: string;
       details?: string;
     } | null;
-    console.error('[ANALYTICS] Error fetching recent activity:', {
+    logger.error('[ANALYTICS] Error fetching recent activity:', {
       code: err?.code ?? 'UNKNOWN',
       message: err?.message ?? String(error),
       details: err?.details ?? null,
@@ -288,7 +289,7 @@ const getSystemOverview = async (): Promise<SystemOverviewData> => {
     [centersResult, servicesResult, usersResult].forEach((result, idx) => {
       if (result.error) {
         const table = ['service_centers', 'services', 'profiles'][idx];
-        console.warn(
+        logger.warn(
           `[ANALYTICS] System overview count failed for table '${table}':`,
           {
             code: result.error.code,
@@ -311,7 +312,7 @@ const getSystemOverview = async (): Promise<SystemOverviewData> => {
       message?: string;
       details?: string;
     } | null;
-    console.error('[ANALYTICS] Error fetching system overview:', {
+    logger.error('[ANALYTICS] Error fetching system overview:', {
       code: err?.code ?? 'UNKNOWN',
       message: err?.message ?? String(error),
       details: err?.details ?? null,

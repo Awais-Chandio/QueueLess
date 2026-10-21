@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { UploadAvatarPayload } from '../types/profile';
+import { logger } from '../utils/logger';
 
 const AVATAR_BUCKET = 'avatars';
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -20,9 +21,9 @@ export type ImageUploadResult = {
 const log = (message: string, data?: unknown) => {
   if (__DEV__) {
     if (data !== undefined) {
-      console.log(`[imageUpload] ${message}`, data);
+      logger.log(`[imageUpload] ${message}`, data);
     } else {
-      console.log(`[imageUpload] ${message}`);
+      logger.log(`[imageUpload] ${message}`);
     }
   }
 };

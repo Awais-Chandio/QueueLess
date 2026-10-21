@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { base64ToArrayBuffer } from './imageUploadService';
 import { accountService } from '../features/admin/api/accountService';
+import { logger } from '../utils/logger';
 
 const STORAGE_UPLOAD_TIMEOUT_MS = 15_000;
 const STORAGE_VERIFY_TIMEOUT_MS = 10_000;
@@ -31,7 +32,7 @@ const updateDoctorRow = async (doctorId: string, changes: Record<string, unknown
     if (error) throw new Error(error.message);
   } catch (error) {
     writeFailure = error;
-    console.warn('[doctorService] Doctor update response failed/timed out; verifying row.', error);
+    logger.warn('[doctorService] Doctor update response failed/timed out; verifying row.', error);
   }
 
   const { data, error: verifyError } = await withTimeout(supabase.from('doctors').select('*').eq('id', doctorId).single(), DATABASE_VERIFY_TIMEOUT_MS, 'Doctor row verification timed out.');
@@ -45,7 +46,7 @@ const updateDoctorRow = async (doctorId: string, changes: Record<string, unknown
   }
 
   if (__DEV__) {
-    console.log('[doctorService] Doctor row update verified', { doctorId });
+    logger.log('[doctorService] Doctor row update verified', { doctorId });
   }
   return data as Doctor;
 };
@@ -181,7 +182,7 @@ export const doctorService = {
   async uploadPhoto(doctorId: string, base64: string, mimeType = 'image/jpeg'): Promise<string> {
     const fileBody = base64ToArrayBuffer(base64);
     if (__DEV__) {
-      console.log('[doctorService] Doctor photo prepared for Storage', {
+      logger.log('[doctorService] Doctor photo prepared for Storage', {
         hasBase64: Boolean(base64),
         base64Length: base64.length,
         uploadBytes: fileBody.byteLength,
@@ -206,7 +207,7 @@ export const doctorService = {
     } catch (uploadError) {
       // React Native can occasionally receive no completion callback even though
       // Storage committed the object. Verify the exact path before failing.
-      console.warn('[doctorService] Upload response failed/timed out; verifying Storage object.', uploadError);
+      logger.warn('[doctorService] Upload response failed/timed out; verifying Storage object.', uploadError);
       const directory = path.slice(0, path.lastIndexOf('/'));
       const fileName = path.slice(path.lastIndexOf('/') + 1);
       const { data: storedFiles, error: verifyError } = await withTimeout(
@@ -224,7 +225,7 @@ export const doctorService = {
     }
 
     if (__DEV__) {
-      console.log('[doctorService] Doctor photo confirmed in Storage', { path });
+      logger.log('[doctorService] Doctor photo confirmed in Storage', { path });
     }
  
      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
@@ -320,7 +321,7 @@ export const doctorService = {
     let atomicRpcError: string | null = null;
 
     try {
-      console.log('[doctorService] Attempting to create doctor via atomic RPC');
+      logger.log('[doctorService] Attempting to create doctor via atomic RPC');
       const { data: newUserId, error: rpcError } = await supabase.rpc('create_doctor_with_account', {
         p_email: payload.email,
         p_password: generatedPassword,
@@ -338,7 +339,7 @@ export const doctorService = {
     }
 
     if (atomicUserId) {
-      console.log('[doctorService] Atomic RPC succeeded. Fetching doctor details.');
+      logger.log('[doctorService] Atomic RPC succeeded. Fetching doctor details.');
       const { data: docData, error: fetchDoctorError } = await supabase.from('doctors').select('*').eq('profile_id', atomicUserId).single();
       if (fetchDoctorError || !docData) {
         throw new Error(fetchDoctorError?.message || 'Doctor account created, but doctor profile was not found.');
@@ -374,7 +375,7 @@ export const doctorService = {
       return updatedDoctor as Doctor;
     }
 
-    console.warn('[doctorService] Atomic RPC skipped or failed, falling back to multi-step creation:', atomicRpcError);
+    logger.warn('[doctorService] Atomic RPC skipped or failed, falling back to multi-step creation:', atomicRpcError);
 
     // Fallback: Multi-step creation with explicit checks to avoid silent/partial failures
      const managedAccount = await accountService.createManagedAccount({
@@ -394,7 +395,7 @@ export const doctorService = {
      try {
       await supabase.from('profiles').update({ phone: payload.phone }).eq('id', userId);
      } catch (profileError) {
-       console.warn('Failed to update phone number in profiles:', profileError);
+       logger.warn('Failed to update phone number in profiles:', profileError);
      }
  
      // 3. Create doctor entry in doctors table
@@ -474,7 +475,7 @@ export const doctorService = {
       }
       const { error: scheduleError } = await supabase.from('doctor_schedules').insert(defaultSchedules);
       if (scheduleError) {
-        console.warn('[doctorService] Fallback setup: failed to insert default doctor schedules:', scheduleError);
+        logger.warn('[doctorService] Fallback setup: failed to insert default doctor schedules:', scheduleError);
       }
   
       return doctor as Doctor;
@@ -530,7 +531,7 @@ export const doctorService = {
            })
            .eq('id', payload.profileId);
        } catch (profileError) {
-         console.warn('Failed to update phone number in profiles:', profileError);
+         logger.warn('Failed to update phone number in profiles:', profileError);
        }
      }
  
@@ -546,7 +547,7 @@ export const doctorService = {
     const { error: deleteError } = await supabase.from('doctor_services').delete().eq('doctor_id', doctorId);
  
      if (deleteError) {
-       console.warn('Failed to delete old services mappings:', deleteError);
+       logger.warn('Failed to delete old services mappings:', deleteError);
      }
  
      if (payload.serviceIds && payload.serviceIds.length > 0) {
@@ -556,7 +557,7 @@ export const doctorService = {
        }));
       const { error: mappingError } = await supabase.from('doctor_services').insert(mappings);
        if (mappingError) {
-         console.warn('Failed to insert new doctor services mappings:', mappingError);
+         logger.warn('Failed to insert new doctor services mappings:', mappingError);
        }
      }
  

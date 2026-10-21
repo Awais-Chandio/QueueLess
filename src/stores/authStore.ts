@@ -4,6 +4,7 @@ import {
   UserRole,
   normalizeUserRole,
 } from '../utils/roleMapping';
+import { logger } from '../utils/logger';
 
 export type AuthRole = UserRole;
 
@@ -45,7 +46,7 @@ export const useAuthStore = create<AuthState>(set => ({
       const normalizedRole = normalizeUserRole(role);
 
       if (__DEV__ && state.user?.id) {
-        console.log(
+        logger.log(
           `[authStore] Session set for user: ${state.user.id} role: ${normalizedRole}`,
         );
       }

@@ -1,6 +1,7 @@
 import { LoginPayload, SignupPayload } from "../types/auth";
 import { supabase } from "../lib/supabase";
 import { assertPhoneLoginEnabled } from "../config/featureFlags";
+import { logger } from '../utils/logger';
 
 export const PASSWORD_RESET_REDIRECT_URL = 'queueless://reset-password';
 
@@ -98,7 +99,7 @@ export const authService = {
         const password = `fb-phone-auth-${uid}-a1b2c3d4e5f6g7h8_queueless_phone_auth_salt`;
 
         if (__DEV__) {
-            console.log('[authService] Bridging Firebase user to Supabase:', { uid, email, phoneNumber, displayName });
+            logger.log('[authService] Bridging Firebase user to Supabase:', { uid, email, phoneNumber, displayName });
         }
 
         // Search profile table: phone = firebaseUser.phoneNumber
@@ -109,7 +110,7 @@ export const authService = {
             .maybeSingle();
 
         if (profileError) {
-            if (__DEV__) console.warn('[authService] Profile search error:', profileError);
+            if (__DEV__) logger.warn('[authService] Profile search error:', profileError);
         }
 
         let sessionData = null;
@@ -117,7 +118,7 @@ export const authService = {
 
         if (existingProfile) {
             // If found: Sign user into app directly.
-            if (__DEV__) console.log('[authService] Profile found by phone. Logging in to Supabase...');
+            if (__DEV__) logger.log('[authService] Profile found by phone. Logging in to Supabase...');
             try {
                 const signInRes = await supabase.auth.signInWithPassword({
                     email,
@@ -132,7 +133,7 @@ export const authService = {
 
         // If not found OR if sign in failed because auth account doesn't exist yet
         if (!existingProfile || (authError && (authError.message?.includes('Invalid login credentials') || authError.status === 400))) {
-            if (__DEV__) console.log('[authService] Creating new Supabase user...', email);
+            if (__DEV__) logger.log('[authService] Creating new Supabase user...', email);
             
             try {
                 const signUpRes = await supabase.auth.signUp({
@@ -179,7 +180,7 @@ export const authService = {
                         .maybeSingle();
 
                     if (!checkProf) {
-                        if (__DEV__) console.log('[authService] Profile does not exist. Creating profile manually...');
+                        if (__DEV__) logger.log('[authService] Profile does not exist. Creating profile manually...');
                         const { error: insertErr } = await supabase
                             .from('profiles')
                             .insert({
@@ -194,7 +195,7 @@ export const authService = {
                         if (insertErr) throw insertErr;
                     } else {
                         // Update it
-                        if (__DEV__) console.log('[authService] Updating existing profile for user...', userId);
+                        if (__DEV__) logger.log('[authService] Updating existing profile for user...', userId);
                         await supabase
                             .from('profiles')
                             .update({
@@ -206,7 +207,7 @@ export const authService = {
                             .eq('id', userId);
                     }
                 } catch (profErr) {
-                    if (__DEV__) console.warn('[authService] Error in profile sync:', profErr);
+                    if (__DEV__) logger.warn('[authService] Error in profile sync:', profErr);
                 }
             }
         } else if (authError) {
