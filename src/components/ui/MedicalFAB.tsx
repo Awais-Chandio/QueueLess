@@ -4,6 +4,7 @@ import { Plus } from 'lucide-react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import { useTheme } from '../../hooks/useTheme';
 import { scaleFont } from '../../utils/responsive';
+import { fixed } from '../../theme/colors';
 
 interface MedicalFABProps {
   onPress: () => void;
@@ -33,7 +34,7 @@ export const MedicalFAB: React.FC<MedicalFABProps> = ({
         end={{ x: 1, y: 1 }}
         style={styles.gradient}
       >
-        {icon || <Plus size={scaleFont(24)} color="#FFF" />}
+        {icon || <Plus size={scaleFont(24)} color={colors.onPrimary} />}
       </LinearGradient>
     </Pressable>
   );
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    shadowColor: '#0E7490',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 10,

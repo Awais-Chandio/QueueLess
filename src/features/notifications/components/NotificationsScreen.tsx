@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   Pressable,
   RefreshControl,
-  ScrollView,
+  FlatList,
   StyleSheet,
   Text,
   View,
@@ -15,8 +15,8 @@ import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import { useTheme } from '../../../hooks/useTheme';
-import { useAuthStore } from '../../../stores/authStore';
-import { useNotificationsStore } from '../../../stores/notificationStore';
+import { useAuthStore } from '../../../store/authStore';
+import { useNotificationsStore } from '../../../store/notificationStore';
 import { toastService } from '../../../services/toastService';
 import type { Notification } from '../../../types/notification';
 import { scaleFont } from '../../../utils/responsive';
@@ -43,7 +43,7 @@ const getNotifMeta = (
     case 'system':
       return { icon: Stethoscope, color: colors.info, category: 'System' };
     case 'info':
-      return { icon: Info, color: colors.info || '#3B82F6', category: 'Info' };
+      return { icon: Info, color: colors.info, category: 'Info' };
     default:
       return { icon: Bell, color: colors.primary, category: 'General' };
   }
@@ -273,7 +273,7 @@ const NotificationsScreen = () => {
           </Text>
           {unreadCount > 0 && (
             <View style={[styles.unreadBadge, { backgroundColor: colors.primary }]}>
-              <Text style={{ color: '#FFF', fontSize: scaleFont(11), fontWeight: '700' }}>
+              <Text style={{ color: colors.onPrimary, fontSize: scaleFont(11), fontWeight: '700' }}>
                 {unreadCount}
               </Text>
             </View>
@@ -308,7 +308,10 @@ const NotificationsScreen = () => {
           <Skeleton height={100} />
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={storeNotifications}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => renderNotification(item)}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
@@ -318,17 +321,10 @@ const NotificationsScreen = () => {
             />
           }
           contentContainerStyle={styles.listContent}
-        >
-          {storeNotifications.length === 0 ? (
-            <EmptyState
-              Icon={Bell}
-              title="No Notifications"
-              subtitle="You're all caught up!"
-            />
-          ) : (
-            storeNotifications.map(renderNotification)
-          )}
-        </ScrollView>
+          ListEmptyComponent={<EmptyState Icon={Bell} title="No Notifications" subtitle="You're all caught up!" />}
+          initialNumToRender={12}
+          windowSize={7}
+        />
       )}
     </ScreenWrapper>
   );

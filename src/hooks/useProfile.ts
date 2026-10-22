@@ -1,4 +1,4 @@
-import { useProfileStore } from '../stores/profileStore';
+import { useProfileStore } from '../store/profileStore';
 
 export const useProfile = () => {
   const {

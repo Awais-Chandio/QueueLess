@@ -54,7 +54,7 @@ const NearbyClinicCardComponent: React.FC<NearbyClinicCardProps> = ({ item, inde
     <CardFadeIn delay={index * 100}>
       <Card
         variant="elevated"
-        style={[styles.card, { padding: spacing.md, borderRadius: radius.xl }]}
+        style={[styles.card, { borderColor: colors.divider }, { padding: spacing.md, borderRadius: radius.xl }]}
         containerStyle={{ marginBottom: spacing.md }}
         onPress={onPressBook}
       >
@@ -166,7 +166,6 @@ export const NearbyClinicCard = React.memo(NearbyClinicCardComponent);
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderColor: 'rgba(15, 118, 110, 0.05)',
   },
   topSection: {
     flexDirection: 'row',

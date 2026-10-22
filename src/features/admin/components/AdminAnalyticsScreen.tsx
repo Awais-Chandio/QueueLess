@@ -34,6 +34,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import { hp, scaleFont, wp } from '../../../utils/responsive';
 import { analyticsService } from '../api/analyticsService';
 import { getDisplayName } from '../../../utils/getDisplayName';
+import { withOpacity } from '../../../theme/colors';
 
 const AdminAnalyticsScreen = () => {
   const { colors, spacing, typography, radius } = useTheme();
@@ -168,10 +169,13 @@ const AdminAnalyticsScreen = () => {
       analytics?.statusDistribution
         .filter(item => item.count > 0)
         .map(item => ({
-          ...item,
+          name: item.name,
+          count: item.count,
+          color: colors.status[item.status].dot,
           legendFontColor: colors.textSecondary,
+          legendFontSize: 12,
         })) ?? [],
-    [analytics?.statusDistribution, colors.textSecondary],
+    [analytics?.statusDistribution, colors.status, colors.textSecondary],
   );
 
   const chartConfig = useMemo(
@@ -182,7 +186,7 @@ const AdminAnalyticsScreen = () => {
       backgroundGradientFromOpacity: 1,
       backgroundGradientToOpacity: 1,
       decimalPlaces: 0,
-      color: (opacity = 1) => `rgba(15, 118, 110, ${opacity})`,
+      color: (opacity = 1) => withOpacity(colors.primary, opacity),
       labelColor: () => colors.textSecondary,
       barPercentage: 0.58,
       barRadius: 6,

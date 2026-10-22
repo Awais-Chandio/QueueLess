@@ -14,7 +14,10 @@ import AvailabilityScreen from '../screens/AvailabilityScreen';
 import LeaveManagementScreen from '../screens/LeaveManagementScreen';
 
 // Icons
-import { LayoutDashboard, Calendar, Users, User, Clock } from 'lucide-react-native';
+import { LayoutDashboard, Calendar, Users, User, Clock, ConciergeBell } from 'lucide-react-native';
+import StaffNavigator from '../../staff/navigation/StaffNavigator';
+import { useAuthStore } from '../../../store/authStore';
+import { canRunReception } from '../../../utils/roleMapping';
 
 export type AvailabilityStackParamList = {
   AvailabilityMain: undefined;
@@ -35,6 +38,7 @@ export type DoctorTabParamList = {
   Schedule: undefined;
   Patients: undefined;
   Availability: undefined;
+  Reception: undefined;
   Profile: undefined;
 };
 
@@ -61,12 +65,18 @@ const AvailabilityTabIcon = ({ color, size }: TabIconProps) => (
   <Clock color={color} size={size} />
 );
 
+const ReceptionTabIcon = ({ color, size }: TabIconProps) => (
+  <ConciergeBell color={color} size={size} />
+);
+
 const ProfileTabIcon = ({ color, size }: TabIconProps) => (
   <User color={color} size={size} />
 );
 
 const DoctorNavigator = () => {
   const { colors, spacing, typography } = useTheme();
+  // A doctor who also owns the clinic (or works its desk) runs reception from here too.
+  const showReception = useAuthStore(state => canRunReception(state.workspaces));
 
   return (
     <Tab.Navigator
@@ -87,7 +97,7 @@ const DoctorNavigator = () => {
           height: hp(7.8),
           paddingBottom: Platform.OS === 'ios' ? spacing.xs : spacing.sm,
           paddingTop: spacing.sm,
-          shadowColor: '#000000',
+          shadowColor: colors.shadowColor,
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.08,
           shadowRadius: 16,
@@ -136,6 +146,16 @@ const DoctorNavigator = () => {
           tabBarIcon: AvailabilityTabIcon,
         }}
       />
+      {showReception && (
+        <Tab.Screen
+          name="Reception"
+          component={StaffNavigator}
+          options={{
+            tabBarLabel: 'Reception',
+            tabBarIcon: ReceptionTabIcon,
+          }}
+        />
+      )}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}

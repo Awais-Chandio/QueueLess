@@ -14,7 +14,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
-import { SkeletonLoader } from '../../../components/animations/SkeletonLoader';
+import { Skeleton } from '../../../components/ui/Skeleton';
 import AppointmentTile from '../../../components/ui/AppointmentTile';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAppointments } from '../../../hooks/useAppointments';
@@ -28,8 +28,8 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 type StatusFilter = 'active_upcoming' | 'past_completed';
 
 const statusFilters = [
-  { key: 'active_upcoming' as const, label: 'Active / Upcoming', dotColor: '#3B82F6' },
-  { key: 'past_completed' as const, label: 'Past / Completed', dotColor: '#10B981' },
+  { key: 'active_upcoming' as const, label: 'Active / Upcoming', tone: 'info' as const },
+  { key: 'past_completed' as const, label: 'Past / Completed', tone: 'success' as const },
 ];
 
 const MyAppointmentsScreen = () => {
@@ -79,7 +79,11 @@ const MyAppointmentsScreen = () => {
 
   const renderSkeleton = () => (
     <View style={skeletonContainerStyle}>
-      <SkeletonLoader height={140} count={3} gap={spacing.md} />
+      <View style={{ gap: spacing.md }}>
+        {[0, 1, 2].map(i => (
+          <Skeleton key={i} height={140} borderRadius={radius.card} />
+        ))}
+      </View>
     </View>
   );
 
@@ -124,7 +128,7 @@ const MyAppointmentsScreen = () => {
         >
           {statusFilters.map(filter => {
             const isSelected = selectedStatus === filter.key;
-            const dotColor = filter.dotColor;
+            const dotColor = colors[filter.tone];
 
             const filterButtonStyle = [
               styles.filterButton,

@@ -20,7 +20,7 @@ type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'PublicDoctor
 const PublicDoctorProfileScreen = () => {
   const route = useRoute<PublicDoctorProfileRouteProp>();
   const navigation = useNavigation<NavigationProp>();
-  const { colors, spacing, typography, radius, isDarkMode } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
 
   const { doctorId, centerId: routeCenterId, serviceId: routeServiceId } = route.params;
 
@@ -213,7 +213,7 @@ const PublicDoctorProfileScreen = () => {
             <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.sm }]}>
               Patient Reviews
             </Text>
-            <View style={styles.reviewCountBadge}>
+            <View style={[styles.reviewCountBadge, { backgroundColor: colors.surfaceSunken }, { backgroundColor: colors.surfaceSunken }]}>
               <MessageSquare size={12} color={colors.primary} style={{ marginRight: 4 }} />
               <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '800' }}>
                 {doctor.review_count ?? 0}
@@ -252,8 +252,8 @@ const PublicDoctorProfileScreen = () => {
                       <Star
                         key={i}
                         size={10}
-                        color={i < rev.rating ? '#FBBF24' : '#E5E7EB'}
-                        fill={i < rev.rating ? '#FBBF24' : 'transparent'}
+                        color={i < rev.rating ? colors.rating : colors.ratingEmpty}
+                        fill={i < rev.rating ? colors.rating : 'transparent'}
                         style={{ marginRight: 2 }}
                       />
                     ))}
@@ -279,7 +279,7 @@ const PublicDoctorProfileScreen = () => {
           title="Book Appointment"
           onPress={handleBook}
           variant="primary"
-          leftIcon={<Calendar size={18} color="#FFFFFF" />}
+          leftIcon={<Calendar size={18} color={colors.onPrimary} />}
         />
       </View>
     </ScreenWrapper>
@@ -398,7 +398,6 @@ const styles = StyleSheet.create({
   reviewCountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.03)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,

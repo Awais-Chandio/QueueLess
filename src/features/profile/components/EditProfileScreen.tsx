@@ -169,7 +169,7 @@ const EditProfileScreen = () => {
           <View style={styles.avatarWrapper}>
             <ProfileAvatar uri={profile?.avatar_url} size={96} iconSize={48} />
             <View style={[styles.cameraIcon, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-              <Camera size={scaleFont(14)} color="#FFF" />
+              <Camera size={scaleFont(14)} color={colors.onPrimary} />
             </View>
           </View>
           <Text style={[styles.changeAvatarText, { color: colors.primary, fontSize: typography.small, marginTop: spacing.sm }]}>

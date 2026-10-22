@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { getNearbyCenters } from '../services/centers/centerService';
+import { getNearbyCenters } from '../services/centerService';
 import { locationService } from '../services/location/locationService';
 import { logger } from '../utils/logger';
 

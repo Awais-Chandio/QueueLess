@@ -121,7 +121,7 @@ const CentersScreen = () => {
                     {item.name}
                   </Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Star size={12} color="#FBBF24" fill="#FBBF24" />
+                    <Star size={12} color={colors.rating} fill={colors.rating} />
                     <Text style={{ fontSize: typography.sizes.xs, color: colors.text, fontWeight: '700' }}>4.8</Text>
                   </View>
                 </View>

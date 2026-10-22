@@ -6,7 +6,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
 import AppText from '../../../components/ui/AppText';
-import { DoctorSheet } from './DoctorSheet';
+import { Sheet } from '../../../components/ui/Sheet';
 import { dateKeysBetween } from '../utils/doctorFormat';
 
 type Props = {
@@ -99,7 +99,7 @@ export const RequestLeaveSheet = ({
   );
 
   return (
-    <DoctorSheet visible={visible} onClose={onClose} title="Request time off" maxHeightPercent={0.85}>
+    <Sheet visible={visible} onClose={onClose} title="Request time off" maxHeightPercent={0.85}>
       <View style={[styles.row, { gap: spacing.sm }]}>
         {dateField('start', 'First day', start)}
         {dateField('end', 'Last day', end)}
@@ -167,7 +167,7 @@ export const RequestLeaveSheet = ({
         containerStyle={{ marginTop: spacing.lg }}
         onPress={() => onSubmit(start, end, reason)}
       />
-    </DoctorSheet>
+    </Sheet>
   );
 };
 

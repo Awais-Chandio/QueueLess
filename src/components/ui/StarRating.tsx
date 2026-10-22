@@ -4,7 +4,6 @@ import { Star } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import AppText from './AppText';
 
-const STAR_COLOR = '#FBBF24';
 const STARS = [1, 2, 3, 4, 5];
 
 export interface StarRatingProps {
@@ -58,7 +57,7 @@ export const StarRating: React.FC<StarRatingProps> = ({
   if (variant === 'compact') {
     return (
       <View style={styles.row} accessible accessibilityLabel={label}>
-        <Star size={size} color={STAR_COLOR} fill={STAR_COLOR} />
+        <Star size={size} color={colors.rating} fill={colors.rating} />
         <AppText variant="caption" weight="800" style={styles.gap}>
           {formatRating(rating)}{' '}
           <AppText variant="caption" tone="secondary" weight="500">
@@ -76,8 +75,8 @@ export const StarRating: React.FC<StarRatingProps> = ({
         <Star
           key={value}
           size={size}
-          color={value <= filled ? STAR_COLOR : colors.border}
-          fill={value <= filled ? STAR_COLOR : 'transparent'}
+          color={value <= filled ? colors.rating : colors.border}
+          fill={value <= filled ? colors.rating : 'transparent'}
           style={styles.starGap}
         />
       ))}
@@ -129,8 +128,8 @@ export const StarRatingInput: React.FC<StarRatingInputProps> = ({
             >
               <Star
                 size={size}
-                color={selected ? STAR_COLOR : colors.border}
-                fill={selected ? STAR_COLOR : 'transparent'}
+                color={selected ? colors.rating : colors.border}
+                fill={selected ? colors.rating : 'transparent'}
               />
             </Pressable>
           );

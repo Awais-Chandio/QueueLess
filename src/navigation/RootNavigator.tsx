@@ -5,14 +5,14 @@ import AdminNavigator from "./AdminNavigator";
 import PatientNavigator from "./PatientNavigator";
 import DoctorNavigator from "../features/doctor/navigation/DoctorNavigator";
 import StaffNavigator from "../features/staff/navigation/StaffNavigator";
-import { useAuthStore } from "../stores/authStore";
+import { useAuthStore } from "../store/authStore";
 import SplashScreen from "../features/auth/components/SplashScreen";
 import { useNotifications } from "../hooks/useNotifications";
 import { useTheme } from "../hooks/useTheme";
 
 const RootNavigator = () => {
   useNotifications();
-  const { isDarkMode } = useTheme();
+  const { colors } = useTheme();
   const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
   const [isSplashFinished, setIsSplashFinished] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
@@ -33,7 +33,7 @@ const RootNavigator = () => {
   const renderContent = () => {
     // Return a dark background placeholder while auth is loading initially during boot
     if (isLoading && !isSplashFinished) {
-      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
+      return <View style={[styles.placeholder, { backgroundColor: colors.splash.base }]} />;
     }
 
     if (!user || isPasswordRecovery) {
@@ -41,7 +41,7 @@ const RootNavigator = () => {
     }
 
     if (!role) {
-      return <View style={[styles.placeholder, { backgroundColor: isDarkMode ? '#031C24' : '#083344' }]} />;
+      return <View style={[styles.placeholder, { backgroundColor: colors.splash.base }]} />;
     }
 
     if (role === 'admin') return <AdminNavigator />;
@@ -88,6 +88,5 @@ const styles = StyleSheet.create({
   },
   placeholder: {
     flex: 1,
-    backgroundColor: "#061A1A", // Dark clinical placeholder matching the gradient splash theme
   },
 });

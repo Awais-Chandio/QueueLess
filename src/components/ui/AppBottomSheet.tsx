@@ -10,6 +10,7 @@ import {
 import { X } from 'lucide-react-native';
 import { useTheme } from '../../hooks/useTheme';
 import AppText from './AppText';
+import { fixed } from '../../theme/colors';
 
 export interface AppBottomSheetProps {
   visible: boolean;
@@ -158,7 +159,7 @@ export default AppBottomSheet;
 const styles = StyleSheet.create({
   sheet: {
     // The sheet floats over the tab bar, so it carries its own elevation.
-    shadowColor: '#000',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.12,
     shadowRadius: 16,

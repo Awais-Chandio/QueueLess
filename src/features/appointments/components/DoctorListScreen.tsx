@@ -9,7 +9,7 @@ import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import Loader from '../../../components/ui/Loader';
 import ErrorState from '../../../components/ui/ErrorState';
 import EmptyState from '../../../components/ui/EmptyState';
-import DoctorCard from '../../../components/DoctorCard';
+import DoctorCard from './DoctorCard';
 import { useTheme } from '../../../hooks/useTheme';
 import { useDoctorsByService } from '../../../hooks/useDoctorsByService';
 import type { AppStackParamList } from '../../../navigation/types';

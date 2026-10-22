@@ -13,10 +13,10 @@ import AppButton from '../../../components/ui/AppButton';
 import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import { useTheme } from '../../../hooks/useTheme';
 import { appointmentService } from '../../../services/appointmentService';
-import { useAppointmentsStore } from '../../../stores/appointmentStore';
-import { useToastStore } from '../../../stores/toastStore';
+import { useAppointmentsStore } from '../../../store/appointmentStore';
+import { useToastStore } from '../../../store/toastStore';
 import { useNotifications } from '../../../hooks/useNotifications';
-import { useNotificationsStore } from '../../../stores/notificationStore';
+import { useNotificationsStore } from '../../../store/notificationStore';
 import { useAuthStore } from '../../../store/authStore';
 import { useAppointmentReview, useSubmitReview } from '../../../hooks/useReviews';
 import { StarRating } from '../../../components/ui/StarRating';
@@ -42,6 +42,7 @@ import {
   getAppointmentDateLabel,
   getAppointmentTimeLabel,
 } from '../utils/appointmentTime';
+import { PATIENT_MARKETPLACE_ENABLED } from '../../../config/featureFlags';
 
 type AppointmentDetailsRouteProp = RouteProp<AppStackParamList, 'AppointmentDetails'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'AppointmentDetails'>;
@@ -68,7 +69,8 @@ const AppointmentDetailsScreen = () => {
   });
   // Only a completed appointment with a known doctor can be reviewed; the
   // database enforces the same rule, this just avoids a pointless query.
-  const isReviewable = appointment?.status === 'completed' && !!appointment.doctor_id;
+  // Reviews are part of the patient marketplace (off for the pilot).
+  const isReviewable = PATIENT_MARKETPLACE_ENABLED && (appointment?.status === 'completed' && !!appointment.doctor_id);
   const { data: review, isSuccess: reviewLoaded } = useAppointmentReview(
     appointmentId,
     isReviewable,
@@ -306,8 +308,8 @@ const AppointmentDetailsScreen = () => {
         <CardFadeIn delay={80}>
           <Card style={{ marginBottom: spacing.md, padding: spacing.md }}>
             <View style={styles.detailRow}>
-              <View style={[styles.detailIconPill, { backgroundColor: '#FBBF2418' }]}>
-                <Star color="#FBBF24" size={scaleFont(16)} />
+              <View style={[styles.detailIconPill, { backgroundColor: colors.tint.warning }]}>
+                <Star color={colors.rating} size={scaleFont(16)} />
               </View>
               <Text style={{ flex: 1, color: colors.text, fontSize: typography.sizes.md, fontWeight: '800' }}>
                 {review ? 'Your review' : 'Rate your visit'}

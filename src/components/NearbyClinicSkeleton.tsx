@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Skeleton } from './ui/Skeleton';
 import { useTheme } from '../hooks/useTheme';
+import { fixed } from '../theme/colors';
 
 export const NearbyClinicSkeleton = () => {
   const { colors, spacing, radius } = useTheme();
@@ -77,7 +78,7 @@ export const NearbyClinicSkeleton = () => {
 
 const styles = StyleSheet.create({
   skeletonCard: {
-    shadowColor: '#000',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,

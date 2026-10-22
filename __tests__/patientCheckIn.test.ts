@@ -1,5 +1,5 @@
-import { sortStaffQueueAppointments } from '../src/features/staff/api/staffQueueService';
-import { getPeopleAhead } from '../src/features/queue/api/queueService';
+import { sortStaffQueueAppointments } from '../src/services/queueService';
+import { getPeopleAhead } from '../src/services/queueService';
 import {
   formatWaitDuration,
   getScheduledAtFromSlot,

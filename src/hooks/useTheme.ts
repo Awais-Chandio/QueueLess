@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { useThemeStore } from '../store/themeStore';
+import { useColorScheme } from 'react-native';
+import { resolveDarkMode, useThemeStore } from '../store/themeStore';
 import { useAuthStore } from '../store/authStore';
 import {
   clientColorsLight,
@@ -29,7 +30,9 @@ export type Theme = {
 };
 
 export const useTheme = (): Theme => {
-  const isDarkMode = useThemeStore((state) => state.isDarkMode);
+  const mode = useThemeStore(state => state.mode);
+  const systemScheme = useColorScheme();
+  const isDarkMode = resolveDarkMode(mode, systemScheme);
   const role = useAuthStore((state) => state.role);
 
   // All roles currently resolve to the same palette. The branch is kept so the

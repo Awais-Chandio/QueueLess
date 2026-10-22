@@ -1,10 +1,10 @@
 import React from "react";
-import { View, StyleSheet, Text, Pressable, Alert, Switch } from "react-native";
+import { View, StyleSheet, Text, Pressable, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../../../hooks/useAuth";
 import { useTheme } from "../../../hooks/useTheme";
-import { useThemeStore } from "../../../store/themeStore";
+import ThemeModePicker from "../../../components/ui/ThemeModePicker";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
@@ -19,7 +19,6 @@ const SettingsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const { logout } = useAuth();
   const { colors, spacing, typography } = useTheme();
-  const { isDarkMode, toggleTheme } = useThemeStore();
 
   const handleLogout = async () => {
     try {
@@ -64,10 +63,10 @@ const SettingsScreen = () => {
         </Text>
         <Card style={{ padding: 0, marginBottom: spacing.xl, overflow: 'hidden' }}>
           <SettingRow 
-            title="Dark Mode" 
-            icon={Moon} 
+            title="Appearance"
+            icon={Moon}
             color={colors.info}
-            rightElement={<Switch value={isDarkMode} onValueChange={toggleTheme} trackColor={{ false: colors.border, true: colors.info }} />} 
+            rightElement={<ThemeModePicker />}
           />
           <SettingRow
             title="Notifications"

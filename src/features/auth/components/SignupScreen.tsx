@@ -27,6 +27,7 @@ import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import DoctorConsultationAnimation from "../../../components/animations/DoctorConsultationAnimation";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
+import { fixed } from '../../../theme/colors';
 
 type SignupScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "Signup">;
 
@@ -206,15 +207,15 @@ const SignupScreen = () => {
                         style={styles.headerGradient}
                     >
                         <Pressable 
-                            style={[styles.backButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
+                            style={[styles.backButton, { backgroundColor: colors.brandGlass.bg }]}
                             onPress={() => step === 2 ? goToStep1() : navigation.goBack()}
                         >
-                            <ArrowLeft size={20} color="#FFFFFF" />
+                            <ArrowLeft size={20} color={colors.onBrand} />
                         </Pressable>
 
                         <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <Floating3DLogo size={scaleFont(32)} qColor="#FFFFFF" />
+                                <Floating3DLogo size={scaleFont(32)} qColor={colors.onBrand} />
                             </View>
                         </Animated.View>
 
@@ -237,17 +238,17 @@ const SignupScreen = () => {
                         <View style={styles.mainContent}>
                             {/* Premium Healthcare Welcome Illustration */}
                             <DoctorConsultationAnimation />
-                            <Text style={styles.illustrationText}>Join MediQ to Skip Waiting Lines</Text>
+                            <Text style={[styles.illustrationText, { color: colors.textTertiary }]}>Join MediQ to Skip Waiting Lines</Text>
 
                             {/* Glassmorphic Wizard Card */}
                             <View style={[
                                 styles.formCard, 
                                 { 
-                                    backgroundColor: isDarkMode ? 'rgba(30, 41, 59, 0.75)' : 'rgba(255, 255, 255, 0.85)',
+                                    backgroundColor: colors.heroCard.bg,
                                     borderRadius: radius.xl,
                                     borderWidth: 1,
-                                    borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.65)',
-                                    shadowColor: isDarkMode ? '#000000' : colors.primary,
+                                    borderColor: colors.heroCard.border,
+                                    shadowColor: isDarkMode ? colors.shadowColor : colors.primary,
                                     shadowOffset: { width: 0, height: 12 },
                                     shadowOpacity: isDarkMode ? 0.4 : 0.08,
                                     shadowRadius: 24,
@@ -481,18 +482,18 @@ const styles = StyleSheet.create({
         padding: 5,
         borderWidth: 1,
         borderRadius: 18,
-        borderColor: 'rgba(255, 255, 255, 0.25)',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: fixed.brandGlassBorder,
+        backgroundColor: fixed.brandGlassBg,
     },
     appTitle: {
         fontSize: scaleFont(22),
         fontWeight: '900',
-        color: '#FFFFFF',
+        color: fixed.onBrand,
         textAlign: 'center',
     },
     appSubtitle: {
         fontSize: scaleFont(11),
-        color: 'rgba(255, 255, 255, 0.85)',
+        color: fixed.onBrandMuted,
         textAlign: 'center',
         marginTop: 2,
         fontWeight: '600',
@@ -587,7 +588,6 @@ const styles = StyleSheet.create({
     illustrationText: {
         fontSize: scaleFont(12),
         fontWeight: '600',
-        color: '#94A3B8',
         textAlign: 'center',
         marginTop: hp(0.5),
         marginBottom: hp(1),

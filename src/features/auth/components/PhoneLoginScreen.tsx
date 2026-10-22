@@ -27,6 +27,7 @@ import Floating3DLogo from "../../../components/ui/Floating3DLogo";
 import Wordmark from "../../../components/ui/Wordmark";
 import { hp, scaleFont, wp } from "../../../utils/responsive";
 import { useAuthEntranceAnimation } from "../hooks/useAuthEntranceAnimation";
+import { fixed } from '../../../theme/colors';
 
 type PhoneLoginScreenNavigationProp = NativeStackNavigationProp<AuthStackParamList, "PhoneLogin">;
 
@@ -121,15 +122,15 @@ const PhoneLoginScreen = () => {
                         style={styles.headerGradient}
                     >
                         <Pressable 
-                            style={[styles.backButton, { backgroundColor: 'rgba(255, 255, 255, 0.2)' }]}
+                            style={[styles.backButton, { backgroundColor: colors.brandGlass.bg }]}
                             onPress={() => navigation.goBack()}
                         >
-                            <ArrowLeft size={20} color="#FFFFFF" />
+                            <ArrowLeft size={20} color={colors.onBrand} />
                         </Pressable>
 
                         <Animated.View style={[styles.logoContainer, { opacity: fadeAnim, transform: [{ scale: logoScale }] }]}>
                             <View style={styles.logoOutline}>
-                                <Floating3DLogo size={scaleFont(46)} qColor="#FFFFFF" />
+                                <Floating3DLogo size={scaleFont(46)} qColor={colors.onBrand} />
                             </View>
                         </Animated.View>
 
@@ -165,7 +166,7 @@ const PhoneLoginScreen = () => {
                             { 
                                 backgroundColor: colors.surface, 
                                 borderRadius: radius.xl,
-                                shadowColor: isDarkMode ? '#000000' : colors.primary,
+                                shadowColor: isDarkMode ? colors.shadowColor : colors.primary,
                                 shadowOffset: { width: 0, height: 8 },
                                 shadowOpacity: isDarkMode ? 0.3 : 0.05,
                                 shadowRadius: 20,
@@ -301,19 +302,19 @@ const styles = StyleSheet.create({
         padding: 8,
         borderWidth: 1,
         borderRadius: 24,
-        borderColor: 'rgba(255, 255, 255, 0.2)',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderColor: fixed.brandGlassBorder,
+        backgroundColor: fixed.brandGlassBg,
     },
     appSubtitle: {
         fontSize: scaleFont(13),
-        color: 'rgba(255, 255, 255, 0.9)',
+        color: fixed.onBrandMuted,
         textAlign: 'center',
         marginTop: 4,
         fontWeight: '600',
     },
     tagline: {
         fontSize: scaleFont(11),
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: fixed.onBrandSubtle,
         textAlign: 'center',
         marginTop: 4,
         fontStyle: 'italic',

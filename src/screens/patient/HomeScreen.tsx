@@ -21,12 +21,13 @@ import { hp, scaleFont, wp } from '../../utils/responsive';
 import LinearGradient from 'react-native-linear-gradient';
 import type { AppStackParamList } from '../../navigation/types';
 import ClinicImage from '../../components/ui/ClinicImage';
+import { fixed } from '../../theme/colors';
 
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
 const HomeScreen = () => {
-  const { colors, spacing, typography, radius, isDarkMode } = useTheme();
+  const { colors, spacing, typography, radius } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const isFocused = useIsFocused();
 
@@ -186,7 +187,7 @@ const HomeScreen = () => {
               </Text>
             </View>
             <View style={styles.heroIllustration}>
-              <Stethoscope size={scaleFont(90)} color="rgba(255, 255, 255, 0.12)" />
+              <Stethoscope size={scaleFont(90)} color={colors.brandGlass.bg} />
             </View>
           </LinearGradient>
         </View>
@@ -203,11 +204,11 @@ const HomeScreen = () => {
             <Card
               onPress={() => navigation.navigate('Centers')}
               variant="gradient"
-              gradientColors={isDarkMode ? ['#0A2424', '#061A1A'] : ['#E6FFFA', '#FFFFFF']}
+              gradientColors={colors.feature.teal.gradient}
               style={[
                 styles.gridCard,
                 {
-                  borderColor: isDarkMode ? 'rgba(20, 184, 166, 0.25)' : 'rgba(15, 118, 110, 0.15)',
+                  borderColor: colors.feature.teal.border,
                   borderWidth: 1.5,
                   borderRadius: radius.xl,
                 },
@@ -225,22 +226,22 @@ const HomeScreen = () => {
             <Card
               onPress={() => (navigation as any).navigate('MyAppointments')}
               variant="gradient"
-              gradientColors={isDarkMode ? ['#0D1B33', '#081326'] : ['#EEF4FF', '#FFFFFF']}
+              gradientColors={colors.feature.blue.gradient}
               style={[
                 styles.gridCard,
                 {
-                  borderColor: isDarkMode ? 'rgba(59, 130, 246, 0.2)' : 'rgba(59, 130, 246, 0.12)',
+                  borderColor: colors.feature.blue.border,
                   borderWidth: 1.5,
                   borderRadius: radius.xl,
                 },
               ]}
             >
-              <View style={[styles.iconWrapper, { backgroundColor: 'rgba(59, 130, 246, 0.12)' }]}>
-                <Clock size={scaleFont(24)} color="#3B82F6" />
+              <View style={[styles.iconWrapper, { backgroundColor: colors.feature.blue.tint }]}>
+                <Clock size={scaleFont(24)} color={colors.feature.blue.fg} />
               </View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>My Appointments</Text>
               <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>Track live tokens & status</Text>
-              <ChevronRight size={16} color="#3B82F6" style={styles.arrow} />
+              <ChevronRight size={16} color={colors.feature.blue.fg} style={styles.arrow} />
             </Card>
           </View>
 
@@ -252,44 +253,44 @@ const HomeScreen = () => {
             <Card
               onPress={() => navigation.navigate('Centers')}
               variant="gradient"
-              gradientColors={isDarkMode ? ['#1E1B4B', '#11103A'] : ['#F5F3FF', '#FFFFFF']}
+              gradientColors={colors.feature.violet.gradient}
               style={[
                 styles.gridCard,
                 {
-                  borderColor: isDarkMode ? 'rgba(139, 92, 246, 0.2)' : 'rgba(139, 92, 246, 0.12)',
+                  borderColor: colors.feature.violet.border,
                   borderWidth: 1.5,
                   borderRadius: radius.xl,
                 },
               ]}
             >
-              <View style={[styles.iconWrapper, { backgroundColor: 'rgba(139, 92, 246, 0.12)' }]}>
-                <MapPin size={scaleFont(24)} color="#8B5CF6" />
+              <View style={[styles.iconWrapper, { backgroundColor: colors.feature.violet.tint }]}>
+                <MapPin size={scaleFont(24)} color={colors.feature.violet.fg} />
               </View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Nearby Clinics</Text>
               <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>Find clinics by distance</Text>
-              <ChevronRight size={16} color="#8B5CF6" style={styles.arrow} />
+              <ChevronRight size={16} color={colors.feature.violet.fg} style={styles.arrow} />
             </Card>
 
             {/* Card 4: Notifications */}
             <Card
               onPress={() => (navigation as any).navigate('Notifications')}
               variant="gradient"
-              gradientColors={isDarkMode ? ['#1A1212', '#100A0A'] : ['#FFF5F5', '#FFFFFF']}
+              gradientColors={colors.feature.red.gradient}
               style={[
                 styles.gridCard,
                 {
-                  borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.2)' : 'rgba(239, 68, 68, 0.12)',
+                  borderColor: colors.feature.red.border,
                   borderWidth: 1.5,
                   borderRadius: radius.xl,
                 },
               ]}
             >
-              <View style={[styles.iconWrapper, { backgroundColor: 'rgba(239, 68, 68, 0.12)' }]}>
-                <Bell size={scaleFont(24)} color="#EF4444" />
+              <View style={[styles.iconWrapper, { backgroundColor: colors.feature.red.tint }]}>
+                <Bell size={scaleFont(24)} color={colors.feature.red.fg} />
               </View>
               <Text style={[styles.cardTitle, { color: colors.text }]}>Notifications</Text>
               <Text style={[styles.cardDesc, { color: colors.textSecondary }]}>View queue updates & alerts</Text>
-              <ChevronRight size={16} color="#EF4444" style={styles.arrow} />
+              <ChevronRight size={16} color={colors.feature.red.fg} style={styles.arrow} />
             </Card>
           </View>
         </View>
@@ -483,7 +484,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   heroSubtitle: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: fixed.onBrandMuted,
     fontSize: 12,
     lineHeight: 18,
   },

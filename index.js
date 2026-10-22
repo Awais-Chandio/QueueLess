@@ -15,12 +15,15 @@ import { Sentry } from './src/lib/sentry';
 import App from './App';
 import { name as appName } from './app.json';
 import { logger } from './src/utils/logger';
+import { isFirebaseReady } from './src/lib/firebase';
 
-// Register background message handler
-setBackgroundMessageHandler(getMessaging(), async remoteMessage => {
-  if (__DEV__) {
-    logger.log('[Background FCM] Message handled in the background!', remoteMessage);
-  }
-});
+// Register background message handler (only when Firebase is configured; see src/lib/firebase.ts).
+if (isFirebaseReady()) {
+  setBackgroundMessageHandler(getMessaging(), async remoteMessage => {
+    if (__DEV__) {
+      logger.log('[Background FCM] Message handled in the background!', remoteMessage);
+    }
+  });
+}
 
 AppRegistry.registerComponent(appName, () => Sentry.wrap(App));
