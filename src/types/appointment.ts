@@ -65,7 +65,8 @@ export interface Appointment {
 
 export interface AppointmentFull {
   id: string;
-  user_id?: string;
+  // null for walk-in/QR tokens: the patient has no app account.
+  user_id?: string | null;
   patient_name?: string | null;
   center_id: string;
   service_id: string;

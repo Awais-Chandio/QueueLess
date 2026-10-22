@@ -25,7 +25,7 @@ $$;
 --   patient 1 a...06   patient 2 a...07
 --   appts: e..01 p1/docA confirmed, e..02 p2/docA pending, e..03 p2/docB confirmed, e..04 p1/docB checked_in
 
-SELECT plan(48);
+SELECT plan(49);
 
 -- ---------------------------------------------------------------------------
 -- Catalog checks
@@ -34,9 +34,14 @@ SELECT is_empty($$
   SELECT p.oid::regprocedure::text
   FROM pg_proc p
   WHERE p.pronamespace = 'public'::regnamespace
-    AND (has_function_privilege('anon', p.oid, 'EXECUTE')
-         OR aclcontains(COALESCE(p.proacl, acldefault('f', p.proowner)), makeaclitem(0, p.proowner, 'EXECUTE', false)))
-$$, 'no public function is executable by anon or PUBLIC');
+    AND aclcontains(COALESCE(p.proacl, acldefault('f', p.proowner)), makeaclitem(0, p.proowner, 'EXECUTE', false))
+$$, 'no public function is executable by PUBLIC');
+
+-- Phase 1A: the public token RPCs are the only ones anon can call.
+SELECT set_eq($$
+  SELECT p.oid::regprocedure::text FROM pg_proc p
+  WHERE p.pronamespace = 'public'::regnamespace AND has_function_privilege('anon', p.oid, 'EXECUTE')
+$$, ARRAY['issue_token(uuid,text,text,text)', 'get_token_status(text)'], 'anon can execute only the public token RPCs');
 
 SELECT set_eq($$
   SELECT p.oid::regprocedure::text FROM pg_proc p
@@ -53,7 +58,9 @@ $$, ARRAY[
   'set_center_break(uuid,date,timestamp with time zone,timestamp with time zone,boolean)',
   'staff_performance(text)', 'update_center_average_consultation_time(uuid,date,numeric)',
   -- 0.6
-  'save_visit_summary(uuid,text,text,date,jsonb)', 'busiest_services(text)', 'busiest_centers(text)', 'bookings_per_day(text)'
+  'save_visit_summary(uuid,text,text,date,jsonb)', 'busiest_services(text)', 'busiest_centers(text)', 'bookings_per_day(text)',
+  -- 1A
+  'issue_token(uuid,text,text,text)', 'get_token_status(text)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$

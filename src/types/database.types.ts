@@ -1,17 +1,6 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   public: {
     Tables: {
       appointments: {
@@ -35,15 +24,19 @@ export type Database = {
           id: string
           is_currently_serving: boolean | null
           notes: string | null
+          patient_id: string
+          public_code: string
           queue_position: number | null
           scheduled_at: string
           service_id: string
           skipped_at: string | null
+          source: string
           started_at: string | null
           status: string | null
           token_number: number
-          user_id: string
+          user_id: string | null
         }
+        ComputedFields: never
         Insert: {
           appointment_date?: string | null
           appointment_time?: string | null
@@ -64,14 +57,17 @@ export type Database = {
           id?: string
           is_currently_serving?: boolean | null
           notes?: string | null
+          patient_id: string
+          public_code: string
           queue_position?: number | null
           scheduled_at: string
           service_id: string
           skipped_at?: string | null
+          source?: string
           started_at?: string | null
           status?: string | null
           token_number: number
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           appointment_date?: string | null
@@ -93,22 +89,39 @@ export type Database = {
           id?: string
           is_currently_serving?: boolean | null
           notes?: string | null
+          patient_id?: string
+          public_code?: string
           queue_position?: number | null
           scheduled_at?: string
           service_id?: string
           skipped_at?: string | null
+          source?: string
           started_at?: string | null
           status?: string | null
           token_number?: number
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "appointments_doctor_id_fkey"
-            columns: ["doctor_id"]
+            foreignKeyName: 'appointments_center_id_fkey'
+            columns: ['center_id']
             isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'appointments_doctor_id_fkey'
+            columns: ['doctor_id']
+            isOneToOne: false
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'appointments_patient_id_fkey'
+            columns: ['patient_id']
+            isOneToOne: false
+            referencedRelation: 'patients'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -122,6 +135,7 @@ export type Database = {
           old_status: string | null
           staff_user_id: string | null
         }
+        ComputedFields: never
         Insert: {
           action: string
           appointment_id?: string | null
@@ -142,25 +156,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "audit_logs_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'audit_logs_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "audit_logs_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'audit_logs_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "appointments_full"
-            referencedColumns: ["id"]
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "audit_logs_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'audit_logs_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "queue_view"
-            referencedColumns: ["id"]
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -172,6 +186,7 @@ export type Database = {
           last_token_number: number
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           appointment_date: string
           center_id: string
@@ -188,11 +203,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "center_daily_tokens_center_id_fkey"
-            columns: ["center_id"]
+            foreignKeyName: 'center_daily_tokens_center_id_fkey'
+            columns: ['center_id']
             isOneToOne: false
-            referencedRelation: "service_centers"
-            referencedColumns: ["id"]
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -210,6 +225,7 @@ export type Database = {
           today_date: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           appointment_date?: string
           average_consultation_time?: number | null
@@ -236,7 +252,15 @@ export type Database = {
           today_date?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'center_queue_settings_center_id_fkey'
+            columns: ['center_id']
+            isOneToOne: false
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+        ]
       }
       device_tokens: {
         Row: {
@@ -246,6 +270,7 @@ export type Database = {
           updated_at: string | null
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           fcm_token: string
           id?: string
@@ -269,6 +294,7 @@ export type Database = {
           leave_date: string
           reason: string | null
         }
+        ComputedFields: never
         Insert: {
           doctor_id: string
           id?: string
@@ -283,11 +309,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "doctor_leaves_doctor_id_fkey"
-            columns: ["doctor_id"]
+            foreignKeyName: 'doctor_leaves_doctor_id_fkey'
+            columns: ['doctor_id']
             isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -301,6 +327,7 @@ export type Database = {
           is_on_break: boolean
           updated_at: string
         }
+        ComputedFields: never
         Insert: {
           average_consultation_time?: number
           break_end?: string | null
@@ -321,6 +348,66 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_reviews: {
+        Row: {
+          appointment_id: string
+          comment: string | null
+          created_at: string
+          doctor_id: string
+          id: string
+          patient_id: string
+          rating: number
+        }
+        ComputedFields: never
+        Insert: {
+          appointment_id: string
+          comment?: string | null
+          created_at?: string
+          doctor_id: string
+          id?: string
+          patient_id: string
+          rating: number
+        }
+        Update: {
+          appointment_id?: string
+          comment?: string | null
+          created_at?: string
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'doctor_reviews_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: true
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'doctor_reviews_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: true
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'doctor_reviews_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: true
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'doctor_reviews_doctor_id_fkey'
+            columns: ['doctor_id']
+            isOneToOne: false
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       doctor_schedules: {
         Row: {
           day_of_week: number
@@ -332,6 +419,7 @@ export type Database = {
           slot_duration_minutes: number
           start_time: string
         }
+        ComputedFields: never
         Insert: {
           day_of_week: number
           doctor_id: string
@@ -354,11 +442,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "doctor_schedules_doctor_id_fkey"
-            columns: ["doctor_id"]
+            foreignKeyName: 'doctor_schedules_doctor_id_fkey'
+            columns: ['doctor_id']
             isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -367,6 +455,7 @@ export type Database = {
           doctor_id: string
           service_id: string
         }
+        ComputedFields: never
         Insert: {
           doctor_id: string
           service_id: string
@@ -377,53 +466,24 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "doctor_services_doctor_id_fkey"
-            columns: ["doctor_id"]
+            foreignKeyName: 'doctor_services_doctor_id_fkey'
+            columns: ['doctor_id']
             isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "doctor_services_service_id_fkey"
-            columns: ["service_id"]
+            foreignKeyName: 'doctor_services_service_id_fkey'
+            columns: ['service_id']
             isOneToOne: false
-            referencedRelation: "services"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      staff_centers: {
-        Row: {
-          center_id: string
-          profile_id: string
-        }
-        Insert: {
-          center_id: string
-          profile_id: string
-        }
-        Update: {
-          center_id?: string
-          profile_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "staff_centers_center_id_fkey"
-            columns: ["center_id"]
-            isOneToOne: false
-            referencedRelation: "service_centers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "staff_centers_profile_id_fkey"
-            columns: ["profile_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'services'
+            referencedColumns: ['id']
           },
         ]
       }
       doctors: {
         Row: {
+          avg_rating: number | null
           bio: string | null
           center_id: string
           created_at: string
@@ -439,11 +499,14 @@ export type Database = {
           photo_url: string | null
           profile_id: string | null
           qualification: string | null
+          review_count: number
           specialty: string
           status: string | null
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
+          avg_rating?: number | null
           bio?: string | null
           center_id: string
           created_at?: string
@@ -459,11 +522,13 @@ export type Database = {
           photo_url?: string | null
           profile_id?: string | null
           qualification?: string | null
+          review_count?: number
           specialty: string
           status?: string | null
           updated_at?: string | null
         }
         Update: {
+          avg_rating?: number | null
           bio?: string | null
           center_id?: string
           created_at?: string
@@ -479,24 +544,127 @@ export type Database = {
           photo_url?: string | null
           profile_id?: string | null
           qualification?: string | null
+          review_count?: number
           specialty?: string
           status?: string | null
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "doctors_center_id_fkey"
-            columns: ["center_id"]
+            foreignKeyName: 'doctors_center_id_fkey'
+            columns: ['center_id']
             isOneToOne: false
-            referencedRelation: "service_centers"
-            referencedColumns: ["id"]
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "doctors_profile_id_fkey"
-            columns: ["profile_id"]
+            foreignKeyName: 'doctors_profile_id_fkey'
+            columns: ['profile_id']
             isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      message_credits: {
+        Row: {
+          balance: number
+          organization_id: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          balance?: number
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'message_credits_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: true
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      message_log: {
+        Row: {
+          appointment_id: string | null
+          channel: string
+          cost: number
+          created_at: string
+          error: string | null
+          id: string
+          organization_id: string
+          provider_message_id: string | null
+          status: string
+          template: string
+          to_phone: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          appointment_id?: string | null
+          channel: string
+          cost?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          organization_id: string
+          provider_message_id?: string | null
+          status?: string
+          template: string
+          to_phone: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          channel?: string
+          cost?: number
+          created_at?: string
+          error?: string | null
+          id?: string
+          organization_id?: string
+          provider_message_id?: string | null
+          status?: string
+          template?: string
+          to_phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'message_log_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'message_log_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'message_log_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'message_log_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -512,6 +680,7 @@ export type Database = {
           type: string | null
           user_id: string
         }
+        ComputedFields: never
         Insert: {
           appointment_id?: string | null
           created_at?: string | null
@@ -536,6 +705,286 @@ export type Database = {
         }
         Relationships: []
       }
+      org_entitlements: {
+        Row: {
+          max_centers: number | null
+          max_doctors: number | null
+          modules: string[]
+          organization_id: string
+          plan_id: string
+          tokens_per_day: number | null
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          max_centers?: number | null
+          max_doctors?: number | null
+          modules: string[]
+          organization_id: string
+          plan_id: string
+          tokens_per_day?: number | null
+          updated_at?: string
+        }
+        Update: {
+          max_centers?: number | null
+          max_doctors?: number | null
+          modules?: string[]
+          organization_id?: string
+          plan_id?: string
+          tokens_per_day?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'org_entitlements_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: true
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'org_entitlements_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      org_members: {
+        Row: {
+          created_at: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          organization_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          organization_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'org_members_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      org_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string
+          id: string
+          organization_id: string
+          plan_id: string
+          status: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          id?: string
+          organization_id: string
+          plan_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string
+          id?: string
+          organization_id?: string
+          plan_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'org_subscriptions_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'org_subscriptions_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string
+          id: string
+          is_legacy: boolean
+          name: string
+          slug: string
+          status: string
+          timezone: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          is_legacy?: boolean
+          name: string
+          slug: string
+          status?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_legacy?: boolean
+          name?: string
+          slug?: string
+          status?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          phone: string | null
+          user_id: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'patients_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          created_at: string
+          id: string
+          is_public: boolean
+          max_centers: number | null
+          max_doctors: number | null
+          modules: string[]
+          monthly_message_credits: number
+          monthly_price_pkr: number | null
+          name: string
+          sort_order: number
+          tokens_per_day: number | null
+        }
+        ComputedFields: never
+        Insert: {
+          created_at?: string
+          id: string
+          is_public?: boolean
+          max_centers?: number | null
+          max_doctors?: number | null
+          modules?: string[]
+          monthly_message_credits?: number
+          monthly_price_pkr?: number | null
+          name: string
+          sort_order?: number
+          tokens_per_day?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_public?: boolean
+          max_centers?: number | null
+          max_doctors?: number | null
+          modules?: string[]
+          monthly_message_credits?: number
+          monthly_price_pkr?: number | null
+          name?: string
+          sort_order?: number
+          tokens_per_day?: number | null
+        }
+        Relationships: []
+      }
+      prescription_items: {
+        Row: {
+          dosage: string
+          duration: string
+          frequency: string
+          id: string
+          instructions: string | null
+          medicine_name: string
+          sort_order: number
+          visit_summary_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          dosage: string
+          duration: string
+          frequency: string
+          id?: string
+          instructions?: string | null
+          medicine_name: string
+          sort_order?: number
+          visit_summary_id: string
+        }
+        Update: {
+          dosage?: string
+          duration?: string
+          frequency?: string
+          id?: string
+          instructions?: string | null
+          medicine_name?: string
+          sort_order?: number
+          visit_summary_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'prescription_items_visit_summary_id_fkey'
+            columns: ['visit_summary_id']
+            isOneToOne: false
+            referencedRelation: 'visit_summaries'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       profiles: {
         Row: {
           auth_provider: string | null
@@ -550,6 +999,7 @@ export type Database = {
           role: string
           updated_at: string | null
         }
+        ComputedFields: never
         Insert: {
           auth_provider?: string | null
           avatar_url?: string | null
@@ -578,11 +1028,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_center_id_fkey"
-            columns: ["center_id"]
+            foreignKeyName: 'profiles_center_id_fkey'
+            columns: ['center_id']
             isOneToOne: false
-            referencedRelation: "service_centers"
-            referencedColumns: ["id"]
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -598,6 +1048,7 @@ export type Database = {
           status: string | null
           updated_by: string | null
         }
+        ComputedFields: never
         Insert: {
           appointment_id: string
           created_at?: string | null
@@ -622,25 +1073,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "queue_updates_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'queue_updates_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "appointments"
-            referencedColumns: ["id"]
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "queue_updates_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'queue_updates_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "appointments_full"
-            referencedColumns: ["id"]
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "queue_updates_appointment_id_fkey"
-            columns: ["appointment_id"]
+            foreignKeyName: 'queue_updates_appointment_id_fkey'
+            columns: ['appointment_id']
             isOneToOne: false
-            referencedRelation: "queue_view"
-            referencedColumns: ["id"]
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -658,7 +1109,9 @@ export type Database = {
           longitude: number | null
           name: string
           open_time: string | null
+          organization_id: string
         }
+        ComputedFields: never
         Insert: {
           address: string
           category?: string | null
@@ -672,6 +1125,7 @@ export type Database = {
           longitude?: number | null
           name: string
           open_time?: string | null
+          organization_id: string
         }
         Update: {
           address?: string
@@ -686,8 +1140,17 @@ export type Database = {
           longitude?: number | null
           name?: string
           open_time?: string | null
+          organization_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'service_centers_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
       }
       services: {
         Row: {
@@ -700,6 +1163,7 @@ export type Database = {
           on_duty_note: string | null
           price: number | null
         }
+        ComputedFields: never
         Insert: {
           center_id: string
           created_at?: string | null
@@ -722,11 +1186,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "center_services_center_id_fkey"
-            columns: ["center_id"]
+            foreignKeyName: 'center_services_center_id_fkey'
+            columns: ['center_id']
             isOneToOne: false
-            referencedRelation: "service_centers"
-            referencedColumns: ["id"]
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -741,6 +1205,7 @@ export type Database = {
           locked_at: string
           user_id: string | null
         }
+        ComputedFields: never
         Insert: {
           appointment_date: string
           appointment_time: string
@@ -763,18 +1228,118 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "slot_locks_center_id_fkey"
-            columns: ["center_id"]
+            foreignKeyName: 'slot_locks_center_id_fkey'
+            columns: ['center_id']
             isOneToOne: false
-            referencedRelation: "service_centers"
-            referencedColumns: ["id"]
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
           },
           {
-            foreignKeyName: "slot_locks_doctor_id_fkey"
-            columns: ["doctor_id"]
+            foreignKeyName: 'slot_locks_doctor_id_fkey'
+            columns: ['doctor_id']
             isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      staff_centers: {
+        Row: {
+          center_id: string
+          created_at: string
+          profile_id: string
+        }
+        ComputedFields: never
+        Insert: {
+          center_id: string
+          created_at?: string
+          profile_id: string
+        }
+        Update: {
+          center_id?: string
+          created_at?: string
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'staff_centers_center_id_fkey'
+            columns: ['center_id']
+            isOneToOne: false
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'staff_centers_profile_id_fkey'
+            columns: ['profile_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      visit_summaries: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          diagnosis: string | null
+          doctor_id: string
+          follow_up_date: string | null
+          id: string
+          notes: string | null
+          patient_id: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          diagnosis?: string | null
+          doctor_id: string
+          follow_up_date?: string | null
+          id?: string
+          notes?: string | null
+          patient_id: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          diagnosis?: string | null
+          doctor_id?: string
+          follow_up_date?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'visit_summaries_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: true
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_summaries_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: true
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_summaries_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: true
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_summaries_doctor_id_fkey'
+            columns: ['doctor_id']
+            isOneToOne: false
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -808,26 +1373,44 @@ export type Database = {
           id: string | null
           is_on_break: boolean | null
           notes: string | null
+          patient_id: string | null
           patient_name: string | null
           people_ahead: number | null
+          public_code: string | null
           queue_position: number | null
           queue_status: string | null
           scheduled_at: string | null
           service_id: string | null
           service_name: string | null
           skipped_at: string | null
+          source: string | null
           started_at: string | null
           status: string | null
           token_number: number | null
           user_id: string | null
         }
+        ComputedFields: never
         Relationships: [
           {
-            foreignKeyName: "appointments_doctor_id_fkey"
-            columns: ["doctor_id"]
+            foreignKeyName: 'appointments_center_id_fkey'
+            columns: ['center_id']
             isOneToOne: false
-            referencedRelation: "doctors"
-            referencedColumns: ["id"]
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'appointments_doctor_id_fkey'
+            columns: ['doctor_id']
+            isOneToOne: false
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'appointments_patient_id_fkey'
+            columns: ['patient_id']
+            isOneToOne: false
+            referencedRelation: 'patients'
+            referencedColumns: ['id']
           },
         ]
       }
@@ -835,6 +1418,7 @@ export type Database = {
         Row: {
           current_token: number | null
         }
+        ComputedFields: never
         Relationships: []
       }
       queue_view: {
@@ -864,6 +1448,7 @@ export type Database = {
           token_number: number | null
           user_id: string | null
         }
+        ComputedFields: never
         Insert: {
           appointment_date?: string | null
           appointment_time?: string | null
@@ -916,17 +1501,43 @@ export type Database = {
           token_number?: number | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'appointments_center_id_fkey'
+            columns: ['center_id']
+            isOneToOne: false
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Functions: {
-      admin_delete_staff_account: {
-        Args: { staff_profile_id: string }
-        Returns: undefined
-      }
+      admin_delete_staff_account: { Args: { staff_profile_id: string }; Returns: undefined }
       book_appointment: {
         Args: { p_lock_id: string; p_notes?: string; p_service_id: string }
         Returns: string
+      }
+      bookings_per_day: {
+        Args: { p_range: string }
+        Returns: {
+          booking_date: string
+          count: number
+        }[]
+      }
+      busiest_centers: {
+        Args: { p_range: string }
+        Returns: {
+          center_name: string
+          count: number
+        }[]
+      }
+      busiest_services: {
+        Args: { p_range: string }
+        Returns: {
+          count: number
+          service_name: string
+        }[]
       }
       call_appointment: {
         Args: { p_appointment_id: string }
@@ -950,18 +1561,21 @@ export type Database = {
           id: string
           is_currently_serving: boolean | null
           notes: string | null
+          patient_id: string
+          public_code: string
           queue_position: number | null
           scheduled_at: string
           service_id: string
           skipped_at: string | null
+          source: string
           started_at: string | null
           status: string | null
           token_number: number
-          user_id: string
+          user_id: string | null
         }
         SetofOptions: {
-          from: "*"
-          to: "appointments"
+          from: '*'
+          to: 'appointments'
           isOneToOne: true
           isSetofReturn: false
         }
@@ -988,27 +1602,38 @@ export type Database = {
           id: string
           is_currently_serving: boolean | null
           notes: string | null
+          patient_id: string
+          public_code: string
           queue_position: number | null
           scheduled_at: string
           service_id: string
           skipped_at: string | null
+          source: string
           started_at: string | null
           status: string | null
           token_number: number
-          user_id: string
+          user_id: string | null
         }
         SetofOptions: {
-          from: "*"
-          to: "appointments"
+          from: '*'
+          to: 'appointments'
           isOneToOne: true
           isSetofReturn: false
         }
       }
-      check_in_appointment: {
-        Args: { p_appointment_id: string }
-        Returns: undefined
+      charge_message_credits: {
+        Args: {
+          p_appointment_id?: string
+          p_channel: string
+          p_cost: number
+          p_organization_id: string
+          p_template: string
+          p_to_phone: string
+        }
+        Returns: string
       }
-      cleanup_stale_appointments: { Args: never; Returns: undefined }
+      check_in_appointment: { Args: { p_appointment_id: string }; Returns: undefined }
+      cleanup_stale_appointments: { Args: Record<PropertyKey, never>; Returns: undefined }
       complete_appointment: {
         Args: { p_appointment_id: string; p_duration_minutes?: number }
         Returns: {
@@ -1031,18 +1656,21 @@ export type Database = {
           id: string
           is_currently_serving: boolean | null
           notes: string | null
+          patient_id: string
+          public_code: string
           queue_position: number | null
           scheduled_at: string
           service_id: string
           skipped_at: string | null
+          source: string
           started_at: string | null
           status: string | null
           token_number: number
-          user_id: string
+          user_id: string | null
         }
         SetofOptions: {
-          from: "*"
-          to: "appointments"
+          from: '*'
+          to: 'appointments'
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1069,18 +1697,21 @@ export type Database = {
           id: string
           is_currently_serving: boolean | null
           notes: string | null
+          patient_id: string
+          public_code: string
           queue_position: number | null
           scheduled_at: string
           service_id: string
           skipped_at: string | null
+          source: string
           started_at: string | null
           status: string | null
           token_number: number
-          user_id: string
+          user_id: string | null
         }
         SetofOptions: {
-          from: "*"
-          to: "appointments"
+          from: '*'
+          to: 'appointments'
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1100,24 +1731,15 @@ export type Database = {
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       generate_token_number: { Args: { p_center_id: string }; Returns: number }
-      get_appointment_queue_snapshot: {
-        Args: { p_appointment_id: string }
-        Returns: Json
-      }
-      get_available_slots: {
-        Args: { p_date: string; p_doctor_id: string }
-        Returns: string[]
-      }
+      get_appointment_queue_snapshot: { Args: { p_appointment_id: string }; Returns: Json }
+      get_available_slots: { Args: { p_date: string; p_doctor_id: string }; Returns: string[] }
       get_center_queue_snapshot: {
         Args: { p_center_id: string; p_queue_date?: string }
         Returns: Json
       }
       get_current_token:
-        | { Args: never; Returns: number }
-        | {
-            Args: { p_center_id: string; p_queue_date?: string }
-            Returns: number
-          }
+        | { Args: Record<PropertyKey, never>; Returns: number }
+        | { Args: { p_center_id: string; p_queue_date?: string }; Returns: number }
       get_doctor_availability: {
         Args: { p_doctor_id: string }
         Returns: {
@@ -1175,7 +1797,7 @@ export type Database = {
         }[]
       }
       get_my_staff_context: {
-        Args: never
+        Args: Record<PropertyKey, never>
         Returns: {
           doctor_id: string
           is_doctor: boolean
@@ -1197,20 +1819,34 @@ export type Database = {
           open_time: string
         }[]
       }
-      get_next_token: {
-        Args: { p_appointment_date: string; p_center_id: string }
-        Returns: number
+      get_next_token: { Args: { p_appointment_date: string; p_center_id: string }; Returns: number }
+      get_token_status: {
+        Args: { p_public_code: string }
+        Returns: {
+          current_token: number
+          doctor_name: string
+          eta_minutes: number
+          people_ahead: number
+          status: string
+          token_number: number
+        }[]
       }
-      get_user_role: { Args: never; Returns: string }
-      is_admin: { Args: never; Returns: boolean }
-      is_staff: { Args: never; Returns: boolean }
+      get_user_role: { Args: Record<PropertyKey, never>; Returns: string }
+      is_admin: { Args: Record<PropertyKey, never>; Returns: boolean }
+      is_doctor: { Args: Record<PropertyKey, never>; Returns: boolean }
+      is_staff: { Args: Record<PropertyKey, never>; Returns: boolean }
+      issue_token: {
+        Args: { p_doctor_id: string; p_name: string; p_phone: string; p_source?: string }
+        Returns: {
+          appointment_id: string
+          eta_minutes: number
+          people_ahead: number
+          public_code: string
+          token_number: number
+        }[]
+      }
       lock_slot: {
-        Args: {
-          p_center_id: string
-          p_date: string
-          p_doctor_id: string
-          p_time: string
-        }
+        Args: { p_center_id: string; p_date: string; p_doctor_id: string; p_time: string }
         Returns: string
       }
       people_ahead:
@@ -1220,16 +1856,23 @@ export type Database = {
         Args: { p_appointment_date: string; p_scheduled_at: string }
         Returns: string
       }
-      recalculate_doctor_average: {
-        Args: { p_doctor_id: string }
-        Returns: number
-      }
+      recalculate_doctor_average: { Args: { p_doctor_id: string }; Returns: number }
       refresh_live_queue: {
         Args: { p_doctor_id: string; p_queue_date: string }
         Returns: undefined
       }
       release_slot: { Args: { p_lock_id: string }; Returns: undefined }
-      reset_center_tokens: { Args: never; Returns: undefined }
+      reset_center_tokens: { Args: Record<PropertyKey, never>; Returns: undefined }
+      save_visit_summary: {
+        Args: {
+          p_appointment_id: string
+          p_diagnosis: string
+          p_follow_up_date: string
+          p_items: Json
+          p_notes: string
+        }
+        Returns: string
+      }
       set_center_break: {
         Args: {
           p_break_end: string
@@ -1270,18 +1913,21 @@ export type Database = {
           id: string
           is_currently_serving: boolean | null
           notes: string | null
+          patient_id: string
+          public_code: string
           queue_position: number | null
           scheduled_at: string
           service_id: string
           skipped_at: string | null
+          source: string
           started_at: string | null
           status: string | null
           token_number: number
-          user_id: string
+          user_id: string | null
         }
         SetofOptions: {
-          from: "*"
-          to: "appointments"
+          from: '*'
+          to: 'appointments'
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1301,122 +1947,110 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
-      }
-      ? R
-      : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+  ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+    ? R
     : never
+  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
-      }
-      ? I
-      : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+  ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+      Insert: infer I
+    }
+    ? I
     : never
+  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema["Tables"]
+    | keyof DefaultSchema['Tables']
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
-> = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
-      }
-      ? U
-      : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
+  ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+      Update: infer U
+    }
+    ? U
     : never
+  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema["Enums"]
+    | keyof DefaultSchema['Enums']
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
-> = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
+  ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+  : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema["CompositeTypes"]
+    | keyof DefaultSchema['CompositeTypes']
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
-> = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
-}
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof DatabaseWithoutInternals }
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
+  ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+  : never
 
 export const Constants = {
   public: {
