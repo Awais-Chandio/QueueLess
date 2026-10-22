@@ -103,9 +103,8 @@ export const useReception = () => {
     },
     onError: error => {
       toastService.error(
-        isPlanLimitError(error)
-          ? `${(error as Error).message}. Ask the clinic owner to upgrade the plan.`
-          : toUserMessage(error, 'That didn’t work. Please try again.'),
+        // Plan limits come with a message written for the desk (what to do next).
+        isPlanLimitError(error) ? (error as Error).message : toUserMessage(error, 'That didn’t work. Please try again.'),
       );
       queryClient.invalidateQueries({ queryKey });
     },

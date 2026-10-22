@@ -16,6 +16,9 @@ import { CardFadeIn } from '../../../components/animations/CardFadeIn';
 import type { AppointmentStatus } from '../../../types/appointment';
 import { useDoctorDashboard } from '../hooks/useDoctorDashboard';
 import { useDoctorAvailability } from '../hooks/useDoctorAvailability';
+import { useDoctorQueue } from '../hooks/useDoctorQueue';
+import { InsightsCard } from '../../plans/components/InsightsCard';
+import { useAuthStore } from '../../../store/authStore';
 import type { DoctorTabParamList } from '../navigation/DoctorNavigator';
 import { doctorDisplayName, formatDateKey, formatTime12h, greetingForHour, todayKey } from '../utils/doctorFormat';
 
@@ -34,6 +37,11 @@ export default function DashboardScreen() {
   const { isLoading, isRefetching, error, doctorProfile, todayAppointments, recentPatients, incomeSummary, refresh } =
     useDoctorDashboard();
   const { schedule, leaves, isOnBreak } = useDoctorAvailability();
+  // Same query as the queue tab (shared cache): center and plan for the insights card.
+  const { queue } = useDoctorQueue();
+  const isOwner = useAuthStore(state =>
+    state.workspaces.some(w => w.organization_id === queue?.organization.id && w.roles.includes('owner')),
+  );
 
   const counts = useMemo(
     () => ({
@@ -191,6 +199,10 @@ export default function DashboardScreen() {
               <ArrowRight size={18} color={colors.textTertiary} />
             </View>
           </Card>
+
+          <View style={{ marginBottom: spacing.lg }}>
+            <InsightsCard centerId={queue?.center.id} plan={queue?.plan} isOwner={isOwner} />
+          </View>
 
           <AppText variant="subtitle" style={{ marginBottom: spacing.sm }}>
             Recent patients

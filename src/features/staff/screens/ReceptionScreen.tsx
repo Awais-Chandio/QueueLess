@@ -21,6 +21,9 @@ import { TokenRow } from '../../queue/components/TokenRow';
 import type { QueueToken } from '../../queue/api/queueRpc';
 import { splitTokens } from '../../queue/utils/queueState';
 import { PlanLimitBanner } from '../../plans/components/PlanLimitBanner';
+import { UpgradeCard } from '../../plans/components/UpgradeCard';
+import { useOrgPlan } from '../../plans/hooks/usePlan';
+import { hasModule } from '../../plans/modules';
 
 /**
  * The reception desk, on the same RPCs as the web app's /reception: today's
@@ -36,6 +39,8 @@ export default function ReceptionScreen() {
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
   const [showDone, setShowDone] = useState(false);
+  const { data: plan } = useOrgPlan(center?.organizationId);
+  const noMessages = !!plan && !hasModule(plan, 'sms') && !hasModule(plan, 'whatsapp');
 
   const doctor = useMemo(
     () => queue?.doctors.find(d => d.id === doctorId) ?? queue?.doctors[0] ?? null,
@@ -161,6 +166,12 @@ export default function ReceptionScreen() {
     </View>
   );
 
+  const upgrade = noMessages ? (
+    <View style={{ marginTop: spacing.lg }}>
+      <UpgradeCard module="sms" isOwner={center.isOwner} />
+    </View>
+  ) : null;
+
   const footer =
     doctor && done.length > 0 ? (
       <View style={{ marginTop: spacing.lg }}>
@@ -176,8 +187,11 @@ export default function ReceptionScreen() {
           {showDone ? <ChevronUp size={18} color={colors.textSecondary} /> : <ChevronDown size={18} color={colors.textSecondary} />}
         </Pressable>
         {showDone && done.map(token => <TokenRow key={token.id} token={token} />)}
+        {upgrade}
       </View>
-    ) : null;
+    ) : (
+      upgrade
+    );
 
   return (
     <SafeAreaView edges={['top']} style={[styles.flex, { backgroundColor: colors.background }]}>
