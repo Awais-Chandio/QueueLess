@@ -41,13 +41,13 @@ SELECT tests.logout();
 SELECT plan(19);
 
 -- ---------------------------------------------------------------------------
--- Shape: exactly the six public fields
+-- Shape: exactly the public fields
 -- ---------------------------------------------------------------------------
 SELECT is((SELECT array_agg(n ORDER BY n) FROM (
              SELECT unnest(proargnames) AS n, unnest(proargmodes) AS m FROM pg_proc WHERE oid = 'public.get_token_status(text)'::regprocedure
            ) s WHERE m = 't'),
-          ARRAY['current_token', 'doctor_name', 'eta_minutes', 'people_ahead', 'status', 'token_number']::text[],
-          'get_token_status returns exactly: token_number, people_ahead, eta_minutes, current_token, doctor_name, status');
+          ARRAY['current_token', 'doctor_late_until', 'doctor_name', 'doctor_on_break', 'eta_minutes', 'people_ahead', 'status', 'token_number']::text[],
+          'get_token_status returns exactly: token_number, people_ahead, eta_minutes, current_token, doctor_name, status, doctor_on_break, doctor_late_until (1C)');
 SELECT ok((SELECT provolatile = 's' AND prosecdef FROM pg_proc WHERE oid = 'public.get_token_status(text)'::regprocedure),
           'get_token_status is read-only (STABLE) and SECURITY DEFINER');
 
@@ -90,7 +90,7 @@ SELECT is_empty($$
      OR r.j::text LIKE '%' || a.id || '%'
      OR r.j::text LIKE '%' || a.patient_id || '%'
      OR (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(r.j) k)
-        <> ARRAY['current_token', 'doctor_name', 'eta_minutes', 'people_ahead', 'status', 'token_number']
+        <> ARRAY['current_token', 'doctor_late_until', 'doctor_name', 'doctor_on_break', 'eta_minutes', 'people_ahead', 'status', 'token_number']
 $$, 'no appointment''s status contains a name, phone, email or id, or any extra field');
 
 -- ---------------------------------------------------------------------------

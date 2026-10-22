@@ -70,7 +70,9 @@ $$, ARRAY[
   'update_center(uuid,text,text,text,time without time zone,time without time zone)',
   'invite_staff(uuid,text)', 'revoke_invite(uuid)', 'accept_invites()', 'remove_staff(uuid,uuid)',
   'create_organization(text,text,text,text,jsonb,text,time without time zone,time without time zone)',
-  'get_org_settings(uuid)'
+  'get_org_settings(uuid)',
+  -- 1C (doctor app)
+  'get_doctor_queue(uuid)', 'set_doctor_late(uuid,integer)', 'complete_visit(uuid,text,text,date,jsonb)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$

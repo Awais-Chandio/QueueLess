@@ -524,6 +524,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_on_break: boolean
+          late_until: string | null
           license_number: string | null
           name: string
           photo_url: string | null
@@ -548,6 +549,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_on_break?: boolean
+          late_until?: string | null
           license_number?: string | null
           name: string
           photo_url?: string | null
@@ -571,6 +573,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_on_break?: boolean
+          late_until?: string | null
           license_number?: string | null
           name?: string
           photo_url?: string | null
@@ -1374,7 +1377,8 @@ export type Database = {
           follow_up_date: string | null
           id: string
           notes: string | null
-          patient_id: string
+          patient_id: string | null
+          patient_record_id: string
           updated_at: string
         }
         ComputedFields: never
@@ -1386,7 +1390,8 @@ export type Database = {
           follow_up_date?: string | null
           id?: string
           notes?: string | null
-          patient_id: string
+          patient_id?: string | null
+          patient_record_id: string
           updated_at?: string
         }
         Update: {
@@ -1397,7 +1402,8 @@ export type Database = {
           follow_up_date?: string | null
           id?: string
           notes?: string | null
-          patient_id?: string
+          patient_id?: string | null
+          patient_record_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -1427,6 +1433,13 @@ export type Database = {
             columns: ['doctor_id']
             isOneToOne: false
             referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_summaries_patient_record_id_fkey'
+            columns: ['patient_record_id']
+            isOneToOne: false
+            referencedRelation: 'patients'
             referencedColumns: ['id']
           },
         ]
@@ -1769,6 +1782,16 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      complete_visit: {
+        Args: {
+          p_appointment_id: string
+          p_diagnosis?: string
+          p_follow_up_date?: string
+          p_items?: Json
+          p_notes?: string
+        }
+        Returns: Json
+      }
       confirm_appointment: {
         Args: { p_appointment_id: string }
         Returns: {
@@ -1861,6 +1884,7 @@ export type Database = {
           total_fee: number
         }[]
       }
+      get_doctor_queue: { Args: { p_doctor_id: string }; Returns: Json }
       get_doctor_queue_snapshot: { Args: { p_doctor_id: string; p_queue_date?: string }; Returns: Json }
       get_doctor_recent_patients: {
         Args: { p_doctor_id: string }
@@ -1930,7 +1954,9 @@ export type Database = {
         Args: { p_public_code: string }
         Returns: {
           current_token: number
+          doctor_late_until: string
           doctor_name: string
+          doctor_on_break: boolean
           eta_minutes: number
           people_ahead: number
           status: string
@@ -1997,6 +2023,7 @@ export type Database = {
         Returns: Json
       }
       set_doctor_break: { Args: { p_doctor_id: string; p_on_break: boolean }; Returns: undefined }
+      set_doctor_late: { Args: { p_doctor_id: string; p_minutes: number }; Returns: string }
       skip_token: { Args: { p_appointment_id: string }; Returns: undefined }
       staff_performance: {
         Args: { p_range: string }

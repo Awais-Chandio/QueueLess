@@ -147,14 +147,15 @@ SELECT is((SELECT count(*)::int FROM public.notifications WHERE appointment_id =
           'no notification rows for a guest');
 SELECT tests.logout();
 
--- Visit summary for a guest: clear error, not a NOT NULL failure.
+-- Visit summary for a guest.
 INSERT INTO public.appointments (id, patient_id, center_id, service_id, doctor_id, appointment_date, scheduled_at, status)
 VALUES ('e0000000-0000-4000-8000-0000000000f2', 'f0000000-0000-4000-8000-000000000001', '521f1349-05c4-4417-9fa5-5289963af7db',
         '50000000-0000-4000-8000-00000000000a', 'd0000000-0000-4000-8000-00000000000a', CURRENT_DATE, now(), 'called');
 UPDATE public.appointments SET status = 'completed' WHERE id = 'e0000000-0000-4000-8000-0000000000f2';
 SELECT tests.login('a0000000-0000-4000-8000-000000000004');
-SELECT throws_ok($$SELECT public.save_visit_summary('e0000000-0000-4000-8000-0000000000f2', 'flu', NULL, NULL, '[]')$$, '22023',
-                 'Visit summaries need a patient with an app account', 'save_visit_summary: clear error for guests');
+-- 1C: guests get visit summaries too (linked to their patient record).
+SELECT lives_ok($$SELECT public.save_visit_summary('e0000000-0000-4000-8000-0000000000f2', 'flu', NULL, NULL, '[]')$$,
+                'save_visit_summary: works for guests (1C)');
 SELECT tests.logout();
 
 SELECT * FROM finish();
