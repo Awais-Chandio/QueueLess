@@ -639,6 +639,7 @@ export type Database = {
           id: string
           organization_id: string
           provider_message_id: string | null
+          refunded_at: string | null
           status: string
           template: string
           to_phone: string
@@ -654,6 +655,7 @@ export type Database = {
           id?: string
           organization_id: string
           provider_message_id?: string | null
+          refunded_at?: string | null
           status?: string
           template: string
           to_phone: string
@@ -668,6 +670,7 @@ export type Database = {
           id?: string
           organization_id?: string
           provider_message_id?: string | null
+          refunded_at?: string | null
           status?: string
           template?: string
           to_phone?: string
@@ -697,6 +700,112 @@ export type Database = {
           },
           {
             foreignKeyName: 'message_log_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      notification_outbox: {
+        Row: {
+          appointment_id: string | null
+          attempts: number
+          channel: string | null
+          created_at: string
+          dedupe_key: string
+          event: string
+          id: string
+          language: string
+          last_error: string | null
+          locked_until: string | null
+          max_attempts: number
+          message_log_id: string | null
+          next_attempt_at: string
+          organization_id: string
+          payload: NonNullable<Json>
+          provider_message_id: string | null
+          sent_at: string | null
+          status: string
+          to_phone: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          appointment_id?: string | null
+          attempts?: number
+          channel?: string | null
+          created_at?: string
+          dedupe_key: string
+          event: string
+          id?: string
+          language: string
+          last_error?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          message_log_id?: string | null
+          next_attempt_at?: string
+          organization_id: string
+          payload?: NonNullable<Json>
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_phone: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          attempts?: number
+          channel?: string | null
+          created_at?: string
+          dedupe_key?: string
+          event?: string
+          id?: string
+          language?: string
+          last_error?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          message_log_id?: string | null
+          next_attempt_at?: string
+          organization_id?: string
+          payload?: NonNullable<Json>
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_outbox_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_message_log_id_fkey'
+            columns: ['message_log_id']
+            isOneToOne: false
+            referencedRelation: 'message_log'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_organization_id_fkey'
             columns: ['organization_id']
             isOneToOne: false
             referencedRelation: 'organizations'
@@ -923,6 +1032,7 @@ export type Database = {
           created_at: string
           id: string
           is_legacy: boolean
+          message_language: string
           name: string
           slug: string
           status: string
@@ -934,6 +1044,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_legacy?: boolean
+          message_language?: string
           name: string
           slug: string
           status?: string
@@ -944,6 +1055,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_legacy?: boolean
+          message_language?: string
           name?: string
           slug?: string
           status?: string
@@ -959,6 +1071,7 @@ export type Database = {
           name: string
           organization_id: string
           phone: string | null
+          preferred_language: string | null
           user_id: string | null
         }
         ComputedFields: never
@@ -968,6 +1081,7 @@ export type Database = {
           name: string
           organization_id: string
           phone?: string | null
+          preferred_language?: string | null
           user_id?: string | null
         }
         Update: {
@@ -976,6 +1090,7 @@ export type Database = {
           name?: string
           organization_id?: string
           phone?: string | null
+          preferred_language?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -1616,6 +1731,7 @@ export type Database = {
     Functions: {
       accept_invites: { Args: Record<PropertyKey, never>; Returns: number }
       admin_delete_staff_account: { Args: { staff_profile_id: string }; Returns: undefined }
+      begin_notification_send: { Args: { p_channel: string; p_cost: number; p_outbox_id: string }; Returns: Json }
       book_appointment: { Args: { p_lock_id: string; p_notes?: string; p_service_id: string }; Returns: string }
       bookings_per_day: {
         Args: { p_range: string }
@@ -1740,7 +1856,24 @@ export type Database = {
         Returns: string
       }
       check_in_appointment: { Args: { p_appointment_id: string }; Returns: undefined }
-      cleanup_stale_appointments: { Args: Record<PropertyKey, never>; Returns: undefined }
+      claim_notifications: {
+        Args: { p_limit?: number; p_lock_seconds?: number }
+        Returns: {
+          appointment_id: string
+          attempts: number
+          channel: string
+          event: string
+          id: string
+          language: string
+          max_attempts: number
+          message_log_id: string
+          modules: string[]
+          organization_id: string
+          payload: Json
+          to_phone: string
+        }[]
+      }
+      cleanup_stale_appointments: { Args: Record<PropertyKey, never>; Returns: Json }
       complete_appointment: {
         Args: { p_appointment_id: string; p_duration_minutes?: number }
         Returns: {
@@ -1860,6 +1993,16 @@ export type Database = {
         Returns: Json
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      finish_notification_send: {
+        Args: {
+          p_error?: string
+          p_ok: boolean
+          p_outbox_id: string
+          p_provider_message_id?: string
+          p_retryable?: boolean
+        }
+        Returns: string
+      }
       generate_token_number: { Args: { p_center_id: string }; Returns: number }
       get_appointment_queue_snapshot: { Args: { p_appointment_id: string }; Returns: Json }
       get_available_slots: { Args: { p_date: string; p_doctor_id: string }; Returns: string[] }
@@ -2024,6 +2167,8 @@ export type Database = {
       }
       set_doctor_break: { Args: { p_doctor_id: string; p_on_break: boolean }; Returns: undefined }
       set_doctor_late: { Args: { p_doctor_id: string; p_minutes: number }; Returns: string }
+      set_token_language: { Args: { p_language: string; p_public_code: string }; Returns: undefined }
+      skip_notification: { Args: { p_outbox_id: string; p_reason: string }; Returns: undefined }
       skip_token: { Args: { p_appointment_id: string }; Returns: undefined }
       staff_performance: {
         Args: { p_range: string }
