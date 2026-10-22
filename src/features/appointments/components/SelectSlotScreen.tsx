@@ -254,10 +254,10 @@ const SelectSlotScreen = () => {
               activeTab === 'today' && { backgroundColor: colors.primary, borderRadius: radius.md - 2 }
             ]}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'today' ? '#FFFFFF' : colors.textSecondary }]}>
+            <Text style={[styles.tabText, { color: activeTab === 'today' ? colors.onPrimary : colors.textSecondary }]}>
               Today
             </Text>
-            <Text style={[styles.tabSubtext, { color: activeTab === 'today' ? 'rgba(255,255,255,0.8)' : colors.textSecondary + 'B0' }]}>
+            <Text style={[styles.tabSubtext, { color: activeTab === 'today' ? colors.onPrimary : colors.textSecondary + 'B0' }]}>
               {todayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </Text>
           </Pressable>
@@ -269,10 +269,10 @@ const SelectSlotScreen = () => {
               activeTab === 'tomorrow' && { backgroundColor: colors.primary, borderRadius: radius.md - 2 }
             ]}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'tomorrow' ? '#FFFFFF' : colors.textSecondary }]}>
+            <Text style={[styles.tabText, { color: activeTab === 'tomorrow' ? colors.onPrimary : colors.textSecondary }]}>
               Tomorrow
             </Text>
-            <Text style={[styles.tabSubtext, { color: activeTab === 'tomorrow' ? 'rgba(255,255,255,0.8)' : colors.textSecondary + 'B0' }]}>
+            <Text style={[styles.tabSubtext, { color: activeTab === 'tomorrow' ? colors.onPrimary : colors.textSecondary + 'B0' }]}>
               {tomorrowDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
             </Text>
           </Pressable>
@@ -284,8 +284,8 @@ const SelectSlotScreen = () => {
               activeTab === 'custom' && { backgroundColor: colors.primary, borderRadius: radius.md - 2 }
             ]}
           >
-            <CalendarIcon size={16} color={activeTab === 'custom' ? '#FFFFFF' : colors.textSecondary} style={{ marginBottom: 2 }} />
-            <Text style={[styles.tabText, { color: activeTab === 'custom' ? '#FFFFFF' : colors.textSecondary }]}>
+            <CalendarIcon size={16} color={activeTab === 'custom' ? colors.onPrimary : colors.textSecondary} style={{ marginBottom: 2 }} />
+            <Text style={[styles.tabText, { color: activeTab === 'custom' ? colors.onPrimary : colors.textSecondary }]}>
               {activeTab === 'custom' ? 'Selected' : 'Pick Date'}
             </Text>
           </Pressable>

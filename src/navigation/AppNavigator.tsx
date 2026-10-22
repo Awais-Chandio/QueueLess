@@ -24,6 +24,7 @@ import {
 } from "../features/profile/components/InfoScreens";
 import type { AppStackParamList } from "./types";
 import { useTheme } from "../hooks/useTheme";
+import { PATIENT_MARKETPLACE_ENABLED } from "../config/featureFlags";
 
 const Stack = createNativeStackNavigator<AppStackParamList>();
 
@@ -52,65 +53,70 @@ const AppNavigator = () => {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="CenterDetails"
-        component={CenterDetailsScreen}
-        options={{ title: "Center Details" }}
-      />
-      <Stack.Screen
-        name="DoctorList"
-        component={DoctorListScreen}
-        options={{ title: "Select Doctor", headerShown: false }}
-      />
-      <Stack.Screen
-        name="Centers"
-        component={CentersScreen}
-        options={{ title: "Select Clinic" }}
-      />
-      <Stack.Screen
-        name="SelectSlot"
-        component={SelectSlotScreen}
-        options={{ title: "Select Slot", headerShown: false }}
-      />
-      <Stack.Screen
-        name="PatientDetails"
-        component={PatientDetailsScreen}
-        options={{ title: "Patient Details", headerShown: false }}
-      />
-      <Stack.Screen
-        name="ConfirmBooking"
-        component={ConfirmBookingScreen}
-        options={{ title: "Confirm Booking", headerShown: false }}
-      />
-      <Stack.Screen
         name="Receipt"
         component={ReceiptScreen}
         options={{ title: "Receipt", headerShown: false }}
-      />
-      <Stack.Screen
-        name="NearbyClinics"
-        component={NearbyClinicsScreen}
-        options={{ title: "Nearby Clinics", headerShown: false }}
       />
       <Stack.Screen
         name="Notifications"
         component={NotificationsScreen}
         options={{ title: "Notifications", headerShown: false }}
       />
-      <Stack.Screen
-        name="DoctorSearch"
-        component={DoctorSearchScreen}
-        options={{ title: "Doctor Search", headerShown: false }}
-      />
-      <Stack.Screen
-        name="PublicDoctorProfile"
-        component={PublicDoctorProfileScreen}
-        options={{ title: "Doctor Profile", headerShown: false }}
-      />
-      <Stack.Screen
-        name="ClinicSelection"
-        component={ClinicSelectionScreen}
-        options={{ title: "Select Clinic", headerShown: false }}
-      />
+      {/* Patient marketplace: hidden for the pilot (featureFlags). */}
+      {PATIENT_MARKETPLACE_ENABLED && (
+        <>
+        <Stack.Screen
+          name="CenterDetails"
+          component={CenterDetailsScreen}
+          options={{ title: "Center Details" }}
+        />
+        <Stack.Screen
+          name="DoctorList"
+          component={DoctorListScreen}
+          options={{ title: "Select Doctor", headerShown: false }}
+        />
+        <Stack.Screen
+          name="Centers"
+          component={CentersScreen}
+          options={{ title: "Select Clinic" }}
+        />
+        <Stack.Screen
+          name="SelectSlot"
+          component={SelectSlotScreen}
+          options={{ title: "Select Slot", headerShown: false }}
+        />
+        <Stack.Screen
+          name="PatientDetails"
+          component={PatientDetailsScreen}
+          options={{ title: "Patient Details", headerShown: false }}
+        />
+        <Stack.Screen
+          name="ConfirmBooking"
+          component={ConfirmBookingScreen}
+          options={{ title: "Confirm Booking", headerShown: false }}
+        />
+        <Stack.Screen
+          name="NearbyClinics"
+          component={NearbyClinicsScreen}
+          options={{ title: "Nearby Clinics", headerShown: false }}
+        />
+        <Stack.Screen
+          name="DoctorSearch"
+          component={DoctorSearchScreen}
+          options={{ title: "Doctor Search", headerShown: false }}
+        />
+        <Stack.Screen
+          name="PublicDoctorProfile"
+          component={PublicDoctorProfileScreen}
+          options={{ title: "Doctor Profile", headerShown: false }}
+        />
+        <Stack.Screen
+          name="ClinicSelection"
+          component={ClinicSelectionScreen}
+          options={{ title: "Select Clinic", headerShown: false }}
+        />
+        </>
+      )}
       <Stack.Screen
         name="AppointmentDetails"
         component={AppointmentDetailsScreen}

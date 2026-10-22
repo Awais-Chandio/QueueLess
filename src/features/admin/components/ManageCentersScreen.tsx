@@ -272,7 +272,7 @@ const ManageCentersScreen = () => {
               activeTab === 'centers' && { backgroundColor: colors.primary, borderRadius: radius.lg },
             ]}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'centers' ? '#FFF' : colors.text }]}>Clinics</Text>
+            <Text style={[styles.tabText, { color: activeTab === 'centers' ? colors.onPrimary : colors.text }]}>Clinics</Text>
           </Pressable>
           <Pressable
             onPress={() => setActiveTab('services')}
@@ -281,7 +281,7 @@ const ManageCentersScreen = () => {
               activeTab === 'services' && { backgroundColor: colors.primary, borderRadius: radius.lg },
             ]}
           >
-            <Text style={[styles.tabText, { color: activeTab === 'services' ? '#FFF' : colors.text }]}>Departments</Text>
+            <Text style={[styles.tabText, { color: activeTab === 'services' ? colors.onPrimary : colors.text }]}>Departments</Text>
           </Pressable>
         </View>
 
@@ -344,7 +344,7 @@ const ManageCentersScreen = () => {
           onRequestClose={() => setShowModal(false)}
         >
           <Pressable
-            style={styles.modalOverlay}
+            style={[styles.modalOverlay, { backgroundColor: colors.scrim }, { backgroundColor: colors.scrim }]}
             onPress={() => setShowModal(false)}
           >
             <Pressable
@@ -358,7 +358,7 @@ const ManageCentersScreen = () => {
                   borderColor: colors.border,
                   borderWidth: Platform.OS === 'ios' ? 0 : 1,
                   elevation: 10,
-                  shadowColor: '#000',
+                  shadowColor: colors.shadowColor,
                   shadowOffset: { width: 0, height: 10 },
                   shadowOpacity: 0.25,
                   shadowRadius: 20,
@@ -566,7 +566,6 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     padding: 20,
   },

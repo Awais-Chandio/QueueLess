@@ -19,7 +19,7 @@ import { StatusChip } from '../../../components/ui/StatusChip';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuth } from '../../../hooks/useAuth';
 import { scaleFont } from '../../../utils/responsive';
-import { staffQueueService } from '../api/staffQueueService';
+import { queueService } from '../../../services/queueService';
 import { appointmentService } from '../../../services/appointmentService';
 import { getAppointmentTimeLabel } from '../../appointments/utils/appointmentTime';
 import { toastService } from '../../../services/toastService';
@@ -88,7 +88,7 @@ const CheckInScreen = () => {
 
   const { data, error, isError, isLoading, refetch } = useQuery({
     queryKey: ['staff-dashboard', 'today'],
-    queryFn: () => staffQueueService.fetchDashboard('today'),
+    queryFn: () => queueService.fetchDashboard('today'),
     staleTime: 0,
   });
 
@@ -126,7 +126,7 @@ const CheckInScreen = () => {
 
   const confirmMutation = useMutation({
     mutationFn: async (item: any) => {
-      return staffQueueService.confirmAppointment(item);
+      return queueService.confirmAppointment(item);
     },
     onSuccess: () => {
       toastService.success('Appointment confirmed successfully!');
@@ -159,7 +159,7 @@ const CheckInScreen = () => {
       <View style={[styles.modeToggle, { backgroundColor: colors.surface, marginBottom: spacing.md }]}>
         {(['list', 'scan'] as const).map(option => {
           const selected = mode === option;
-          const labelColor = selected ? '#FFFFFF' : colors.textSecondary;
+          const labelColor = selected ? colors.onPrimary : colors.textSecondary;
           return (
             <Pressable
               key={option}
@@ -226,7 +226,7 @@ const CheckInScreen = () => {
                 />
               </View>
 
-              <View style={[styles.cardDetails, { marginTop: spacing.sm }]}>
+              <View style={[styles.cardDetails, { borderTopColor: colors.divider }, { marginTop: spacing.sm }]}>
                 <Text style={[styles.detailLabel, { color: colors.textSecondary }]}>
                   Service:{' '}
                   <Text style={[styles.detailValue, { color: colors.text }]}>
@@ -260,7 +260,7 @@ const CheckInScreen = () => {
                   variant="success"
                   loading={checkInMutation.isPending}
                   disabled={checkInMutation.isPending}
-                  leftIcon={<UserCheck size={16} color="#FFFFFF" />}
+                  leftIcon={<UserCheck size={16} color={colors.onPrimary} />}
                   onPress={() =>
                     checkInMutation.mutate(scanState.appointment.id, { onSuccess: resetScan })
                   }
@@ -323,7 +323,7 @@ const CheckInScreen = () => {
                         <StatusChip status={item.status} label={item.status.toUpperCase()} />
                       </View>
 
-                      <View style={[styles.cardDetails, { marginTop: spacing.sm }]}>
+                      <View style={[styles.cardDetails, { borderTopColor: colors.divider }, { marginTop: spacing.sm }]}>
                         <Text style={{ color: colors.textSecondary, fontSize: 13 }}>
                           Service: <Text style={{ color: colors.text, fontWeight: '700' }}>{item.service_name}</Text>
                         </Text>
@@ -342,7 +342,7 @@ const CheckInScreen = () => {
                             variant="primary"
                             loading={isBusy}
                             disabled={isBusy}
-                            leftIcon={<CheckCircle size={16} color="#FFFFFF" />}
+                            leftIcon={<CheckCircle size={16} color={colors.onPrimary} />}
                             onPress={() => confirmMutation.mutate(item)}
                             style={{ flex: 1 }}
                           />
@@ -352,7 +352,7 @@ const CheckInScreen = () => {
                             variant="success"
                             loading={isBusy}
                             disabled={isBusy}
-                            leftIcon={<UserCheck size={16} color="#FFFFFF" />}
+                            leftIcon={<UserCheck size={16} color={colors.onPrimary} />}
                             onPress={() => checkInMutation.mutate(item.id)}
                             style={{ flex: 1 }}
                           />
@@ -464,7 +464,6 @@ const styles = StyleSheet.create({
   },
   cardDetails: {
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
     paddingTop: 8,
   },
   actions: {

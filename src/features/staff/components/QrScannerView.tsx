@@ -8,6 +8,7 @@ import {
 } from 'react-native-vision-camera';
 import AppButton from '../../../components/ui/AppButton';
 import { useTheme } from '../../../hooks/useTheme';
+import { fixed } from '../../../theme/colors';
 
 interface QrScannerViewProps {
   active: boolean;
@@ -86,7 +87,7 @@ const styles = StyleSheet.create({
     height: 320,
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#000000',
+    backgroundColor: fixed.camera,
   },
   frameOverlay: {
     ...StyleSheet.absoluteFillObject,

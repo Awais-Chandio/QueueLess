@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, ActivityIndicator } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import MedicalLogo from "./MedicalLogo";
 import { scaleFont } from "../../utils/responsive";
+import { fixed } from '../../theme/colors';
 type LoaderProps = {
     size?: 'small' | 'large';
     message?: string;
@@ -38,7 +39,7 @@ const Styles = StyleSheet.create({
         alignItems: 'center',
     },
     logoWrap: {
-        shadowColor: '#0F766E',
+        shadowColor: fixed.shadow,
         shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.12,
         shadowRadius: 18,

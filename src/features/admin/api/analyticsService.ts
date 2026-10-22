@@ -19,12 +19,11 @@ export type WeeklyAppointmentStat = {
   count: number;
 };
 
+// Colours come from the theme where the chart is drawn (status palette).
 export type StatusDistributionStat = {
   name: string;
   count: number;
-  color: string;
-  legendFontColor: string;
-  legendFontSize: number;
+  status: AppointmentStatus;
 };
 
 export type RecentActivityItem = {
@@ -74,19 +73,6 @@ export type AdminDashboardAnalytics = DashboardStats & {
   busiestCenters: BusiestCenterItem[];
   staffPerformance: StaffPerformanceItem[];
   bookingsTrend: BookingsTrendItem[];
-};
-
-const statusColors: Record<AppointmentStatus, string> = {
-  pending: '#F59E0B',
-  confirmed: '#0F766E',
-  checked_in: '#10B981',
-  called: '#3B82F6',
-  in_progress: '#3B82F6',
-  completed: '#22C55E',
-  cancelled: '#EF4444',
-  expired: '#6B7280',
-  no_show: '#EF4444',
-  skipped: '#EF4444',
 };
 
 const toDateKey = (date: Date) => {
@@ -399,44 +385,32 @@ export const analyticsService = {
         {
           name: 'Pending',
           count: pendingCount,
-          color: statusColors.pending,
-          legendFontColor: '#64748B',
-          legendFontSize: 12,
+          status: 'pending',
         },
         {
           name: 'Confirmed',
           count: confirmedCount,
-          color: statusColors.confirmed,
-          legendFontColor: '#64748B',
-          legendFontSize: 12,
+          status: 'confirmed',
         },
         {
           name: 'Completed',
           count: completedCount,
-          color: statusColors.completed,
-          legendFontColor: '#64748B',
-          legendFontSize: 12,
+          status: 'completed',
         },
         {
           name: 'Cancelled',
           count: cancelledCount,
-          color: statusColors.cancelled,
-          legendFontColor: '#64748B',
-          legendFontSize: 12,
+          status: 'cancelled',
         },
         {
           name: 'Expired',
           count: expiredCount,
-          color: statusColors.expired,
-          legendFontColor: '#64748B',
-          legendFontSize: 12,
+          status: 'expired',
         },
         {
           name: 'No Show',
           count: noShowCount,
-          color: statusColors.no_show,
-          legendFontColor: '#64748B',
-          legendFontSize: 12,
+          status: 'no_show',
         },
       ],
     };

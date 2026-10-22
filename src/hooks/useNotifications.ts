@@ -9,13 +9,14 @@ import {
     AuthorizationStatus,
 } from '@react-native-firebase/messaging';
 import { fcmService } from '../services/fcmService';
-import { useNotificationsStore } from '../stores/notificationStore';
-import { useAuthStore } from '../stores/authStore';
+import { useNotificationsStore } from '../store/notificationStore';
+import { useAuthStore } from '../store/authStore';
 import { notificationService } from '../services/notificationService';
 import { toastService } from '../services/toastService';
 import type { Notification } from '../types/notification';
 import type { AppStackParamList } from '../navigation/types';
 import { logger } from '../utils/logger';
+import { isFirebaseReady } from '../lib/firebase';
 
 export const useNotifications = () => {
     const { user } = useAuthStore();
@@ -57,6 +58,7 @@ export const useNotifications = () => {
      * Initializes FCM, requests permissions contextually, and retrieves token
      */
     const initializeFCM = useCallback(async (requestIfDenied = false) => {
+        if (!isFirebaseReady()) return;
         let hasPermission = false;
         try {
             // Check current authorization status first
@@ -107,6 +109,9 @@ export const useNotifications = () => {
     }, [navigation]);
 
     useEffect(() => {
+        // No push on builds without Firebase config (iOS without GoogleService-Info.plist).
+        if (!isFirebaseReady()) return;
+
         // Initialize permission check (don't request yet if denied/undetermined)
         initializeFCM(false);
 

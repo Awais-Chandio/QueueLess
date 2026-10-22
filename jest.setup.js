@@ -110,6 +110,7 @@ jest.mock('react-native-geolocation-service', () => ({
 
 jest.mock('@react-native-firebase/app', () => ({
   initializeApp: jest.fn(),
+  getApps: jest.fn(() => [{ name: '[DEFAULT]' }]),
 }));
 
 jest.mock('@sentry/react-native', () => ({

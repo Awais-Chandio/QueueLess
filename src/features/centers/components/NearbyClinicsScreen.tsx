@@ -10,6 +10,7 @@ import { NearbyClinicCard } from './NearbyClinicCard';
 import { NearbyClinicSkeleton } from '../../../components/NearbyClinicSkeleton';
 import { NearbyEmptyState } from '../../../components/NearbyEmptyState';
 import type { AppStackParamList } from '../../../navigation/types';
+import { fixed } from '../../../theme/colors';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'NearbyClinics'>;
 
@@ -189,8 +190,8 @@ const NearbyClinicsScreen = () => {
             pressed && styles.fabPressed,
           ]}
         >
-          <MapPin size={16} color="#FFF" style={{ marginRight: spacing.xs }} />
-          <Text style={[styles.fabText, { fontSize: typography.sizes.xs }]}>
+          <MapPin size={16} color={colors.onPrimary} style={{ marginRight: spacing.xs }} />
+          <Text style={[styles.fabText, { color: colors.onPrimary }, { fontSize: typography.sizes.xs }]}>
             Use Current Location
           </Text>
         </Pressable>
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0E7490',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
     shadowRadius: 10,
@@ -269,7 +270,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.96 }],
   },
   fabText: {
-    color: '#FFF',
     fontWeight: '800',
   },
 });

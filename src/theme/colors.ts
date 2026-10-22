@@ -105,6 +105,31 @@ export type ColorTheme = {
     neutral: string;
   };
   status: StatusPalette;
+
+  // --- 1C: tokens for what screens used to hard-code ------------------------
+  /** Text and icons on the brand gradient (splash, auth hero). That gradient is
+   *  dark in both modes, so these stay light in both. */
+  onBrand: string;
+  onBrandMuted: string;
+  onBrandSubtle: string;
+  /** Translucent chips/buttons sitting on the brand gradient. */
+  brandGlass: { bg: string; border: string };
+  /** Frosted form card over the brand gradient. */
+  heroCard: { bg: string; border: string };
+  /** Splash / boot background: gradient stops and the flat fallback. */
+  splash: { gradient: [string, string, string]; base: string; glow: string; spark: string };
+  /** Star ratings. */
+  rating: string;
+  ratingEmpty: string;
+  /** Dimmed backdrop behind modals and the camera frame. */
+  scrim: string;
+  camera: string;
+  /** Map markers (MapLibre style values). */
+  map: { center: string; user: string; stroke: string; label: string };
+  /** Categorical series for charts and feature cards, in order. */
+  chart: string[];
+  /** Soft gradient cards: one per accent, light-to-surface in light mode. */
+  feature: Record<'teal' | 'blue' | 'violet' | 'red', { gradient: [string, string]; border: string; tint: string; fg: string }>;
 };
 
 // ==========================================
@@ -178,6 +203,30 @@ export const clientColorsLight: ColorTheme = {
     neutral: 'rgba(100, 116, 139, 0.10)',
   },
   status: lightStatus,
+
+  onBrand: '#FFFFFF',
+  onBrandMuted: 'rgba(255, 255, 255, 0.85)',
+  onBrandSubtle: 'rgba(255, 255, 255, 0.7)',
+  brandGlass: { bg: 'rgba(255, 255, 255, 0.12)', border: 'rgba(255, 255, 255, 0.25)' },
+  heroCard: { bg: 'rgba(255, 255, 255, 0.88)', border: 'rgba(255, 255, 255, 0.65)' },
+  splash: {
+    gradient: ['#083344', '#0E7490', '#06B6D4'],
+    base: '#083344',
+    glow: 'rgba(165, 243, 252, 0.72)',
+    spark: 'rgba(165, 243, 252, 0.9)',
+  },
+  rating: '#F59E0B',
+  ratingEmpty: '#E2E8F0',
+  scrim: 'rgba(15, 23, 42, 0.5)',
+  camera: '#000000',
+  map: { center: '#0E7490', user: '#0891B2', stroke: '#FFFFFF', label: '#FFFFFF' },
+  chart: ['#0E7490', '#14B8A6', '#F59E0B', '#0891B2', '#16A34A', '#DC2626', '#64748B'],
+  feature: {
+    teal: { gradient: ['#ECFEFF', '#FFFFFF'], border: 'rgba(14, 116, 144, 0.15)', tint: 'rgba(14, 116, 144, 0.10)', fg: '#0E7490' },
+    blue: { gradient: ['#EFF6FF', '#FFFFFF'], border: 'rgba(8, 145, 178, 0.15)', tint: 'rgba(8, 145, 178, 0.10)', fg: '#0891B2' },
+    violet: { gradient: ['#F0FDFA', '#FFFFFF'], border: 'rgba(20, 184, 166, 0.15)', tint: 'rgba(20, 184, 166, 0.12)', fg: '#0F766E' },
+    red: { gradient: ['#FEF2F2', '#FFFFFF'], border: 'rgba(220, 38, 38, 0.12)', tint: 'rgba(220, 38, 38, 0.10)', fg: '#DC2626' },
+  },
 };
 
 // ==========================================
@@ -254,6 +303,30 @@ export const clientColorsDark: ColorTheme = {
     neutral: 'rgba(148, 163, 184, 0.14)',
   },
   status: darkStatus,
+
+  onBrand: '#FFFFFF',
+  onBrandMuted: 'rgba(255, 255, 255, 0.85)',
+  onBrandSubtle: 'rgba(255, 255, 255, 0.7)',
+  brandGlass: { bg: 'rgba(255, 255, 255, 0.1)', border: 'rgba(255, 255, 255, 0.2)' },
+  heroCard: { bg: 'rgba(18, 28, 31, 0.82)', border: 'rgba(255, 255, 255, 0.1)' },
+  splash: {
+    gradient: ['#031C24', '#0E7490', '#0891B2'],
+    base: '#031C24',
+    glow: 'rgba(165, 243, 252, 0.6)',
+    spark: 'rgba(165, 243, 252, 0.8)',
+  },
+  rating: '#FBBF24',
+  ratingEmpty: '#3A4C51',
+  scrim: 'rgba(0, 0, 0, 0.6)',
+  camera: '#000000',
+  map: { center: '#22A2C3', user: '#22D3EE', stroke: '#0B1315', label: '#04191F' },
+  chart: ['#22A2C3', '#2DD4BF', '#FBBF24', '#22D3EE', '#34D399', '#F87171', '#94A3B8'],
+  feature: {
+    teal: { gradient: ['#0A2424', '#121C1F'], border: 'rgba(45, 212, 191, 0.25)', tint: 'rgba(34, 162, 195, 0.16)', fg: '#22A2C3' },
+    blue: { gradient: ['#0B2230', '#121C1F'], border: 'rgba(34, 211, 238, 0.2)', tint: 'rgba(34, 211, 238, 0.16)', fg: '#22D3EE' },
+    violet: { gradient: ['#0C2622', '#121C1F'], border: 'rgba(45, 212, 191, 0.2)', tint: 'rgba(45, 212, 191, 0.16)', fg: '#2DD4BF' },
+    red: { gradient: ['#2A1414', '#121C1F'], border: 'rgba(248, 113, 113, 0.2)', tint: 'rgba(248, 113, 113, 0.16)', fg: '#F87171' },
+  },
 };
 
 // Every role renders the same palette. The split is kept because `useTheme`
@@ -267,3 +340,30 @@ export const adminColorsDark = clientColorsDark;
 export const lightColors = clientColorsLight;
 export const darkColors = clientColorsDark;
 export const colors = lightColors;
+
+/**
+ * Mode-independent values for static `StyleSheet`s, which can't read the
+ * theme. Only things that really are the same in light and dark belong here:
+ * text on the (always dark) brand gradient, shadows, the camera frame.
+ */
+export const fixed = {
+  onBrand: '#FFFFFF',
+  onBrandMuted: 'rgba(255, 255, 255, 0.85)',
+  onBrandSubtle: 'rgba(255, 255, 255, 0.7)',
+  brandGlassBg: 'rgba(255, 255, 255, 0.1)',
+  brandGlassBorder: 'rgba(255, 255, 255, 0.22)',
+  splashGlow: 'rgba(165, 243, 252, 0.72)',
+  textShadow: 'rgba(0, 0, 0, 0.2)',
+  shadow: '#0F172A',
+  camera: '#000000',
+  scrim: 'rgba(15, 23, 42, 0.5)',
+  /** QR codes need a white quiet zone to scan, in dark mode too. */
+  qrBackground: '#FFFFFF',
+} as const;
+
+/** `#RRGGBB` token at an opacity, for APIs that take a colour function (charts). */
+export const withOpacity = (hex: string, opacity: number) => {
+  const value = hex.replace('#', '');
+  const channel = (i: number) => parseInt(value.slice(i, i + 2), 16);
+  return `rgba(${channel(0)}, ${channel(2)}, ${channel(4)}, ${opacity})`;
+};

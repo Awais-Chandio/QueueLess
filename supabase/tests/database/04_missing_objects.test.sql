@@ -87,7 +87,7 @@ SELECT lives_ok($$SELECT public.save_visit_summary('e0000000-0000-4000-8000-0000
                 'doctor A: edits the summary (items replaced)');
 SELECT is((SELECT count(*)::int FROM public.prescription_items), 1, 'doctor A: edit replaced the medicine list');
 SELECT throws_ok($$SELECT public.save_visit_summary('e0000000-0000-4000-8000-000000000002', 'x', NULL, NULL, '[]')$$,
-                 '42501', NULL, 'doctor A: cannot file a summary for a visit that isn''t completed');
+                 'PT409', NULL, 'doctor A: cannot file a summary for a visit that isn''t completed (1C: PT409)');
 SELECT throws_ok($$SELECT public.save_visit_summary('e0000000-0000-4000-8000-000000000004', 'x', NULL, NULL, '[]')$$,
                  '42501', NULL, 'doctor A: cannot file a summary for another doctor''s patient');
 RESET ROLE;

@@ -178,6 +178,70 @@ export type Database = {
           },
         ]
       }
+      billing_events: {
+        Row: {
+          amount_pkr: number | null
+          created_at: string
+          created_by: string | null
+          credits: number | null
+          id: string
+          kind: string
+          method: string | null
+          note: string | null
+          organization_id: string
+          paid_on: string | null
+          period_end: string | null
+          plan_id: string | null
+          status: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          amount_pkr?: number | null
+          created_at?: string
+          created_by?: string | null
+          credits?: number | null
+          id?: string
+          kind: string
+          method?: string | null
+          note?: string | null
+          organization_id: string
+          paid_on?: string | null
+          period_end?: string | null
+          plan_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          amount_pkr?: number | null
+          created_at?: string
+          created_by?: string | null
+          credits?: number | null
+          id?: string
+          kind?: string
+          method?: string | null
+          note?: string | null
+          organization_id?: string
+          paid_on?: string | null
+          period_end?: string | null
+          plan_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'billing_events_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'billing_events_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       center_daily_tokens: {
         Row: {
           appointment_date: string
@@ -524,6 +588,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_on_break: boolean
+          late_until: string | null
           license_number: string | null
           name: string
           photo_url: string | null
@@ -548,6 +613,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_on_break?: boolean
+          late_until?: string | null
           license_number?: string | null
           name: string
           photo_url?: string | null
@@ -571,6 +637,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_on_break?: boolean
+          late_until?: string | null
           license_number?: string | null
           name?: string
           photo_url?: string | null
@@ -636,6 +703,7 @@ export type Database = {
           id: string
           organization_id: string
           provider_message_id: string | null
+          refunded_at: string | null
           status: string
           template: string
           to_phone: string
@@ -651,6 +719,7 @@ export type Database = {
           id?: string
           organization_id: string
           provider_message_id?: string | null
+          refunded_at?: string | null
           status?: string
           template: string
           to_phone: string
@@ -665,6 +734,7 @@ export type Database = {
           id?: string
           organization_id?: string
           provider_message_id?: string | null
+          refunded_at?: string | null
           status?: string
           template?: string
           to_phone?: string
@@ -694,6 +764,112 @@ export type Database = {
           },
           {
             foreignKeyName: 'message_log_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      notification_outbox: {
+        Row: {
+          appointment_id: string | null
+          attempts: number
+          channel: string | null
+          created_at: string
+          dedupe_key: string
+          event: string
+          id: string
+          language: string
+          last_error: string | null
+          locked_until: string | null
+          max_attempts: number
+          message_log_id: string | null
+          next_attempt_at: string
+          organization_id: string
+          payload: NonNullable<Json>
+          provider_message_id: string | null
+          sent_at: string | null
+          status: string
+          to_phone: string
+          updated_at: string
+        }
+        ComputedFields: never
+        Insert: {
+          appointment_id?: string | null
+          attempts?: number
+          channel?: string | null
+          created_at?: string
+          dedupe_key: string
+          event: string
+          id?: string
+          language: string
+          last_error?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          message_log_id?: string | null
+          next_attempt_at?: string
+          organization_id: string
+          payload?: NonNullable<Json>
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_phone: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          attempts?: number
+          channel?: string | null
+          created_at?: string
+          dedupe_key?: string
+          event?: string
+          id?: string
+          language?: string
+          last_error?: string | null
+          locked_until?: string | null
+          max_attempts?: number
+          message_log_id?: string | null
+          next_attempt_at?: string
+          organization_id?: string
+          payload?: NonNullable<Json>
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: string
+          to_phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notification_outbox_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_message_log_id_fkey'
+            columns: ['message_log_id']
+            isOneToOne: false
+            referencedRelation: 'message_log'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'notification_outbox_organization_id_fkey'
             columns: ['organization_id']
             isOneToOne: false
             referencedRelation: 'organizations'
@@ -920,6 +1096,7 @@ export type Database = {
           created_at: string
           id: string
           is_legacy: boolean
+          message_language: string
           name: string
           slug: string
           status: string
@@ -931,6 +1108,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_legacy?: boolean
+          message_language?: string
           name: string
           slug: string
           status?: string
@@ -941,6 +1119,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_legacy?: boolean
+          message_language?: string
           name?: string
           slug?: string
           status?: string
@@ -956,6 +1135,7 @@ export type Database = {
           name: string
           organization_id: string
           phone: string | null
+          preferred_language: string | null
           user_id: string | null
         }
         ComputedFields: never
@@ -965,6 +1145,7 @@ export type Database = {
           name: string
           organization_id: string
           phone?: string | null
+          preferred_language?: string | null
           user_id?: string | null
         }
         Update: {
@@ -973,6 +1154,7 @@ export type Database = {
           name?: string
           organization_id?: string
           phone?: string | null
+          preferred_language?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -1374,7 +1556,8 @@ export type Database = {
           follow_up_date: string | null
           id: string
           notes: string | null
-          patient_id: string
+          patient_id: string | null
+          patient_record_id: string
           updated_at: string
         }
         ComputedFields: never
@@ -1386,7 +1569,8 @@ export type Database = {
           follow_up_date?: string | null
           id?: string
           notes?: string | null
-          patient_id: string
+          patient_id?: string | null
+          patient_record_id: string
           updated_at?: string
         }
         Update: {
@@ -1397,7 +1581,8 @@ export type Database = {
           follow_up_date?: string | null
           id?: string
           notes?: string | null
-          patient_id?: string
+          patient_id?: string | null
+          patient_record_id?: string
           updated_at?: string
         }
         Relationships: [
@@ -1427,6 +1612,13 @@ export type Database = {
             columns: ['doctor_id']
             isOneToOne: false
             referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_summaries_patient_record_id_fkey'
+            columns: ['patient_record_id']
+            isOneToOne: false
+            referencedRelation: 'patients'
             referencedColumns: ['id']
           },
         ]
@@ -1602,7 +1794,20 @@ export type Database = {
     }
     Functions: {
       accept_invites: { Args: Record<PropertyKey, never>; Returns: number }
+      admin_add_credits: { Args: { p_credits: number; p_note?: string; p_org_id: string }; Returns: number }
+      admin_add_payment: {
+        Args: { p_amount_pkr: number; p_method?: string; p_note?: string; p_org_id: string; p_paid_on?: string }
+        Returns: string
+      }
+      admin_clinic_billing: { Args: { p_org_id: string }; Returns: Json }
       admin_delete_staff_account: { Args: { staff_profile_id: string }; Returns: undefined }
+      admin_list_clinics: { Args: Record<PropertyKey, never>; Returns: Json }
+      admin_set_org_status: { Args: { p_note?: string; p_org_id: string; p_status: string }; Returns: undefined }
+      admin_set_plan: {
+        Args: { p_note?: string; p_org_id: string; p_period_end?: string; p_plan_id: string }
+        Returns: Json
+      }
+      begin_notification_send: { Args: { p_channel: string; p_cost: number; p_outbox_id: string }; Returns: Json }
       book_appointment: { Args: { p_lock_id: string; p_notes?: string; p_service_id: string }; Returns: string }
       bookings_per_day: {
         Args: { p_range: string }
@@ -1727,7 +1932,24 @@ export type Database = {
         Returns: string
       }
       check_in_appointment: { Args: { p_appointment_id: string }; Returns: undefined }
-      cleanup_stale_appointments: { Args: Record<PropertyKey, never>; Returns: undefined }
+      claim_notifications: {
+        Args: { p_limit?: number; p_lock_seconds?: number }
+        Returns: {
+          appointment_id: string
+          attempts: number
+          channel: string
+          event: string
+          id: string
+          language: string
+          max_attempts: number
+          message_log_id: string
+          modules: string[]
+          organization_id: string
+          payload: Json
+          to_phone: string
+        }[]
+      }
+      cleanup_stale_appointments: { Args: Record<PropertyKey, never>; Returns: Json }
       complete_appointment: {
         Args: { p_appointment_id: string; p_duration_minutes?: number }
         Returns: {
@@ -1768,6 +1990,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      complete_visit: {
+        Args: {
+          p_appointment_id: string
+          p_diagnosis?: string
+          p_follow_up_date?: string
+          p_items?: Json
+          p_notes?: string
+        }
+        Returns: Json
       }
       confirm_appointment: {
         Args: { p_appointment_id: string }
@@ -1837,10 +2069,21 @@ export type Database = {
         Returns: Json
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      finish_notification_send: {
+        Args: {
+          p_error?: string
+          p_ok: boolean
+          p_outbox_id: string
+          p_provider_message_id?: string
+          p_retryable?: boolean
+        }
+        Returns: string
+      }
       generate_token_number: { Args: { p_center_id: string }; Returns: number }
       get_appointment_queue_snapshot: { Args: { p_appointment_id: string }; Returns: Json }
       get_available_slots: { Args: { p_date: string; p_doctor_id: string }; Returns: string[] }
       get_center_queue_snapshot: { Args: { p_center_id: string; p_queue_date?: string }; Returns: Json }
+      get_clinic_insights: { Args: { p_center_id: string; p_days?: number }; Returns: Json }
       get_current_token:
         | { Args: Record<PropertyKey, never>; Returns: number }
         | { Args: { p_center_id: string; p_queue_date?: string }; Returns: number }
@@ -1861,6 +2104,7 @@ export type Database = {
           total_fee: number
         }[]
       }
+      get_doctor_queue: { Args: { p_doctor_id: string }; Returns: Json }
       get_doctor_queue_snapshot: { Args: { p_doctor_id: string; p_queue_date?: string }; Returns: Json }
       get_doctor_recent_patients: {
         Args: { p_doctor_id: string }
@@ -1930,7 +2174,9 @@ export type Database = {
         Args: { p_public_code: string }
         Returns: {
           current_token: number
+          doctor_late_until: string
           doctor_name: string
+          doctor_on_break: boolean
           eta_minutes: number
           people_ahead: number
           status: string
@@ -1997,6 +2243,10 @@ export type Database = {
         Returns: Json
       }
       set_doctor_break: { Args: { p_doctor_id: string; p_on_break: boolean }; Returns: undefined }
+      set_doctor_late: { Args: { p_doctor_id: string; p_minutes: number }; Returns: string }
+      set_message_language: { Args: { p_language: string; p_org_id: string }; Returns: undefined }
+      set_token_language: { Args: { p_language: string; p_public_code: string }; Returns: undefined }
+      skip_notification: { Args: { p_outbox_id: string; p_reason: string }; Returns: undefined }
       skip_token: { Args: { p_appointment_id: string }; Returns: undefined }
       staff_performance: {
         Args: { p_range: string }

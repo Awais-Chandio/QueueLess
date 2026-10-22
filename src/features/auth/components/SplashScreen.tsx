@@ -13,6 +13,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import { scaleFont, wp, hp } from '../../../utils/responsive';
 import Floating3DLogo from '../../../components/ui/Floating3DLogo';
 import Wordmark from '../../../components/ui/Wordmark';
+import { fixed } from '../../../theme/colors';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -29,12 +30,9 @@ const SplashScreen = ({
   isGentlyLoading = false,
   message,
 }: SplashScreenProps) => {
-  const { colors, spacing, isDarkMode } = useTheme();
+  const { colors, spacing } = useTheme();
 
-  // Vibrant premium clinical blue-cyan gradient
-  const gradientColors = isDarkMode
-    ? ['#031C24', '#0E7490', '#0891B2']
-    : ['#083344', '#0E7490', '#06B6D4'];
+  const gradientColors = colors.splash.gradient;
 
   // Animation values
   const containerOpacity = useRef(new Animated.Value(1)).current;
@@ -347,19 +345,19 @@ const SplashScreen = ({
         <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} viewBox={`0 0 ${SCREEN_WIDTH} ${SCREEN_HEIGHT}`} fill="none">
           <Path
             d={`M${wp(8)} ${hp(28)} C${wp(28)} ${hp(21)} ${wp(42)} ${hp(35)} ${wp(58)} ${hp(28)} S${wp(86)} ${hp(25)} ${wp(94)} ${hp(30)}`}
-            stroke="rgba(255,255,255,0.35)"
+            stroke={colors.onBrandSubtle}
             strokeWidth="2"
             strokeLinecap="round"
           />
           <Path
             d={`M${wp(12)} ${hp(66)} H${wp(28)} L${wp(34)} ${hp(58)} L${wp(42)} ${hp(74)} L${wp(50)} ${hp(47)} L${wp(58)} ${hp(66)} H${wp(86)}`}
-            stroke="rgba(147,197,253,0.62)"
+            stroke={colors.splash.glow}
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <Circle cx={wp(18)} cy={hp(66)} r="4" fill="rgba(255,255,255,0.75)" />
-          <Circle cx={wp(86)} cy={hp(66)} r="4" fill="rgba(255,255,255,0.75)" />
+          <Circle cx={wp(18)} cy={hp(66)} r="4" fill={colors.onBrandMuted} />
+          <Circle cx={wp(86)} cy={hp(66)} r="4" fill={colors.onBrandMuted} />
         </Svg>
       </Animated.View>
 
@@ -375,12 +373,12 @@ const SplashScreen = ({
         <Svg width={SCREEN_WIDTH} height={SCREEN_HEIGHT} viewBox={`0 0 ${SCREEN_WIDTH} ${SCREEN_HEIGHT}`} fill="none">
           <Path
             d={`M${wp(14)} ${hp(18)} H${wp(34)} M${wp(66)} ${hp(18)} H${wp(86)} M${wp(20)} ${hp(82)} H${wp(42)} M${wp(60)} ${hp(82)} H${wp(84)}`}
-            stroke="rgba(255,255,255,0.35)"
+            stroke={colors.onBrandSubtle}
             strokeWidth="2"
             strokeLinecap="round"
           />
-          <Circle cx={wp(34)} cy={hp(18)} r="3" fill="rgba(147,197,253,0.9)" />
-          <Circle cx={wp(60)} cy={hp(82)} r="3" fill="rgba(147,197,253,0.9)" />
+          <Circle cx={wp(34)} cy={hp(18)} r="3" fill={colors.splash.spark} />
+          <Circle cx={wp(60)} cy={hp(82)} r="3" fill={colors.splash.spark} />
         </Svg>
       </Animated.View>
 
@@ -419,7 +417,7 @@ const SplashScreen = ({
           },
         ]}
       >
-        <Floating3DLogo size={scaleFont(104)} qColor="#FFFFFF" crossColor={colors.accent} />
+        <Floating3DLogo size={scaleFont(104)} qColor={colors.onBrand} crossColor={colors.accent} />
       </Animated.View>
 
       {/* Typography Content */}
@@ -481,12 +479,12 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: fixed.onBrand,
     opacity: 0.3,
   },
   glow: {
     position: 'absolute',
-    backgroundColor: 'rgba(147, 197, 253, 0.72)',
+    backgroundColor: fixed.splashGlow,
     borderRadius: 125,
     height: 250,
     width: 250,
@@ -495,7 +493,7 @@ const styles = StyleSheet.create({
   logoShell: {
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000000',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.22,
     shadowRadius: 16,
@@ -507,16 +505,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: wp(10),
   },
   title: {
-    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowColor: fixed.textShadow,
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 6,
   },
   tagline: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: fixed.onBrandMuted,
     fontWeight: '600',
     letterSpacing: 0,
     textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowColor: fixed.textShadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
@@ -526,7 +524,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loaderText: {
-    color: '#FFFFFF',
+    color: fixed.onBrand,
     fontSize: scaleFont(13),
     fontWeight: '600',
     letterSpacing: 0,

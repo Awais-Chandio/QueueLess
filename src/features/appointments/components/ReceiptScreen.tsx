@@ -15,6 +15,7 @@ import { buildAppointmentQrValue } from '../utils/appointmentQr';
 import type { AppStackParamList } from '../../../navigation/types';
 import { scaleFont } from '../../../utils/responsive';
 import { logger } from '../../../utils/logger';
+import { fixed } from '../../../theme/colors';
 
 type ReceiptRouteProp = RouteProp<AppStackParamList, 'Receipt'>;
 type NavigationProp = NativeStackNavigationProp<AppStackParamList, 'Receipt'>;
@@ -161,7 +162,7 @@ const ReceiptScreen = () => {
                 title="Track Queue"
                 onPress={handleViewDetails}
                 variant="primary"
-                rightIcon={<ArrowRight size={16} color="#FFFFFF" />}
+                rightIcon={<ArrowRight size={16} color={colors.onPrimary} />}
               />
               <AppButton
                 title="Go to Home Screen"
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
   },
   qrFrame: {
     // QR codes need a light background to scan reliably, even in dark theme.
-    backgroundColor: '#FFFFFF',
+    backgroundColor: fixed.qrBackground,
     padding: 8,
     borderRadius: 12,
   },

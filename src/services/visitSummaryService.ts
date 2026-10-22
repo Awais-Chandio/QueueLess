@@ -22,6 +22,43 @@ export const isBlankMedicine = (item: PrescriptionItemInput) =>
     value => !!value?.trim(),
   );
 
+/**
+ * Trims the form, drops untouched medicine rows and checks the limits the
+ * database enforces, so the doctor gets a readable message before any call.
+ * Notes are optional when completing a visit, required when saving them alone.
+ */
+export const normalizeVisitSummary = (payload: SaveVisitSummaryPayload, { requireContent }: { requireContent: boolean }) => {
+  const diagnosis = payload.diagnosis.trim();
+  const notes = payload.notes.trim();
+  const items = payload.items
+    .filter(item => !isBlankMedicine(item))
+    .map(item => ({
+      medicine_name: item.medicine_name.trim(),
+      dosage: item.dosage.trim(),
+      frequency: item.frequency.trim(),
+      duration: item.duration.trim(),
+      instructions: item.instructions?.trim() || null,
+    }));
+
+  if (diagnosis.length > DIAGNOSIS_MAX) {
+    throw new Error(`Diagnosis can be at most ${DIAGNOSIS_MAX} characters.`);
+  }
+  if (notes.length > NOTES_MAX) {
+    throw new Error(`Notes can be at most ${NOTES_MAX} characters.`);
+  }
+  if (items.length > MAX_MEDICINES) {
+    throw new Error(`A prescription can list at most ${MAX_MEDICINES} medicines.`);
+  }
+  const incomplete = items.findIndex(item => !item.medicine_name || !item.dosage || !item.frequency || !item.duration);
+  if (incomplete !== -1) {
+    throw new Error(`Medicine ${incomplete + 1} needs a name, dosage, frequency and duration.`);
+  }
+  if (requireContent && !diagnosis && !notes && !payload.followUpDate && items.length === 0) {
+    throw new Error('Add a diagnosis, a medicine, notes or a follow-up date first.');
+  }
+  return { diagnosis, notes, items };
+};
+
 export const visitSummaryService = {
   /** The summary for one appointment with its medicines in order, or null when none was written. */
   async getForAppointment(appointmentId: string): Promise<VisitSummary | null> {
@@ -49,38 +86,7 @@ export const visitSummaryService = {
    * write, and only once the appointment is 'completed'.
    */
   async save(payload: SaveVisitSummaryPayload): Promise<string> {
-    const diagnosis = payload.diagnosis.trim();
-    const notes = payload.notes.trim();
-    const items = payload.items
-      .filter(item => !isBlankMedicine(item))
-      .map(item => ({
-        medicine_name: item.medicine_name.trim(),
-        dosage: item.dosage.trim(),
-        frequency: item.frequency.trim(),
-        duration: item.duration.trim(),
-        instructions: item.instructions?.trim() || null,
-      }));
-
-    if (diagnosis.length > DIAGNOSIS_MAX) {
-      throw new Error(`Diagnosis can be at most ${DIAGNOSIS_MAX} characters.`);
-    }
-    if (notes.length > NOTES_MAX) {
-      throw new Error(`Notes can be at most ${NOTES_MAX} characters.`);
-    }
-    if (items.length > MAX_MEDICINES) {
-      throw new Error(`A prescription can list at most ${MAX_MEDICINES} medicines.`);
-    }
-    const incomplete = items.findIndex(
-      item => !item.medicine_name || !item.dosage || !item.frequency || !item.duration,
-    );
-    if (incomplete !== -1) {
-      throw new Error(
-        `Medicine ${incomplete + 1} needs a name, dosage, frequency and duration.`,
-      );
-    }
-    if (!diagnosis && !notes && !payload.followUpDate && items.length === 0) {
-      throw new Error('Add a diagnosis, a medicine, notes or a follow-up date first.');
-    }
+    const { diagnosis, notes, items } = normalizeVisitSummary(payload, { requireContent: true });
 
     const { data, error } = await supabase.rpc('save_visit_summary', {
       p_appointment_id: payload.appointmentId,

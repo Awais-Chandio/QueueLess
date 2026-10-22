@@ -1,31 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { Alert, View, StyleSheet } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
-import { Activity, ArrowRight, UserRound } from 'lucide-react-native';
+import { Activity, ArrowRight, ChevronsRight, UserRound, UserX, Volume2 } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
 import AppText from '../../../components/ui/AppText';
 import { Card } from '../../../components/ui/Card';
-import type { AppointmentFull } from '../../../types/appointment';
-import type { QueueAction } from '../hooks/useDoctorQueue';
+import type { QueueToken } from '../../queue/api/queueRpc';
+import { minutesWithDoctor } from '../../queue/utils/queueState';
 
 type Props = {
-  currentPatient: AppointmentFull | null;
-  nextPatient: AppointmentFull | null;
-  busyAction: (appointmentId: string) => QueueAction | null;
-  disabled: boolean;
-  onAction: (action: QueueAction, appointment: AppointmentFull) => void;
+  current: QueueToken | null;
+  next: QueueToken | null;
+  onBreak: boolean;
+  busy: boolean;
+  onCallNext: () => void;
+  /** Opens the notes sheet in "complete" mode. */
+  onComplete: (token: QueueToken) => void;
+  onRecall: (token: QueueToken) => void;
+  onSkip: (token: QueueToken) => void;
+  onNoShow: (token: QueueToken) => void;
 };
 
-const useElapsedMinutes = (since?: string | null) => {
-  const compute = () =>
-    since ? Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 60000)) : null;
-  const [minutes, setMinutes] = useState(compute);
+const useElapsedMinutes = (token: QueueToken | null) => {
+  const [minutes, setMinutes] = useState(() => minutesWithDoctor(token));
+  const since = token?.started_at ?? token?.called_at;
 
   useEffect(() => {
-    setMinutes(compute());
+    setMinutes(minutesWithDoctor(token));
     if (!since) return;
-    const id = setInterval(() => setMinutes(compute()), 30_000);
+    const id = setInterval(() => setMinutes(minutesWithDoctor(token)), 30_000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [since]);
@@ -41,21 +45,27 @@ const useElapsedMinutes = (since?: string | null) => {
  * change is the most important thing on the screen and should be seen.
  * Reanimated's layout animations follow the OS reduce-motion setting.
  */
-export const NowServingCard = ({ currentPatient, nextPatient, busyAction, disabled, onAction }: Props) => {
+export const NowServingCard = ({ current, next, onBreak, busy, onCallNext, onComplete, onRecall, onSkip, onNoShow }: Props) => {
   const { colors, spacing, radius } = useTheme();
-  const elapsed = useElapsedMinutes(currentPatient?.called_at ?? currentPatient?.started_at);
+  const elapsed = useElapsedMinutes(current);
+
+  const confirmNoShow = (token: QueueToken) =>
+    Alert.alert('Mark as No Show?', `${token.patient_name || 'This patient'} (token ${token.token_number}) didn't come in.`, [
+      { text: 'Keep', style: 'cancel' },
+      { text: 'Mark No Show', style: 'destructive', onPress: () => onNoShow(token) },
+    ]);
 
   return (
     <Card variant="elevated" padding="lg" style={{ marginBottom: spacing.lg }}>
       <View style={styles.labelRow}>
-        <View style={[styles.liveDot, { backgroundColor: currentPatient ? colors.success : colors.textTertiary }]} />
+        <View style={[styles.liveDot, { backgroundColor: current ? colors.success : colors.textTertiary }]} />
         <AppText variant="label" tone="secondary" weight="600">
-          {currentPatient ? 'NOW SERVING' : 'READY FOR NEXT PATIENT'}
+          {current ? 'NOW SERVING' : 'READY FOR NEXT PATIENT'}
         </AppText>
       </View>
 
-      {currentPatient ? (
-        <Animated.View key={currentPatient.id} entering={FadeIn.duration(280)}>
+      {current ? (
+        <Animated.View key={current.id} entering={FadeIn.duration(280)}>
           <View style={[styles.servingRow, { marginTop: spacing.md }]}>
             <Animated.View
               entering={ZoomIn.springify().damping(14)}
@@ -65,15 +75,15 @@ export const NowServingCard = ({ currentPatient, nextPatient, busyAction, disabl
                 TOKEN
               </AppText>
               <AppText variant="display" tone="onPrimary" weight="800">
-                {currentPatient.token_number ?? '—'}
+                {current.token_number}
               </AppText>
             </Animated.View>
             <View style={styles.servingInfo}>
               <AppText variant="section" numberOfLines={2}>
-                {currentPatient.patient_name || 'Patient'}
+                {current.patient_name || 'Patient'}
               </AppText>
               <AppText variant="label" tone="secondary" numberOfLines={1}>
-                {currentPatient.service_name || 'Consultation'}
+                {current.is_guest ? 'Walk-in / QR patient' : 'App patient'}
               </AppText>
               {elapsed !== null && (
                 <View style={[styles.elapsed, { backgroundColor: colors.tint.success, borderRadius: radius.pill }]}>
@@ -86,62 +96,82 @@ export const NowServingCard = ({ currentPatient, nextPatient, busyAction, disabl
             </View>
           </View>
 
-          <View style={[styles.actions, { marginTop: spacing.lg, gap: spacing.sm }]}>
-            <AppButton
-              title="Complete"
-              variant="success"
-              loading={busyAction(currentPatient.id) === 'complete_service'}
-              disabled={disabled}
-              containerStyle={styles.flex}
-              onPress={() => onAction('complete_service', currentPatient)}
-            />
-            <AppButton
-              title="No Show"
-              variant="outline"
-              loading={busyAction(currentPatient.id) === 'no_show'}
-              disabled={disabled}
-              containerStyle={styles.flex}
-              textStyle={{ color: colors.error }}
-              onPress={() => onAction('no_show', currentPatient)}
-            />
+          <AppButton
+            title="Complete & add notes"
+            variant="success"
+            disabled={busy}
+            containerStyle={{ marginTop: spacing.lg }}
+            onPress={() => onComplete(current)}
+          />
+          <View style={[styles.actions, { marginTop: spacing.sm, gap: spacing.sm }]}>
+            <View style={styles.flex}>
+              <AppButton
+                title={current.status === 'called' ? 'Call again' : 'Skip'}
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                leftIcon={current.status === 'called' ? <Volume2 size={14} color={colors.primary} /> : <ChevronsRight size={14} color={colors.primary} />}
+                onPress={() => (current.status === 'called' ? onRecall(current) : onSkip(current))}
+              />
+            </View>
+            {current.status === 'called' && (
+              <View style={styles.flex}>
+                <AppButton
+                  title="Skip"
+                  size="sm"
+                  variant="outline"
+                  disabled={busy}
+                  leftIcon={<ChevronsRight size={14} color={colors.primary} />}
+                  onPress={() => onSkip(current)}
+                />
+              </View>
+            )}
+            <View style={styles.flex}>
+              <AppButton
+                title="No Show"
+                size="sm"
+                variant="ghost"
+                disabled={busy}
+                leftIcon={<UserX size={14} color={colors.error} />}
+                textStyle={{ color: colors.error }}
+                onPress={() => confirmNoShow(current)}
+              />
+            </View>
           </View>
         </Animated.View>
       ) : (
         <AppText variant="body" tone="secondary" style={{ marginTop: spacing.sm }}>
-          {nextPatient
-            ? 'No one is in consultation. Call in the next patient when you are ready.'
-            : 'No confirmed patients are waiting right now.'}
+          {onBreak
+            ? "You're on a break. End it from the status button to call the next patient."
+            : next
+              ? 'No one is in consultation. Call in the next patient when you are ready.'
+              : 'Nobody is waiting right now.'}
         </AppText>
       )}
 
-      {nextPatient && (
-        <View
-          style={[
-            styles.nextSection,
-            { marginTop: spacing.lg, paddingTop: spacing.md, borderTopColor: colors.divider },
-          ]}
-        >
+      {next && (
+        <View style={[styles.nextSection, { marginTop: spacing.lg, paddingTop: spacing.md, borderTopColor: colors.divider }]}>
           <View style={styles.nextRow}>
             <View style={[styles.nextIcon, { backgroundColor: colors.tint.primary, borderRadius: radius.pill }]}>
               <UserRound size={16} color={colors.primary} />
             </View>
             <View style={styles.flex}>
               <AppText variant="caption" tone="secondary">
-                Up next · Token {nextPatient.token_number ?? '—'}
+                {`Up next · Token ${next.token_number}`}
               </AppText>
               <AppText variant="bodyStrong" numberOfLines={1}>
-                {nextPatient.patient_name || 'Patient'}
+                {next.patient_name || 'Patient'}
               </AppText>
             </View>
           </View>
           <AppButton
-            title={currentPatient ? 'Complete current patient first' : `Call In Token ${nextPatient.token_number ?? ''}`.trim()}
-            variant={currentPatient ? 'outline' : 'primary'}
-            rightIcon={currentPatient ? undefined : <ArrowRight size={18} color={colors.onPrimary} />}
-            loading={busyAction(nextPatient.id) === 'start_service'}
-            disabled={disabled || currentPatient !== null}
+            title={current ? 'Complete without notes & call next' : `Call in token ${next.token_number}`}
+            variant={current ? 'outline' : 'primary'}
+            rightIcon={current ? undefined : <ArrowRight size={18} color={colors.onPrimary} />}
+            loading={busy}
+            disabled={busy || onBreak}
             containerStyle={{ marginTop: spacing.md }}
-            onPress={() => onAction('start_service', nextPatient)}
+            onPress={onCallNext}
           />
         </View>
       )}

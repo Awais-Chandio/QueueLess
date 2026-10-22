@@ -6,7 +6,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
 import AppText from '../../../components/ui/AppText';
-import { DoctorSheet } from './DoctorSheet';
+import { Sheet } from '../../../components/ui/Sheet';
 import { formatDateKey, parseDateKey, toDateKey } from '../utils/doctorFormat';
 import { useSaveVisitSummary, useVisitSummary } from '../../../hooks/useVisitSummary';
 import {
@@ -17,12 +17,22 @@ import {
   MEDICINE_NAME_MAX,
   NOTES_MAX,
 } from '../../../services/visitSummaryService';
-import type { AppointmentFull } from '../../../types/appointment';
+import type { SaveVisitSummaryPayload } from '../../../types/visitSummary';
+
+/** What the sheet needs to know about the visit. */
+export type SummaryTarget = { id: string; patient_name?: string | null; is_guest?: boolean };
 
 type Props = {
   visible: boolean;
-  appointment: AppointmentFull | null;
+  appointment: SummaryTarget | null;
   onClose: () => void;
+  /**
+   * 'edit' (default): notes for a completed visit. 'complete': the patient is
+   * still with the doctor; saving completes the visit, notes are optional.
+   */
+  mode?: 'edit' | 'complete';
+  /** complete mode: completes the visit with these notes, then optionally calls the next token. */
+  onComplete?: (payload: SaveVisitSummaryPayload, callNext: boolean) => Promise<unknown>;
 };
 
 type MedicineRow = {
@@ -45,11 +55,14 @@ const startOfToday = () => {
  * notes and an optional follow-up date. Opening it on a visit that already has
  * a summary loads it for editing; saving always goes through the same upsert.
  */
-export const VisitSummarySheet = ({ visible, appointment, onClose }: Props) => {
+export const VisitSummarySheet = ({ visible, appointment, onClose, mode = 'edit', onComplete }: Props) => {
   const { colors, spacing, radius } = useTheme();
   const appointmentId = appointment?.id;
-  const { data: existing, isLoading, isError, refetch } = useVisitSummary(appointmentId, visible);
+  const completing = mode === 'complete';
+  // Nothing to load while the visit is still open (summaries are written on completion).
+  const { data: existing, isLoading, isError, refetch } = useVisitSummary(appointmentId, visible && !completing);
   const save = useSaveVisitSummary();
+  const [completeBusy, setCompleteBusy] = useState(false);
 
   const nextKey = useRef(0);
   const newRow = (): MedicineRow => ({
@@ -98,6 +111,19 @@ export const VisitSummarySheet = ({ visible, appointment, onClose }: Props) => {
   const updateRow = (key: number, patch: Partial<MedicineRow>) =>
     setRows(current => current.map(row => (row.key === key ? { ...row, ...patch } : row)));
 
+  const complete = async (callNext: boolean) => {
+    if (!appointmentId || !onComplete) return;
+    setCompleteBusy(true);
+    try {
+      await onComplete({ appointmentId, diagnosis, notes, followUpDate: followUp, items: rows }, callNext);
+      onClose();
+    } catch {
+      // the caller shows the error; keep what the doctor typed
+    } finally {
+      setCompleteBusy(false);
+    }
+  };
+
   const submit = () => {
     if (!appointmentId) return;
     save.mutate(
@@ -113,14 +139,14 @@ export const VisitSummarySheet = ({ visible, appointment, onClose }: Props) => {
   };
 
   const isEditing = !!existing;
-  const busy = save.isPending;
+  const busy = save.isPending || completeBusy;
   const patient = appointment?.patient_name || 'this patient';
 
   return (
-    <DoctorSheet
+    <Sheet
       visible={visible}
       onClose={busy ? () => undefined : onClose}
-      title={isEditing ? 'Edit visit summary' : 'Visit summary'}
+      title={completing ? 'Complete visit' : isEditing ? 'Edit visit summary' : 'Visit summary'}
       maxHeightPercent={0.92}
     >
       {isLoading ? (
@@ -143,7 +169,11 @@ export const VisitSummarySheet = ({ visible, appointment, onClose }: Props) => {
       ) : (
         <View>
           <AppText variant="body" tone="secondary" style={{ marginBottom: spacing.md }}>
-            {`Diagnosis and prescription for ${patient}. The patient can read this from their appointment.`}
+            {completing
+              ? `Notes for ${patient} are optional — you can add them later from Done.`
+              : appointment?.is_guest
+                ? `Diagnosis and prescription for ${patient}, kept in the clinic's records.`
+                : `Diagnosis and prescription for ${patient}. The patient can read this from their appointment.`}
           </AppText>
 
           <AppInput
@@ -320,16 +350,35 @@ export const VisitSummarySheet = ({ visible, appointment, onClose }: Props) => {
             />
           )}
 
-          <AppButton
-            title={isEditing ? 'Save changes' : 'Save summary'}
-            loading={busy}
-            disabled={busy}
-            containerStyle={{ marginTop: spacing.xl, marginBottom: spacing.md }}
-            onPress={submit}
-          />
+          {completing ? (
+            <>
+              <AppButton
+                title="Complete & call next"
+                loading={busy}
+                disabled={busy}
+                containerStyle={{ marginTop: spacing.xl }}
+                onPress={() => complete(true)}
+              />
+              <AppButton
+                title="Complete visit"
+                variant="outline"
+                disabled={busy}
+                containerStyle={{ marginTop: spacing.sm, marginBottom: spacing.md }}
+                onPress={() => complete(false)}
+              />
+            </>
+          ) : (
+            <AppButton
+              title={isEditing ? 'Save changes' : 'Save summary'}
+              loading={busy}
+              disabled={busy}
+              containerStyle={{ marginTop: spacing.xl, marginBottom: spacing.md }}
+              onPress={submit}
+            />
+          )}
         </View>
       )}
-    </DoctorSheet>
+    </Sheet>
   );
 };
 

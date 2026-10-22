@@ -7,12 +7,14 @@ import {
     AuthorizationStatus,
 } from '@react-native-firebase/messaging';
 import { logger } from '../utils/logger';
+import { isFirebaseReady } from '../lib/firebase';
 
 export const fcmService = {
     /**
      * Request permissions for push notifications on iOS and Android 13+.
      */
     async requestPermission(): Promise<boolean> {
+        if (!isFirebaseReady()) return false;
         try {
             const authStatus = await requestPermission(getMessaging());
             const enabled =
@@ -35,6 +37,7 @@ export const fcmService = {
      * Retrieve the device's FCM token.
      */
     async getToken(): Promise<string | null> {
+        if (!isFirebaseReady()) return null;
         try {
             const token = await getToken(getMessaging());
             if (__DEV__) {
@@ -53,6 +56,7 @@ export const fcmService = {
      * Delete the current FCM token.
      */
     async deleteToken(): Promise<void> {
+        if (!isFirebaseReady()) return;
         try {
             await deleteToken(getMessaging());
             if (__DEV__) {
@@ -71,6 +75,7 @@ export const fcmService = {
      * @returns Unsubscribe function.
      */
     onTokenRefresh(callback: (token: string) => void): () => void {
+        if (!isFirebaseReady()) return () => undefined;
         return onTokenRefresh(getMessaging(), (token) => {
             if (__DEV__) {
                 logger.log('[fcmService] FCM token refreshed:', token);

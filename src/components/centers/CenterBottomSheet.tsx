@@ -18,7 +18,7 @@ import {
 import BottomSheet from '../ui/AppBottomSheet';
 import AppButton from '../ui/AppButton';
 import { useTheme } from '../../hooks/useTheme';
-import type { NearbyCenter } from '../../services/centers/centerService';
+import type { NearbyCenter } from '../../services/centerService';
 import { openMapNavigation } from '../../services/location/mapNavigationService';
 import {
   formatCenterTime,
@@ -185,7 +185,7 @@ const CenterBottomSheet = ({
           <AppButton
             title="Navigate"
             onPress={handleNavigate}
-            leftIcon={<Navigation size={17} color="#FFFFFF" />}
+            leftIcon={<Navigation size={17} color={colors.onPrimary} />}
           />
         </View>
       </View>

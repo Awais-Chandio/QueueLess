@@ -13,13 +13,14 @@ import { useAuth } from "./src/hooks/useAuth";
 import ToastMessage from "./src/components/ui/ToastMessage";
 import { ErrorBoundary } from "./src/components/ui/ErrorBoundary";
 import RealtimeIndicator from "./src/components/ui/RealtimeIndicator";
-import { authService } from "./src/features/auth/api/authService";
+import { authService } from "./src/services/authService";
 import { useAuthStore } from "./src/store/authStore";
 import { toastService } from "./src/services/toastService";
 import { supabase, supabaseConfig } from "./src/lib/supabase";
 import { hp, scaleFont, wp } from "./src/utils/responsive";
 import { isGoogleSession, parseOAuthCallback } from "./src/utils/oauthCallback";
 import { logger } from './src/utils/logger';
+import { clientColorsLight } from "./src/theme/colors";
 
 const persister = {
   persistClient: async (client: any) => {
@@ -315,24 +316,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     paddingHorizontal: wp(6),
-    backgroundColor: "#FFFFFF",
+    backgroundColor: clientColorsLight.background,
   },
   startupErrorTitle: {
     marginBottom: hp(1.5),
-    color: "#B42318",
+    color: clientColorsLight.error,
     fontSize: scaleFont(24),
     fontWeight: "700",
     textAlign: "center",
   },
   startupErrorMessage: {
-    color: "#111827",
+    color: clientColorsLight.text,
     fontSize: scaleFont(16),
     lineHeight: scaleFont(22),
     textAlign: "center",
   },
   startupErrorHint: {
     marginTop: hp(1.5),
-    color: "#4B5563",
+    color: clientColorsLight.textSecondary,
     fontSize: scaleFont(14),
     lineHeight: scaleFont(20),
     textAlign: "center",

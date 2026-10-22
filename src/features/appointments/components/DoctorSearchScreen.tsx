@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Search, SlidersHorizontal, Stethoscope } from 'lucide-react-native';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
-import DoctorCard from '../../../components/DoctorCard';
+import DoctorCard from './DoctorCard';
 import EmptyState from '../../../components/ui/EmptyState';
 import { useTheme } from '../../../hooks/useTheme';
 import { doctorService } from '../../../services/doctorService';
@@ -140,7 +140,7 @@ const DoctorSearchScreen = () => {
                   style={[
                     styles.chipText,
                     {
-                      color: isSelected ? '#FFFFFF' : colors.textSecondary,
+                      color: isSelected ? colors.onPrimary : colors.textSecondary,
                       fontSize: typography.sizes.xs,
                       fontWeight: isSelected ? '800' : '600',
                     },

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { scaleFont } from '../../utils/responsive';
+import { useTheme } from '../../hooks/useTheme';
 
 interface CircularProgressProps {
   /** 0 to 1 */
@@ -24,13 +25,18 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   progress,
   size = 120,
   strokeWidth = 10,
-  color = '#0F766E',
-  trackColor = '#E2E8F0',
+  color,
+  trackColor,
   centerLabel,
   centerCaption,
-  centerLabelColor = '#12233E',
-  centerCaptionColor = '#64748B',
+  centerLabelColor,
+  centerCaptionColor,
 }) => {
+  const { colors } = useTheme();
+  const strokeColor = color ?? colors.primary;
+  const railColor = trackColor ?? colors.border;
+  const labelColor = centerLabelColor ?? colors.text;
+  const captionColor = centerCaptionColor ?? colors.textSecondary;
   const animatedValue = useRef(new Animated.Value(0)).current;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -56,7 +62,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={trackColor}
+          stroke={railColor}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -65,7 +71,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke={color}
+          stroke={strokeColor}
           strokeWidth={strokeWidth}
           fill="none"
           strokeDasharray={`${circumference} ${circumference}`}
@@ -80,7 +86,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           <Text
             style={[
               styles.centerLabel,
-              { color: centerLabelColor, fontSize: scaleFont(size * 0.175) },
+              { color: labelColor, fontSize: scaleFont(size * 0.175) },
             ]}
             numberOfLines={1}
           >
@@ -91,7 +97,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           <Text
             style={[
               styles.centerCaption,
-              { color: centerCaptionColor, fontSize: scaleFont(size * 0.09) },
+              { color: captionColor, fontSize: scaleFont(size * 0.09) },
             ]}
             numberOfLines={1}
           >

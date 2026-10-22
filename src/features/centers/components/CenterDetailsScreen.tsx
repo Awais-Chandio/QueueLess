@@ -74,7 +74,7 @@ import {
 import { MAP_STYLE_URL } from '../../../config/map';
 import {
   calculateDistanceKm,
-} from '../../../services/centers/centerService';
+} from '../../../services/centerService';
 import { locationService } from '../../../services/location/locationService';
 import type { UserLocation } from '../../../services/location/locationService';
 import { openMapNavigation } from '../../../services/location/mapNavigationService';
@@ -489,7 +489,7 @@ const CenterDetailsScreen = () => {
                           paint={{
                             'circle-color': colors.primary,
                             'circle-radius': 11,
-                            'circle-stroke-color': '#FFFFFF',
+                            'circle-stroke-color': colors.map.stroke,
                             'circle-stroke-width': 3,
                           }}
                         />
@@ -503,9 +503,9 @@ const CenterDetailsScreen = () => {
                             id="details-user-location-dot"
                             type="circle"
                             paint={{
-                              'circle-color': '#2563EB',
+                              'circle-color': colors.map.user,
                               'circle-radius': 7,
-                              'circle-stroke-color': '#FFFFFF',
+                              'circle-stroke-color': colors.map.stroke,
                               'circle-stroke-width': 3,
                             }}
                           />
@@ -532,7 +532,7 @@ const CenterDetailsScreen = () => {
                   title="Navigate"
                   onPress={() => void handleNavigate()}
                   containerStyle={{ marginTop: spacing.sm }}
-                  leftIcon={<Navigation size={17} color="#FFFFFF" />}
+                  leftIcon={<Navigation size={17} color={colors.onPrimary} />}
                 />
                 {!!locationError && (
                   <Text
@@ -575,7 +575,7 @@ const CenterDetailsScreen = () => {
                   serviceName: item.name,
                 })
               }
-              style={[styles.serviceCard, { padding: spacing.md }]}
+              style={[styles.serviceCard, { borderColor: colors.divider }, { padding: spacing.md }]}
               containerStyle={{ marginBottom: spacing.md }}
             >
               <View style={styles.serviceHeader}>
@@ -733,7 +733,6 @@ const styles = StyleSheet.create({
   },
   serviceCard: {
     borderWidth: 0.5,
-    borderColor: 'rgba(0,0,0,0.05)',
   },
   serviceHeader: {
     flexDirection: 'row',

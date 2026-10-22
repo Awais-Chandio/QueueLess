@@ -1,5 +1,5 @@
 import React, { useEffect, useCallback, useState } from "react";
-import { View, StyleSheet, Text, Pressable, Switch, Alert } from "react-native";
+import { View, StyleSheet, Text, Pressable, Alert } from "react-native";
 import { launchImageLibrary } from "react-native-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,7 +7,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useProfileStore } from "../../../store/profileStore";
 import { useDashboardStats } from "../../home/hooks/useDashboardStats";
 import { useTheme } from "../../../hooks/useTheme";
-import { useThemeStore } from "../../../store/themeStore";
+import ThemeModePicker from "../../../components/ui/ThemeModePicker";
 import ScreenWrapper from "../../../components/ui/ScreenWrapper";
 import { Card } from "../../../components/ui/Card";
 import AppButton from "../../../components/ui/AppButton";
@@ -22,11 +22,11 @@ import { toastService } from "../../../services/toastService";
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
-const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
-  admin: { label: 'Admin', color: '#0E7490', bg: '#0E749018' },
-  staff: { label: 'Staff', color: '#0E7490', bg: '#0E749018' },
-  client: { label: 'Client', color: '#0E7490', bg: '#0E749018' },
-  patient: { label: 'Patient', color: '#0E7490', bg: '#0E749018' },
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  staff: 'Staff',
+  client: 'Client',
+  patient: 'Patient',
 };
 
 const ProfileScreen = () => {
@@ -35,7 +35,6 @@ const ProfileScreen = () => {
   const { profile, fetchProfile, uploadAvatar, isUploadingAvatar, error } = useProfileStore();
   const { data: stats, refetch: refetchStats } = useDashboardStats();
   const { colors, spacing, typography } = useTheme();
-  const { isDarkMode, toggleTheme } = useThemeStore();
   const [refreshing, setRefreshing] = useState(false);
   const [showMedicalHistory, setShowMedicalHistory] = useState(false);
 
@@ -142,7 +141,7 @@ const ProfileScreen = () => {
   };
 
   const userRole = profile?.role ?? authRole ?? 'client';
-  const roleConfig = ROLE_LABELS[userRole] ?? ROLE_LABELS.client;
+  const roleConfig = { label: ROLE_LABELS[userRole] ?? ROLE_LABELS.client, color: colors.primary, bg: colors.tint.primary };
 
   const hasName = !!profile?.full_name;
   const hasEmail = !!(profile?.email || user?.email);
@@ -191,7 +190,7 @@ const ProfileScreen = () => {
               </View>
             </LinearGradient>
             <View style={[styles.cameraIcon, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
-              <Camera size={scaleFont(12)} color="#FFF" />
+              <Camera size={scaleFont(12)} color={colors.onPrimary} />
             </View>
           </Pressable>
 
@@ -340,18 +339,11 @@ const ProfileScreen = () => {
             onPress={() => navigation.navigate("EditProfile")}
           />
           <SettingRow 
-            title="Dark Mode" 
-            icon={Moon} 
+            title="Appearance"
+            icon={Moon}
             color={colors.info}
             isLast
-            rightElement={
-              <Switch 
-                value={isDarkMode} 
-                onValueChange={toggleTheme} 
-                trackColor={{ false: colors.border, true: colors.primary }} 
-                thumbColor={isDarkMode ? colors.card : '#f4f3f4'}
-              />
-            } 
+            rightElement={<ThemeModePicker />}
           />
         </Card>
       </AnimatedCard>
@@ -376,7 +368,7 @@ const ProfileScreen = () => {
           onPress={handleLogout} 
           style={{ borderRadius: 12 }}
           containerStyle={{ marginBottom: spacing.xl }}
-          leftIcon={<LogOut size={16} color="#FFF" />}
+          leftIcon={<LogOut size={16} color={colors.onError} />}
         />
       </AnimatedCard>
 

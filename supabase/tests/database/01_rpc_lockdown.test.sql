@@ -25,6 +25,11 @@ $$;
 --   patient 1 a...06   patient 2 a...07
 --   appts: e..01 p1/docA confirmed, e..02 p2/docA pending, e..03 p2/docB confirmed, e..04 p1/docB checked_in
 
+-- 1E: app (slot) booking needs the online_booking module; both seed clinics move to the Clinic plan.
+UPDATE public.org_subscriptions SET plan_id = 'clinic' WHERE status <> 'cancelled'
+  AND organization_id IN (SELECT organization_id FROM public.service_centers
+                          WHERE id IN ('521f1349-05c4-4417-9fa5-5289963af7db', 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481'));
+
 SELECT plan(49);
 
 -- ---------------------------------------------------------------------------
@@ -70,7 +75,13 @@ $$, ARRAY[
   'update_center(uuid,text,text,text,time without time zone,time without time zone)',
   'invite_staff(uuid,text)', 'revoke_invite(uuid)', 'accept_invites()', 'remove_staff(uuid,uuid)',
   'create_organization(text,text,text,text,jsonb,text,time without time zone,time without time zone)',
-  'get_org_settings(uuid)'
+  'get_org_settings(uuid)',
+  -- 1C (doctor app)
+  'get_doctor_queue(uuid)', 'set_doctor_late(uuid,integer)', 'complete_visit(uuid,text,text,date,jsonb)',
+  -- 1E (plans, insights, manual billing; admin RPCs check is_admin inside)
+  'get_clinic_insights(uuid,integer)', 'set_message_language(uuid,text)', 'admin_list_clinics()',
+  'admin_set_plan(uuid,text,date,text)', 'admin_add_credits(uuid,integer,text)',
+  'admin_add_payment(uuid,integer,text,text,date)', 'admin_set_org_status(uuid,text,text)', 'admin_clinic_billing(uuid)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$

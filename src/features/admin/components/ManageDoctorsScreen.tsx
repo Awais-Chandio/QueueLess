@@ -4,7 +4,7 @@ import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Search, Stethoscope } from 'lucide-react-native';
 import { doctorService, type Doctor } from '../../../services/doctorService';
-import DoctorCard from '../../../components/ui/DoctorCard';
+import DoctorCard from './AdminDoctorCard';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import MedicalFAB from '../../../components/ui/MedicalFAB';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -244,7 +244,7 @@ const ManageDoctorsScreen = () => {
                     }
                   ]}
                 >
-                  <Text style={[styles.chipText, { color: isSelected ? '#FFF' : colors.text, fontSize: typography.sizes.xs }]}>
+                  <Text style={[styles.chipText, { color: isSelected ? colors.onPrimary : colors.text, fontSize: typography.sizes.xs }]}>
                     {spec}
                   </Text>
                 </Pressable>
@@ -269,7 +269,7 @@ const ManageDoctorsScreen = () => {
                     }
                   ]}
                 >
-                  <Text style={[styles.chipText, { color: isSelected ? '#FFF' : colors.text, fontSize: typography.sizes.xs }]}>
+                  <Text style={[styles.chipText, { color: isSelected ? colors.onPrimary : colors.text, fontSize: typography.sizes.xs }]}>
                     {center.name}
                   </Text>
                 </Pressable>

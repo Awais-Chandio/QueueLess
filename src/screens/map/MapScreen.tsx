@@ -40,12 +40,13 @@ import type { AppStackParamList } from '../../navigation/types';
 import {
   calculateDistanceKm,
   type NearbyCenter,
-} from '../../services/centers/centerService';
+} from '../../services/centerService';
 import {
   locationService,
   type UserLocation,
 } from '../../services/location/locationService';
 import { useCenterStore } from '../../store/centerStore';
+import { fixed } from '../../theme/colors';
 
 type NavigationProp = NativeStackNavigationProp<AppStackParamList>;
 
@@ -357,7 +358,7 @@ const MapScreen = () => {
                 30,
                 28,
               ],
-              'circle-stroke-color': '#FFFFFF',
+              'circle-stroke-color': colors.map.stroke,
               'circle-stroke-width': 3,
             }}
           />
@@ -371,7 +372,7 @@ const MapScreen = () => {
               'text-font': ['Noto Sans Regular'],
             }}
             paint={{
-              'text-color': '#FFFFFF',
+              'text-color': colors.map.label,
             }}
           />
           <Layer
@@ -390,7 +391,7 @@ const MapScreen = () => {
             paint={{
               'circle-color': colors.primary,
               'circle-radius': 11,
-              'circle-stroke-color': '#FFFFFF',
+              'circle-stroke-color': colors.map.stroke,
               'circle-stroke-width': 3,
             }}
           />
@@ -404,7 +405,7 @@ const MapScreen = () => {
               'text-font': ['Noto Sans Bold'],
             }}
             paint={{
-              'text-color': '#FFFFFF',
+              'text-color': colors.map.label,
             }}
           />
         </GeoJSONSource>
@@ -414,7 +415,7 @@ const MapScreen = () => {
             id="user-location-accuracy"
             type="circle"
             paint={{
-              'circle-color': '#2563EB',
+              'circle-color': colors.map.user,
               'circle-opacity': 0.14,
               'circle-radius': 24,
             }}
@@ -423,9 +424,9 @@ const MapScreen = () => {
             id="user-location-dot"
             type="circle"
             paint={{
-              'circle-color': '#2563EB',
+              'circle-color': colors.map.user,
               'circle-radius': 8,
-              'circle-stroke-color': '#FFFFFF',
+              'circle-stroke-color': colors.map.stroke,
               'circle-stroke-width': 3,
             }}
           />
@@ -503,6 +504,7 @@ const MapScreen = () => {
           <Text
             style={[
               styles.errorText,
+              { color: colors.onError },
               { fontSize: typography.sizes.xs },
             ]}
           >
@@ -551,7 +553,7 @@ const MapScreen = () => {
             pressed && styles.pressed,
           ]}
         >
-          <Crosshair size={22} color="#FFFFFF" />
+          <Crosshair size={22} color={colors.onPrimary} />
         </Pressable>
       </View>
 
@@ -579,7 +581,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    shadowColor: '#000000',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -605,7 +607,6 @@ const styles = StyleSheet.create({
     top: 94,
   },
   errorText: {
-    color: '#FFFFFF',
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -618,7 +619,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    shadowColor: '#000000',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.14,
     shadowRadius: 8,

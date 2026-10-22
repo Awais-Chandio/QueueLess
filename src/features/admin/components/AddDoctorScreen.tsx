@@ -26,6 +26,7 @@ import { doctorService } from '../../../services/doctorService';
 import { toastService } from '../../../services/toastService';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 import { logger } from '../../../utils/logger';
+import { fixed } from '../../../theme/colors';
 
 type AddDoctorScreenNavigationProp = NativeStackNavigationProp<AdminStackParamList, 'AddDoctor'>;
 
@@ -293,8 +294,8 @@ const AddDoctorScreen = () => {
                     <Stethoscope size={40} color={colors.primary} />
                   </View>
                 )}
-                <View style={[styles.cameraBadge, { backgroundColor: colors.primary, borderRadius: radius.full }]}>
-                  <Camera size={14} color="#FFF" />
+                <View style={[styles.cameraBadge, { borderColor: colors.surface }, { backgroundColor: colors.primary, borderRadius: radius.full }]}>
+                  <Camera size={14} color={colors.onPrimary} />
                 </View>
               </Pressable>
               <Text style={[styles.avatarTip, { color: colors.textSecondary, fontSize: typography.caption, marginTop: spacing.xs }]}>
@@ -526,7 +527,7 @@ const AddDoctorScreen = () => {
             )}
 
             {/* Active Switch */}
-            <View style={[styles.rowContainer, { paddingVertical: spacing.sm }]}>
+            <View style={[styles.rowContainer, { borderTopColor: colors.divider }, { paddingVertical: spacing.sm }]}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.rowTitle, { color: colors.text, fontSize: typography.sizes.sm }]}>Active Status</Text>
                 <Text style={{ color: colors.textSecondary, fontSize: typography.caption }}>
@@ -537,7 +538,7 @@ const AddDoctorScreen = () => {
                 value={isActive}
                 onValueChange={setIsActive}
                 trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={Platform.OS === 'android' ? '#FFF' : undefined}
+                thumbColor={Platform.OS === 'android' ? colors.surface : undefined}
                 disabled={isSaving}
               />
             </View>
@@ -589,7 +590,7 @@ const styles = StyleSheet.create({
     marginLeft: 20,
   },
   formCard: {
-    shadowColor: '#000',
+    shadowColor: fixed.shadow,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
@@ -621,7 +622,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#FFF',
   },
   avatarTip: {
     fontWeight: '600',
@@ -678,7 +678,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     borderTopWidth: 0.5,
-    borderTopColor: 'rgba(0,0,0,0.06)',
     marginTop: 8,
   },
   rowTitle: {

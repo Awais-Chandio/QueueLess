@@ -9,7 +9,7 @@ import CentersScreen from "../features/centers/components/CentersScreen";
 import MapScreen from "../screens/map/MapScreen";
 import { supabase } from "../lib/supabase";
 import { useAuthStore } from "../store/authStore";
-import { useNotificationsStore } from "../store/notificationsStore";
+import { useNotificationsStore } from "../store/notificationStore";
 import type { Notification } from "../types/notification";
 import type { AppTabParamList } from "./types";
 import { useTheme } from "../hooks/useTheme";
@@ -18,6 +18,7 @@ import { hp } from "../utils/responsive";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { logger } from '../utils/logger';
+import { PATIENT_MARKETPLACE_ENABLED } from "../config/featureFlags";
 
 const Tab = createBottomTabNavigator<AppTabParamList>();
 let notificationChannelInstance = 0;
@@ -225,6 +226,7 @@ const AppTabs = () => {
 
     return (
         <Tab.Navigator
+            initialRouteName={PATIENT_MARKETPLACE_ENABLED ? 'Home' : 'MyAppointments'}
             screenOptions={{ 
                 headerShown: false,
                 tabBarActiveTintColor: colors.primary,
@@ -240,7 +242,7 @@ const AppTabs = () => {
                     borderTopWidth: 0,
                     borderWidth: 1,
                     borderColor: colors.border + '40',
-                    shadowColor: '#000000',
+                    shadowColor: colors.shadowColor,
                     shadowOffset: { width: 0, height: 8 },
                     shadowOpacity: 0.08,
                     shadowRadius: 16,
@@ -258,21 +260,25 @@ const AppTabs = () => {
                 },
                 tabBarHideOnKeyboard: true,
             }}>
-            <Tab.Screen 
-                name="Home" 
-                component={HomeScreen} 
-                options={{ tabBarIcon: HomeTabIcon }}
-            />
-            <Tab.Screen
-                name="Explore"
-                component={CentersScreen}
-                options={{ tabBarIcon: ExploreTabIcon }}
-            />
-            <Tab.Screen
-                name="Map"
-                component={MapScreen}
-                options={{ tabBarIcon: MapTabIcon }}
-            />
+            {PATIENT_MARKETPLACE_ENABLED && (
+                <>
+                    <Tab.Screen
+                        name="Home"
+                        component={HomeScreen}
+                        options={{ tabBarIcon: HomeTabIcon }}
+                    />
+                    <Tab.Screen
+                        name="Explore"
+                        component={CentersScreen}
+                        options={{ tabBarIcon: ExploreTabIcon }}
+                    />
+                    <Tab.Screen
+                        name="Map"
+                        component={MapScreen}
+                        options={{ tabBarIcon: MapTabIcon }}
+                    />
+                </>
+            )}
             <Tab.Screen
                 name="MyAppointments"
                 component={MyAppointmentsScreen}

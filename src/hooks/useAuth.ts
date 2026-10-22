@@ -2,18 +2,23 @@ import { useCallback } from "react";
 import { InAppBrowser } from 'react-native-inappbrowser-reborn';
 import { User } from '@supabase/supabase-js';
 import { authService } from '../services/authService';
-import { useAuthStore } from '../stores/authStore';
-import { useProfileStore } from '../stores/profileStore';
+import { useAuthStore } from '../store/authStore';
+import { useProfileStore } from '../store/profileStore';
 import { LoginPayload, SignupPayload } from '../types/auth';
 import { profileService } from '../services/profileService';
 import { firebasePhoneAuth } from '../services/firebasePhoneAuth';
 import { assertPhoneLoginEnabled } from '../config/featureFlags';
 import { fcmService } from '../services/fcmService';
-import { useNotificationsStore } from '../stores/notificationStore';
+import { useNotificationsStore } from '../store/notificationStore';
 import { supabase } from '../lib/supabase';
-import { normalizeUserRole } from '../utils/roleMapping';
+import { normalizeUserRole, resolveAppRole } from '../utils/roleMapping';
+import { queueRpc, type Workspace } from '../features/queue/api/queueRpc';
 import { isGoogleSession, parseOAuthCallback } from '../utils/oauthCallback';
 import { logger } from '../utils/logger';
+import { fixed } from '../theme/colors';
+
+// Google sign-in sheet: dark chrome in both themes, like the auth hero.
+const browserChrome = { bar: fixed.shadow, control: fixed.onBrand };
 
 const toAuthError = (error: unknown, fallbackMessage: string) => {
   if (error instanceof Error) {
@@ -27,11 +32,13 @@ const setAuthState = (payload: {
   profile: any;
   role: any;
   doctorId: string | null;
+  workspaces: Workspace[];
 }) => {
   useProfileStore.setState({ profile: payload.profile, isLoading: false, error: null });
   useAuthStore.setState({
     role: normalizeUserRole(payload.role),
     doctorId: payload.doctorId,
+    workspaces: payload.workspaces,
   });
 };
 
@@ -104,23 +111,32 @@ const fetchVerifiedProfileRole = async (
 
   const profileToUse = finalProfile || { id: user.id, role: 'client' };
 
-  let doctorId = null;
-  if (profileToUse.role === 'doctor' || profileToUse.role === 'staff' || profileToUse.role === 'admin') {
-    try {
-      const { data } = await supabase.rpc('get_my_staff_context');
-      doctorId = data?.[0]?.doctor_id ?? null;
-    } catch (err) {
-      if (__DEV__) logger.warn('[useAuth] getStaffContext error:', err);
-    }
-  }
+  // Clinic roles live in org_members: owners and receptionists invited from
+  // the web app keep profiles.role = 'client'.
+  const [staffContext, workspaces] = await Promise.all([
+    supabase.rpc('get_my_staff_context').then(
+      ({ data }) => data?.[0]?.doctor_id ?? null,
+      err => {
+        if (__DEV__) logger.warn('[useAuth] getStaffContext error:', err);
+        return null;
+      },
+    ),
+    queueRpc.getMyWorkspaces().catch(err => {
+      if (__DEV__) logger.warn('[useAuth] getMyWorkspaces error:', err);
+      return [] as Workspace[];
+    }),
+  ]);
+  const doctorId: string | null = staffContext;
+  const role = resolveAppRole({ profileRole: profileToUse.role, workspaces, doctorId });
 
   setAuthState({
     profile: profileToUse,
-    role: profileToUse.role,
+    role,
     doctorId,
+    workspaces,
   });
 
-  return profileToUse.role ?? 'client';
+  return role;
 };
 
 export const useAuth = () => {
@@ -170,25 +186,6 @@ export const useAuth = () => {
           const verifiedRole = await fetchVerifiedProfileRole(currentSession.user);
           setRole(verifiedRole);
           logger.log('PROFILE_LOADED');
-
-          const profile = useProfileStore.getState().profile;
-          if (profile) {
-            let doctorId = null;
-            if (profile.role === 'doctor' || profile.role === 'staff' || profile.role === 'admin') {
-              try {
-                const { data } = await supabase.rpc('get_my_staff_context');
-                doctorId = data?.[0]?.doctor_id ?? null;
-              } catch (err) {
-                if (__DEV__) logger.warn('[useAuth] getStaffContext error:', err);
-              }
-            }
-            setAuthState({
-              profile,
-              role: profile.role,
-              doctorId,
-            });
-          }
-
           logger.log('ROLE_SET');
           if (__DEV__) logger.log('[useAuth] Auth state changed: SIGNED_IN');
           if (__DEV__) logger.log('[AUTH] restoreSession complete');
@@ -308,8 +305,8 @@ export const useAuth = () => {
           {
             // iOS Properties
             dismissButtonStyle: 'cancel',
-            preferredBarTintColor: '#0F172A',
-            preferredControlTintColor: '#FFFFFF',
+            preferredBarTintColor: browserChrome.bar,
+            preferredControlTintColor: browserChrome.control,
             readerMode: false,
             animated: true,
             modalPresentationStyle: 'fullScreen',
@@ -318,10 +315,10 @@ export const useAuth = () => {
             enableBarCollapsing: true,
             // Android Properties
             showTitle: true,
-            toolbarColor: '#0F172A',
-            secondaryToolbarColor: '#0F172A',
-            navigationBarColor: '#0F172A',
-            navigationBarDividerColor: '#0F172A',
+            toolbarColor: browserChrome.bar,
+            secondaryToolbarColor: browserChrome.bar,
+            navigationBarColor: browserChrome.bar,
+            navigationBarDividerColor: browserChrome.bar,
             enableUrlBarHiding: true,
             enableDefaultShare: false,
             forceCloseOnRedirection: true,

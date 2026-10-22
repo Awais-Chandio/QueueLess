@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { Calendar, Clock, MapPin, Hash, Stethoscope, Heart, Smile } from 'lucide-react-native';
 import Card from './Card';
-import StatusBadge from './StatusBadge';
+import StatusChip from './StatusChip';
 import AppButton from './AppButton';
 import AnimatedCard from './AnimatedCard';
 import { useTheme } from '../../hooks/useTheme';
@@ -13,6 +13,7 @@ import {
   getAppointmentTimeLabel,
 } from '../../features/appointments/utils/appointmentTime';
 import { getAppointmentStatusState, getStatusDisplayProperties } from '../../services/bookingService';
+import type { ColorTheme } from '../../theme/colors';
 
 interface AppointmentTileProps {
   item: AppointmentFull;
@@ -21,12 +22,12 @@ interface AppointmentTileProps {
   onPressQueue?: () => void;
 }
 
-const getServiceIcon = (serviceName: string) => {
+const getServiceIcon = (serviceName: string, colors: ColorTheme) => {
   const name = (serviceName || '').toLowerCase();
-  if (name.includes('pediatric')) return { icon: Smile, color: '#0891B2' };
-  if (name.includes('cardio') || name.includes('heart')) return { icon: Heart, color: '#EF4444' };
-  if (name.includes('dental') || name.includes('teeth')) return { icon: Hash, color: '#F59E0B' };
-  return { icon: Stethoscope, color: '#0E7490' };
+  if (name.includes('pediatric')) return { icon: Smile, color: colors.info };
+  if (name.includes('cardio') || name.includes('heart')) return { icon: Heart, color: colors.error };
+  if (name.includes('dental') || name.includes('teeth')) return { icon: Hash, color: colors.warning };
+  return { icon: Stethoscope, color: colors.primary };
 };
 
 export const AppointmentTile: React.FC<AppointmentTileProps> = ({
@@ -38,7 +39,7 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
   const { colors, spacing, typography, radius } = useTheme();
   const { resolvedStatus, isExpired, isNoShow } = getAppointmentStatusState(item);
   const { label: statusLabel } = getStatusDisplayProperties(resolvedStatus);
-  const serviceIconInfo = getServiceIcon(item.service_name ?? '');
+  const serviceIconInfo = getServiceIcon(item.service_name ?? '', colors);
 
   return (
     <AnimatedCard delay={Math.min(index * 60, 300)}>
@@ -70,7 +71,7 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
               </View>
             ) : null}
           </View>
-          <StatusBadge
+          <StatusChip
             status={resolvedStatus}
             label={statusLabel}
             size="sm"
@@ -85,7 +86,7 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
               <Calendar size={12} color={colors.primary} />
             </View>
             <View>
-              <Text style={styles.detailLabel}>Date</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }, { color: colors.textSecondary }]}>Date</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>{getAppointmentDateLabel(item)}</Text>
             </View>
           </View>
@@ -95,7 +96,7 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
               <Clock size={12} color={colors.info} />
             </View>
             <View>
-              <Text style={styles.detailLabel}>Time</Text>
+              <Text style={[styles.detailLabel, { color: colors.textSecondary }, { color: colors.textSecondary }]}>Time</Text>
               <Text style={[styles.detailValue, { color: colors.text }]}>{getAppointmentTimeLabel(item)}</Text>
             </View>
           </View>
@@ -106,7 +107,7 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
                 <Hash size={12} color={colors.primary} />
               </View>
               <View>
-                <Text style={styles.detailLabel}>Token</Text>
+                <Text style={[styles.detailLabel, { color: colors.textSecondary }, { color: colors.textSecondary }]}>Token</Text>
                 <Text style={[styles.detailValue, { color: colors.primary, fontWeight: '800' }]}>A-{item.token_number}</Text>
               </View>
             </View>
@@ -168,7 +169,6 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: 9,
-    color: '#64748B',
     fontWeight: '600',
     textTransform: 'uppercase',
   },

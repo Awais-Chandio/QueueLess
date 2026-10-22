@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { appointmentService } from '../services/appointmentService';
-import { useAuthStore } from '../stores/authStore';
-import { useAppointmentsStore } from '../stores/appointmentStore';
+import { useAuthStore } from '../store/authStore';
+import { useAppointmentsStore } from '../store/appointmentStore';
 
 export const useAppointments = () => {
   const userId = useAuthStore(state => state.user?.id);

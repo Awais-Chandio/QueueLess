@@ -59,7 +59,7 @@ const AdminTabs = () => {
           height: hp(7.8),
           paddingBottom: Platform.OS === 'ios' ? spacing.xs : spacing.sm,
           paddingTop: spacing.sm,
-          shadowColor: '#000000',
+          shadowColor: colors.shadowColor,
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: 0.08,
           shadowRadius: 16,

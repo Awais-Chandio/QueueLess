@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import {
   getNearbyCenters,
   type NearbyCenter,
-} from '../services/centers/centerService';
+} from '../services/centerService';
 import type { UserLocation } from '../services/location/locationService';
 import { getCurrentAreaLabel } from '../services/location/reverseGeocodeService';
 

@@ -19,3 +19,13 @@ export const assertPhoneLoginEnabled = () => {
     throw new Error(PHONE_LOGIN_DISABLED_MESSAGE);
   }
 };
+
+/**
+ * Patient marketplace: the Home feed, Explore (clinic search), Map, Nearby
+ * clinics, doctor search and profiles, slot booking, and reviews.
+ *
+ * Off for the pilot: the app is for doctors and clinic staff. Patients get a
+ * token at the desk or by QR and follow it on the web status page (the SMS
+ * link). A patient who signs in anyway sees their appointments and profile.
+ */
+export const PATIENT_MARKETPLACE_ENABLED = false;

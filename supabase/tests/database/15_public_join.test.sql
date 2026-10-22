@@ -68,7 +68,7 @@ SELECT is(public.get_public_center('no-such-clinic'), NULL, 'unknown slug: NULL'
 SELECT is(public.get_public_center('''; DROP TABLE x; --'), NULL, 'malformed slug: NULL');
 SELECT is((SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(
              (SELECT d FROM jsonb_array_elements(public.get_public_center('liaquat-university-hospital')->'doctors') d LIMIT 1)) k),
-          ARRAY['id', 'is_on_break', 'name', 'on_leave', 'room', 'specialty', 'waiting'],
+          ARRAY['id', 'is_on_break', 'late_until', 'name', 'on_leave', 'room', 'specialty', 'waiting'],
           'doctor entries carry only display fields');
 SELECT tests.logout();
 
