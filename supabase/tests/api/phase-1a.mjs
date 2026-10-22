@@ -3,13 +3,18 @@
 //
 //   supabase db reset && node supabase/tests/api/phase-1a.mjs
 //
+// Since 1B, public QR joins come from the web server (service role, after the
+// captcha) through issue_public_token; anon can no longer call issue_token.
+// Set SUPABASE_SERVICE_ROLE_KEY to the local stack's key (supabase status).
+//
 // Writes to the local database (not rolled back); run `supabase db reset` after.
 import { createClient } from '@supabase/supabase-js';
 
 const URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const ANON_KEY = process.env.SUPABASE_ANON_KEY;
-if (!ANON_KEY) {
-  console.error('Set SUPABASE_ANON_KEY (supabase status -o env | grep ANON_KEY)');
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!ANON_KEY || !SERVICE_KEY) {
+  console.error('Set SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY (supabase status -o env)');
   process.exit(2);
 }
 if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(URL)) {
@@ -45,6 +50,9 @@ const signIn = async email => {
 };
 
 const anon = client();
+// The join page's server: service role key, local stack only (guarded above).
+const joinServer = createClient(URL, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+const publicJoin = args => joinServer.rpc('issue_public_token', { p_source: 'qr', ...args });
 const staffA = await signIn('staff.a@mediq.test');
 const staffB = await signIn('staff.b@mediq.test');
 const ownerA = await signIn('owner.a@mediq.test');
@@ -89,17 +97,26 @@ const tomorrow = new Date(Date.now() + 29 * 3600 * 1000).toISOString().slice(0, 
 }
 
 // ---------------------------------------------------------------------------
-// 2. Anonymous QR join gets a token, and status works without PII
+// 2. Public QR join (via the join page's server) gets a token, and status works without PII
 // ---------------------------------------------------------------------------
 let qrCode;
 {
-  const { data, error } = await anon.rpc('issue_token', {
-    p_doctor_id: DOCTOR_A, p_name: 'Api Guest', p_phone: '+92 345 1112223', p_source: 'qr',
+  const directJoin = await fetch(`${URL}/rest/v1/rpc/issue_token`, {
+    method: 'POST',
+    headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ p_doctor_id: DOCTOR_A, p_name: 'Bot', p_phone: '+923450000000', p_source: 'qr' }),
   });
+  check('anon: issue_token directly is refused (HTTP 401), joins need the captcha-checked server', directJoin.status === 401, directJoin.status);
+  const { error: patientJoinErr } = await patient1.rpc('issue_public_token', {
+    p_doctor_id: DOCTOR_A, p_name: 'X', p_phone: '+923450000001',
+  });
+  check('signed-in patient: issue_public_token refused', patientJoinErr?.code === '42501', patientJoinErr);
+
+  const { data, error } = await publicJoin({ p_doctor_id: DOCTOR_A, p_name: 'Api Guest', p_phone: '+92 345 1112223' });
   const row = data?.[0];
   qrCode = row?.public_code;
-  check('anon: QR join returns a token', !error && /^[A-HJ-NP-Z2-9]{8}$/.test(qrCode ?? '') && row.token_number > 0, error ?? data);
-  check('anon: no appointment id in the response', row && row.appointment_id === null, row);
+  check('public: QR join returns a token', !error && /^[A-HJ-NP-Z2-9]{8}$/.test(qrCode ?? '') && row.token_number > 0, error ?? data);
+  check('public: no appointment id in the response', row && row.appointment_id === null, row);
 
   const res = await fetch(`${URL}/rest/v1/rpc/get_token_status`, {
     method: 'POST',
@@ -124,14 +141,14 @@ let qrCode;
 
   // Per-phone limit: 3 public joins per clinic per day -> HTTP 429.
   for (const n of [2, 3]) {
-    await anon.rpc('issue_token', { p_doctor_id: DOCTOR_A, p_name: `Api Guest ${n}`, p_phone: '+923451112223', p_source: 'qr' });
+    await publicJoin({ p_doctor_id: DOCTOR_A, p_name: `Api Guest ${n}`, p_phone: '+923451112223' });
   }
-  const limited = await fetch(`${URL}/rest/v1/rpc/issue_token`, {
+  const limited = await fetch(`${URL}/rest/v1/rpc/issue_public_token`, {
     method: 'POST',
-    headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ p_doctor_id: DOCTOR_A, p_name: 'Api Guest 4', p_phone: '+923451112223', p_source: 'qr' }),
   });
-  check('anon: 4th join from the same phone -> HTTP 429', limited.status === 429, limited.status);
+  check('public: 4th join from the same phone -> HTTP 429', limited.status === 429, limited.status);
 }
 
 // ---------------------------------------------------------------------------
@@ -218,12 +235,12 @@ let qrCode;
   const active = (bToday ?? []).filter(r => r.status !== 'cancelled').length;
   check('free plan: stops at 30 tokens for the day', lastError?.code === 'PT402' && active === 30, { issued, active, lastError });
 
-  const res = await fetch(`${URL}/rest/v1/rpc/issue_token`, {
+  const res = await fetch(`${URL}/rest/v1/rpc/issue_public_token`, {
     method: 'POST',
-    headers: { apikey: ANON_KEY, 'Content-Type': 'application/json' },
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ p_doctor_id: DOCTOR_B, p_name: 'Late Guest', p_phone: '+923459990000', p_source: 'qr' }),
   });
-  check('free plan: anon QR join at the limit -> HTTP 402', res.status === 402, res.status);
+  check('free plan: public QR join at the limit -> HTTP 402', res.status === 402, res.status);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -5,7 +5,7 @@ CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO anon, authenticated;
 CREATE SCHEMA tests;
-GRANT USAGE ON SCHEMA tests TO anon, authenticated;
+GRANT USAGE ON SCHEMA tests TO anon, authenticated, service_role;
 CREATE FUNCTION tests.login(p_user uuid) RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', json_build_object('sub', p_user, 'role', 'authenticated')::text, true),
          set_config('role', 'authenticated', true);
@@ -13,6 +13,12 @@ $$;
 CREATE FUNCTION tests.login_anon() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '{"role":"anon"}', true),
          set_config('role', 'anon', true);
+$$;
+-- Phase 1B: public joins come from the web server (service role) after it
+-- verified the captcha, through issue_public_token.
+CREATE FUNCTION tests.login_join_server() RETURNS void LANGUAGE sql AS $$
+  SELECT set_config('request.jwt.claims', '{"role":"service_role"}', true),
+         set_config('role', 'service_role', true);
 $$;
 CREATE FUNCTION tests.logout() RETURNS void LANGUAGE sql AS $$
   SELECT set_config('request.jwt.claims', '', true), set_config('role', 'postgres', true);
@@ -29,7 +35,7 @@ CREATE FUNCTION tests.org_b_today() RETURNS integer LANGUAGE sql STABLE SECURITY
   SELECT count(*)::int FROM public.appointments a JOIN public.service_centers c ON c.id = a.center_id
   WHERE c.organization_id = tests.org_b() AND a.appointment_date = tests.today() AND a.status <> 'cancelled'
 $$;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;
 
 -- Seed: org A (center A, doctor A d..0a, staff A a..02, owner A a..09),
 --       org B (center B, doctor B d..0b, staff B a..03).
@@ -123,9 +129,9 @@ SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-000
                  'free: the 31st token of the day is refused (staff too)');
 SELECT tests.logout();
 
-SELECT tests.login_anon();
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'Guest', '+923004445566', 'qr')$$, 'PT402', NULL,
-                 'free: anon QR join refused at the daily limit');
+SELECT tests.login_join_server();
+SELECT throws_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000b', 'Guest', '+923004445566', 'qr')$$, 'PT402', NULL,
+                 'free: public QR join refused at the daily limit');
 SELECT tests.logout();
 
 -- Cancelling a (spam) token frees a place.
@@ -148,9 +154,9 @@ SELECT tests.login('a0000000-0000-4000-8000-000000000003');
 SELECT lives_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-0000000000b2', 'Second doctor', NULL, 'walk_in')$$,
                 'pro: second doctor allowed, no daily cap');
 SELECT tests.logout();
-SELECT tests.login_anon();
-SELECT lives_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'Online Guest', '+923007778899', 'online')$$,
-                'pro: anon online join allowed');
+SELECT tests.login_join_server();
+SELECT lives_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-8000-00000000000b', 'Online Guest', '+923007778899', 'online')$$,
+                'pro: public online join allowed');
 SELECT tests.logout();
 
 -- App bookings are not limited in 1A (existing app keeps working at the cap).
