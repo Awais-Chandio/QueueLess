@@ -159,13 +159,13 @@ SELECT lives_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-80
                 'pro: public online join allowed');
 SELECT tests.logout();
 
--- App bookings are not limited in 1A (existing app keeps working at the cap).
+-- 1E: app bookings need the online_booking module (Free doesn't have it).
 UPDATE public.org_subscriptions SET plan_id = 'free' WHERE organization_id = tests.org_b() AND status <> 'cancelled';
 SELECT tests.login('a0000000-0000-4000-8000-000000000006');
-SELECT lives_ok($$SELECT public.book_appointment(
+SELECT throws_ok($$SELECT public.book_appointment(
                     public.lock_slot('d0000000-0000-4000-8000-00000000000b', 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481', tests.today() + 1, '09:00 AM'),
-                    '50000000-0000-4000-8000-00000000000b', NULL)$$,
-                'app booking still works for a Free clinic over its token cap');
+                    '50000000-0000-4000-8000-00000000000b', NULL)$$, 'PT402', NULL,
+                'Free clinic: app booking refused (online_booking module, 1E)');
 SELECT tests.logout();
 
 SELECT * FROM finish();

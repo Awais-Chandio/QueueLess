@@ -24,6 +24,11 @@ VALUES ('e0000000-0000-4000-8000-000000000005', 'a0000000-0000-4000-8000-0000000
         '50000000-0000-4000-8000-00000000000b', 'd0000000-0000-4000-8000-00000000000b', CURRENT_DATE, '10:30',
         (CURRENT_DATE + time '10:30') AT TIME ZONE 'Asia/Karachi', 'confirmed');
 
+-- 1E: app (slot) booking needs the online_booking module; both seed clinics move to the Clinic plan.
+UPDATE public.org_subscriptions SET plan_id = 'clinic' WHERE status <> 'cancelled'
+  AND organization_id IN (SELECT organization_id FROM public.service_centers
+                          WHERE id IN ('521f1349-05c4-4417-9fa5-5289963af7db', 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481'));
+
 SELECT plan(38);
 
 -- ---------------------------------------------------------------------------

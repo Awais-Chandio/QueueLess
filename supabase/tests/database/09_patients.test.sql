@@ -35,6 +35,11 @@ VALUES ('e0000000-0000-4000-8000-0000000000f1', 'f0000000-0000-4000-8000-0000000
 -- inside this rolled-back test so its NULL-safe caller check is exercised.
 GRANT EXECUTE ON FUNCTION public.check_in_appointment(uuid) TO authenticated;
 
+-- 1E: app (slot) booking needs the online_booking module; both seed clinics move to the Clinic plan.
+UPDATE public.org_subscriptions SET plan_id = 'clinic' WHERE status <> 'cancelled'
+  AND organization_id IN (SELECT organization_id FROM public.service_centers
+                          WHERE id IN ('521f1349-05c4-4417-9fa5-5289963af7db', 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481'));
+
 SELECT plan(30);
 
 -- ---------------------------------------------------------------------------

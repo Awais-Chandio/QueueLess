@@ -178,6 +178,70 @@ export type Database = {
           },
         ]
       }
+      billing_events: {
+        Row: {
+          amount_pkr: number | null
+          created_at: string
+          created_by: string | null
+          credits: number | null
+          id: string
+          kind: string
+          method: string | null
+          note: string | null
+          organization_id: string
+          paid_on: string | null
+          period_end: string | null
+          plan_id: string | null
+          status: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          amount_pkr?: number | null
+          created_at?: string
+          created_by?: string | null
+          credits?: number | null
+          id?: string
+          kind: string
+          method?: string | null
+          note?: string | null
+          organization_id: string
+          paid_on?: string | null
+          period_end?: string | null
+          plan_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          amount_pkr?: number | null
+          created_at?: string
+          created_by?: string | null
+          credits?: number | null
+          id?: string
+          kind?: string
+          method?: string | null
+          note?: string | null
+          organization_id?: string
+          paid_on?: string | null
+          period_end?: string | null
+          plan_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'billing_events_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'billing_events_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       center_daily_tokens: {
         Row: {
           appointment_date: string
@@ -1730,7 +1794,19 @@ export type Database = {
     }
     Functions: {
       accept_invites: { Args: Record<PropertyKey, never>; Returns: number }
+      admin_add_credits: { Args: { p_credits: number; p_note?: string; p_org_id: string }; Returns: number }
+      admin_add_payment: {
+        Args: { p_amount_pkr: number; p_method?: string; p_note?: string; p_org_id: string; p_paid_on?: string }
+        Returns: string
+      }
+      admin_clinic_billing: { Args: { p_org_id: string }; Returns: Json }
       admin_delete_staff_account: { Args: { staff_profile_id: string }; Returns: undefined }
+      admin_list_clinics: { Args: Record<PropertyKey, never>; Returns: Json }
+      admin_set_org_status: { Args: { p_note?: string; p_org_id: string; p_status: string }; Returns: undefined }
+      admin_set_plan: {
+        Args: { p_note?: string; p_org_id: string; p_period_end?: string; p_plan_id: string }
+        Returns: Json
+      }
       begin_notification_send: { Args: { p_channel: string; p_cost: number; p_outbox_id: string }; Returns: Json }
       book_appointment: { Args: { p_lock_id: string; p_notes?: string; p_service_id: string }; Returns: string }
       bookings_per_day: {
@@ -2007,6 +2083,7 @@ export type Database = {
       get_appointment_queue_snapshot: { Args: { p_appointment_id: string }; Returns: Json }
       get_available_slots: { Args: { p_date: string; p_doctor_id: string }; Returns: string[] }
       get_center_queue_snapshot: { Args: { p_center_id: string; p_queue_date?: string }; Returns: Json }
+      get_clinic_insights: { Args: { p_center_id: string; p_days?: number }; Returns: Json }
       get_current_token:
         | { Args: Record<PropertyKey, never>; Returns: number }
         | { Args: { p_center_id: string; p_queue_date?: string }; Returns: number }
@@ -2167,6 +2244,7 @@ export type Database = {
       }
       set_doctor_break: { Args: { p_doctor_id: string; p_on_break: boolean }; Returns: undefined }
       set_doctor_late: { Args: { p_doctor_id: string; p_minutes: number }; Returns: string }
+      set_message_language: { Args: { p_language: string; p_org_id: string }; Returns: undefined }
       set_token_language: { Args: { p_language: string; p_public_code: string }; Returns: undefined }
       skip_notification: { Args: { p_outbox_id: string; p_reason: string }; Returns: undefined }
       skip_token: { Args: { p_appointment_id: string }; Returns: undefined }

@@ -126,8 +126,8 @@ let qrCode;
   const body = await res.json();
   const keys = Object.keys(body[0] ?? {}).sort().join(',');
   check('anon: get_token_status over HTTP is 200 with one row', res.status === 200 && body.length === 1, body);
-  check('status has exactly the six public fields',
-        keys === 'current_token,doctor_name,eta_minutes,people_ahead,status,token_number', keys);
+  check('status has exactly the public fields (1C: + doctor break / late)',
+        keys === 'current_token,doctor_late_until,doctor_name,doctor_on_break,eta_minutes,people_ahead,status,token_number', keys);
   const raw = JSON.stringify(body);
   check('status contains no patient name or phone', !/Api Guest|1112223|3451112223/i.test(raw), raw);
   check('status: waiting, doctor display name, token number', body[0]?.status === 'waiting'
@@ -155,6 +155,12 @@ let qrCode;
 // 3. Existing app flows: booking, check-in, call, complete, cancel
 // ---------------------------------------------------------------------------
 {
+  // 1E: app booking needs the online_booking module (not on Free). Move clinic
+  // A to the Clinic plan the way the platform admin would (server context).
+  const { data: queueA } = await joinServer.rpc('get_reception_queue', { p_center_id: CENTER_A });
+  const { error: planErr } = await joinServer.rpc('admin_set_plan', { p_org_id: queueA?.center?.organization_id, p_plan_id: 'clinic', p_note: 'api test' });
+  check('server: admin_set_plan clinic A -> Clinic', !planErr, planErr);
+
   // Booking (SelectSlot -> ConfirmBooking).
   const { data: lockId, error: lockErr } = await patient2.rpc('lock_slot', {
     p_doctor_id: DOCTOR_A, p_center_id: CENTER_A, p_date: tomorrow, p_time: '10:30 AM',
