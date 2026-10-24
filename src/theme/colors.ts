@@ -1,7 +1,8 @@
 /**
  * MediQ colour system.
  *
- * The brand hue is `#0E7490`. It is not a free variable: the launcher icon in
+ * The brand hue is `#0E7C86`, the same as the MediQ web app (mediq-web
+ * `--color-primary`). It is not a free variable: the launcher icon in
  * `scripts/generate-app-icons.js` and the accent "Q" in `Wordmark.tsx` are both
  * generated from these values, so changing `primary`, `gradients.primary` or
  * `accent` desyncs the in-app palette from the shipped app icon. Regenerate the
@@ -137,12 +138,12 @@ export type ColorTheme = {
 // ==========================================
 const lightStatus: StatusPalette = {
   pending:         { bg: '#F59E0B14', fg: '#92400E', dot: '#F59E0B', label: 'Pending' },
-  confirmed:       { bg: '#0E749014', fg: '#155E75', dot: '#0E7490', label: 'Confirmed' },
+  confirmed:       { bg: '#0E7C8614', fg: '#0B4F55', dot: '#0E7C86', label: 'Confirmed' },
   called:          { bg: '#14B8A614', fg: '#0F766E', dot: '#14B8A6', label: 'Called' },
   in_progress:     { bg: '#14B8A614', fg: '#0F766E', dot: '#14B8A6', label: 'In Progress' },
   completed:       { bg: '#16A34A14', fg: '#14532D', dot: '#16A34A', label: 'Completed' },
   cancelled:       { bg: '#DC262614', fg: '#991B1B', dot: '#DC2626', label: 'Cancelled' },
-  checked_in:      { bg: '#0E749014', fg: '#155E75', dot: '#0E7490', label: 'Checked In' },
+  checked_in:      { bg: '#0E7C8614', fg: '#0B4F55', dot: '#0E7C86', label: 'Checked In' },
   expired:         { bg: '#64748B14', fg: '#334155', dot: '#64748B', label: 'Expired' },
   no_show:         { bg: '#DC262614', fg: '#991B1B', dot: '#DC2626', label: 'No Show' },
   skipped:         { bg: '#DC262614', fg: '#991B1B', dot: '#DC2626', label: 'Skipped' },
@@ -150,15 +151,15 @@ const lightStatus: StatusPalette = {
   success:         { bg: '#16A34A14', fg: '#14532D', dot: '#16A34A', label: 'Success' },
   warning:         { bg: '#F59E0B14', fg: '#92400E', dot: '#F59E0B', label: 'Warning' },
   error:           { bg: '#DC262614', fg: '#991B1B', dot: '#DC2626', label: 'Error' },
-  info:            { bg: '#0E749014', fg: '#155E75', dot: '#0E7490', label: 'Info' },
+  info:            { bg: '#0E7C8614', fg: '#0B4F55', dot: '#0E7C86', label: 'Info' },
   default:         { bg: '#94A3B814', fg: '#475569', dot: '#94A3B8', label: 'Unknown' },
-  all:             { bg: '#0E749014', fg: '#155E75', dot: '#0E7490', label: 'All' },
+  all:             { bg: '#0E7C8614', fg: '#0B4F55', dot: '#0E7C86', label: 'All' },
 };
 
 export const clientColorsLight: ColorTheme = {
-  primary: '#0E7490',
-  primaryLight: '#ECFEFF',
-  primaryDark: '#155E75',
+  primary: '#0E7C86',
+  primaryLight: '#E7F4F4',
+  primaryDark: '#0B4F55',
   secondary: '#10B981',
   secondaryLight: '#D1FAE5',
   secondaryDark: '#065F46',
@@ -178,11 +179,11 @@ export const clientColorsLight: ColorTheme = {
   skeleton: '#E7EDF3',
   skeletonHighlight: '#F4F8FB',
   overlay: 'rgba(15, 23, 42, 0.56)',
-  glassBorder: 'rgba(14, 116, 144, 0.12)',
+  glassBorder: 'rgba(14, 124, 134, 0.12)',
   // Neutral slate rather than a teal glow: a tinted shadow reads as decoration.
   shadowColor: '#0F172A',
   gradients: {
-    primary: ['#0E7490', '#0891B2'],
+    primary: ['#0E7C86', '#0891B2'],
     accent: ['#10B981', '#14B8A6'],
     card: ['#FFFFFF', '#F7FAFC'],
   },
@@ -192,9 +193,9 @@ export const clientColorsLight: ColorTheme = {
   surfaceSunken: '#F1F5F9',
   surfaceRaised: '#FFFFFF',
   divider: '#EDF2F7',
-  focus: '#0E7490',
+  focus: '#0E7C86',
   tint: {
-    primary: 'rgba(14, 116, 144, 0.10)',
+    primary: 'rgba(14, 124, 134, 0.10)',
     accent: 'rgba(20, 184, 166, 0.12)',
     success: 'rgba(22, 163, 74, 0.10)',
     warning: 'rgba(245, 158, 11, 0.12)',
@@ -210,7 +211,7 @@ export const clientColorsLight: ColorTheme = {
   brandGlass: { bg: 'rgba(255, 255, 255, 0.12)', border: 'rgba(255, 255, 255, 0.25)' },
   heroCard: { bg: 'rgba(255, 255, 255, 0.88)', border: 'rgba(255, 255, 255, 0.65)' },
   splash: {
-    gradient: ['#083344', '#0E7490', '#06B6D4'],
+    gradient: ['#083344', '#0E7C86', '#06B6D4'],
     base: '#083344',
     glow: 'rgba(165, 243, 252, 0.72)',
     spark: 'rgba(165, 243, 252, 0.9)',
@@ -219,10 +220,10 @@ export const clientColorsLight: ColorTheme = {
   ratingEmpty: '#E2E8F0',
   scrim: 'rgba(15, 23, 42, 0.5)',
   camera: '#000000',
-  map: { center: '#0E7490', user: '#0891B2', stroke: '#FFFFFF', label: '#FFFFFF' },
-  chart: ['#0E7490', '#14B8A6', '#F59E0B', '#0891B2', '#16A34A', '#DC2626', '#64748B'],
+  map: { center: '#0E7C86', user: '#0891B2', stroke: '#FFFFFF', label: '#FFFFFF' },
+  chart: ['#0E7C86', '#14B8A6', '#F59E0B', '#0891B2', '#16A34A', '#DC2626', '#64748B'],
   feature: {
-    teal: { gradient: ['#ECFEFF', '#FFFFFF'], border: 'rgba(14, 116, 144, 0.15)', tint: 'rgba(14, 116, 144, 0.10)', fg: '#0E7490' },
+    teal: { gradient: ['#E7F4F4', '#FFFFFF'], border: 'rgba(14, 124, 134, 0.15)', tint: 'rgba(14, 124, 134, 0.10)', fg: '#0E7C86' },
     blue: { gradient: ['#EFF6FF', '#FFFFFF'], border: 'rgba(8, 145, 178, 0.15)', tint: 'rgba(8, 145, 178, 0.10)', fg: '#0891B2' },
     violet: { gradient: ['#F0FDFA', '#FFFFFF'], border: 'rgba(20, 184, 166, 0.15)', tint: 'rgba(20, 184, 166, 0.12)', fg: '#0F766E' },
     red: { gradient: ['#FEF2F2', '#FFFFFF'], border: 'rgba(220, 38, 38, 0.12)', tint: 'rgba(220, 38, 38, 0.10)', fg: '#DC2626' },
@@ -255,9 +256,9 @@ const darkStatus: StatusPalette = {
 };
 
 export const clientColorsDark: ColorTheme = {
-  primary: '#22A2C3',
+  primary: '#39C2CC',
   primaryLight: '#083344',
-  primaryDark: '#0E7490',
+  primaryDark: '#0E7C86',
   secondary: '#10B981',
   secondaryLight: '#064E3B',
   secondaryDark: '#047857',
@@ -281,7 +282,7 @@ export const clientColorsDark: ColorTheme = {
   glassBorder: 'rgba(45, 212, 191, 0.16)',
   shadowColor: '#000000',
   gradients: {
-    primary: ['#0E7490', '#0891B2'],
+    primary: ['#0E7C86', '#0891B2'],
     accent: ['#10B981', '#14B8A6'],
     card: ['#162326', '#121C1F'],
   },
@@ -294,7 +295,7 @@ export const clientColorsDark: ColorTheme = {
   divider: '#1C2C30',
   focus: '#2DD4BF',
   tint: {
-    primary: 'rgba(34, 162, 195, 0.16)',
+    primary: 'rgba(57, 194, 204, 0.16)',
     accent: 'rgba(45, 212, 191, 0.16)',
     success: 'rgba(52, 211, 153, 0.16)',
     warning: 'rgba(251, 191, 36, 0.16)',
@@ -310,7 +311,7 @@ export const clientColorsDark: ColorTheme = {
   brandGlass: { bg: 'rgba(255, 255, 255, 0.1)', border: 'rgba(255, 255, 255, 0.2)' },
   heroCard: { bg: 'rgba(18, 28, 31, 0.82)', border: 'rgba(255, 255, 255, 0.1)' },
   splash: {
-    gradient: ['#031C24', '#0E7490', '#0891B2'],
+    gradient: ['#031C24', '#0E7C86', '#0891B2'],
     base: '#031C24',
     glow: 'rgba(165, 243, 252, 0.6)',
     spark: 'rgba(165, 243, 252, 0.8)',
@@ -319,10 +320,10 @@ export const clientColorsDark: ColorTheme = {
   ratingEmpty: '#3A4C51',
   scrim: 'rgba(0, 0, 0, 0.6)',
   camera: '#000000',
-  map: { center: '#22A2C3', user: '#22D3EE', stroke: '#0B1315', label: '#04191F' },
-  chart: ['#22A2C3', '#2DD4BF', '#FBBF24', '#22D3EE', '#34D399', '#F87171', '#94A3B8'],
+  map: { center: '#39C2CC', user: '#22D3EE', stroke: '#0B1315', label: '#04191F' },
+  chart: ['#39C2CC', '#2DD4BF', '#FBBF24', '#22D3EE', '#34D399', '#F87171', '#94A3B8'],
   feature: {
-    teal: { gradient: ['#0A2424', '#121C1F'], border: 'rgba(45, 212, 191, 0.25)', tint: 'rgba(34, 162, 195, 0.16)', fg: '#22A2C3' },
+    teal: { gradient: ['#0A2424', '#121C1F'], border: 'rgba(45, 212, 191, 0.25)', tint: 'rgba(57, 194, 204, 0.16)', fg: '#39C2CC' },
     blue: { gradient: ['#0B2230', '#121C1F'], border: 'rgba(34, 211, 238, 0.2)', tint: 'rgba(34, 211, 238, 0.16)', fg: '#22D3EE' },
     violet: { gradient: ['#0C2622', '#121C1F'], border: 'rgba(45, 212, 191, 0.2)', tint: 'rgba(45, 212, 191, 0.16)', fg: '#2DD4BF' },
     red: { gradient: ['#2A1414', '#121C1F'], border: 'rgba(248, 113, 113, 0.2)', tint: 'rgba(248, 113, 113, 0.16)', fg: '#F87171' },
