@@ -4,7 +4,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Clock, Calendar as CalendarIcon, MapPin, Stethoscope, User, AlignLeft, ShieldCheck, CreditCard } from 'lucide-react-native';
+import { Clock, Calendar as CalendarIcon, MapPin, Stethoscope, User, AlignLeft, ShieldCheck, CreditCard } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppButton from '../../../components/ui/AppButton';
 import Card from '../../../components/ui/Card';
@@ -159,13 +160,13 @@ const ConfirmBookingScreen = () => {
           style={styles.backButton}
         >
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
 
         <View style={[styles.timerBadge, { backgroundColor: colors.warning + '15', borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }]}>
-          <Clock size={14} color={colors.warning} style={{ marginRight: 6 }} />
+          <Clock size={14} color={colors.warning} style={{ marginEnd: 6 }} />
           <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs, fontWeight: '800' }]}>
             {formatTimeLeft(timeLeft)}
           </Text>
@@ -186,7 +187,7 @@ const ConfirmBookingScreen = () => {
             {/* Booking Summary Card */}
             <Card variant="flat" style={[styles.summaryCard, { backgroundColor: colors.surface, padding: spacing.md }]}>
               <View style={styles.cardHeader}>
-                <ShieldCheck size={18} color={colors.primary} style={{ marginRight: spacing.xs }} />
+                <ShieldCheck size={18} color={colors.primary} style={{ marginEnd: spacing.xs }} />
                 <Text style={[styles.cardHeaderTitle, { color: colors.primary, fontSize: typography.sizes.sm, fontWeight: '800' }]}>
                   Appointment Summary
                 </Text>
@@ -326,7 +327,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   icon: {
-    marginRight: 12,
+    marginEnd: 12,
     marginTop: 2,
   },
   label: {

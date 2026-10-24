@@ -3,7 +3,8 @@ import { View, StyleSheet, Text, FlatList, Pressable, ActivityIndicator, Alert }
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, MapPin, Stethoscope, ChevronRight } from 'lucide-react-native';
+import { MapPin, Stethoscope } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from '../../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import Card from '../../../components/ui/Card';
 import { useTheme } from '../../../hooks/useTheme';
@@ -80,7 +81,7 @@ const ClinicSelectionScreen = () => {
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
@@ -101,7 +102,7 @@ const ClinicSelectionScreen = () => {
           CLINIC LOCATION
         </Text>
         <Card variant="flat" style={[styles.clinicCard, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-          <MapPin size={20} color={colors.primary} style={{ marginRight: spacing.sm }} />
+          <MapPin size={20} color={colors.primary} style={{ marginEnd: spacing.sm }} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.clinicNameText, { color: colors.text }]}>{clinicName}</Text>
             <Text style={[styles.clinicAddressText, { color: colors.textSecondary }]}>{clinicAddress}</Text>
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginEnd: 12,
   },
   serviceNameText: {
     fontWeight: '800',

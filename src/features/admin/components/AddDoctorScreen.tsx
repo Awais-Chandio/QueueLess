@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Camera, Stethoscope, Check } from 'lucide-react-native';
+import { Camera, Stethoscope, Check } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -272,7 +273,7 @@ const AddDoctorScreen = () => {
               ]}
             >
               <ChevronLeft size={24} color={colors.primary} />
-              <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+              <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
                 Back
               </Text>
             </Pressable>
@@ -403,7 +404,7 @@ const AddDoctorScreen = () => {
                   editable={!isSaving}
                 />
               </View>
-              <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <View style={{ flex: 1, marginStart: spacing.md }}>
                 <AppInput
                   label="License Number"
                   placeholder="e.g. PMDC-12345"
@@ -426,7 +427,7 @@ const AddDoctorScreen = () => {
                   editable={!isSaving}
                 />
               </View>
-              <View style={{ flex: 1, marginLeft: spacing.md }}>
+              <View style={{ flex: 1, marginStart: spacing.md }}>
                 <AppInput
                   label="Consultation Fee"
                   placeholder="Fee in PKR"
@@ -514,7 +515,7 @@ const AddDoctorScreen = () => {
                           <Text style={[styles.serviceChipText, { color: isSel ? colors.primary : colors.textSecondary, fontWeight: isSel ? '800' : '600' }]}>
                             {srv.name}
                           </Text>
-                          {isSel && <Check size={12} color={colors.primary} style={{ marginLeft: 4 }} />}
+                          {isSel && <Check size={12} color={colors.primary} style={{ marginStart: 4 }} />}
                         </Pressable>
                       );
                     })}
@@ -587,7 +588,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '800',
-    marginLeft: 20,
+    marginStart: 20,
   },
   formCard: {
     shadowColor: fixed.shadow,
@@ -616,7 +617,7 @@ const styles = StyleSheet.create({
   cameraBadge: {
     position: 'absolute',
     bottom: 0,
-    right: 4,
+    end: 4,
     width: 28,
     height: 28,
     alignItems: 'center',

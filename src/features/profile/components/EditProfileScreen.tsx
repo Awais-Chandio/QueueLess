@@ -151,7 +151,7 @@ const EditProfileScreen = () => {
           ]}
         >
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   cameraIcon: {
     position: "absolute",
     bottom: 0,
-    right: 0,
+    end: 0,
     width: scaleFont(28),
     height: scaleFont(28),
     borderRadius: scaleFont(14),

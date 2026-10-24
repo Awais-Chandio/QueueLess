@@ -153,10 +153,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   gap: {
-    marginLeft: 4,
+    marginStart: 4,
   },
   starGap: {
-    marginRight: 2,
+    marginEnd: 2,
   },
   inputRow: {
     flexDirection: 'row',

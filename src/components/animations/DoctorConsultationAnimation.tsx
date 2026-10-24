@@ -182,14 +182,14 @@ const styles = StyleSheet.create({
   },
   chatLeft: {
     top: 15,
-    left: -5,
+    start: -5,
     width: 36,
     height: 20,
     justifyContent: 'space-around',
   },
   chatRight: {
     bottom: 30,
-    right: -5,
+    end: -5,
     width: 26,
     height: 20,
     justifyContent: 'center',

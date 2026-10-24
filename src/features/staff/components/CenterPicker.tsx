@@ -30,7 +30,7 @@ export const CenterPicker = ({ centers, selected, onSelect }: Props) => {
         <AppText variant="label" tone="secondary" numberOfLines={1}>
           {selected.name}
         </AppText>
-        {many && <ChevronDown size={14} color={colors.textSecondary} style={{ marginLeft: spacing.xs }} />}
+        {many && <ChevronDown size={14} color={colors.textSecondary} style={{ marginStart: spacing.xs }} />}
       </Pressable>
       <Sheet visible={open} onClose={() => setOpen(false)} title="Choose clinic" maxHeightPercent={0.6}>
         {centers.map(center => (
@@ -57,7 +57,7 @@ export const CenterPicker = ({ centers, selected, onSelect }: Props) => {
             <AppText variant="caption" tone="secondary">
               {center.organizationName}
             </AppText>
-            {center.id === selected.id && <Check size={18} color={colors.primary} style={{ marginLeft: spacing.sm }} />}
+            {center.id === selected.id && <Check size={18} color={colors.primary} style={{ marginStart: spacing.sm }} />}
           </Pressable>
         ))}
       </Sheet>

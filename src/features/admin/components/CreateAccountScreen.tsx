@@ -3,7 +3,8 @@ import { View, StyleSheet, Text, KeyboardAvoidingView, Platform, ScrollView, Pre
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ShieldAlert, ChevronLeft, MapPin } from 'lucide-react-native';
+import { ShieldAlert, MapPin } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppInput from '../../../components/ui/AppInput';
@@ -219,7 +220,7 @@ const CreateAccountScreen = () => {
             ]}
           >
             <ChevronLeft size={24} color={colors.primary} />
-            <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+            <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
               Back
             </Text>
           </Pressable>
@@ -232,7 +233,7 @@ const CreateAccountScreen = () => {
             <View style={[styles.warningBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30', borderRadius: radius.lg, padding: spacing.md, marginBottom: spacing.md }]}>
               <View style={styles.warningHeader}>
                 <ShieldAlert size={18} color={colors.warning} />
-                <Text style={[styles.warningTitle, { color: colors.warning, marginLeft: spacing.sm, fontWeight: '800', fontSize: typography.sizes.sm }]}>Role Architecture Note</Text>
+                <Text style={[styles.warningTitle, { color: colors.warning, marginStart: spacing.sm, fontWeight: '800', fontSize: typography.sizes.sm }]}>Role Architecture Note</Text>
               </View>
               <Text style={{ color: colors.textSecondary, marginTop: spacing.xs, fontSize: typography.sizes.sm, lineHeight: 18, fontWeight: '500' }}>
                 You are creating a new {role === 'admin' ? 'admin' : selectedRole === 'doctor' ? 'doctor' : 'staff'} account with a separate login. Existing client appointments will NOT be transferred.
@@ -420,7 +421,7 @@ const CreateAccountScreen = () => {
                           }}
                         >
                           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <MapPin size={16} color={isSelected ? colors.primary : colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                            <MapPin size={16} color={isSelected ? colors.primary : colors.textSecondary} style={{ marginEnd: spacing.xs }} />
                             <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '800' : '600' }}>
                               {center.name}
                             </Text>

@@ -259,8 +259,8 @@ const OTPVerificationScreen = () => {
                             styles.formContainer,
                             {
                                 backgroundColor: colors.background,
-                                borderTopLeftRadius: radius.xxl,
-                                borderTopRightRadius: radius.xxl,
+                                borderTopStartRadius: radius.xxl,
+                                borderTopEndRadius: radius.xxl,
                                 opacity: fadeAnim,
                                 transform: [{ translateY: slideAnim }]
                             }
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
     backButton: {
         position: 'absolute',
         top: hp(2),
-        left: wp(4),
+        start: wp(4),
         padding: 8,
         borderRadius: 999,
         zIndex: 10,
@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     resendIcon: {
-        marginRight: wp(1.5),
+        marginEnd: wp(1.5),
     },
     resendActionText: {
         fontSize: scaleFont(13),

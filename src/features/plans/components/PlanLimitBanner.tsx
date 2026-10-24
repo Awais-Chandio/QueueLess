@@ -26,7 +26,7 @@ export const PlanLimitBanner = ({ tokensToday, tokensPerDay }: Props) => {
       style={[styles.row, { backgroundColor: tone.bg, borderRadius: radius.md, padding: spacing.md, borderColor: tone.dot }]}
     >
       <AlertTriangle size={18} color={tone.fg} />
-      <View style={[styles.copy, { marginLeft: spacing.sm }]}>
+      <View style={[styles.copy, { marginStart: spacing.sm }]}>
         <AppText variant="label" weight="700" style={{ color: tone.fg }}>
           {reached ? 'Daily token limit reached' : 'Free plan limit'}
         </AppText>

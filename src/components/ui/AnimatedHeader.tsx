@@ -54,7 +54,7 @@ export const AnimatedHeader: React.FC<AnimatedHeaderProps> = ({
           <IconButton
             icon={Bell}
             onPress={onPressNotifications}
-            style={{ marginRight: spacing.md }}
+            style={{ marginEnd: spacing.md }}
           />
         )}
         {onPressAvatar && (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
-import { BellRing, ChevronsRight, UserX, Volume2 } from 'lucide-react-native';
+import { BellRing, UserX, Volume2 } from 'lucide-react-native';
+import { ChevronsRight } from '../../../components/ui/DirectionalIcons';
 import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
 import AppText from '../../../components/ui/AppText';
@@ -46,7 +47,7 @@ export const DeskNowServing = ({ current, next, waitingCount, onBreak, busy, onC
             {current?.token_number ?? '—'}
           </AppText>
         </View>
-        <View style={[styles.flex, { marginLeft: spacing.md }]}>
+        <View style={[styles.flex, { marginStart: spacing.md }]}>
           <AppText variant="section" numberOfLines={2}>
             {current ? current.patient_name || 'Patient' : `${waitingCount} waiting`}
           </AppText>

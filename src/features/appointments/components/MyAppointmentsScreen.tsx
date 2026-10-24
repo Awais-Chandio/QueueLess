@@ -104,7 +104,7 @@ const MyAppointmentsScreen = () => {
 
   const filterListContentStyle = {
     gap: spacing.sm,
-    paddingRight: spacing.lg,
+    paddingEnd: spacing.lg,
   };
 
   const listContentStyle = [

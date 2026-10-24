@@ -58,7 +58,7 @@ const ProfileScreen = () => {
           <View style={[styles.iconContainer, { backgroundColor: `${iconColor}15` }]}>
             <Icon size={scaleFont(20)} color={iconColor} />
           </View>
-          <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.md, fontWeight: '500' }}>
+          <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginStart: spacing.md, fontWeight: '500' }}>
             {title}
           </Text>
         </View>
@@ -258,7 +258,7 @@ const ProfileScreen = () => {
             <View style={[styles.infoIconPill, { backgroundColor: `${colors.primary}12` }]}>
               <Activity color={colors.primary} size={scaleFont(16)} />
             </View>
-            <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800', marginLeft: spacing.sm }}>
+            <Text style={{ color: colors.text, fontSize: typography.sizes.lg, fontWeight: '800', marginStart: spacing.sm }}>
               Account Statistics
             </Text>
           </View>
@@ -288,7 +288,7 @@ const ProfileScreen = () => {
 
       {/* Medical History Section */}
       <AnimatedCard delay={180}>
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginStart: spacing.xs, textTransform: 'uppercase' }}>
           Health Records
         </Text>
         <Card style={{ padding: 0, marginBottom: spacing.lg, overflow: 'hidden', borderRadius: 20 }}>
@@ -328,7 +328,7 @@ const ProfileScreen = () => {
 
       {/* Preferences Grouped Card */}
       <AnimatedCard delay={240}>
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginStart: spacing.xs, textTransform: 'uppercase' }}>
           Preferences
         </Text>
         <Card style={{ padding: 0, marginBottom: spacing.lg, overflow: 'hidden', borderRadius: 20 }}>
@@ -350,7 +350,7 @@ const ProfileScreen = () => {
 
       {/* Support & Legal Grouped Card */}
       <AnimatedCard delay={300}>
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginStart: spacing.xs, textTransform: 'uppercase' }}>
           Support & Legal
         </Text>
         <Card style={{ padding: 0, marginBottom: spacing.xl, overflow: 'hidden', borderRadius: 20 }}>
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   cameraIcon: {
     position: 'absolute',
     bottom: 2,
-    right: 2,
+    end: 2,
     width: scaleFont(28),
     height: scaleFont(28),
     borderRadius: scaleFont(14),

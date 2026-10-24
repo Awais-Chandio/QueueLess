@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, View, StyleSheet, Text, Pressable, FlatList, ActivityIndicator } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, Clock, MapPin, Bell, Stethoscope, ChevronRight, ArrowRight, Search } from 'lucide-react-native';
+import { Calendar, Clock, MapPin, Bell, Stethoscope, Search } from 'lucide-react-native';
+import { ArrowRight, ChevronRight } from '../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../components/ui/ScreenWrapper';
 import Card from '../../components/ui/Card';
 import AppButton from '../../components/ui/AppButton';
@@ -166,7 +167,7 @@ const HomeScreen = () => {
             },
           ]}
         >
-          <Search size={18} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
+          <Search size={18} color={colors.textSecondary} style={{ marginEnd: spacing.sm }} />
           <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '500' }}>
             Search doctors, clinics, specialties
           </Text>
@@ -329,7 +330,7 @@ const HomeScreen = () => {
               <ActivityIndicator color={colors.primary} />
             </View>
           ) : nearbyCenters.length === 0 ? (
-            <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>
+            <Text style={{ color: colors.textSecondary, marginStart: spacing.sm }}>
               No clinics found near your current location.
             </Text>
           ) : (
@@ -398,13 +399,13 @@ const HomeScreen = () => {
           </View>
 
           {popularError ? (
-            <Text style={{ color: colors.error, marginLeft: spacing.sm }}>{popularError}</Text>
+            <Text style={{ color: colors.error, marginStart: spacing.sm }}>{popularError}</Text>
           ) : popularLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color={colors.primary} />
             </View>
           ) : popularCenters.length === 0 ? (
-            <Text style={{ color: colors.textSecondary, marginLeft: spacing.sm }}>No clinics currently configured.</Text>
+            <Text style={{ color: colors.textSecondary, marginStart: spacing.sm }}>No clinics currently configured.</Text>
           ) : (
             <FlatList
               horizontal
@@ -490,7 +491,7 @@ const styles = StyleSheet.create({
   },
   heroIllustration: {
     position: 'absolute',
-    right: -10,
+    end: -10,
     bottom: -10,
     opacity: 0.8,
   },
@@ -534,7 +535,7 @@ const styles = StyleSheet.create({
   arrow: {
     position: 'absolute',
     bottom: wp(4.5),
-    right: wp(4.5),
+    end: wp(4.5),
   },
   sectionHeader: {
     flexDirection: 'row',

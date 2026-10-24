@@ -78,7 +78,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, availability, on
             <StarRating rating={doctor.avg_rating} reviewCount={doctor.review_count} />
             <View style={[styles.bullet, { backgroundColor: colors.textSecondary + '40' }]} />
             <View style={styles.expBadge}>
-              <Award size={12} color={colors.textSecondary} style={{ marginRight: 3 }} />
+              <Award size={12} color={colors.textSecondary} style={{ marginEnd: 3 }} />
               <Text style={[styles.expText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                 {displayExp}
               </Text>
@@ -87,7 +87,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, availability, on
 
           {/* Clinic Name */}
           <View style={styles.clinicRow}>
-            <MapPin size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+            <MapPin size={12} color={colors.textSecondary} style={{ marginEnd: 4 }} />
             <Text style={[styles.clinicText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]} numberOfLines={1}>
               {clinicName}
             </Text>
@@ -101,7 +101,7 @@ export const DoctorCard: React.FC<DoctorCardProps> = ({ doctor, availability, on
               {feeLabel}
             </Text>
             <View style={[styles.slotBadge, { backgroundColor: colors.primary + '10', borderRadius: radius.sm }]}>
-              <Calendar size={11} color={colors.primary} style={{ marginRight: 4 }} />
+              <Calendar size={11} color={colors.primary} style={{ marginEnd: 4 }} />
               <Text style={[styles.slotText, { color: colors.primary, fontSize: typography.sizes.xs - 1 }]}>
                 Next Slot: {mockData.nextSlot}
               </Text>

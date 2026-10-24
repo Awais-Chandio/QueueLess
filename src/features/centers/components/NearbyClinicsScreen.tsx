@@ -2,7 +2,8 @@ import React, { useCallback } from 'react';
 import { View, StyleSheet, Text, FlatList, Pressable, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, MapPin, RefreshCw } from 'lucide-react-native';
+import { MapPin, RefreshCw } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import { useTheme } from '../../../hooks/useTheme';
 import { useNearbyClinics, NearbyCenter } from '../../../hooks/useNearbyClinics';
@@ -190,7 +191,7 @@ const NearbyClinicsScreen = () => {
             pressed && styles.fabPressed,
           ]}
         >
-          <MapPin size={16} color={colors.onPrimary} style={{ marginRight: spacing.xs }} />
+          <MapPin size={16} color={colors.onPrimary} style={{ marginEnd: spacing.xs }} />
           <Text style={[styles.fabText, { color: colors.onPrimary }, { fontSize: typography.sizes.xs }]}>
             Use Current Location
           </Text>
@@ -212,7 +213,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   backButton: {
-    paddingRight: 10,
+    paddingEnd: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -255,7 +256,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     bottom: 24,
-    right: 20,
+    end: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Text, FlatList, Pressable, Alert, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Search, Stethoscope } from 'lucide-react-native';
+import { Search, Stethoscope } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import { doctorService, type Doctor } from '../../../services/doctorService';
 import DoctorCard from './AdminDoctorCard';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -188,7 +189,7 @@ const ManageDoctorsScreen = () => {
 
         {/* Search Bar */}
         <View style={[styles.searchContainer, { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: radius.md }]}>
-          <Search size={20} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
+          <Search size={20} color={colors.textSecondary} style={{ marginEnd: spacing.sm }} />
           <TextInput
             placeholder="Search by name, qualification, or code..."
             placeholderTextColor={colors.textSecondary}
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontWeight: '700',
-    marginLeft: 4,
+    marginStart: 4,
   },
   title: {
     fontWeight: '800',
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontWeight: '700',
-    marginRight: 8,
+    marginEnd: 8,
   },
   resultsCount: {
     marginTop: 8,
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
-    marginRight: 8,
+    marginEnd: 8,
   },
   chipText: {
     fontWeight: '600',
@@ -419,7 +420,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: 20,
+    end: 20,
     bottom: 24,
   },
 });

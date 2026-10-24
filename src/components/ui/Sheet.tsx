@@ -52,8 +52,8 @@ export const Sheet = ({ visible, onClose, title, children, maxHeightPercent = 0.
               {
                 maxHeight: height * maxHeightPercent,
                 backgroundColor: colors.surface,
-                borderTopLeftRadius: radius.sheet,
-                borderTopRightRadius: radius.sheet,
+                borderTopStartRadius: radius.sheet,
+                borderTopEndRadius: radius.sheet,
                 paddingBottom: insets.bottom + spacing.lg,
               },
             ]}

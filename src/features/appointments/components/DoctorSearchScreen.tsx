@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, Text, TextInput, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Search, SlidersHorizontal, Stethoscope } from 'lucide-react-native';
+import { Search, SlidersHorizontal, Stethoscope } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import DoctorCard from './DoctorCard';
 import EmptyState from '../../../components/ui/EmptyState';
@@ -85,7 +86,7 @@ const DoctorSearchScreen = () => {
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
@@ -103,7 +104,7 @@ const DoctorSearchScreen = () => {
       {/* Search Input */}
       <View style={[styles.searchContainer, { marginHorizontal: spacing.md, marginBottom: spacing.md }]}>
         <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: radius.lg }]}>
-          <Search size={18} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
+          <Search size={18} color={colors.textSecondary} style={{ marginEnd: spacing.sm }} />
           <TextInput
             placeholder="Search by doctor name or specialty..."
             placeholderTextColor={colors.textTertiary}

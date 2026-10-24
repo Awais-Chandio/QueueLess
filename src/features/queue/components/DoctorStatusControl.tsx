@@ -55,10 +55,10 @@ export const DoctorStatusControl = ({ doctor, busy, onSetLate, onSetBreak, subje
         ]}
       >
         <Icon size={14} color={tone.fg} />
-        <AppText variant="label" weight="700" style={{ color: tone.fg, marginLeft: spacing.xs }}>
+        <AppText variant="label" weight="700" style={{ color: tone.fg, marginStart: spacing.xs }}>
           {availabilityLabel(availability)}
         </AppText>
-        <ChevronDown size={14} color={tone.fg} style={{ marginLeft: spacing.xs }} />
+        <ChevronDown size={14} color={tone.fg} style={{ marginStart: spacing.xs }} />
       </Pressable>
 
       <Sheet visible={open} onClose={() => setOpen(false)} title="Late / break" maxHeightPercent={0.75}>

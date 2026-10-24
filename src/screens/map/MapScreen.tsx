@@ -441,8 +441,8 @@ const MapScreen = () => {
             backgroundColor: colors.surface + 'F2',
             borderColor: colors.border,
             borderRadius: radius.xl,
-            left: spacing.md,
-            right: spacing.md,
+            start: spacing.md,
+            end: spacing.md,
             top: spacing.sm,
             padding: spacing.md,
           },
@@ -454,7 +454,7 @@ const MapScreen = () => {
             {
               backgroundColor: colors.primary + '12',
               borderRadius: radius.md,
-              marginRight: spacing.sm,
+              marginEnd: spacing.sm,
             },
           ]}
         >
@@ -495,8 +495,8 @@ const MapScreen = () => {
             {
               backgroundColor: colors.error,
               borderRadius: radius.lg,
-              left: spacing.md,
-              right: spacing.md,
+              start: spacing.md,
+              end: spacing.md,
               padding: spacing.md,
             },
           ]}
@@ -517,7 +517,7 @@ const MapScreen = () => {
         style={[
           styles.mapControls,
           {
-            right: spacing.md,
+            end: spacing.md,
             bottom: 112,
             gap: spacing.sm,
           },

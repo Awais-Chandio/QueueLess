@@ -126,7 +126,7 @@ const AppInput = forwardRef<TextInput, AppInputProps>((props, ref) => {
         style={[styles.inputWrapper, wrapperStyle]}
       >
         {LeftIconComponent ? (
-          <View style={[styles.leftIconContainer, { left: spacing.md }]}>
+          <View style={[styles.leftIconContainer, { start: spacing.md }]}>
             <LeftIconComponent
               size={sizing.icon.md}
               color={hasError ? colors.error : isFocused ? colors.primary : colors.textTertiary}
@@ -165,8 +165,8 @@ const AppInput = forwardRef<TextInput, AppInputProps>((props, ref) => {
               paddingHorizontal: spacing.md,
               paddingVertical: spacing.md,
             },
-            isPasswordField && { paddingRight: scaleFont(48) },
-            LeftIconComponent && { paddingLeft: scaleFont(44) },
+            isPasswordField && { paddingEnd: scaleFont(48) },
+            LeftIconComponent && { paddingStart: scaleFont(44) },
             props.multiline && { textAlignVertical: 'top' },
           ]}
           placeholderTextColor={colors.textTertiary}
@@ -174,7 +174,7 @@ const AppInput = forwardRef<TextInput, AppInputProps>((props, ref) => {
 
         {isPasswordField ? (
           <Pressable
-            style={[styles.eyeIconContainer, { right: spacing.md }]}
+            style={[styles.eyeIconContainer, { end: spacing.md }]}
             onPress={() => setIsPasswordVisible(visible => !visible)}
             hitSlop={sizing.hitSlop}
             accessibilityRole="button"
@@ -199,7 +199,7 @@ const AppInput = forwardRef<TextInput, AppInputProps>((props, ref) => {
           <Text
             style={[
               styles.messageText,
-              { color: colors.error, fontSize: typography.roles.caption.fontSize, marginLeft: spacing.xs },
+              { color: colors.error, fontSize: typography.roles.caption.fontSize, marginStart: spacing.xs },
             ]}
           >
             {props.error}

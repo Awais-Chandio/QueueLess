@@ -122,7 +122,7 @@ export const SkeletonCard: React.FC<{
       ]}
     >
       <Skeleton width={thumb} height={thumb} borderRadius={radius.md} />
-      <View style={[cardStyles.body, { marginLeft: spacing.md }]}>
+      <View style={[cardStyles.body, { marginStart: spacing.md }]}>
         <Skeleton height={scaleFont(15)} width="70%" />
         <Skeleton height={scaleFont(12)} width="45%" style={{ marginTop: spacing.sm }} />
         <Skeleton height={scaleFont(12)} width="60%" style={{ marginTop: spacing.sm }} />

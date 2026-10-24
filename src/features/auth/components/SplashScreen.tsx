@@ -383,10 +383,10 @@ const SplashScreen = ({
       </Animated.View>
 
       {/* Light Particles */}
-      <Animated.View style={[styles.particle, { left: wp(15), transform: [{ translateY: particle1Y }] }]} />
-      <Animated.View style={[styles.particle, { left: wp(45), width: 6, height: 6, opacity: 0.2, transform: [{ translateY: particle2Y }] }]} />
-      <Animated.View style={[styles.particle, { left: wp(70), width: 5, height: 5, opacity: 0.35, transform: [{ translateY: particle3Y }] }]} />
-      <Animated.View style={[styles.particle, { left: wp(85), transform: [{ translateY: particle4Y }] }]} />
+      <Animated.View style={[styles.particle, { start: wp(15), transform: [{ translateY: particle1Y }] }]} />
+      <Animated.View style={[styles.particle, { start: wp(45), width: 6, height: 6, opacity: 0.2, transform: [{ translateY: particle2Y }] }]} />
+      <Animated.View style={[styles.particle, { start: wp(70), width: 5, height: 5, opacity: 0.35, transform: [{ translateY: particle3Y }] }]} />
+      <Animated.View style={[styles.particle, { start: wp(85), transform: [{ translateY: particle4Y }] }]} />
 
       {/* Soft Glow behind logo */}
       <Animated.View
@@ -470,8 +470,8 @@ const styles = StyleSheet.create({
   signalField: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
+    start: 0,
+    end: 0,
     bottom: 0,
   },
   particle: {

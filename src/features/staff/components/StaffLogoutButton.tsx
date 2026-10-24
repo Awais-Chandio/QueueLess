@@ -6,7 +6,7 @@ import {
   StyleSheet,
   Text,
 } from 'react-native';
-import { LogOut } from 'lucide-react-native';
+import { LogOut } from '../../../components/ui/DirectionalIcons';
 
 import { useAuth } from '../../../hooks/useAuth';
 import { useTheme } from '../../../hooks/useTheme';
@@ -71,7 +71,7 @@ const StaffLogoutButton = () => {
           color: colors.error,
           fontSize: typography.sizes.xs,
           fontWeight: '800',
-          marginLeft: spacing.xs,
+          marginStart: spacing.xs,
         }}
       >
         Logout

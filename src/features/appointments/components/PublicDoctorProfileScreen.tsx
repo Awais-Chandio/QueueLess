@@ -3,7 +3,8 @@ import { View, StyleSheet, Text, ScrollView, Image, Pressable, ActivityIndicator
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Star, MapPin, Award, Stethoscope, DollarSign, Calendar, MessageSquare } from 'lucide-react-native';
+import { Star, MapPin, Award, Stethoscope, DollarSign, Calendar, MessageSquare } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppButton from '../../../components/ui/AppButton';
 import Card from '../../../components/ui/Card';
@@ -110,7 +111,7 @@ const PublicDoctorProfileScreen = () => {
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
@@ -199,7 +200,7 @@ const PublicDoctorProfileScreen = () => {
             Clinic Location
           </Text>
           <Card variant="flat" style={[styles.clinicCard, { backgroundColor: colors.card, borderColor: colors.border, borderRadius: radius.md }]}>
-            <MapPin size={20} color={colors.primary} style={{ marginRight: spacing.sm }} />
+            <MapPin size={20} color={colors.primary} style={{ marginEnd: spacing.sm }} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.clinicCardName, { color: colors.text }]}>{clinicName}</Text>
               <Text style={[styles.clinicCardAddress, { color: colors.textSecondary }]}>{clinicAddress}</Text>
@@ -214,7 +215,7 @@ const PublicDoctorProfileScreen = () => {
               Patient Reviews
             </Text>
             <View style={[styles.reviewCountBadge, { backgroundColor: colors.surfaceSunken }, { backgroundColor: colors.surfaceSunken }]}>
-              <MessageSquare size={12} color={colors.primary} style={{ marginRight: 4 }} />
+              <MessageSquare size={12} color={colors.primary} style={{ marginEnd: 4 }} />
               <Text style={{ color: colors.primary, fontSize: 10, fontWeight: '800' }}>
                 {doctor.review_count ?? 0}
               </Text>
@@ -254,7 +255,7 @@ const PublicDoctorProfileScreen = () => {
                         size={10}
                         color={i < rev.rating ? colors.rating : colors.ratingEmpty}
                         fill={i < rev.rating ? colors.rating : 'transparent'}
-                        style={{ marginRight: 2 }}
+                        style={{ marginEnd: 2 }}
                       />
                     ))}
                   </View>
@@ -432,8 +433,8 @@ const styles = StyleSheet.create({
   stickyFooter: {
     position: 'absolute',
     bottom: 0,
-    left: 0,
-    right: 0,
+    start: 0,
+    end: 0,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 24,

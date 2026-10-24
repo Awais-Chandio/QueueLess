@@ -170,7 +170,7 @@ const ServiceDoctorAssignment = ({ serviceId }: Props) => {
           },
         ]}
       >
-        <Search size={18} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
+        <Search size={18} color={colors.textSecondary} style={{ marginEnd: spacing.sm }} />
         <TextInput
           placeholder="Search doctors by name or specialty..."
           placeholderTextColor={colors.textTertiary}

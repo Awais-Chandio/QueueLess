@@ -43,7 +43,7 @@ export const MedicalFAB: React.FC<MedicalFABProps> = ({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    right: 20,
+    end: 20,
     bottom: 24,
     width: 56,
     height: 56,

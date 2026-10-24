@@ -44,7 +44,7 @@ export const DoctorPicker = ({ doctors, selectedId, onSelect }: Props) => {
             <AppText variant="label" weight={selected ? '700' : '500'} tone={selected ? 'brand' : 'primary'} numberOfLines={1}>
               {doctor.name}
             </AppText>
-            <AppText variant="caption" tone="secondary" style={{ marginLeft: spacing.xs }}>
+            <AppText variant="caption" tone="secondary" style={{ marginStart: spacing.xs }}>
               {waiting}
             </AppText>
           </Pressable>
@@ -65,6 +65,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 6,
+    marginEnd: 6,
   },
 });

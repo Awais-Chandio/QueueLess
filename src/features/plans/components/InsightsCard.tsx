@@ -38,7 +38,7 @@ export const InsightsCard = ({ centerId, plan, isOwner }: Props) => {
         <View style={[styles.icon, { backgroundColor: colors.tint.primary, borderRadius: radius.md }]}>
           <BarChart3 size={18} color={colors.primary} />
         </View>
-        <AppText variant="subtitle" style={{ marginLeft: spacing.sm }}>
+        <AppText variant="subtitle" style={{ marginStart: spacing.sm }}>
           Last 7 days
         </AppText>
       </View>

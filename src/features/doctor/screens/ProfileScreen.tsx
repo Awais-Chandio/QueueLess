@@ -12,13 +12,13 @@ import {
   CreditCard,
   Hash,
   Lock,
-  LogOut,
   Mail,
   MapPin,
   Phone,
   ShieldCheck,
   User,
 } from 'lucide-react-native';
+import { LogOut } from '../../../components/ui/DirectionalIcons';
 import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import { useAuth } from '../../../hooks/useAuth';
@@ -258,7 +258,7 @@ export default function ProfileScreen() {
               {isOnBreak ? 'Shown as on break in your queue' : 'Shown as seeing patients'}
             </AppText>
           </View>
-          {isTogglingBreak ? <ActivityIndicator color={colors.primary} style={{ marginRight: spacing.sm }} /> : null}
+          {isTogglingBreak ? <ActivityIndicator color={colors.primary} style={{ marginEnd: spacing.sm }} /> : null}
           <Switch
             value={isOnBreak}
             onValueChange={handleBreak}
@@ -341,7 +341,7 @@ export default function ProfileScreen() {
       {/* Admin-managed: read-only */}
       <View style={[styles.row, { marginBottom: spacing.xs }]}>
         <Lock size={16} color={colors.textSecondary} />
-        <AppText variant="subtitle" style={{ marginLeft: spacing.xs }}>
+        <AppText variant="subtitle" style={{ marginStart: spacing.xs }}>
           Managed by your clinic
         </AppText>
       </View>
@@ -364,7 +364,7 @@ export default function ProfileScreen() {
                 },
               ]}
             >
-              <Icon size={18} color={colors.textTertiary} style={{ marginRight: spacing.md }} />
+              <Icon size={18} color={colors.textTertiary} style={{ marginEnd: spacing.md }} />
               <View style={styles.flex}>
                 <AppText variant="caption" tone="tertiary">
                   {row.label}
@@ -402,7 +402,7 @@ export default function ProfileScreen() {
                 },
               ]}
             >
-              <Icon size={18} color={colors.primary} style={{ marginRight: spacing.md }} />
+              <Icon size={18} color={colors.primary} style={{ marginEnd: spacing.md }} />
               <View style={styles.flex}>
                 <AppText variant="caption" tone="secondary">
                   {row.label}
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginEnd: 12,
   },
   avatarWrap: {
     alignSelf: 'center',
@@ -459,7 +459,7 @@ const styles = StyleSheet.create({
   },
   camera: {
     position: 'absolute',
-    right: 0,
+    end: 0,
     bottom: 0,
     width: 32,
     height: 32,

@@ -40,7 +40,7 @@ const SettingsScreen = () => {
           <View style={[styles.iconContainer, { backgroundColor: `${iconColor}15` }]}>
             <Icon size={scaleFont(20)} color={iconColor} />
           </View>
-          <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginLeft: spacing.md, fontWeight: '500' }}>
+          <Text style={{ color: colors.text, fontSize: typography.sizes.md, marginStart: spacing.md, fontWeight: '500' }}>
             {title}
           </Text>
         </View>
@@ -58,7 +58,7 @@ const SettingsScreen = () => {
       </Text>
 
       <CardFadeIn delay={0}>
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginStart: spacing.xs, textTransform: 'uppercase' }}>
           Preferences
         </Text>
         <Card style={{ padding: 0, marginBottom: spacing.xl, overflow: 'hidden' }}>
@@ -79,7 +79,7 @@ const SettingsScreen = () => {
       </CardFadeIn>
 
       <CardFadeIn delay={60}>
-        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginLeft: spacing.xs, textTransform: 'uppercase' }}>
+        <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.sm, fontWeight: '600', marginBottom: spacing.sm, marginStart: spacing.xs, textTransform: 'uppercase' }}>
           Support
         </Text>
         <Card style={{ padding: 0, marginBottom: spacing.xl, overflow: 'hidden' }}>

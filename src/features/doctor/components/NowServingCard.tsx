@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, View, StyleSheet } from 'react-native';
 import Animated, { FadeIn, ZoomIn } from 'react-native-reanimated';
-import { Activity, ArrowRight, ChevronsRight, UserRound, UserX, Volume2 } from 'lucide-react-native';
+import { Activity, UserRound, UserX, Volume2 } from 'lucide-react-native';
+import { ArrowRight, ChevronsRight } from '../../../components/ui/DirectionalIcons';
 import { useTheme } from '../../../hooks/useTheme';
 import AppButton from '../../../components/ui/AppButton';
 import AppText from '../../../components/ui/AppText';
@@ -88,7 +89,7 @@ export const NowServingCard = ({ current, next, onBreak, busy, onCallNext, onCom
               {elapsed !== null && (
                 <View style={[styles.elapsed, { backgroundColor: colors.tint.success, borderRadius: radius.pill }]}>
                   <Activity size={12} color={colors.success} />
-                  <AppText variant="caption" tone="success" weight="600" style={{ marginLeft: 4 }}>
+                  <AppText variant="caption" tone="success" weight="600" style={{ marginStart: 4 }}>
                     {elapsed < 1 ? 'Just called in' : `In consultation · ${elapsed} min`}
                   </AppText>
                 </View>
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 8,
+    marginEnd: 8,
   },
   servingRow: {
     flexDirection: 'row',
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     alignItems: 'center',
-    marginRight: 16,
+    marginEnd: 16,
   },
   servingInfo: {
     flex: 1,
