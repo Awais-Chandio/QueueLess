@@ -17,6 +17,8 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		BDEB179628994C1BA5162729 /* Inter-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1E0FF465A9A5467398409CF1 /* Inter-Regular.ttf */; };
 		D3DB7E20FB3B484D97DC9EA7 /* Inter-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9B81569BB4CB49F281A4E9FB /* Inter-Medium.ttf */; };
+		42B2C631B1A84A3AB20D1180 /* NotoNastaliqUrdu-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A2551DEB81BA4015B17C6CC0 /* NotoNastaliqUrdu-Bold.ttf */; };
+		C5F7248DC8CD4C85A9DEC444 /* NotoNastaliqUrdu-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 08C589AD412D4F048461B008 /* NotoNastaliqUrdu-Regular.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -35,6 +37,8 @@
 		9B81569BB4CB49F281A4E9FB /* Inter-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Inter-Medium.ttf"; path = "../src/assets/fonts/Inter-Medium.ttf"; sourceTree = "<group>"; };
 		B3B128E4FFA5499CA06BA1DB /* Inter-Bold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Inter-Bold.ttf"; path = "../src/assets/fonts/Inter-Bold.ttf"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
+		A2551DEB81BA4015B17C6CC0 /* NotoNastaliqUrdu-Bold.ttf */ = {isa = PBXFileReference; name = "NotoNastaliqUrdu-Bold.ttf"; path = "../src/assets/fonts/NotoNastaliqUrdu-Bold.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
+		08C589AD412D4F048461B008 /* NotoNastaliqUrdu-Regular.ttf */ = {isa = PBXFileReference; name = "NotoNastaliqUrdu-Regular.ttf"; path = "../src/assets/fonts/NotoNastaliqUrdu-Regular.ttf"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -117,6 +121,8 @@
 				1E0FF465A9A5467398409CF1 /* Inter-Regular.ttf */,
 				80657A69F89F4EAF85803E28 /* Inter-ExtraBold.ttf */,
 				9253478D60304177A7431E70 /* Inter-SemiBold.ttf */,
+				A2551DEB81BA4015B17C6CC0 /* NotoNastaliqUrdu-Bold.ttf */,
+				08C589AD412D4F048461B008 /* NotoNastaliqUrdu-Regular.ttf */,
 			);
 			name = Resources;
 			path = "";
@@ -198,6 +204,8 @@
 				BDEB179628994C1BA5162729 /* Inter-Regular.ttf in Resources */,
 				1E9B94CF817C4E5FB7859716 /* Inter-ExtraBold.ttf in Resources */,
 				316BB216012C419685871445 /* Inter-SemiBold.ttf in Resources */,
+				42B2C631B1A84A3AB20D1180 /* NotoNastaliqUrdu-Bold.ttf in Resources */,
+				C5F7248DC8CD4C85A9DEC444 /* NotoNastaliqUrdu-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

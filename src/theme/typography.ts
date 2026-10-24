@@ -21,6 +21,22 @@ export const fontFamilies = {
 
 export type FontWeightToken = keyof typeof fontFamilies;
 
+/**
+ * Urdu text (clinic, doctor and patient names typed in Urdu on the web app)
+ * renders in Noto Nastaliq Urdu: Inter has no Arabic-script glyphs and the
+ * platform fallbacks are Naskh, not Nastaliq. Shipped from src/assets/fonts
+ * like Inter; `applyGlobalFont` switches to it for Arabic-script strings.
+ *
+ * Nastaliq stacks letters diagonally and needs about 1.9x the font size per
+ * line, so the patch never lets an Urdu line be shorter than that.
+ */
+export const urduFontFamilies = {
+  regular: 'NotoNastaliqUrdu-Regular',
+  bold: 'NotoNastaliqUrdu-Bold',
+} as const;
+
+export const URDU_LINE_HEIGHT = 1.9;
+
 /** Numeric fontWeight -> Inter family. Used by the global text patch. */
 export const fontFamilyForWeight: Record<string, string> = {
   '100': fontFamilies.regular,
