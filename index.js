@@ -11,7 +11,7 @@ import './src/theme/installGlobalFont';
 import { getMessaging, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
 // Before './App' so errors during module evaluation are reported too.
 import './src/lib/sentryInit';
-import { Sentry } from './src/lib/sentry';
+import { Sentry, sentryEnabled } from './src/lib/sentry';
 import App from './App';
 import { name as appName } from './app.json';
 import { logger } from './src/utils/logger';
@@ -26,4 +26,5 @@ if (isFirebaseReady()) {
   });
 }
 
-AppRegistry.registerComponent(appName, () => Sentry.wrap(App));
+// Sentry.wrap without Sentry.init only logs an "App Start Span" warning.
+AppRegistry.registerComponent(appName, () => (sentryEnabled ? Sentry.wrap(App) : App));

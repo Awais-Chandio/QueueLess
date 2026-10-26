@@ -69,16 +69,20 @@ const ProfileScreen = () => {
     );
   };
 
+  // Only a pull-to-refresh shows the spinner; the mount load is silent.
   const loadData = useCallback(async (force = false) => {
-    setRefreshing(true);
-    if (user?.id) {
-      const currentProfile = useProfileStore.getState().profile;
-      if (force || !currentProfile || currentProfile.id !== user.id) {
-        await fetchProfile(user.id);
+    if (force) setRefreshing(true);
+    try {
+      if (user?.id) {
+        const currentProfile = useProfileStore.getState().profile;
+        if (force || !currentProfile || currentProfile.id !== user.id) {
+          await fetchProfile(user.id);
+        }
+        await refetchStats();
       }
-      await refetchStats();
+    } finally {
+      setRefreshing(false);
     }
-    setRefreshing(false);
   }, [user?.id, fetchProfile, refetchStats]);
 
   useEffect(() => {

@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   KeyboardAvoidingView,
-  Platform,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -44,7 +43,9 @@ export const Sheet = ({ visible, onClose, title, children, maxHeightPercent = 0.
           accessibilityRole="button"
           accessibilityLabel="Close"
         />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* 'padding' on Android too: a statusBarTranslucent Modal is edge-to-edge
+            (always, on API 35+), so adjustResize never lifts the sheet. */}
+        <KeyboardAvoidingView behavior="padding">
           <View
             style={[
               styles.sheet,
