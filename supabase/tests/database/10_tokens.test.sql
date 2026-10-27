@@ -3,6 +3,10 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
+-- These flows predate fees (2A): QR tokens go straight into the line here.
+-- Fee before is tested in 22_payments.
+UPDATE public.center_payment_settings SET fee_mode = 'after';
+
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO anon, authenticated;
 CREATE SCHEMA tests;
 GRANT USAGE ON SCHEMA tests TO anon, authenticated, service_role;

@@ -71,7 +71,6 @@ $$, ARRAY[
   'get_public_center(text)', 'get_display_snapshot(text)', 'rotate_display_key(uuid)',
   'get_my_workspaces()', 'get_reception_queue(uuid)', 'call_next(uuid)', 'skip_token(uuid)',
   'mark_no_show(uuid)', 'recall_token(uuid)', 'set_doctor_break(uuid,boolean)',
-  'upsert_doctor(uuid,uuid,text,text,text,numeric,boolean)',
   'update_center(uuid,text,text,text,time without time zone,time without time zone)',
   'invite_staff(uuid,text)', 'revoke_invite(uuid)', 'accept_invites()', 'remove_staff(uuid,uuid)',
   'create_organization(text,text,text,text,jsonb,text,time without time zone,time without time zone)',
@@ -81,7 +80,13 @@ $$, ARRAY[
   -- 1E (plans, insights, manual billing; admin RPCs check is_admin inside)
   'get_clinic_insights(uuid,integer)', 'set_message_language(uuid,text)', 'admin_list_clinics()',
   'admin_set_plan(uuid,text,date,text)', 'admin_add_credits(uuid,integer,text)',
-  'admin_add_payment(uuid,integer,text,text,date)', 'admin_set_org_status(uuid,text,text)', 'admin_clinic_billing(uuid)'
+  'admin_add_payment(uuid,integer,text,text,date)', 'admin_set_org_status(uuid,text,text)', 'admin_clinic_billing(uuid)',
+  -- 2A (fees and payments; submit_payment_claim is service role only)
+  'upsert_doctor(uuid,uuid,text,text,text,numeric,boolean,integer)',
+  'set_center_fee_settings(uuid,text,integer,text,text,text,text,text,text,text,text)',
+  'issue_walk_in(uuid,text,text,boolean,integer,text,text)', 'record_payment(uuid,integer,text,text)',
+  'verify_claim(uuid,boolean,text)', 'waive_fee(uuid,text)', 'refund_payment(uuid,text)',
+  'get_payment_report(uuid,date,date,uuid)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$

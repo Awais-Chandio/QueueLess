@@ -3,6 +3,10 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 
+-- These flows predate fees (2A): QR tokens go straight into the line here.
+-- Fee before is tested in 22_payments.
+UPDATE public.center_payment_settings SET fee_mode = 'after';
+
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA extensions TO anon, authenticated;
 CREATE SCHEMA tests;
 GRANT USAGE ON SCHEMA tests TO anon, authenticated, service_role;
@@ -46,8 +50,10 @@ SELECT plan(19);
 SELECT is((SELECT array_agg(n ORDER BY n) FROM (
              SELECT unnest(proargnames) AS n, unnest(proargmodes) AS m FROM pg_proc WHERE oid = 'public.get_token_status(text)'::regprocedure
            ) s WHERE m = 't'),
-          ARRAY['current_token', 'doctor_late_until', 'doctor_name', 'doctor_on_break', 'eta_minutes', 'people_ahead', 'status', 'token_number']::text[],
-          'get_token_status returns exactly: token_number, people_ahead, eta_minutes, current_token, doctor_name, status, doctor_on_break, doctor_late_until (1C)');
+          ARRAY['current_token', 'doctor_late_until', 'doctor_name', 'doctor_on_break', 'eta_minutes', 'fee_mode', 'fee_pkr',
+               'payment_accounts', 'payment_claim', 'payment_rejected_reason', 'payment_seconds_left', 'payment_status',
+               'people_ahead', 'status', 'token_number']::text[],
+          'get_token_status returns exactly: token_number, people_ahead, eta_minutes, current_token, doctor_name, status, doctor_on_break, doctor_late_until (1C), fee_mode, payment_status, fee_pkr, payment_seconds_left, payment_claim, payment_rejected_reason, payment_accounts (2A)');
 SELECT ok((SELECT provolatile = 's' AND prosecdef FROM pg_proc WHERE oid = 'public.get_token_status(text)'::regprocedure),
           'get_token_status is read-only (STABLE) and SECURITY DEFINER');
 
@@ -90,7 +96,9 @@ SELECT is_empty($$
      OR r.j::text LIKE '%' || a.id || '%'
      OR r.j::text LIKE '%' || a.patient_id || '%'
      OR (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(r.j) k)
-        <> ARRAY['current_token', 'doctor_late_until', 'doctor_name', 'doctor_on_break', 'eta_minutes', 'people_ahead', 'status', 'token_number']
+        <> ARRAY['current_token', 'doctor_late_until', 'doctor_name', 'doctor_on_break', 'eta_minutes', 'fee_mode', 'fee_pkr',
+               'payment_accounts', 'payment_claim', 'payment_rejected_reason', 'payment_seconds_left', 'payment_status',
+               'people_ahead', 'status', 'token_number']
 $$, 'no appointment''s status contains a name, phone, email or id, or any extra field');
 
 -- ---------------------------------------------------------------------------
