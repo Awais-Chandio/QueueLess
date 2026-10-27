@@ -21,10 +21,12 @@ export type Database = {
           doctor_id: string | null
           duration_minutes: number | null
           estimated_wait_mins: number | null
+          fee_pkr: number | null
           id: string
           is_currently_serving: boolean | null
           notes: string | null
           patient_id: string
+          payment_status: string | null
           public_code: string
           queue_position: number | null
           scheduled_at: string
@@ -54,10 +56,12 @@ export type Database = {
           doctor_id?: string | null
           duration_minutes?: number | null
           estimated_wait_mins?: number | null
+          fee_pkr?: number | null
           id?: string
           is_currently_serving?: boolean | null
           notes?: string | null
           patient_id: string
+          payment_status?: string | null
           public_code: string
           queue_position?: number | null
           scheduled_at: string
@@ -86,10 +90,12 @@ export type Database = {
           doctor_id?: string | null
           duration_minutes?: number | null
           estimated_wait_mins?: number | null
+          fee_pkr?: number | null
           id?: string
           is_currently_serving?: boolean | null
           notes?: string | null
           patient_id?: string
+          payment_status?: string | null
           public_code?: string
           queue_position?: number | null
           scheduled_at?: string
@@ -301,6 +307,73 @@ export type Database = {
             columns: ['center_id']
             isOneToOne: true
             referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      center_payment_settings: {
+        Row: {
+          bank_iban: string | null
+          bank_name: string | null
+          bank_title: string | null
+          center_id: string
+          easypaisa_number: string | null
+          easypaisa_title: string | null
+          fee_mode: string
+          jazzcash_number: string | null
+          jazzcash_title: string | null
+          organization_id: string
+          raast_id: string | null
+          unpaid_expiry_minutes: number
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_title?: string | null
+          center_id: string
+          easypaisa_number?: string | null
+          easypaisa_title?: string | null
+          fee_mode?: string
+          jazzcash_number?: string | null
+          jazzcash_title?: string | null
+          organization_id: string
+          raast_id?: string | null
+          unpaid_expiry_minutes?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_title?: string | null
+          center_id?: string
+          easypaisa_number?: string | null
+          easypaisa_title?: string | null
+          fee_mode?: string
+          jazzcash_number?: string | null
+          jazzcash_title?: string | null
+          organization_id?: string
+          raast_id?: string | null
+          unpaid_expiry_minutes?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'center_payment_settings_center_id_fkey'
+            columns: ['center_id']
+            isOneToOne: true
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'center_payment_settings_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
             referencedColumns: ['id']
           },
         ]
@@ -1547,6 +1620,118 @@ export type Database = {
           },
         ]
       }
+      visit_payments: {
+        Row: {
+          amount_pkr: number
+          appointment_id: string
+          center_id: string
+          created_at: string
+          doctor_id: string | null
+          id: string
+          method: string | null
+          organization_id: string
+          patient_id: string
+          reason: string | null
+          received_at: string | null
+          received_by: string | null
+          reference: string | null
+          refund_of: string | null
+          status: string
+        }
+        ComputedFields: never
+        Insert: {
+          amount_pkr: number
+          appointment_id: string
+          center_id: string
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          method?: string | null
+          organization_id: string
+          patient_id: string
+          reason?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          reference?: string | null
+          refund_of?: string | null
+          status: string
+        }
+        Update: {
+          amount_pkr?: number
+          appointment_id?: string
+          center_id?: string
+          created_at?: string
+          doctor_id?: string | null
+          id?: string
+          method?: string | null
+          organization_id?: string
+          patient_id?: string
+          reason?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          reference?: string | null
+          refund_of?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'visit_payments_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_payments_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'appointments_full'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_payments_appointment_id_fkey'
+            columns: ['appointment_id']
+            isOneToOne: false
+            referencedRelation: 'queue_view'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_payments_center_id_fkey'
+            columns: ['center_id']
+            isOneToOne: false
+            referencedRelation: 'service_centers'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_payments_doctor_id_fkey'
+            columns: ['doctor_id']
+            isOneToOne: false
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_payments_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_payments_patient_id_fkey'
+            columns: ['patient_id']
+            isOneToOne: false
+            referencedRelation: 'patients'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'visit_payments_refund_of_fkey'
+            columns: ['refund_of']
+            isOneToOne: true
+            referencedRelation: 'visit_payments'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       visit_summaries: {
         Row: {
           appointment_id: string
@@ -1849,10 +2034,12 @@ export type Database = {
           doctor_id: string | null
           duration_minutes: number | null
           estimated_wait_mins: number | null
+          fee_pkr: number | null
           id: string
           is_currently_serving: boolean | null
           notes: string | null
           patient_id: string
+          payment_status: string | null
           public_code: string
           queue_position: number | null
           scheduled_at: string
@@ -1898,10 +2085,12 @@ export type Database = {
           doctor_id: string | null
           duration_minutes: number | null
           estimated_wait_mins: number | null
+          fee_pkr: number | null
           id: string
           is_currently_serving: boolean | null
           notes: string | null
           patient_id: string
+          payment_status: string | null
           public_code: string
           queue_position: number | null
           scheduled_at: string
@@ -1969,10 +2158,12 @@ export type Database = {
           doctor_id: string | null
           duration_minutes: number | null
           estimated_wait_mins: number | null
+          fee_pkr: number | null
           id: string
           is_currently_serving: boolean | null
           notes: string | null
           patient_id: string
+          payment_status: string | null
           public_code: string
           queue_position: number | null
           scheduled_at: string
@@ -2020,10 +2211,12 @@ export type Database = {
           doctor_id: string | null
           duration_minutes: number | null
           estimated_wait_mins: number | null
+          fee_pkr: number | null
           id: string
           is_currently_serving: boolean | null
           notes: string | null
           patient_id: string
+          payment_status: string | null
           public_code: string
           queue_position: number | null
           scheduled_at: string
@@ -2168,6 +2361,10 @@ export type Database = {
       }
       get_next_token: { Args: { p_appointment_date: string; p_center_id: string }; Returns: number }
       get_org_settings: { Args: { p_org_id: string }; Returns: Json }
+      get_payment_report: {
+        Args: { p_center_id: string; p_doctor_id?: string; p_from: string; p_to: string }
+        Returns: Json
+      }
       get_public_center: { Args: { p_slug: string }; Returns: Json }
       get_reception_queue: { Args: { p_center_id: string }; Returns: Json }
       get_token_status: {
@@ -2178,6 +2375,13 @@ export type Database = {
           doctor_name: string
           doctor_on_break: boolean
           eta_minutes: number
+          fee_mode: string
+          fee_pkr: number
+          payment_accounts: Json
+          payment_claim: string
+          payment_rejected_reason: string
+          payment_seconds_left: number
+          payment_status: string
           people_ahead: number
           status: string
           token_number: number
@@ -2208,6 +2412,26 @@ export type Database = {
           token_number: number
         }[]
       }
+      issue_walk_in: {
+        Args: {
+          p_amount?: number
+          p_doctor_id: string
+          p_fee_received?: boolean
+          p_method?: string
+          p_name: string
+          p_phone: string
+          p_reference?: string
+        }
+        Returns: {
+          appointment_id: string
+          eta_minutes: number
+          fee_pkr: number
+          payment_status: string
+          people_ahead: number
+          public_code: string
+          token_number: number
+        }[]
+      }
       lock_slot: { Args: { p_center_id: string; p_date: string; p_doctor_id: string; p_time: string }; Returns: string }
       mark_no_show: { Args: { p_appointment_id: string }; Returns: undefined }
       people_ahead:
@@ -2216,7 +2440,12 @@ export type Database = {
       queue_appointment_date: { Args: { p_appointment_date: string; p_scheduled_at: string }; Returns: string }
       recalculate_doctor_average: { Args: { p_doctor_id: string }; Returns: number }
       recall_token: { Args: { p_appointment_id: string }; Returns: undefined }
+      record_payment: {
+        Args: { p_amount: number; p_appointment_id: string; p_method: string; p_reference?: string }
+        Returns: Json
+      }
       refresh_live_queue: { Args: { p_doctor_id: string; p_queue_date: string }; Returns: undefined }
+      refund_payment: { Args: { p_payment_id: string; p_reason: string }; Returns: Json }
       release_slot: { Args: { p_lock_id: string }; Returns: undefined }
       remove_staff: { Args: { p_center_id: string; p_user_id: string }; Returns: undefined }
       reset_center_tokens: { Args: Record<PropertyKey, never>; Returns: undefined }
@@ -2239,6 +2468,22 @@ export type Database = {
           p_center_id: string
           p_is_on_break: boolean
           p_queue_date: string
+        }
+        Returns: Json
+      }
+      set_center_fee_settings: {
+        Args: {
+          p_bank_iban?: string
+          p_bank_name?: string
+          p_bank_title?: string
+          p_center_id: string
+          p_easypaisa_number?: string
+          p_easypaisa_title?: string
+          p_fee_mode: string
+          p_jazzcash_number?: string
+          p_jazzcash_title?: string
+          p_raast_id?: string
+          p_unpaid_expiry_minutes: number
         }
         Returns: Json
       }
@@ -2275,10 +2520,12 @@ export type Database = {
           doctor_id: string | null
           duration_minutes: number | null
           estimated_wait_mins: number | null
+          fee_pkr: number | null
           id: string
           is_currently_serving: boolean | null
           notes: string | null
           patient_id: string
+          payment_status: string | null
           public_code: string
           queue_position: number | null
           scheduled_at: string
@@ -2297,6 +2544,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      submit_payment_claim: { Args: { p_method: string; p_public_code: string; p_reference: string }; Returns: Json }
       update_center: {
         Args: {
           p_address: string
@@ -2318,6 +2566,7 @@ export type Database = {
           p_average_minutes?: number
           p_center_id: string
           p_doctor_id: string
+          p_fee?: number
           p_is_active?: boolean
           p_name: string
           p_room: string
@@ -2325,6 +2574,8 @@ export type Database = {
         }
         Returns: string
       }
+      verify_claim: { Args: { p_accept: boolean; p_payment_id: string; p_reason?: string }; Returns: Json }
+      waive_fee: { Args: { p_appointment_id: string; p_reason: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
