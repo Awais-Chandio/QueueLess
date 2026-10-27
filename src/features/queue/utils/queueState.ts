@@ -4,7 +4,11 @@ import type { DoctorState, QueueToken } from '../api/queueRpc';
 export const WAITING_STATUSES: AppointmentStatus[] = ['pending', 'confirmed', 'checked_in'];
 export const WITH_DOCTOR_STATUSES: AppointmentStatus[] = ['called', 'in_progress'];
 
-export const isWaiting = (token: Pick<QueueToken, 'status'>) => WAITING_STATUSES.includes(token.status);
+/** Fee before: the token waits for its fee and is not in the line yet (it is taken at the web desk). */
+export const isAwaitingPayment = (token: Pick<QueueToken, 'status' | 'payment_status'>) =>
+  token.payment_status === 'awaiting' && WAITING_STATUSES.includes(token.status);
+export const isWaiting = (token: Pick<QueueToken, 'status' | 'payment_status'>) =>
+  WAITING_STATUSES.includes(token.status) && token.payment_status !== 'awaiting';
 export const isWithDoctor = (token: Pick<QueueToken, 'status'>) => WITH_DOCTOR_STATUSES.includes(token.status);
 
 /**
@@ -15,8 +19,27 @@ export const isWithDoctor = (token: Pick<QueueToken, 'status'>) => WITH_DOCTOR_S
 export const splitTokens = (tokens: QueueToken[]) => {
   const current = tokens.find(isWithDoctor) ?? null;
   const waiting = tokens.filter(isWaiting);
-  const done = tokens.filter(token => !isWaiting(token) && !isWithDoctor(token));
-  return { current, waiting, next: waiting[0] ?? null, done };
+  const awaitingPayment = tokens.filter(isAwaitingPayment);
+  const done = tokens.filter(token => !WAITING_STATUSES.includes(token.status) && !isWithDoctor(token));
+  return { current, waiting, next: waiting[0] ?? null, done, awaitingPayment };
+};
+
+/** Paid / Free / Fee due / Refunded chip on a token; null when nothing was recorded. */
+export const paymentChip = (
+  status: QueueToken['payment_status'],
+): { label: string; tone: 'success' | 'info' | 'warning' | 'default' } | null => {
+  switch (status) {
+    case 'paid':
+      return { label: 'Paid', tone: 'success' };
+    case 'waived':
+      return { label: 'Free', tone: 'info' };
+    case 'awaiting':
+      return { label: 'Fee due', tone: 'warning' };
+    case 'refunded':
+      return { label: 'Refunded', tone: 'default' };
+    default:
+      return null;
+  }
 };
 
 /** Whole minutes until `lateUntil`, 0 when it has passed or isn't set. */

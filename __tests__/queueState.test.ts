@@ -4,6 +4,7 @@ import {
   formatClock,
   lateMinutesLeft,
   minutesWithDoctor,
+  paymentChip,
   splitTokens,
 } from '../src/features/queue/utils/queueState';
 import { hasModule, isPlanLimitError, tokenLimit, tokenLimitMessage } from '../src/features/plans/modules';
@@ -37,7 +38,32 @@ describe('splitTokens', () => {
   });
 
   it('handles an empty queue', () => {
-    expect(splitTokens([])).toEqual({ current: null, waiting: [], next: null, done: [] });
+    expect(splitTokens([])).toEqual({ current: null, waiting: [], next: null, done: [], awaitingPayment: [] });
+  });
+
+  it('keeps tokens waiting for their fee out of the line (fee before)', () => {
+    const tokens = [
+      token('2', 'checked_in', { payment_status: 'paid' }),
+      token('1', 'pending', { source: 'qr', payment_status: 'awaiting' }),
+      token('3', 'checked_in', { payment_status: null }),
+      token('4', 'expired', { source: 'qr', payment_status: 'awaiting' }),
+    ];
+    const { waiting, next, awaitingPayment, done } = splitTokens(tokens);
+    expect(waiting.map(t => t.id)).toEqual(['2', '3']);
+    expect(next?.id).toBe('2');
+    expect(awaitingPayment.map(t => t.id)).toEqual(['1']);
+    expect(done.map(t => t.id)).toEqual(['4']);
+  });
+});
+
+describe('paymentChip', () => {
+  it('labels paid, free, fee due and refunded; nothing when unrecorded', () => {
+    expect(paymentChip('paid')).toEqual({ label: 'Paid', tone: 'success' });
+    expect(paymentChip('waived')).toEqual({ label: 'Free', tone: 'info' });
+    expect(paymentChip('awaiting')).toEqual({ label: 'Fee due', tone: 'warning' });
+    expect(paymentChip('refunded')).toEqual({ label: 'Refunded', tone: 'default' });
+    expect(paymentChip(null)).toBeNull();
+    expect(paymentChip(undefined)).toBeNull();
   });
 });
 

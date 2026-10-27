@@ -4,7 +4,7 @@ import { useTheme } from '../../../hooks/useTheme';
 import AppText from '../../../components/ui/AppText';
 import { StatusChip } from '../../../components/ui/StatusChip';
 import type { QueueToken } from '../api/queueRpc';
-import { formatClock, isWaiting } from '../utils/queueState';
+import { formatClock, isWaiting, paymentChip } from '../utils/queueState';
 
 const SOURCE_LABEL: Record<string, string> = {
   walk_in: 'Walk-in',
@@ -24,6 +24,7 @@ type Props = {
 const TokenRowComponent = ({ token, position, trailing }: Props) => {
   const { colors, spacing, radius } = useTheme();
   const waiting = isWaiting(token);
+  const payment = paymentChip(token.payment_status);
   const when = token.completed_at ?? token.called_at ?? token.checked_in_at ?? token.created_at;
   const meta = [
     token.source ? SOURCE_LABEL[token.source] : null,
@@ -51,7 +52,10 @@ const TokenRowComponent = ({ token, position, trailing }: Props) => {
           {position ? `#${position} in line · ${meta}` : meta}
         </AppText>
       </View>
-      {trailing ?? <StatusChip status={token.status} size="sm" />}
+      <View style={[styles.chips, { gap: spacing.xs }]}>
+        {payment ? <StatusChip status={payment.tone} label={payment.label} size="sm" /> : null}
+        {trailing ?? <StatusChip status={token.status} size="sm" />}
+      </View>
     </View>
   );
 };
@@ -72,6 +76,10 @@ const styles = StyleSheet.create({
   },
   copy: {
     flex: 1,
+  },
+  chips: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });
 

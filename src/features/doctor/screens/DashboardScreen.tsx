@@ -38,20 +38,23 @@ export default function DashboardScreen() {
     useDoctorDashboard();
   const { schedule, leaves, isOnBreak } = useDoctorAvailability();
   // Same query as the queue tab (shared cache): center and plan for the insights card.
-  const { queue } = useDoctorQueue();
+  const { queue, waiting, awaitingPayment } = useDoctorQueue();
   const isOwner = useAuthStore(state =>
     state.workspaces.some(w => w.organization_id === queue?.organization.id && w.roles.includes('owner')),
   );
 
-  const counts = useMemo(
-    () => ({
+  // Fee before: tokens waiting for their fee are not in the line (2A). The
+  // doctor queue knows which they are; today's appointments don't.
+  const counts = useMemo(() => {
+    const feeDue = new Set(awaitingPayment.map(token => token.id));
+    return {
       booked: todayAppointments.filter(a => a.status !== 'cancelled').length,
-      waiting: todayAppointments.filter(a => WAITING.includes(a.status)).length,
+      waiting: queue ? waiting.length : todayAppointments.filter(a => WAITING.includes(a.status)).length,
       inRoom: todayAppointments.filter(a => IN_ROOM.includes(a.status)).length,
-      pending: todayAppointments.filter(a => a.status === 'pending').length,
-    }),
-    [todayAppointments],
-  );
+      pending: todayAppointments.filter(a => a.status === 'pending' && !feeDue.has(a.appointment_id)).length,
+      feeDue: feeDue.size,
+    };
+  }, [todayAppointments, queue, waiting, awaitingPayment]);
 
   // Today's hours come from doctor_schedules including is_available and leave;
   // the old card used get_doctor_schedule, which has neither, so days off and
@@ -79,7 +82,8 @@ export default function DashboardScreen() {
       tint: colors.tint.success,
     },
     {
-      label: "Today's earnings",
+      // Fees actually received for your tokens today (paid minus refunds).
+      label: 'Fees received today',
       value: `Rs. ${Number(incomeSummary?.total_fee ?? 0).toLocaleString()}`,
       icon: Wallet,
       tone: colors.info,
@@ -127,6 +131,7 @@ export default function DashboardScreen() {
               <AppText variant="label" tone="onPrimary" style={styles.soft}>
                 {counts.inRoom > 0 ? `${counts.inRoom} in the room · ` : ''}
                 {counts.pending > 0 ? `${counts.pending} to confirm` : 'No bookings awaiting confirmation'}
+                {counts.feeDue > 0 ? ` · ${counts.feeDue} fee due` : ''}
               </AppText>
               <AppButton
                 title="Open queue"

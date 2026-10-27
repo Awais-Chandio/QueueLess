@@ -7,6 +7,9 @@ import type { AppointmentStatus } from '../../../types/appointment';
 
 export type TokenSource = 'walk_in' | 'qr' | 'online' | 'app';
 
+/** Phase 2A. awaiting = fee before: not in the line until paid. null = nothing recorded. */
+export type PaymentStatus = 'awaiting' | 'paid' | 'waived' | 'refunded';
+
 export interface QueueToken {
   id: string;
   token_number: number;
@@ -20,6 +23,9 @@ export interface QueueToken {
   is_guest?: boolean;
   /** Doctor queue: visit notes exist. */
   has_summary?: boolean;
+  payment_status?: PaymentStatus | null;
+  /** Fee due in whole rupees; null when the clinic doesn't track fees. */
+  fee_pkr?: number | null;
   appointment_time: string | null;
   checked_in_at: string | null;
   called_at: string | null;
@@ -52,6 +58,8 @@ export interface DoctorQueue {
   center: { id: string; name: string; slug: string };
   organization: { id: string; name: string; timezone: string };
   plan: PlanSummary | null;
+  /** The center's fee mode (2A). */
+  fee_mode?: 'before' | 'after' | 'off';
   today: string;
   server_time: string;
   tokens: QueueToken[];

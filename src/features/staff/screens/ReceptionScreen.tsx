@@ -46,7 +46,7 @@ export default function ReceptionScreen() {
     () => queue?.doctors.find(d => d.id === doctorId) ?? queue?.doctors[0] ?? null,
     [doctorId, queue?.doctors],
   );
-  const { current, waiting, next, done } = useMemo(() => splitTokens(doctor?.tokens ?? []), [doctor?.tokens]);
+  const { current, waiting, next, done, awaitingPayment } = useMemo(() => splitTokens(doctor?.tokens ?? []), [doctor?.tokens]);
 
   const renderWaiting = useCallback(
     ({ item, index }: { item: QueueToken; index: number }) => <TokenRow token={item} position={index + 1} />,
@@ -156,6 +156,11 @@ export default function ReceptionScreen() {
               onPress={() => setWalkInOpen(true)}
             />
           </View>
+          {awaitingPayment.length > 0 && (
+            <AppText variant="caption" tone="secondary" style={{ marginBottom: spacing.sm }}>
+              {`${awaitingPayment.length} waiting for their fee: take it at the web reception, then they join the line.`}
+            </AppText>
+          )}
           {!doctor.takes_tokens && (
             <AppText variant="caption" tone="secondary" style={{ marginBottom: spacing.sm }}>
               This doctor isn't taking tokens on the clinic's current plan.
