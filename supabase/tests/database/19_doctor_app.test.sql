@@ -60,7 +60,7 @@ SELECT is(jsonb_array_length(public.get_doctor_queue('d0000000-0000-4000-8000-00
 SELECT is(public.get_doctor_queue('d0000000-0000-4000-8000-00000000000a')->'tokens'->0->>'patient_name', 'Guest One', 'guest names, in queue order');
 SELECT is((public.get_doctor_queue('d0000000-0000-4000-8000-00000000000a')->'tokens'->0->>'is_guest')::boolean, true, 'guest flag');
 SELECT ok(NOT (public.get_doctor_queue('d0000000-0000-4000-8000-00000000000a')->'tokens'->0 ? 'phone'), 'no phone numbers in the doctor queue');
-SELECT is(public.get_doctor_queue('d0000000-0000-4000-8000-00000000000a')->'plan'->>'id', 'free', 'plan comes with the queue');
+SELECT is(public.get_doctor_queue('d0000000-0000-4000-8000-00000000000a')->'plan'->>'id', 'trial', 'plan comes with the queue (2B: seed orgs on the trial)');
 SELECT throws_ok($$SELECT public.get_doctor_queue('d0000000-0000-4000-8000-00000000000b')$$, '42501', NULL, 'doctor A: not Dr. B''s queue');
 SELECT tests.logout();
 SELECT tests.login('a0000000-0000-4000-8000-000000000002');
@@ -80,7 +80,10 @@ SELECT tests.login('a0000000-0000-4000-8000-000000000004');
 SELECT ok(public.set_doctor_late('d0000000-0000-4000-8000-00000000000a', 20) BETWEEN now() + interval '19 minutes' AND now() + interval '21 minutes',
           'doctor A: late by 20 minutes');
 SELECT ok(public.get_doctor_queue('d0000000-0000-4000-8000-00000000000a')->'doctor'->>'late_until' IS NOT NULL, 'late shows in the doctor queue');
+-- 2B: the reception queue is for the desk; receptionist A looks.
+SELECT tests.login('a0000000-0000-4000-8000-000000000002');
 SELECT ok(tests.queue_doctor(public.get_reception_queue('521f1349-05c4-4417-9fa5-5289963af7db'))->>'late_until' IS NOT NULL, 'late shows at reception');
+SELECT tests.login('a0000000-0000-4000-8000-000000000004');
 SELECT throws_ok($$SELECT public.set_doctor_late('d0000000-0000-4000-8000-00000000000a', 241)$$, '22023', NULL, 'late: at most 240 minutes');
 SELECT throws_ok($$SELECT public.set_doctor_late('d0000000-0000-4000-8000-00000000000a', -1)$$, '22023', NULL, 'late: not negative');
 SELECT tests.logout();

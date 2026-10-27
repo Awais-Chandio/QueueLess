@@ -73,7 +73,7 @@ $$, ARRAY[
   'mark_no_show(uuid)', 'recall_token(uuid)', 'set_doctor_break(uuid,boolean)',
   'update_center(uuid,text,text,text,time without time zone,time without time zone)',
   'invite_staff(uuid,text)', 'revoke_invite(uuid)', 'accept_invites()', 'remove_staff(uuid,uuid)',
-  'create_organization(text,text,text,text,jsonb,text,time without time zone,time without time zone)',
+  'create_organization(text,text,text,text,jsonb,text,time without time zone,time without time zone,jsonb)',
   'get_org_settings(uuid)',
   -- 1C (doctor app)
   'get_doctor_queue(uuid)', 'set_doctor_late(uuid,integer)', 'complete_visit(uuid,text,text,date,jsonb)',
@@ -86,7 +86,14 @@ $$, ARRAY[
   'set_center_fee_settings(uuid,text,integer,text,text,text,text,text,text,text,text)',
   'issue_walk_in(uuid,text,text,boolean,integer,text,text)', 'record_payment(uuid,integer,text,text)',
   'verify_claim(uuid,boolean,text)', 'waive_fee(uuid,text)', 'refund_payment(uuid,text)',
-  'get_payment_report(uuid,date,date,uuid)'
+  'get_payment_report(uuid,date,date,uuid)',
+  -- 2B (plans, trial, owner-doctor, doctor choice; submit_billing_claim is
+  -- service role only; admin RPCs check is_admin inside)
+  'get_plan_status(uuid)', 'get_plan_page(uuid)', 'admin_get_platform_settings()',
+  'admin_set_platform_accounts(text,text,text,text,text,text,text,text)', 'admin_list_billing_claims(text)',
+  'admin_resolve_billing_claim(uuid,boolean,text,text)', 'add_self_as_doctor(uuid,text,text,integer,text)',
+  'invite_doctor(uuid,text,text)', 'revoke_doctor_invite(uuid)', 'accept_doctor_invite(text)', 'unlink_doctor_account(uuid)',
+  'set_center_join_settings(uuid,boolean)', 'assign_token_doctor(uuid,uuid)'
 ], 'authenticated can execute exactly the RPCs the app uses');
 
 SELECT is_empty($$

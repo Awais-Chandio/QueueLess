@@ -63,7 +63,8 @@ SELECT ok(public.get_reception_queue('521f1349-05c4-4417-9fa5-5289963af7db')->>'
 SELECT throws_ok($$SELECT public.get_reception_queue('d2c1a3df-bb89-4fde-b73d-5bb9ec763481')$$, '42501', NULL, 'receptionist A: not center B''s queue');
 SELECT tests.logout();
 SELECT tests.login('a0000000-0000-4000-8000-000000000004');
-SELECT lives_ok($$SELECT public.get_reception_queue('521f1349-05c4-4417-9fa5-5289963af7db')$$, 'doctor A: their center''s queue');
+SELECT throws_ok($$SELECT public.get_reception_queue('521f1349-05c4-4417-9fa5-5289963af7db')$$, '42501', NULL,
+                 'doctor A: not the clinic''s whole queue (2B: their own queue only)');
 SELECT tests.logout();
 SELECT tests.login('a0000000-0000-4000-8000-000000000006');
 SELECT throws_ok($$SELECT public.get_reception_queue('521f1349-05c4-4417-9fa5-5289963af7db')$$, '42501', NULL, 'patient: no queue');

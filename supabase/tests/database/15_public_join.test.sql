@@ -34,7 +34,9 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_r
 
 -- Doctor A's queue starts empty today (seed appointments moved to last week).
 UPDATE public.appointments SET appointment_date = appointment_date - 7 WHERE doctor_id = 'd0000000-0000-4000-8000-00000000000a';
--- A second, later doctor at center A: on the Free plan only Dr. A takes tokens.
+-- A second, later doctor at center A: on Basic (the 2B Free) only Dr. A takes tokens.
+UPDATE public.org_subscriptions SET plan_id = 'basic', status = 'active'
+WHERE organization_id = (SELECT organization_id FROM public.service_centers WHERE id = '521f1349-05c4-4417-9fa5-5289963af7db') AND status <> 'cancelled';
 INSERT INTO public.doctors (id, center_id, name, specialty, created_at)
 VALUES ('d0000000-0000-4000-8000-0000000000a2', '521f1349-05c4-4417-9fa5-5289963af7db', 'Dr. Later', 'GP', now() + interval '1 second');
 
@@ -63,17 +65,18 @@ UPDATE public.doctors SET room = 'Room 2' WHERE id = 'd0000000-0000-4000-8000-00
 -- ---------------------------------------------------------------------------
 SELECT tests.login_anon();
 SELECT is((SELECT public.get_public_center('liaquat-university-hospital')->>'name'), 'Liaquat University Hospital', 'anon: center by slug');
-SELECT is((SELECT (public.get_public_center('Liaquat-University-Hospital ')->>'qr_enabled')::boolean), true, 'slug is case-insensitive; QR on (Free has qr_join)');
+SELECT is((SELECT (public.get_public_center('Liaquat-University-Hospital ')->>'qr_enabled')::boolean), true, 'slug is case-insensitive; QR on (Basic has qr_join)');
 SELECT is((SELECT jsonb_agg(d->>'name') FROM jsonb_array_elements(public.get_public_center('liaquat-university-hospital')->'doctors') d),
-          '["Dr. A"]'::jsonb, 'only doctors that take tokens on the plan are listed (Free: the first one)');
+          '["Dr. A"]'::jsonb, 'only doctors that take tokens on the plan are listed (Basic: the first one)');
 SELECT is((SELECT d->>'room' FROM jsonb_array_elements(public.get_public_center('liaquat-university-hospital')->'doctors') d), 'Room 2',
           'doctor room is shown');
 SELECT is(public.get_public_center('no-such-clinic'), NULL, 'unknown slug: NULL');
 SELECT is(public.get_public_center('''; DROP TABLE x; --'), NULL, 'malformed slug: NULL');
 SELECT is((SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(
              (SELECT d FROM jsonb_array_elements(public.get_public_center('liaquat-university-hospital')->'doctors') d LIMIT 1)) k),
-          ARRAY['id', 'is_on_break', 'late_until', 'name', 'on_leave', 'room', 'specialty', 'waiting'],
-          'doctor entries carry only display fields');
+          ARRAY['available', 'fee', 'id', 'in_today', 'initials', 'is_on_break', 'late_until', 'name', 'on_leave', 'room',
+                'specialty', 'waiting'],
+          'doctor entries carry only display fields (2B: + initials, fee, in_today, available)');
 SELECT tests.logout();
 
 -- ---------------------------------------------------------------------------
