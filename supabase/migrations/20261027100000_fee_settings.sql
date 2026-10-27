@@ -1,7 +1,10 @@
 -- Phase 2A.1: clinic fee settings.
 --
 -- 1. center_payment_settings, one row per center (created with the center):
---      fee_mode               before | after | off (default before)
+--      fee_mode               before | after | off. New clinics: before.
+--                             Clinics that exist when this migration runs:
+--                             after (no change for them until the owner
+--                             switches in Settings > Fees).
 --                               before: QR patients pay first, then join the line
 --                               after:  the fee is recorded after the visit (1B-1E behaviour)
 --                               off:    no fee anywhere
@@ -41,8 +44,9 @@ CREATE TABLE public.center_payment_settings (
 COMMENT ON TABLE public.center_payment_settings IS
   'Per center: fee mode (before|after|off), minutes before an unpaid QR token expires, and the clinic''s own payment accounts shown to patients. Staff read; the owner writes via set_center_fee_settings.';
 
-INSERT INTO public.center_payment_settings (center_id, organization_id)
-SELECT c.id, c.organization_id FROM public.service_centers c WHERE c.organization_id IS NOT NULL
+-- Existing clinics keep today's flow (fee after the visit).
+INSERT INTO public.center_payment_settings (center_id, organization_id, fee_mode)
+SELECT c.id, c.organization_id, 'after' FROM public.service_centers c WHERE c.organization_id IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 CREATE FUNCTION private.service_centers_create_payment_settings()

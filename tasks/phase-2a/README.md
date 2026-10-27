@@ -37,13 +37,9 @@ account, types the transaction ID (TID) on the token page, and reception verifie
 
 **Behaviour changes to know before deploying**
 
-1. Every existing center gets `fee_mode = 'before'` (the default you chose). Clinics whose doctors already have a
-   `doctors.fee` (the old app's field) will see QR patients asked to pay first **straight after the push**. To
-   keep the old flow for existing clinics until each owner opts in, run this right after the push:
-   ```sql
-   UPDATE public.center_payment_settings SET fee_mode = 'after' WHERE updated_by IS NULL;
-   ```
-   (`updated_by IS NULL` = never saved by an owner.) To see who is affected first:
+1. Centers that exist when the migration runs get `fee_mode = 'after'`: nothing changes for live clinics until the
+   owner switches to "Before joining the line" in Settings → Fees. Clinics created after the push start on `before`
+   (the column default). Fee before also needs a doctor fee above 0. To see which clinics have doctor fees already:
    ```sql
    SELECT c.name, d.name, d.fee FROM doctors d JOIN service_centers c ON c.id = d.center_id
    WHERE d.is_active AND COALESCE(d.fee, 0) > 0 ORDER BY 1, 2;
@@ -81,7 +77,7 @@ in-page audit (without the hydration and header checks) on its pages and passes.
 
 ## Production runbook
 
-**Order:** backup → push database → (optional) keep existing clinics on `after` → deploy web → checks → new app
+**Order:** backup → push database → check existing clinics are on `after` → deploy web → checks → new app
 build. No new secrets or env vars: `/api/pay-claim` uses the existing `SUPABASE_SERVICE_ROLE_KEY` and
 `TURNSTILE_SECRET_KEY` / `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 
@@ -96,7 +92,7 @@ build. No new secrets or env vars: `/api/pay-claim` uses the existing `SUPABASE_
    `20261027100000_fee_settings.sql`, `20261027100100_visit_payments.sql`, `20261027100200_fee_queue.sql`,
    `20261027100300_payment_rpcs.sql`, `20261027100400_payment_reports.sql`. Anything else: stop.
 3. **Push**: `supabase db push --linked`.
-4. **Existing clinics** (decide before step 5): the `UPDATE ... SET fee_mode = 'after'` above, or leave `before`.
+4. **Existing clinics**: `SELECT fee_mode, count(*) FROM center_payment_settings GROUP BY 1;` must show only `after`.
 5. **Web**: merge / deploy `mediq-web` `phase-2a-payments` on Vercel straight after.
 6. **Checks** (SQL editor, read-only). Every row must be `true`:
    ```sql
