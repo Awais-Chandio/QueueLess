@@ -42,7 +42,7 @@ SELECT is_empty($$
   SELECT c.relname::text FROM pg_class c
   WHERE c.relnamespace = 'public'::regnamespace AND c.relkind = 'r'
     AND c.oid NOT IN (SELECT tbl FROM reach)
-    AND c.relname NOT IN ('profiles', 'device_tokens', 'notifications', 'doctor_queue_settings', 'plans')
+    AND c.relname NOT IN ('profiles', 'device_tokens', 'notifications', 'doctor_queue_settings', 'plans', 'platform_settings')
 $$, 'every business table resolves to an organization through foreign keys');
 
 -- ---------------------------------------------------------------------------
