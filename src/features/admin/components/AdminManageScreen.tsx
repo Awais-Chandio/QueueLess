@@ -11,7 +11,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { AdminStackParamList } from '../../../navigation/AdminNavigator';
 import { useQuery } from '@tanstack/react-query';
 import {
-  LogOut,
   UserPlus,
   Building,
   Shield,
@@ -19,6 +18,7 @@ import {
   UserCheck,
   Stethoscope,
 } from 'lucide-react-native';
+import { LogOut } from '../../../components/ui/DirectionalIcons';
 import AppButton from '../../../components/ui/AppButton';
 import { Card } from '../../../components/ui/Card';
 import ErrorState from '../../../components/ui/ErrorState';

@@ -34,7 +34,6 @@ import {
   Clock,
   MapPin,
   Sparkles,
-  ChevronLeft,
   CreditCard,
   Hourglass,
   Stethoscope,
@@ -51,6 +50,7 @@ import {
   Phone,
   Navigation,
 } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import {
   Camera,
   GeoJSONSource,
@@ -334,7 +334,7 @@ const CenterDetailsScreen = () => {
           ]}
         >
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
@@ -374,7 +374,7 @@ const CenterDetailsScreen = () => {
 
             {/* Address */}
             <View style={styles.infoRow}>
-              <MapPin size={16} color={colors.primary} style={{ marginRight: spacing.sm, marginTop: 2 }} />
+              <MapPin size={16} color={colors.primary} style={{ marginEnd: spacing.sm, marginTop: 2 }} />
               <Text style={[styles.infoText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
                 {center.address}
               </Text>
@@ -382,7 +382,7 @@ const CenterDetailsScreen = () => {
 
             {/* Phone */}
             <View style={[styles.infoRow, { marginTop: spacing.sm }]}>
-              <Phone size={16} color={colors.primary} style={{ marginRight: spacing.sm }} />
+              <Phone size={16} color={colors.primary} style={{ marginEnd: spacing.sm }} />
               <Text style={[styles.infoText, { color: colors.textSecondary, fontSize: typography.sizes.sm }]}>
                 {mockPhone}
               </Text>
@@ -395,7 +395,7 @@ const CenterDetailsScreen = () => {
                 style={[styles.timingCard, { marginTop: spacing.md, padding: spacing.md }]}
               >
                 <View style={styles.cardRow}>
-                  <Clock size={16} color={colors.primary} style={{ marginRight: spacing.xs }} />
+                  <Clock size={16} color={colors.primary} style={{ marginEnd: spacing.xs }} />
                   <Text style={[styles.timingLabel, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                     Working Hours
                   </Text>
@@ -419,7 +419,7 @@ const CenterDetailsScreen = () => {
                     <MapPin
                       size={18}
                       color={colors.primary}
-                      style={{ marginRight: spacing.xs }}
+                      style={{ marginEnd: spacing.xs }}
                     />
                     <Text
                       style={[
@@ -553,7 +553,7 @@ const CenterDetailsScreen = () => {
 
             {/* Departments Section */}
             <View style={[styles.sectionTitleRow, { marginTop: spacing.lg, marginBottom: spacing.xs }]}>
-              <Sparkles size={18} color={colors.primary} style={{ marginRight: spacing.xs }} />
+              <Sparkles size={18} color={colors.primary} style={{ marginEnd: spacing.xs }} />
               <Text style={[styles.sectionTitle, { color: colors.text, fontSize: typography.sizes.md }]}>
                 Available Departments
               </Text>
@@ -582,7 +582,7 @@ const CenterDetailsScreen = () => {
                 <View style={[styles.deptIconContainer, { backgroundColor: colors.primary + '12', borderRadius: radius.md }]}>
                   <DeptIcon size={18} color={colors.primary} />
                 </View>
-                <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                <View style={{ flex: 1, marginStart: spacing.sm }}>
                   <Text style={[styles.serviceName, { color: colors.text, fontSize: typography.sizes.md, marginBottom: spacing.xs }]}>
                     {item.name}
                   </Text>
@@ -595,7 +595,7 @@ const CenterDetailsScreen = () => {
 
                   {!!item.on_duty_note && (
                     <View style={[styles.onDutyRow, { backgroundColor: colors.primary + '08', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4 }]}>
-                      <Info size={11} color={colors.primary} style={{ marginRight: 4 }} />
+                      <Info size={11} color={colors.primary} style={{ marginEnd: 4 }} />
                       <Text style={[styles.onDutyText, { color: colors.primary, fontSize: typography.sizes.xs }]}>
                         {item.on_duty_note}
                       </Text>
@@ -606,14 +606,14 @@ const CenterDetailsScreen = () => {
 
               <View style={styles.metaRow}>
                 <View style={[styles.metaItem, { backgroundColor: colors.border + '30', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
-                  <Hourglass size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                  <Hourglass size={12} color={colors.textSecondary} style={{ marginEnd: 4 }} />
                   <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                     {item.duration_minutes} mins
                   </Text>
                 </View>
 
                 <View style={[styles.metaItem, { backgroundColor: colors.border + '30', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
-                  <CreditCard size={12} color={colors.textSecondary} style={{ marginRight: 4 }} />
+                  <CreditCard size={12} color={colors.textSecondary} style={{ marginEnd: 4 }} />
                   <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                     Rs. {item.price}
                   </Text>
@@ -827,8 +827,8 @@ const styles = StyleSheet.create({
   stickyFooter: {
     position: 'absolute',
     bottom: 0,
-    left: 0,
-    right: 0,
+    start: 0,
+    end: 0,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 24,

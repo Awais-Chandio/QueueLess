@@ -2,7 +2,7 @@ import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 import { wp } from '../../utils/responsive';
 
-const googleIconStyle = { marginRight: wp(2) };
+const googleIconStyle = { marginEnd: wp(2) };
 
 /** Google's "G". Brand artwork: its colours are Google's, not the theme's. */
 const GoogleIcon = () => (

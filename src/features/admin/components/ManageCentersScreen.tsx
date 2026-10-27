@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, Text, ScrollView, Pressable, Modal, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Edit2, Trash2, Hospital, Stethoscope, ChevronLeft, X } from 'lucide-react-native';
+import { Edit2, Trash2, Hospital, Stethoscope, X } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import ServiceDoctorAssignment from './ServiceDoctorAssignment';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -245,14 +246,14 @@ const ManageCentersScreen = () => {
           ]}
         >
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
 
         {/* Header */}
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800', flex: 1, marginRight: spacing.md }]}>
+          <Text style={[styles.title, { color: colors.text, fontSize: typography.sizes.xl, fontWeight: '800', flex: 1, marginEnd: spacing.md }]}>
             Clinics & Services
           </Text>
           <AppButton
@@ -550,7 +551,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cardTexts: {
-    marginLeft: 12,
+    marginStart: 12,
     flex: 1,
   },
   itemName: {

@@ -3,7 +3,8 @@ import { View, StyleSheet, Text, Pressable, ScrollView, ActivityIndicator, Alert
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Calendar as CalendarIcon, Clock, ChevronRight } from 'lucide-react-native';
+import { Calendar as CalendarIcon, Clock } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight } from '../../../components/ui/DirectionalIcons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppButton from '../../../components/ui/AppButton';
@@ -223,7 +224,7 @@ const SelectSlotScreen = () => {
       <View style={styles.header}>
         <Pressable onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
@@ -303,7 +304,7 @@ const SelectSlotScreen = () => {
 
         {/* Selected Date Header */}
         <View style={styles.selectedDateHeader}>
-          <CalendarIcon size={16} color={colors.primary} style={{ marginRight: 6 }} />
+          <CalendarIcon size={16} color={colors.primary} style={{ marginEnd: 6 }} />
           <Text style={[styles.selectedDateText, { color: colors.text }]}>
             Slots for {activeDateLabel}
           </Text>

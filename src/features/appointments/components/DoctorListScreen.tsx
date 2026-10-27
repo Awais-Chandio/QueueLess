@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, FlatList, Pressable } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import Loader from '../../../components/ui/Loader';
@@ -104,7 +104,7 @@ export const DoctorListScreen = () => {
           ]}
         >
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>

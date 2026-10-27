@@ -67,8 +67,8 @@ export default RealtimeIndicator;
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    start: 0,
+    end: 0,
     alignItems: 'center',
     zIndex: 9999,
   },
@@ -78,6 +78,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   label: {
-    marginLeft: 6,
+    marginStart: 6,
   },
 });

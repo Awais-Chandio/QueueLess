@@ -87,8 +87,8 @@ const DoctorNavigator = () => {
         tabBarStyle: {
           position: 'absolute',
           bottom: Platform.OS === 'ios' ? spacing.lg : spacing.md,
-          left: spacing.md,
-          right: spacing.md,
+          start: spacing.md,
+          end: spacing.md,
           backgroundColor: colors.surface,
           borderRadius: 24,
           borderTopWidth: 0,

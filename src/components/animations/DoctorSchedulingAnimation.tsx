@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   clockContainer: {
     position: 'absolute',
     top: 5,
-    right: 5,
+    end: 5,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   heartContainer: {
     position: 'absolute',
     bottom: 12,
-    left: 10,
+    start: 10,
     elevation: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 4,
     bottom: 32,
-    right: 2,
+    end: 2,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },

@@ -2,7 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CalendarOff, ChevronRight } from 'lucide-react-native';
+import { CalendarOff } from 'lucide-react-native';
+import { ChevronRight } from '../../../components/ui/DirectionalIcons';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppText from '../../../components/ui/AppText';
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginEnd: 12,
   },
   sectionHeader: {
     flexDirection: 'row',

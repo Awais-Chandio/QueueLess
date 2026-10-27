@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Switch, Pressable, StyleSheet } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from '../../../components/ui/DirectionalIcons';
 import { useTheme } from '../../../hooks/useTheme';
 import AppText from '../../../components/ui/AppText';
 import { WEEKDAYS, formatTime12h, timeToMinutes } from '../utils/doctorFormat';
@@ -72,7 +72,7 @@ export const DayScheduleCard = ({
             : 'Day off'}
         </AppText>
       </View>
-      {isAvailable && <ChevronRight size={18} color={colors.textTertiary} style={{ marginRight: spacing.sm }} />}
+      {isAvailable && <ChevronRight size={18} color={colors.textTertiary} style={{ marginEnd: spacing.sm }} />}
       <Switch
         value={isAvailable}
         onValueChange={onToggle}

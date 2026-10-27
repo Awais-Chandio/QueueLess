@@ -120,7 +120,7 @@ const ForgotPasswordScreen = () => {
                     styles.bgShape,
                     {
                         top: hp(25),
-                        left: wp(-10),
+                        start: wp(-10),
                         backgroundColor: colors.primary + '15',
                         transform: [{ translateY: bgAnim1 }]
                     }
@@ -129,7 +129,7 @@ const ForgotPasswordScreen = () => {
                     styles.bgShape2,
                     {
                         top: hp(65),
-                        right: wp(-15),
+                        end: wp(-15),
                         backgroundColor: colors.info + '15',
                         transform: [{ translateX: bgAnim2 }]
                     }
@@ -282,13 +282,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: wp(6),
         paddingTop: hp(2),
-        borderBottomLeftRadius: 25,
-        borderBottomRightRadius: 25,
+        borderBottomStartRadius: 25,
+        borderBottomEndRadius: 25,
     },
     backButton: {
         position: 'absolute',
         top: hp(3.5),
-        left: wp(5),
+        start: wp(5),
         width: 34,
         height: 34,
         borderRadius: 17,

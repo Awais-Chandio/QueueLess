@@ -106,10 +106,10 @@ export const BookAppointmentAnimation = () => {
       </View>
 
       {/* Floating Particles */}
-      <Animated.View style={[styles.particle, { top: hp(6), left: wp(10), transform: [{ translateY: particle1Y }] }]}>
+      <Animated.View style={[styles.particle, { top: hp(6), start: wp(10), transform: [{ translateY: particle1Y }] }]}>
         <View style={[styles.dot, { backgroundColor: '#14B8A6', width: 8, height: 8 }]} />
       </Animated.View>
-      <Animated.View style={[styles.particle, { bottom: hp(8), right: wp(15), transform: [{ translateY: particle2Y }] }]}>
+      <Animated.View style={[styles.particle, { bottom: hp(8), end: wp(15), transform: [{ translateY: particle2Y }] }]}>
         <View style={[styles.dot, { backgroundColor: colors.primary, width: 12, height: 12 }]} />
       </Animated.View>
 
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     overflow: 'hidden',
     position: 'absolute',
-    left: wp(18),
+    start: wp(18),
     top: hp(6),
   },
   calendarHeader: {
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: '#FFFFFF',
-    marginRight: 6,
+    marginEnd: 6,
   },
   calendarBody: {
     padding: 10,
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    right: wp(14),
+    end: wp(14),
     bottom: hp(5),
     elevation: 10,
     shadowColor: '#000',
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginEnd: 8,
   },
   doctorInfo: {
     flex: 1,

@@ -58,14 +58,14 @@ export const AppointmentTile: React.FC<AppointmentTileProps> = ({
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs / 2 }}>
               <MapPin size={scaleFont(12)} color={colors.textSecondary} />
-              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginLeft: spacing.xs, flex: 1 }} numberOfLines={1}>
+              <Text style={{ color: colors.textSecondary, fontSize: typography.sizes.xs, marginStart: spacing.xs, flex: 1 }} numberOfLines={1}>
                 {item.center_name ?? 'Center'}
               </Text>
             </View>
             {item.doctor_name ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.xs / 2 }}>
                 <Stethoscope size={scaleFont(12)} color={colors.primary} />
-                <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, marginLeft: spacing.xs, fontWeight: '700' }} numberOfLines={1}>
+                <Text style={{ color: colors.primary, fontSize: typography.sizes.xs, marginStart: spacing.xs, fontWeight: '700' }} numberOfLines={1}>
                   Doctor: {item.doctor_name}
                 </Text>
               </View>

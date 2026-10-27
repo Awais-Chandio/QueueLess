@@ -3,7 +3,8 @@ import { View, StyleSheet, Text, Pressable, ScrollView, TextInput, Alert, BackHa
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Clock, User, Phone, Mail } from 'lucide-react-native';
+import { Clock, User, Phone, Mail } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppButton from '../../../components/ui/AppButton';
 import Card from '../../../components/ui/Card';
@@ -133,14 +134,14 @@ const PatientDetailsScreen = () => {
           style={styles.backButton}
         >
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>
 
         {/* Visible countdown timer */}
         <View style={[styles.timerBadge, { backgroundColor: colors.warning + '15', borderRadius: radius.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs }]}>
-          <Clock size={14} color={colors.warning} style={{ marginRight: 6 }} />
+          <Clock size={14} color={colors.warning} style={{ marginEnd: 6 }} />
           <Text style={[styles.timerText, { color: colors.warning, fontSize: typography.sizes.xs, fontWeight: '800' }]}>
             {formatTimeLeft(timeLeft)}
           </Text>

@@ -16,7 +16,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 
 // --- brand, verbatim from src/theme/colors.ts -------------------------------
-const PRIMARY = '#0E7490'; // colors.primary
+const PRIMARY = '#0E7C86'; // colors.primary (same as the web app)
 const PRIMARY_2 = '#0891B2'; // colors.gradients.primary[1]
 const ACCENT_ON_DARK = '#5EEAD4'; // light accent, for contrast on the gradient
 

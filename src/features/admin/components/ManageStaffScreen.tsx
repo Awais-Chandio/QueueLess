@@ -13,7 +13,8 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Search, UsersRound } from 'lucide-react-native';
+import { Search, UsersRound } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import EmptyState from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
 import MedicalFAB from '../../../components/ui/MedicalFAB';
@@ -133,7 +134,7 @@ const ManageStaffScreen = () => {
             },
           ]}
         >
-          <Search size={20} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
+          <Search size={20} color={colors.textSecondary} style={{ marginEnd: spacing.sm }} />
           <TextInput
             placeholder="Search by name, email, or phone..."
             placeholderTextColor={colors.textSecondary}
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontWeight: '700',
-    marginLeft: 4,
+    marginStart: 4,
   },
   title: {
     fontWeight: '800',
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderWidth: 1,
-    marginRight: 8,
+    marginEnd: 8,
   },
   chipText: {
     fontWeight: '600',
@@ -306,7 +307,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: 20,
+    end: 20,
     bottom: 24,
   },
 });

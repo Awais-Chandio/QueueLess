@@ -173,7 +173,7 @@ export default function ScheduleScreen() {
                           variant="caption"
                           weight="600"
                           tone={day.state === 'working' ? 'success' : 'warning'}
-                          style={{ marginLeft: 4 }}
+                          style={{ marginStart: 4 }}
                         >
                           {day.booked}
                         </AppText>
@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
     width: 52,
     paddingVertical: 6,
     alignItems: 'center',
-    marginRight: 12,
+    marginEnd: 12,
   },
   booked: {
     flexDirection: 'row',

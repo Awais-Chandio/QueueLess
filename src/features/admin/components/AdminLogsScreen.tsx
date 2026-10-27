@@ -16,11 +16,11 @@ import {
   BellRing,
   CheckCheck,
   Zap,
-  LogOut,
   Search,
   History,
   Info,
 } from 'lucide-react-native';
+import { LogOut } from '../../../components/ui/DirectionalIcons';
 import AppInput from '../../../components/ui/AppInput';
 import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';

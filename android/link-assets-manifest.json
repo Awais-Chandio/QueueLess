@@ -20,6 +20,14 @@
     {
       "path": "src/assets/fonts/Inter-SemiBold.ttf",
       "sha1": "b4bdaf6bdd6a479b46c452a7bbae13f5cb2079bf"
+    },
+    {
+      "path": "src/assets/fonts/NotoNastaliqUrdu-Bold.ttf",
+      "sha1": "e8d729060ccf2ee9fed92e5b4d63b19f6bb64538"
+    },
+    {
+      "path": "src/assets/fonts/NotoNastaliqUrdu-Regular.ttf",
+      "sha1": "dfb8f5e2a9f6a6b3b8f00de72fc21ffb1c7965ce"
     }
   ]
 }

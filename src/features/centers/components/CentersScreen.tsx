@@ -127,7 +127,7 @@ const CentersScreen = () => {
                 </View>
 
                 <View style={[styles.addressContainer, { marginTop: spacing.xs }]}>
-                  <MapPin size={14} color={colors.textSecondary} style={{ marginRight: spacing.xs }} />
+                  <MapPin size={14} color={colors.textSecondary} style={{ marginEnd: spacing.xs }} />
                   <Text style={[styles.address, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                     {item.address}, {item.city}
                   </Text>

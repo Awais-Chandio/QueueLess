@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { ArrowRight, CalendarClock, CalendarOff, CheckCircle2, Clock, Coffee, Users, Wallet } from 'lucide-react-native';
+import { CalendarClock, CalendarOff, CheckCircle2, Clock, Coffee, Users, Wallet } from 'lucide-react-native';
+import { ArrowRight } from '../../../components/ui/DirectionalIcons';
 import type { LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -189,7 +190,7 @@ export default function DashboardScreen() {
                   <CalendarClock size={18} color={colors.primary} />
                 )}
               </View>
-              <View style={[styles.flex, { marginLeft: spacing.md }]}>
+              <View style={[styles.flex, { marginStart: spacing.md }]}>
                 <AppText variant="caption" tone="secondary">
                   Today's hours
                 </AppText>
@@ -235,7 +236,7 @@ export default function DashboardScreen() {
                       {(patient.patient_name || '?').charAt(0).toUpperCase()}
                     </AppText>
                   </View>
-                  <View style={[styles.flex, { marginLeft: spacing.md }]}>
+                  <View style={[styles.flex, { marginStart: spacing.md }]}>
                     <AppText variant="bodyStrong" numberOfLines={1}>
                       {patient.patient_name}
                     </AppText>

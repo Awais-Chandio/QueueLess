@@ -74,7 +74,7 @@ export const DayHoursSheet = ({ dayOfWeek, initial, saving, onClose, onSave }: P
       </AppText>
       <View style={styles.timeValue}>
         <Clock size={16} color={colors.primary} />
-        <AppText variant="subtitle" style={{ marginLeft: 6 }}>
+        <AppText variant="subtitle" style={{ marginStart: 6 }}>
           {formatTime12h(value[field])}
         </AppText>
       </View>

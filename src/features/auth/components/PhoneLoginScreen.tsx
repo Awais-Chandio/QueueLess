@@ -147,8 +147,8 @@ const PhoneLoginScreen = () => {
                             styles.formContainer,
                             {
                                 backgroundColor: colors.background,
-                                borderTopLeftRadius: radius.xxl,
-                                borderTopRightRadius: radius.xxl,
+                                borderTopStartRadius: radius.xxl,
+                                borderTopEndRadius: radius.xxl,
                                 opacity: fadeAnim,
                                 transform: [{ translateY: slideAnim }]
                             }
@@ -194,7 +194,7 @@ const PhoneLoginScreen = () => {
                                     >
                                         <Text style={styles.flagText}>{selectedCountry.flag}</Text>
                                         <Text style={[styles.codeText, { color: colors.text }]}>{selectedCountry.code}</Text>
-                                        <ChevronDown size={14} color={colors.textSecondary} style={{ marginLeft: 4 }} />
+                                        <ChevronDown size={14} color={colors.textSecondary} style={{ marginStart: 4 }} />
                                     </Pressable>
                                     <View style={[styles.verticalSeparator, { backgroundColor: colors.border }]} />
                                     <RNTextInput
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     backButton: {
         position: 'absolute',
         top: hp(2),
-        left: wp(4),
+        start: wp(4),
         padding: 8,
         borderRadius: 999,
         zIndex: 10,
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     },
     flagText: {
         fontSize: scaleFont(18),
-        marginRight: 4,
+        marginEnd: 4,
     },
     codeText: {
         fontSize: scaleFont(14),
@@ -392,13 +392,13 @@ const styles = StyleSheet.create({
         height: hp(5),
     },
     searchIcon: {
-        marginLeft: 12,
-        marginRight: 8,
+        marginStart: 12,
+        marginEnd: 8,
     },
     searchInput: {
         flex: 1,
         height: '100%',
-        paddingRight: wp(3),
+        paddingEnd: wp(3),
         fontWeight: '600',
     },
     countryItem: {
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     },
     countryFlag: {
         fontSize: scaleFont(20),
-        marginRight: wp(4),
+        marginEnd: wp(4),
     },
     countryName: {
         flex: 1,

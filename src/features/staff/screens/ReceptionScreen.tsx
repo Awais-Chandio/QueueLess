@@ -87,7 +87,7 @@ export default function ReceptionScreen() {
           onPress={() => navigation.navigate('CheckIn')}
           accessibilityRole="button"
           accessibilityLabel="Scan an appointment QR code"
-          style={[styles.iconButton, { backgroundColor: colors.tint.primary, borderRadius: radius.pill, marginRight: spacing.sm }]}
+          style={[styles.iconButton, { backgroundColor: colors.tint.primary, borderRadius: radius.pill, marginEnd: spacing.sm }]}
         >
           <QrCode size={20} color={colors.primary} />
         </Pressable>

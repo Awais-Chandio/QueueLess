@@ -8,7 +8,8 @@ import {
 } from 'react-native';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronLeft, Search, UserCheck, CheckCircle, ScanLine } from 'lucide-react-native';
+import { Search, UserCheck, CheckCircle, ScanLine } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppInput from '../../../components/ui/AppInput';
 import AppButton from '../../../components/ui/AppButton';

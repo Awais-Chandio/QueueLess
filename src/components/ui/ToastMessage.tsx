@@ -76,7 +76,7 @@ const ToastCard: React.FC<ToastConfigParams<unknown> & { kind: ToastType }> = ({
         },
       ]}
     >
-      <View style={[styles.accent, { backgroundColor: tone.dot, borderTopLeftRadius: radius.card, borderBottomLeftRadius: radius.card }]} />
+      <View style={[styles.accent, { backgroundColor: tone.dot, borderTopStartRadius: radius.card, borderBottomStartRadius: radius.card }]} />
 
       <View style={[styles.iconWell, { backgroundColor: tone.bg, borderRadius: radius.sm }]}>
         <Icon size={sizing.icon.md} color={tone.dot} />
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   },
   accent: {
     position: 'absolute',
-    left: 0,
+    start: 0,
     top: 0,
     bottom: 0,
     width: 4,
@@ -152,12 +152,12 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 4,
+    marginStart: 4,
   },
   body: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
+    marginStart: 12,
+    marginEnd: 8,
   },
   dismiss: {
     paddingTop: 2,

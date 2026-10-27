@@ -62,13 +62,13 @@ const styles = StyleSheet.create({
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginEnd: 12,
   },
   text: {
     flex: 1,
-    marginRight: 8,
+    marginEnd: 8,
   },
   switchSlot: {
-    marginRight: 8,
+    marginEnd: 8,
   },
 });

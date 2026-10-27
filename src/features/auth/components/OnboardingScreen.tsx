@@ -190,19 +190,19 @@ export const OnboardingScreen = () => {
       />
 
       {/* Floating Medical Icons in Background */}
-      <Animated.View style={[styles.floatingIcon, { top: hp(8), left: wp(10), opacity: 0.15 }, getFloatingStyle(8, -12)]}>
+      <Animated.View style={[styles.floatingIcon, { top: hp(8), start: wp(10), opacity: 0.15 }, getFloatingStyle(8, -12)]}>
         <Calendar size={scaleFont(32)} color={colors.primary} />
       </Animated.View>
-      <Animated.View style={[styles.floatingIcon, { top: hp(25), right: wp(8), opacity: 0.12 }, getFloatingStyle(-10, 8)]}>
+      <Animated.View style={[styles.floatingIcon, { top: hp(25), end: wp(8), opacity: 0.12 }, getFloatingStyle(-10, 8)]}>
         <Clock size={scaleFont(28)} color={colors.info} />
       </Animated.View>
-      <Animated.View style={[styles.floatingIcon, { top: hp(45), left: wp(5), opacity: 0.15 }, getFloatingStyle(6, 10)]}>
+      <Animated.View style={[styles.floatingIcon, { top: hp(45), start: wp(5), opacity: 0.15 }, getFloatingStyle(6, 10)]}>
         <Bell size={scaleFont(30)} color={colors.primary} />
       </Animated.View>
-      <Animated.View style={[styles.floatingIcon, { top: hp(65), right: wp(12), opacity: 0.1 }, getFloatingStyle(-8, -6)]}>
+      <Animated.View style={[styles.floatingIcon, { top: hp(65), end: wp(12), opacity: 0.1 }, getFloatingStyle(-8, -6)]}>
         <Stethoscope size={scaleFont(34)} color={colors.success} />
       </Animated.View>
-      <Animated.View style={[styles.floatingIcon, { bottom: hp(15), left: wp(15), opacity: 0.12 }, getFloatingStyle(5, 5)]}>
+      <Animated.View style={[styles.floatingIcon, { bottom: hp(15), start: wp(15), opacity: 0.12 }, getFloatingStyle(5, 5)]}>
         <Heart size={scaleFont(26)} color={colors.error} />
       </Animated.View>
 
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
   skipButton: {
     position: 'absolute',
     top: hp(6),
-    right: wp(6),
+    end: wp(6),
     zIndex: 10,
     padding: 8,
   },

@@ -34,9 +34,9 @@ import {
   MapPin,
   Star,
   XCircle,
-  ChevronLeft,
   Stethoscope,
 } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import { scaleFont } from '../../../utils/responsive';
 import {
   getAppointmentDateLabel,
@@ -198,7 +198,7 @@ const AppointmentDetailsScreen = () => {
           ]}
         >
           <ChevronLeft size={24} color={colors.primary} />
-          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs }]}>
+          <Text style={[styles.backButtonText, { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs }]}>
             Back
           </Text>
         </Pressable>

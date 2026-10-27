@@ -27,7 +27,7 @@ export const UpgradeCard = ({ module, isOwner = false }: Props) => {
         <View style={[styles.icon, { backgroundColor: colors.tint.primary, borderRadius: radius.md }]}>
           <Lock size={18} color={colors.primary} />
         </View>
-        <View style={[styles.copy, { marginLeft: spacing.md }]}>
+        <View style={[styles.copy, { marginStart: spacing.md }]}>
           <AppText variant="bodyStrong">{info.title}</AppText>
           <AppText variant="caption" tone="secondary">
             {info.pitch}

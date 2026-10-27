@@ -100,14 +100,14 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginEnd: 12,
   },
   warning: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   warningText: {
-    marginLeft: 6,
+    marginStart: 6,
     flex: 1,
   },
 });

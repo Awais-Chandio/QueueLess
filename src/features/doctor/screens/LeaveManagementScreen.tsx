@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { View, Pressable, StyleSheet, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Plus } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import { useTheme } from '../../../hooks/useTheme';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
 import AppButton from '../../../components/ui/AppButton';

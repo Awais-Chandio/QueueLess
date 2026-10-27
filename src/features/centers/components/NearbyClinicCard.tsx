@@ -93,7 +93,7 @@ const NearbyClinicCardComponent: React.FC<NearbyClinicCardProps> = ({ item, inde
 
             {/* Address */}
             <View style={styles.metaRow}>
-              <MapPin size={12} color={colors.textSecondary} style={{ marginRight: 4, marginTop: 1 }} />
+              <MapPin size={12} color={colors.textSecondary} style={{ marginEnd: 4, marginTop: 1 }} />
               <Text
                 style={[styles.addressText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}
                 numberOfLines={1}
@@ -104,7 +104,7 @@ const NearbyClinicCardComponent: React.FC<NearbyClinicCardProps> = ({ item, inde
 
             {/* Doctor Count */}
             <View style={styles.metaRow}>
-              <Stethoscope size={12} color={colors.primary} style={{ marginRight: 4 }} />
+              <Stethoscope size={12} color={colors.primary} style={{ marginEnd: 4 }} />
               <Text style={[styles.doctorText, { color: colors.textSecondary, fontSize: typography.sizes.xs }]}>
                 {item.doctorCount} Doctor{item.doctorCount !== 1 ? 's' : ''} Active
               </Text>
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
   },
   infoSection: {
     flex: 1,
-    marginLeft: 12,
+    marginStart: 12,
     justifyContent: 'center',
   },
   nameRow: {

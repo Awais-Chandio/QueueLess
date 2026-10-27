@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { ChevronRight } from 'lucide-react-native';
+import { ChevronRight } from './DirectionalIcons';
 import { useTheme } from '../../hooks/useTheme';
 import { scaleFont } from '../../utils/responsive';
 

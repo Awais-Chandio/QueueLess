@@ -182,15 +182,15 @@ const AppButton = ({
           <ActivityIndicator
             size="small"
             color={tone.text}
-            style={{ marginRight: spacing.sm }}
+            style={{ marginEnd: spacing.sm }}
           />
           {label}
         </>
       ) : (
         <>
-          {leftIcon ? <View style={{ marginRight: spacing.sm }}>{leftIcon}</View> : null}
+          {leftIcon ? <View style={{ marginEnd: spacing.sm }}>{leftIcon}</View> : null}
           {label}
-          {rightIcon ? <View style={{ marginLeft: spacing.sm }}>{rightIcon}</View> : null}
+          {rightIcon ? <View style={{ marginStart: spacing.sm }}>{rightIcon}</View> : null}
         </>
       )}
     </View>

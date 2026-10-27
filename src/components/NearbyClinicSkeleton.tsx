@@ -34,7 +34,7 @@ export const NearbyClinicSkeleton = () => {
               width={64}
               height={64}
               borderRadius={radius.lg}
-              style={{ marginRight: spacing.md }}
+              style={{ marginEnd: spacing.md }}
             />
             {/* Title & Badge Placeholders */}
             <View style={{ flex: 1, justifyContent: 'space-between', height: 60 }}>

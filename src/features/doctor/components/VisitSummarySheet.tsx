@@ -316,7 +316,7 @@ export const VisitSummarySheet = ({ visible, appointment, onClose, mode = 'edit'
               ]}
             >
               <CalendarDays size={16} color={colors.primary} />
-              <AppText variant="bodyStrong" style={{ marginLeft: 6 }}>
+              <AppText variant="bodyStrong" style={{ marginStart: 6 }}>
                 {followUp ? formatDateKey(followUp, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'No follow-up'}
               </AppText>
             </Pressable>

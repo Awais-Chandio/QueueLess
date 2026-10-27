@@ -114,7 +114,7 @@ const LoginScreen = () => {
         styles.bgShape,
         {
             top: hp(25),
-            left: wp(-10),
+            start: wp(-10),
             backgroundColor: colors.primary + '15',
             transform: [{ translateY: bgAnim1 }]
         }
@@ -124,7 +124,7 @@ const LoginScreen = () => {
         styles.bgShape2,
         {
             top: hp(65),
-            right: wp(-15),
+            end: wp(-15),
             backgroundColor: colors.info + '15',
             transform: [{ translateX: bgAnim2 }]
         }
@@ -177,7 +177,7 @@ const LoginScreen = () => {
     };
 
     const keyRoundIconStyle = {
-        marginRight: spacing.xs,
+        marginEnd: spacing.xs,
     };
 
     const forgotPasswordTextStyle = [
@@ -433,8 +433,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: wp(6),
         paddingTop: hp(1.5),
-        borderBottomLeftRadius: 25,
-        borderBottomRightRadius: 25,
+        borderBottomStartRadius: 25,
+        borderBottomEndRadius: 25,
     },
     titleContainer: {
         alignItems: 'center',
@@ -570,6 +570,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     badgeIcon: {
-        marginRight: 4,
+        marginEnd: 4,
     },
 });

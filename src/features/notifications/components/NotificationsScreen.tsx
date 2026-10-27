@@ -149,8 +149,8 @@ const NotificationsScreen = () => {
             styles.notificationCard,
             {
               backgroundColor: item.is_read ? colors.surface : colors.primary + '06',
-              borderLeftWidth: 3,
-              borderLeftColor: activeColor + (item.is_read ? '40' : 'CC'),
+              borderStartWidth: 3,
+              borderStartColor: activeColor + (item.is_read ? '40' : 'CC'),
               padding: spacing.md,
               borderRadius: 20,
             },
@@ -291,7 +291,7 @@ const NotificationsScreen = () => {
                 {
                   color: colors.primary,
                   fontSize: typography.sizes.sm,
-                  marginLeft: spacing.xs,
+                  marginStart: spacing.xs,
                 },
               ]}
             >

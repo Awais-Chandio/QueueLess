@@ -91,7 +91,7 @@ export const RequestLeaveSheet = ({
       </AppText>
       <View style={styles.dateValue}>
         <CalendarDays size={16} color={colors.primary} />
-        <AppText variant="bodyStrong" style={{ marginLeft: 6 }}>
+        <AppText variant="bodyStrong" style={{ marginStart: 6 }}>
           {date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
         </AppText>
       </View>
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   warningText: {
-    marginLeft: 6,
+    marginStart: 6,
     flex: 1,
   },
 });

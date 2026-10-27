@@ -101,8 +101,8 @@ export const AppBottomSheet: React.FC<AppBottomSheetProps> = ({
       handleIndicatorStyle={{ backgroundColor: colors.textTertiary, width: 40 }}
       backgroundStyle={{
         backgroundColor: colors.surface,
-        borderTopLeftRadius: radius.sheet,
-        borderTopRightRadius: radius.sheet,
+        borderTopStartRadius: radius.sheet,
+        borderTopEndRadius: radius.sheet,
       }}
       style={styles.sheet}
     >

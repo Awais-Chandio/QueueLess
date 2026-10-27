@@ -93,7 +93,7 @@ const CenterBottomSheet = ({
             {
               color: colors.primary,
               fontSize: typography.sizes.xs,
-              marginLeft: spacing.xs,
+              marginStart: spacing.xs,
             },
           ]}
         >
@@ -109,7 +109,7 @@ const CenterBottomSheet = ({
             {
               color: colors.textSecondary,
               fontSize: typography.sizes.sm,
-              marginLeft: spacing.sm,
+              marginStart: spacing.sm,
             },
           ]}
         >
@@ -119,7 +119,7 @@ const CenterBottomSheet = ({
 
       <View style={[styles.infoRow, { marginTop: spacing.md }]}>
         <Clock size={18} color={colors.primary} />
-        <View style={{ flex: 1, marginLeft: spacing.sm }}>
+        <View style={{ flex: 1, marginStart: spacing.sm }}>
           <Text
             style={[
               styles.infoLabel,
@@ -165,7 +165,7 @@ const CenterBottomSheet = ({
             {
               color: colors.primary,
               fontSize: typography.sizes.md,
-              marginLeft: spacing.sm,
+              marginStart: spacing.sm,
             },
           ]}
         >

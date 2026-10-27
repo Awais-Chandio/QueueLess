@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    marginRight: 10,
+    marginEnd: 10,
   },
   alertContent: {
     flex: 1,
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   },
   successBadge: {
     position: 'absolute',
-    right: -6,
+    end: -6,
     top: -6,
     elevation: 4,
   },

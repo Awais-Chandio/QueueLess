@@ -234,8 +234,8 @@ const AppTabs = () => {
                 tabBarStyle: {
                     position: 'absolute',
                     bottom: insets.bottom > 0 ? (Platform.OS === 'ios' ? insets.bottom : insets.bottom + 8) : spacing.md,
-                    left: spacing.md,
-                    right: spacing.md,
+                    start: spacing.md,
+                    end: spacing.md,
                     backgroundColor: colors.surface,
                     borderRadius: 24,
                     height: hp(7.8),

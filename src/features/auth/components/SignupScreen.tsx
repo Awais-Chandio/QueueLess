@@ -179,7 +179,7 @@ const SignupScreen = () => {
                     styles.bgShape, 
                     { 
                         top: hp(30), 
-                        right: wp(-10), 
+                        end: wp(-10), 
                         backgroundColor: colors.primary + '15',
                         transform: [{ translateY: bgAnim1 }]
                     }
@@ -188,7 +188,7 @@ const SignupScreen = () => {
                     styles.bgShape2, 
                     { 
                         bottom: hp(10), 
-                        left: wp(-15), 
+                        start: wp(-15), 
                         backgroundColor: colors.info + '15',
                         transform: [{ translateX: bgAnim2 }]
                     }
@@ -292,7 +292,7 @@ const SignupScreen = () => {
                                         />
                                         {nameValid && (
                                             <View style={styles.validationRow}>
-                                                <CheckCircle2 size={12} color={colors.success} style={{ marginRight: 4 }} />
+                                                <CheckCircle2 size={12} color={colors.success} style={{ marginEnd: 4 }} />
                                                 <Text style={[styles.validationText, { color: colors.success }]}>Valid Name</Text>
                                             </View>
                                         )}
@@ -312,7 +312,7 @@ const SignupScreen = () => {
                                         />
                                         {emailValid && (
                                             <View style={styles.validationRow}>
-                                                <CheckCircle2 size={12} color={colors.success} style={{ marginRight: 4 }} />
+                                                <CheckCircle2 size={12} color={colors.success} style={{ marginEnd: 4 }} />
                                                 <Text style={[styles.validationText, { color: colors.success }]}>Valid Email Format</Text>
                                             </View>
                                         )}
@@ -347,7 +347,7 @@ const SignupScreen = () => {
                                         />
                                         {passValid && (
                                             <View style={styles.validationRow}>
-                                                <CheckCircle2 size={12} color={colors.success} style={{ marginRight: 4 }} />
+                                                <CheckCircle2 size={12} color={colors.success} style={{ marginEnd: 4 }} />
                                                 <Text style={[styles.validationText, { color: colors.success }]}>Password strength valid</Text>
                                             </View>
                                         )}
@@ -366,7 +366,7 @@ const SignupScreen = () => {
                                         />
                                         {confirmValid && (
                                             <View style={styles.validationRow}>
-                                                <CheckCircle2 size={12} color={colors.success} style={{ marginRight: 4 }} />
+                                                <CheckCircle2 size={12} color={colors.success} style={{ marginEnd: 4 }} />
                                                 <Text style={[styles.validationText, { color: colors.success }]}>Passwords match</Text>
                                             </View>
                                         )}
@@ -379,7 +379,7 @@ const SignupScreen = () => {
                                             >
                                                 <Text style={[styles.btnOutlineText, { color: colors.textSecondary }]}>Back</Text>
                                             </Pressable>
-                                            <View style={{ flex: 1, marginLeft: spacing.sm }}>
+                                            <View style={{ flex: 1, marginStart: spacing.sm }}>
                                                 <AppButton
                                                     title={isLoading ? "Signing up..." : "Sign Up"}
                                                     onPress={handleSignup}
@@ -461,13 +461,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: wp(6),
         paddingTop: hp(2),
-        borderBottomLeftRadius: 25,
-        borderBottomRightRadius: 25,
+        borderBottomStartRadius: 25,
+        borderBottomEndRadius: 25,
     },
     backButton: {
         position: 'absolute',
         top: hp(3.5),
-        left: wp(5),
+        start: wp(5),
         width: 34,
         height: 34,
         borderRadius: 17,
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: -4,
         marginBottom: 8,
-        paddingLeft: 4,
+        paddingStart: 4,
     },
     validationText: {
         fontSize: scaleFont(11),
@@ -613,6 +613,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     badgeIcon: {
-        marginRight: 4,
+        marginEnd: 4,
     },
 });

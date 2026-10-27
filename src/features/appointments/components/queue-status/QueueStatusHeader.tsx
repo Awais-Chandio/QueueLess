@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft } from '../../../../components/ui/DirectionalIcons';
 import { useTheme } from '../../../../hooks/useTheme';
 import AnimatedCard from '../../../../components/ui/AnimatedCard';
 import AppText from '../../../../components/ui/AppText';
@@ -24,7 +24,7 @@ export const QueueStatusHeader = ({ title, status, statusLabel, onBack }: Props)
         style={({ pressed }) => [styles.back, { marginBottom: spacing.sm }, pressed && styles.pressed]}
       >
         <ChevronLeft size={24} color={colors.primary} />
-        <AppText variant="subtitle" tone="brand" style={{ marginLeft: spacing.xs }}>
+        <AppText variant="subtitle" tone="brand" style={{ marginStart: spacing.xs }}>
           Back
         </AppText>
       </Pressable>

@@ -17,11 +17,11 @@ import {
   Clock3,
   XCircle,
   Stethoscope,
-  LogOut,
   TrendingUp,
   PieChart as PieIcon,
   BarChart3,
 } from 'lucide-react-native';
+import { LogOut } from '../../../components/ui/DirectionalIcons';
 import { Card } from '../../../components/ui/Card';
 import ErrorState from '../../../components/ui/ErrorState';
 import ScreenWrapper from '../../../components/ui/ScreenWrapper';
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
     marginBottom: hp(1),
   },
   chart: {
-    marginLeft: -wp(2),
+    marginStart: -wp(2),
     marginTop: hp(1),
   },
   emptyChart: {

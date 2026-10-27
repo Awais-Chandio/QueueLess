@@ -15,7 +15,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQueryClient } from '@tanstack/react-query';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Check, ChevronLeft, MapPin } from 'lucide-react-native';
+import { Check, MapPin } from 'lucide-react-native';
+import { ChevronLeft } from '../../../components/ui/DirectionalIcons';
 import AppButton from '../../../components/ui/AppButton';
 import AppInput from '../../../components/ui/AppInput';
 import Card from '../../../components/ui/Card';
@@ -133,7 +134,7 @@ const EditStaffScreen = () => {
             <Text
               style={[
                 styles.backText,
-                { color: colors.primary, fontSize: typography.sizes.md, marginLeft: spacing.xs },
+                { color: colors.primary, fontSize: typography.sizes.md, marginStart: spacing.xs },
               ]}
             >
               Back
