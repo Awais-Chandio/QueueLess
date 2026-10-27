@@ -42,7 +42,8 @@ SELECT tests.logout();
 SELECT tests.login('b0000000-0000-4000-8000-000000000001');
 SELECT throws_ok($$SELECT public.create_organization('City Clinic', NULL, '', 'Main Road')$$, '22023', NULL, 'city is required');
 SELECT throws_ok($$SELECT public.create_organization('City Clinic', NULL, 'Hyderabad', 'Main Road',
-                     '[{"name":"Dr. One"},{"name":"Dr. Two"}]')$$, 'PT402', NULL, 'Free plan: two doctors refused (and nothing created)');
+                     '[{"name":"Dr. One"},{"name":"Dr. Two"},{"name":"Dr. Three"},{"name":"Dr. Four"}]')$$, 'PT402', NULL,
+                 'trial (3 doctors): four doctors refused (and nothing created)');
 SELECT is((SELECT count(*)::int FROM public.org_members WHERE user_id = 'b0000000-0000-4000-8000-000000000001'), 0,
           'a refused onboarding leaves nothing behind');
 INSERT INTO tests.out SELECT 'org', public.create_organization('  City   Clinic ', NULL, 'Hyderabad', 'Main Road, Qasimabad',
@@ -55,7 +56,7 @@ SELECT tests.logout();
 
 SELECT is((SELECT row(o.is_legacy, e.plan_id, m.balance)::text FROM public.organizations o
            JOIN public.org_entitlements e ON e.organization_id = o.id JOIN public.message_credits m ON m.organization_id = o.id
-           WHERE o.id = tests.org()), row(false, 'free', 0)::text, 'new organization: not legacy, Free plan, credit row');
+           WHERE o.id = tests.org()), row(false, 'trial', 0)::text, 'new organization: not legacy, trial plan (2B), credit row');
 SELECT is((SELECT row(c.open_time, c.close_time, c.city)::text FROM public.service_centers c WHERE c.id = tests.center()),
           row('09:00'::time, '17:00'::time, 'Hyderabad')::text, 'center hours and city');
 SELECT is((SELECT count(*)::int FROM public.services WHERE center_id = tests.center()), 1, 'a default service');
@@ -67,11 +68,12 @@ SELECT ok(EXISTS (SELECT 1 FROM public.doctor_services ds JOIN public.doctors d 
 SELECT ok(EXISTS (SELECT 1 FROM public.center_displays WHERE center_id = tests.center()), 'center has a display key');
 
 -- ---------------------------------------------------------------------------
--- Doctors and center (owner only)
+-- Doctors and center (owner only). On Basic (one doctor) from here.
 -- ---------------------------------------------------------------------------
+UPDATE public.org_subscriptions SET plan_id = 'basic', status = 'active' WHERE organization_id = tests.org() AND status <> 'cancelled';
 SELECT tests.login('b0000000-0000-4000-8000-000000000001');
 SELECT throws_ok(format($$SELECT public.upsert_doctor(%L, NULL, 'Dr. Extra', NULL, NULL)$$, tests.center()), 'PT402', NULL,
-                 'Free plan: a second active doctor is refused');
+                 'Basic plan: a second active doctor is refused');
 SELECT lives_ok(format($$SELECT public.upsert_doctor(%L, NULL, 'Dr. Standby', NULL, NULL, NULL, false)$$, tests.center()),
                 'an inactive doctor can be added');
 SELECT lives_ok(format($$SELECT public.upsert_doctor(%L, (SELECT id FROM public.doctors WHERE center_id = %L AND name = 'Dr. Sana'),
@@ -119,7 +121,7 @@ SELECT tests.logout();
 SELECT tests.login('b0000000-0000-4000-8000-000000000001');
 SELECT is((SELECT jsonb_agg(m->>'email' ORDER BY m->>'email') FROM jsonb_array_elements(public.get_org_settings(tests.org())->'members') m),
           '["new.owner@example.com", "rec@example.com"]'::jsonb, 'settings: members with emails');
-SELECT is(public.get_org_settings(tests.org())->'plan'->>'id', 'free', 'settings: current plan');
+SELECT is(public.get_org_settings(tests.org())->'plan'->>'id', 'basic', 'settings: current plan');
 SELECT public.remove_staff(tests.center(), 'b0000000-0000-4000-8000-000000000002');
 SELECT tests.logout();
 

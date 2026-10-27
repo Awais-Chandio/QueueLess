@@ -32,7 +32,10 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_r
 
 -- Seed: staff A a..02 / center A 521f.. / Dr. A d..0a (account a..04); staff B a..03 / center B / Dr. B.
 UPDATE public.appointments SET appointment_date = appointment_date - 7 WHERE doctor_id IN ('d0000000-0000-4000-8000-00000000000a', 'd0000000-0000-4000-8000-00000000000b');
--- Clinic A on the Clinic plan (sms) with 3 credits; clinic B stays on Free.
+-- Clinic A on the Clinic plan (sms) with 3 credits; clinic B on Basic (2B:
+-- seed orgs start on the trial, which has sms).
+UPDATE public.org_subscriptions SET plan_id = 'basic', status = 'active'
+WHERE organization_id = (SELECT organization_id FROM public.service_centers WHERE id = 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481') AND status <> 'cancelled';
 UPDATE public.org_subscriptions SET plan_id = 'clinic'
 WHERE organization_id = (SELECT organization_id FROM public.service_centers WHERE id = '521f1349-05c4-4417-9fa5-5289963af7db') AND status <> 'cancelled';
 UPDATE public.message_credits SET balance = 3
@@ -63,7 +66,7 @@ SELECT tests.login('a0000000-0000-4000-8000-000000000003');
 INSERT INTO tests.codes SELECT 'b1', public_code FROM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'Free One', '03009990001', 'walk_in');
 SELECT tests.logout();
 SET CONSTRAINTS ALL IMMEDIATE; SET CONSTRAINTS ALL DEFERRED;
-SELECT is((SELECT count(*)::integer FROM public.notification_outbox WHERE appointment_id = tests.id('b1')), 0, 'Free plan: no messages queued');
+SELECT is((SELECT count(*)::integer FROM public.notification_outbox WHERE appointment_id = tests.id('b1')), 0, 'Basic plan: no messages queued');
 
 SELECT tests.login('a0000000-0000-4000-8000-000000000002');
 INSERT INTO tests.codes SELECT 'w' || n, public_code
@@ -224,7 +227,7 @@ SELECT tests.logout();
 -- ---------------------------------------------------------------------------
 -- Cron
 -- ---------------------------------------------------------------------------
-SELECT set_eq($$SELECT jobname FROM cron.job$$, ARRAY['send-notifications', 'cleanup-stale-appointments', 'prune-notification-outbox', 'expire-unpaid-tokens'], 'four cron jobs (2A: expire-unpaid-tokens)');
+SELECT set_eq($$SELECT jobname FROM cron.job$$, ARRAY['send-notifications', 'cleanup-stale-appointments', 'prune-notification-outbox', 'expire-unpaid-tokens', 'plan-lifecycle'], 'five cron jobs (2A: expire-unpaid-tokens, 2B: plan-lifecycle)');
 SELECT is((SELECT schedule FROM cron.job WHERE jobname = 'send-notifications'), '* * * * *', 'outbox worker every minute');
 UPDATE public.notification_outbox SET status = 'pending', next_attempt_at = now() - interval '1 second', locked_until = NULL
 WHERE id = tests.outbox('doctor_late', 'w5');

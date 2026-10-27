@@ -10,10 +10,10 @@ SELECT is((SELECT count(*) FROM public.service_centers c JOIN public.organizatio
 SELECT is((SELECT count(DISTINCT organization_id) FROM public.service_centers), (SELECT count(*) FROM public.service_centers),
           'one organization per center');
 SELECT is_empty($$SELECT o.id FROM public.organizations o
-                  WHERE NOT EXISTS (SELECT 1 FROM public.org_subscriptions s WHERE s.organization_id = o.id AND s.status = 'active' AND s.plan_id = 'free')
-                     OR NOT EXISTS (SELECT 1 FROM public.org_entitlements e WHERE e.organization_id = o.id AND e.plan_id = 'free')
+                  WHERE NOT EXISTS (SELECT 1 FROM public.org_subscriptions s WHERE s.organization_id = o.id AND s.status = 'trialing' AND s.plan_id = 'trial')
+                     OR NOT EXISTS (SELECT 1 FROM public.org_entitlements e WHERE e.organization_id = o.id AND e.plan_id = 'trial')
                      OR NOT EXISTS (SELECT 1 FROM public.message_credits m WHERE m.organization_id = o.id AND m.balance = 0)$$,
-                'every organization: active Free subscription, Free entitlements, 0 credits');
+                'every organization: trial subscription and entitlements (2B), 0 credits');
 SELECT is_empty($$SELECT sc.profile_id FROM public.staff_centers sc
                   JOIN public.service_centers c ON c.id = sc.center_id
                   WHERE NOT EXISTS (SELECT 1 FROM public.org_members m

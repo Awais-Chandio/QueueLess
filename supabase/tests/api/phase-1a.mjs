@@ -230,9 +230,13 @@ let qrCode;
 }
 
 // ---------------------------------------------------------------------------
-// 5. Free plan limit (clinic B): 30 tokens/day, then HTTP 402
+// 5. Basic plan limit (clinic B): 30 tokens/day, then HTTP 402. New clinics
+//    start on the 14-day trial (2B); the platform admin moves B to Basic.
 // ---------------------------------------------------------------------------
 {
+  const { data: queueB } = await joinServer.rpc('get_reception_queue', { p_center_id: CENTER_B });
+  const { error: basicErr } = await joinServer.rpc('admin_set_plan', { p_org_id: queueB?.center?.organization_id, p_plan_id: 'basic', p_note: 'api test' });
+  check('server: admin_set_plan clinic B -> Basic', !basicErr, basicErr);
   let issued = 0;
   let lastError = null;
   for (let i = 0; i < 40; i += 1) {
@@ -242,14 +246,14 @@ let qrCode;
   }
   const { data: bToday } = await staffB.from('appointments').select('id, status').eq('center_id', CENTER_B).eq('appointment_date', today);
   const active = (bToday ?? []).filter(r => r.status !== 'cancelled').length;
-  check('free plan: stops at 30 tokens for the day', lastError?.code === 'PT402' && active === 30, { issued, active, lastError });
+  check('basic plan: stops at 30 tokens for the day', lastError?.code === 'PT402' && active === 30, { issued, active, lastError });
 
   const res = await fetch(`${URL}/rest/v1/rpc/issue_public_token`, {
     method: 'POST',
     headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ p_doctor_id: DOCTOR_B, p_name: 'Late Guest', p_phone: '+923459990000', p_source: 'qr' }),
   });
-  check('free plan: public QR join at the limit -> HTTP 402', res.status === 402, res.status);
+  check('basic plan: public QR join at the limit -> HTTP 402', res.status === 402, res.status);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

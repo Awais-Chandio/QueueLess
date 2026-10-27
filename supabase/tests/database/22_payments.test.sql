@@ -47,8 +47,13 @@ CREATE FUNCTION tests.today() RETURNS date LANGUAGE sql STABLE AS $$SELECT (now(
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;
 
 -- Seed: center A 521f.. (owner A a..09, receptionist A a..02, Dr. A d..0a fee 1000, account a..04),
--- center B d2c1.. (receptionist B a..03, Dr. B d..0b fee 1500, account a..05). Both on Free.
+-- center B d2c1.. (receptionist B a..03, Dr. B d..0b fee 1500, account a..05). Both on Solo
+-- (2B: fees, no analytics).
 -- Dr. A's queue starts empty today.
+UPDATE public.org_subscriptions SET plan_id = 'solo', status = 'active'
+WHERE organization_id IN (SELECT organization_id FROM public.service_centers
+                          WHERE id IN ('521f1349-05c4-4417-9fa5-5289963af7db', 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481'))
+  AND status <> 'cancelled';
 UPDATE public.appointments SET appointment_date = appointment_date - 7 WHERE doctor_id = 'd0000000-0000-4000-8000-00000000000a';
 
 SELECT plan(98);
@@ -346,7 +351,7 @@ SELECT tests.logout();
 
 SELECT tests.login('a0000000-0000-4000-8000-000000000009');
 SELECT throws_ok($$SELECT public.get_payment_report('521f1349-05c4-4417-9fa5-5289963af7db', tests.today() - 7, tests.today())$$,
-                 'PT402', NULL, 'owner on Free: date ranges need the analytics module');
+                 'PT402', NULL, 'owner on Solo: date ranges need the analytics module');
 SELECT is((public.get_payment_report('521f1349-05c4-4417-9fa5-5289963af7db', NULL, NULL)->>'can_range')::boolean, false, 'report says ranges are locked');
 SELECT tests.logout();
 UPDATE public.org_entitlements SET modules = modules || ARRAY['analytics']

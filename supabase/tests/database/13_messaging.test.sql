@@ -26,8 +26,10 @@ CREATE FUNCTION tests.org_b() RETURNS uuid LANGUAGE sql STABLE AS 'SELECT b FROM
 GRANT USAGE ON SCHEMA tests TO service_role;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;
 
--- Org A on Clinic (has sms), 10 credits; org B stays Free.
+-- Org A on Clinic (has sms), 10 credits; org B on Basic (2B: seed orgs start
+-- on the trial, which has sms).
 UPDATE public.org_subscriptions SET plan_id = 'clinic' WHERE organization_id = tests.org_a() AND status <> 'cancelled';
+UPDATE public.org_subscriptions SET plan_id = 'basic', status = 'active' WHERE organization_id = tests.org_b() AND status <> 'cancelled';
 UPDATE public.message_credits SET balance = 10 WHERE organization_id = tests.org_a();
 INSERT INTO public.message_log (organization_id, channel, to_phone, template, status, cost)
 VALUES (tests.org_b(), 'sms', '+923001112233', 'token_called', 'sent', 1);
@@ -50,7 +52,7 @@ SELECT throws_ok($$SELECT public.charge_message_credits(tests.org_a(), 'sms', '+
 SELECT throws_ok($$SELECT public.charge_message_credits(tests.org_a(), 'whatsapp', '+923001234567', 'token_ready', 1)$$, 'PT402', NULL,
                  'service_role: refused for a channel the plan lacks');
 SELECT throws_ok($$SELECT public.charge_message_credits(tests.org_b(), 'sms', '+923001234567', 'token_ready', 0)$$, 'PT402', NULL,
-                 'service_role: Free plan has no SMS');
+                 'service_role: Basic plan has no SMS');
 SELECT throws_ok($$SELECT public.charge_message_credits(tests.org_a(), 'sms', '+923001234567', 'token_ready', 1,
                     'e0000000-0000-4000-8000-000000000003')$$, '42501', NULL,
                  'service_role: cannot log a message against another clinic''s appointment');

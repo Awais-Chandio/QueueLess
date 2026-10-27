@@ -45,9 +45,10 @@ SELECT plan(30);
 -- ---------------------------------------------------------------------------
 -- Catalog and defaults
 -- ---------------------------------------------------------------------------
-SELECT set_eq($$SELECT id FROM public.plans$$, ARRAY['free', 'clinic', 'pro', 'center'], 'plans seeded: free, clinic, pro, center');
-SELECT is((SELECT row(monthly_price_pkr, modules, tokens_per_day, max_doctors, max_centers)::text FROM public.plans WHERE id = 'free'),
-          row(0, ARRAY['queue', 'qr_join'], 30, 1, 1)::text, 'free: queue + QR join, 30 tokens/day, 1 doctor, 1 center');
+-- 2B: the catalog is trial, basic, solo, pro, center (free and clinic hidden).
+SELECT set_eq($$SELECT id FROM public.plans$$, ARRAY['trial', 'basic', 'solo', 'pro', 'center', 'free', 'clinic'], 'plans seeded (2B catalog + legacy free, clinic)');
+SELECT is((SELECT row(monthly_price_pkr, modules, tokens_per_day, max_doctors, max_centers)::text FROM public.plans WHERE id = 'basic'),
+          row(0, ARRAY['queue', 'qr_join'], 30, 1, 1)::text, 'basic: queue + QR join, 30 tokens/day, 1 doctor, 1 center');
 SELECT ok((SELECT tokens_per_day IS NULL AND max_doctors IS NULL AND 'multi_center' = ANY (modules) FROM public.plans WHERE id = 'center'),
           'center: unlimited tokens and doctors, multi-center');
 SELECT throws_ok($$INSERT INTO public.plans (id, name, modules) VALUES ('bad', 'Bad', ARRAY['teleport'])$$, '23514', NULL,
@@ -55,19 +56,21 @@ SELECT throws_ok($$INSERT INTO public.plans (id, name, modules) VALUES ('bad', '
 SELECT is_empty($$SELECT o.id FROM public.organizations o
                   LEFT JOIN public.org_subscriptions s ON s.organization_id = o.id AND s.status <> 'cancelled'
                   LEFT JOIN public.org_entitlements e ON e.organization_id = o.id
-                  WHERE s.id IS NULL OR e.organization_id IS NULL OR s.plan_id <> 'free' OR e.plan_id <> 'free'$$,
-                'every organization has a live Free subscription and Free entitlements');
+                  WHERE s.id IS NULL OR e.organization_id IS NULL OR s.plan_id <> 'trial' OR e.plan_id <> 'trial'$$,
+                'every (seed) organization has a live trial subscription and trial entitlements (2B)');
 
 INSERT INTO public.service_centers (id, name, city, address) VALUES ('c0000000-0000-4000-8000-0000000000c7', 'Brand New', 'Hyderabad', 'X');
 SELECT is((SELECT e.plan_id FROM public.org_entitlements e JOIN public.service_centers c ON c.organization_id = e.organization_id
-           WHERE c.id = 'c0000000-0000-4000-8000-0000000000c7'), 'free', 'a new organization starts on Free');
+           WHERE c.id = 'c0000000-0000-4000-8000-0000000000c7'), 'trial', 'a new organization starts on the trial (2B)');
 SELECT throws_ok($$INSERT INTO public.org_subscriptions (organization_id, plan_id) VALUES (tests.org_a(), 'pro')$$, '23505', NULL,
                  'only one live subscription per organization');
 
 -- ---------------------------------------------------------------------------
--- has_module and entitlement sync
+-- has_module and entitlement sync. Orgs A and B on Basic (the 2B Free).
 -- ---------------------------------------------------------------------------
-SELECT ok(private.has_module(tests.org_a(), 'qr_join') AND NOT private.has_module(tests.org_a(), 'sms'), 'has_module on Free');
+UPDATE public.org_subscriptions SET plan_id = 'basic', status = 'active', lapses = false
+WHERE organization_id IN (tests.org_a(), tests.org_b()) AND status <> 'cancelled';
+SELECT ok(private.has_module(tests.org_a(), 'qr_join') AND NOT private.has_module(tests.org_a(), 'sms'), 'has_module on Basic');
 SELECT ok(NOT private.has_module(NULL, 'queue'), 'has_module(NULL): false');
 
 UPDATE public.org_subscriptions SET plan_id = 'clinic' WHERE organization_id = tests.org_a() AND status <> 'cancelled';
@@ -78,9 +81,9 @@ UPDATE public.plans SET tokens_per_day = 200 WHERE id = 'clinic';
 SELECT is((SELECT tokens_per_day FROM public.org_entitlements WHERE organization_id = tests.org_a()), 200,
           'editing a plan updates the organizations on it');
 UPDATE public.org_subscriptions SET status = 'cancelled' WHERE organization_id = tests.org_a();
-SELECT is((SELECT plan_id FROM public.org_entitlements WHERE organization_id = tests.org_a()), 'free',
-          'cancelling falls back to Free entitlements');
-INSERT INTO public.org_subscriptions (organization_id, plan_id) VALUES (tests.org_a(), 'free');
+SELECT is((SELECT plan_id FROM public.org_entitlements WHERE organization_id = tests.org_a()), 'basic',
+          'cancelling falls back to Basic entitlements');
+INSERT INTO public.org_subscriptions (organization_id, plan_id) VALUES (tests.org_a(), 'basic');
 
 -- ---------------------------------------------------------------------------
 -- Access
@@ -160,7 +163,7 @@ SELECT lives_ok($$SELECT * FROM public.issue_public_token('d0000000-0000-4000-80
 SELECT tests.logout();
 
 -- 1E: app bookings need the online_booking module (Free doesn't have it).
-UPDATE public.org_subscriptions SET plan_id = 'free' WHERE organization_id = tests.org_b() AND status <> 'cancelled';
+UPDATE public.org_subscriptions SET plan_id = 'basic' WHERE organization_id = tests.org_b() AND status <> 'cancelled';
 SELECT tests.login('a0000000-0000-4000-8000-000000000006');
 SELECT throws_ok($$SELECT public.book_appointment(
                     public.lock_slot('d0000000-0000-4000-8000-00000000000b', 'd2c1a3df-bb89-4fde-b73d-5bb9ec763481', tests.today() + 1, '09:00 AM'),
