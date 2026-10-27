@@ -61,19 +61,17 @@ supabase db reset && supabase test db                                   # 751 pg
 eval "$(supabase status -o env | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY)=')"
 SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
   node supabase/tests/api/phase-1a.mjs && supabase db reset               # 32 API checks
-npx tsc --noEmit && npx jest                                             # app (377 tests)
-cd ../mediq-web && npm run typecheck && npm run lint && npx playwright test e2e/payments.spec.ts e2e/clinic-flow.spec.ts e2e/plans-billing.spec.ts
+npx tsc --noEmit && npx jest                                             # app (631 tests)
+cd ../mediq-web && npm run typecheck && npm run lint && npm run test:e2e   # includes rtl.spec.ts
 ```
 The pre-fee suites (`10_tokens`, `11_token_status`, `15_public_join`) run with `fee_mode = 'after'`; fee before is
 covered by `22_payments`.
 
-`e2e/rtl.spec.ts` is the unfinished `fix/rtl` audit. It failed on all 17 pages before 2A and still fails on all 19
-(17 + Settings → Fees + Records), for two app-wide causes this phase doesn't change: `<html lang/dir>` is set only
-after hydration (17 pages), and the staff header changes height when the language is toggled (its nav labels wrap
-differently). Leftovers on pages 2A didn't touch: `/admin` scrolls sideways at 390, the TV title runs off at 390.
-2A removed these baseline findings: reception sideways scroll at 390, Urdu text fields clipping Latin text, and
-clipped Nastaliq in the staff header, patient names and the doctor specialty. The payments spec runs the same
-in-page audit (without the hydration and header checks) on its pages and passes.
+RTL: merged onto mediq-web origin/main (RTL fix). Full Playwright run: 50/50 passed. `rtl.spec.ts` covers the
+two new payment pages: Records (`/hisaab`) and the status page with a fee due (counter and online views), plus
+Settings > Fees, all at 390/768/1440 in Urdu and English. That is 129 page states with 0 layout problems
+(`e2e/screenshots/rtl/problems.json`). Payment toasts use `tx()` so values are `<bdi>` isolated, and `Pill` is `py-1` so Nastaliq
+descenders stay inside the pill.
 
 ## Production runbook
 
