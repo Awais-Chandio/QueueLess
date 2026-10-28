@@ -126,7 +126,9 @@ BEGIN
   SET easypaisa_number = v_ep_number, easypaisa_title = v_ep_title,
       jazzcash_number = v_jc_number, jazzcash_title = v_jc_title,
       bank_name = v_bank_name, bank_title = v_bank_title, bank_iban = v_iban,
-      raast_id = v_raast, updated_at = now(), updated_by = auth.uid();
+      raast_id = v_raast, updated_at = now(), updated_by = auth.uid()
+  -- The one row (pg_safeupdate refuses an UPDATE without WHERE over the API).
+  WHERE id;
   RETURN public.admin_get_platform_settings();
 END;
 $function$;
