@@ -75,6 +75,7 @@ export const DeskNowServing = ({ current, next, waitingCount, onBreak, busy, onC
         leftIcon={<BellRing size={18} color={colors.onPrimary} />}
         containerStyle={{ marginTop: spacing.lg }}
         onPress={onCallNext}
+        testID="call-next"
         accessibilityHint="Completes the patient with the doctor and calls the next token"
       />
 

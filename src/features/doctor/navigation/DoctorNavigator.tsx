@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from '../../../hooks/useTheme';
+import { useStaffPush } from '../../../hooks/useStaffPush';
 import { hp } from '../../../utils/responsive';
 
 // Screens
@@ -67,6 +68,8 @@ const ProfileTabIcon = ({ color, size }: TabIconProps) => (
 
 const DoctorNavigator = () => {
   const { colors, spacing, typography } = useTheme();
+  // "Token 12 is waiting" when a patient's fee is settled (2C).
+  useStaffPush();
   // A doctor who also owns the clinic (or works its desk) switches to the desk
   // with the "Clinic / Meri queue" switch (ModeSwitch), not a tab.
 

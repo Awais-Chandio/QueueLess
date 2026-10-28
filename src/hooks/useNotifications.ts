@@ -17,6 +17,7 @@ import type { Notification } from '../types/notification';
 import type { AppStackParamList } from '../navigation/types';
 import { logger } from '../utils/logger';
 import { isFirebaseReady } from '../lib/firebase';
+import { isStaffPush } from './useStaffPush';
 
 export const useNotifications = () => {
     const { user } = useAuthStore();
@@ -99,6 +100,9 @@ export const useNotifications = () => {
     }, [initializeFCM]);
 
     const handleNotificationClick = useCallback((remoteMessage: any) => {
+        // Staff pushes open the app where the work is (the desk, Today, the
+        // doctor's queue); there is no patient QueueStatus screen there.
+        if (isStaffPush(remoteMessage?.data)) return;
         const appointmentId = remoteMessage?.data?.appointmentId || remoteMessage?.data?.appointment_id;
         if (appointmentId) {
             if (__DEV__) {

@@ -1,0 +1,63 @@
+# Phase 2C smoke flow (Maestro): receptionist signs in -> walk-in with the fee
+# in one step (Cash, "Fee received" on, the doctor's Rs 1,000) -> Call next.
+#
+# Local only. Before running:
+#   1. cd QueueLess && supabase db reset && sh .maestro/setup.sh
+#      (seed center A: fee before, Dr. A fee 1,000, an Easypaisa account,
+#      Dr. A's queue emptied so the walk-in is next)
+#   2. .env points the app at the local stack from the emulator:
+#        SUPABASE_URL=http://10.0.2.2:54321  SUPABASE_ANON_KEY=<local anon key>
+#      then: npx react-native run-android
+#   3. maestro test .maestro/reception-walkin-cash.yaml
+appId: com.queueless
+name: Reception walk-in with cash, then call next
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "Email Address"
+    timeout: 30000
+- tapOn: "Email Address"
+- inputText: "staff.a@mediq.test"
+- tapOn: "Password"
+- inputText: "password123"
+- hideKeyboard
+- tapOn: "Login"
+- extendedWaitUntil:
+    visible:
+      id: "walkin-open"
+    timeout: 30000
+# Push permission prompt (Android 13+), if the system shows it.
+- tapOn:
+    text: "Allow"
+    optional: true
+
+- tapOn:
+    id: "walkin-open"
+- tapOn:
+    id: "walkin-name"
+- inputText: "Maestro Walkin"
+- hideKeyboard
+- assertVisible: "Fee received"
+- assertVisible:
+    id: "walkin-amount"
+    text: "1000"
+- assertVisible:
+    id: "walkin-method-cash"
+    selected: true
+- tapOn:
+    id: "walkin-issue"
+- extendedWaitUntil:
+    visible: "Token \\d+ issued · Rs 1,000 Cash"
+    timeout: 15000
+# Paid: straight into the line, nothing in "Fee pending".
+- assertNotVisible:
+    id: "fee-pending"
+- assertVisible: "Maestro Walkin"
+
+- tapOn:
+    id: "call-next"
+- extendedWaitUntil:
+    visible: "Token \\d+ called · Maestro Walkin"
+    timeout: 15000
+- assertVisible: "NOW SERVING"

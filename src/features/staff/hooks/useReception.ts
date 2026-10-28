@@ -4,9 +4,11 @@ import { useAuthStore } from '../../../store/authStore';
 import { useWorkspaceStore } from '../../../store/workspaceStore';
 import { toastService } from '../../../services/toastService';
 import { toUserMessage } from '../../../utils/errorMessage';
-import { queueRpc, type Workspace } from '../../queue/api/queueRpc';
+import { queueRpc, type IssuedToken, type WalkInInput, type Workspace } from '../../queue/api/queueRpc';
 import { useQueueRealtime } from '../../queue/hooks/useQueueRealtime';
 import { isPlanLimitError } from '../../plans/modules';
+import type { FeeAction } from '../components/Fees';
+import { METHOD_LABEL, formatRs, walkInMessage } from '../utils/fees';
 
 export type DeskCenter = { id: string; name: string; organizationId: string; organizationName: string; isOwner: boolean };
 
@@ -24,12 +26,13 @@ export const deskCenters = (workspaces: Workspace[]): DeskCenter[] =>
       })),
     );
 
-type Action =
+export type Action =
   | { kind: 'call_next'; doctorId: string }
   | { kind: 'recall' | 'skip' | 'no_show'; appointmentId: string }
   | { kind: 'break'; doctorId: string; onBreak: boolean }
   | { kind: 'late'; doctorId: string; minutes: number }
-  | { kind: 'walk_in'; doctorId: string; name: string; phone: string | null };
+  | ({ kind: 'walk_in' } & WalkInInput)
+  | FeeAction;
 
 const run = async (action: Action) => {
   switch (action.kind) {
@@ -46,7 +49,22 @@ const run = async (action: Action) => {
     case 'late':
       return queueRpc.setDoctorLate(action.doctorId, action.minutes);
     case 'walk_in':
-      return queueRpc.issueWalkIn(action.doctorId, action.name, action.phone);
+      return queueRpc.issueWalkIn({
+        doctorId: action.doctorId,
+        name: action.name,
+        phone: action.phone,
+        feeReceived: action.feeReceived,
+        amount: action.amount,
+        method: action.method,
+      });
+    case 'pay':
+      return queueRpc.recordPayment(action.appointmentId, action.amount, action.method);
+    case 'waive':
+      return queueRpc.waiveFee(action.appointmentId, action.reason);
+    case 'verify':
+      return queueRpc.verifyClaim(action.paymentId, true);
+    case 'reject':
+      return queueRpc.verifyClaim(action.paymentId, false, action.reason);
   }
 };
 
@@ -57,7 +75,15 @@ const successMessage = (action: Action, result: unknown) => {
       return called ? `Token ${called.token_number} called${called.patient_name ? ` · ${called.patient_name}` : ''}` : 'Nobody is waiting.';
     }
     case 'walk_in':
-      return `Token ${(result as { token_number: number }).token_number} issued.`;
+      return walkInMessage(result as IssuedToken, action.amount, action.method);
+    case 'pay':
+      return `Token ${action.tokenNumber}: ${formatRs(action.amount)} ${METHOD_LABEL[action.method]} received. In the line.`;
+    case 'waive':
+      return `Token ${action.tokenNumber}: free visit. In the line.`;
+    case 'verify':
+      return `Token ${action.tokenNumber}: payment verified. In the line.`;
+    case 'reject':
+      return `Token ${action.tokenNumber}: payment rejected. The patient sees why.`;
     case 'recall':
       return 'Called again.';
     case 'skip':
@@ -99,6 +125,8 @@ export const useReception = () => {
     mutationFn: run,
     onSuccess: (result, action) => {
       toastService.success(successMessage(action, result));
+      // Money moved: the owner's today cards too.
+      queryClient.invalidateQueries({ queryKey: ['today-report', center?.id] });
       return queryClient.invalidateQueries({ queryKey });
     },
     onError: error => {
@@ -115,6 +143,8 @@ export const useReception = () => {
     center,
     selectCenter: setCenterId,
     queue: query.data ?? null,
+    /** Changes whenever the queue was fetched again (realtime nudge or poll). */
+    dataUpdatedAt: query.dataUpdatedAt,
     isLoading: query.isLoading,
     isRefetching: query.isRefetching,
     error: query.error,

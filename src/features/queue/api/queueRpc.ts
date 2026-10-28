@@ -9,6 +9,20 @@ export type TokenSource = 'walk_in' | 'qr' | 'online' | 'app';
 
 /** Phase 2A. awaiting = fee before: not in the line until paid. null = nothing recorded. */
 export type PaymentStatus = 'awaiting' | 'paid' | 'waived' | 'refunded';
+export type FeeMode = 'before' | 'after' | 'off';
+export type PayMethod = 'cash' | 'easypaisa' | 'jazzcash' | 'bank' | 'card' | 'other';
+export type OnlineMethod = 'easypaisa' | 'jazzcash' | 'bank';
+export type WaiveReason = 'follow_up' | 'staff_family' | 'discount' | 'other';
+export type RejectReason = 'not_received' | 'wrong_amount' | 'other';
+
+/** An online payment (TID) the patient sent from the token page, waiting for the desk. */
+export interface PaymentClaim {
+  id: string;
+  method: OnlineMethod;
+  reference: string;
+  amount_pkr: number;
+  created_at: string;
+}
 
 export interface QueueToken {
   id: string;
@@ -26,6 +40,12 @@ export interface QueueToken {
   payment_status?: PaymentStatus | null;
   /** Fee due in whole rupees; null when the clinic doesn't track fees. */
   fee_pkr?: number | null;
+  /** Reception: when an awaiting token expires (null otherwise). */
+  payment_deadline?: string | null;
+  /** Reception: the fee taken for this token. */
+  paid?: { amount_pkr: number; method: PayMethod } | null;
+  /** Reception: an online claim to verify. */
+  claim?: PaymentClaim | null;
   appointment_time: string | null;
   checked_in_at: string | null;
   called_at: string | null;
@@ -66,6 +86,9 @@ export interface DoctorQueue {
 }
 
 export interface ReceptionDoctor extends DoctorState {
+  /** doctors.fee in whole rupees (0 = no fee). */
+  fee: number;
+  on_leave?: boolean;
   tokens: QueueToken[];
 }
 
@@ -76,7 +99,33 @@ export interface ReceptionQueue {
   display_key: string | null;
   tokens_today: number;
   tokens_per_day: number | null;
+  /** The center's fee mode (reads 'off' without the plan's fees module). */
+  fees?: { fee_mode: FeeMode; unpaid_expiry_minutes: number };
   doctors: ReceptionDoctor[];
+}
+
+/** get_payment_report (20261027100400_payment_reports.sql); the app reads today's totals. */
+export interface PaymentReport {
+  from: string;
+  to: string;
+  today: string;
+  timezone: string;
+  can_range: boolean;
+  is_owner: boolean;
+  totals: {
+    patients: number;
+    paid: number;
+    total_pkr: number;
+    cash_pkr: number;
+    online_pkr: number;
+    card_pkr: number;
+    other_pkr: number;
+    free: number;
+    refunded: number;
+    refunded_pkr: number;
+    claims: number;
+  };
+  cash_closing: { user_id: string | null; name: string; count: number; cash_pkr: number }[];
 }
 
 export interface Workspace {
@@ -93,6 +142,19 @@ export interface IssuedToken {
   token_number: number;
   people_ahead: number;
   eta_minutes: number;
+  /** issue_walk_in: paid (fee taken), awaiting (fee later), null (no fee for this doctor / clinic). */
+  payment_status?: PaymentStatus | null;
+  fee_pkr?: number | null;
+}
+
+/** A desk walk-in. The fee fields only count when the clinic takes the fee before and the doctor has one. */
+export interface WalkInInput {
+  doctorId: string;
+  name: string;
+  phone: string | null;
+  feeReceived: boolean;
+  amount: number | null;
+  method: PayMethod;
 }
 
 export interface CompleteVisitInput {
@@ -180,15 +242,47 @@ export const queueRpc = {
     return (data as string | null) ?? null;
   },
 
-  async issueWalkIn(doctorId: string, name: string, phone: string | null): Promise<IssuedToken> {
-    const { data, error } = await rpc('issue_token', {
-      p_doctor_id: doctorId,
-      p_name: name,
-      p_phone: phone,
-      p_source: 'walk_in',
+  /**
+   * The desk walk-in, same RPC as the web reception: with fee before and a
+   * doctor fee, the token and the payment in one step (or an awaiting token
+   * when the fee isn't received yet); otherwise a plain walk-in.
+   */
+  async issueWalkIn(input: WalkInInput): Promise<IssuedToken> {
+    const { data, error } = await rpc('issue_walk_in', {
+      p_doctor_id: input.doctorId,
+      p_name: input.name,
+      p_phone: input.phone,
+      p_fee_received: input.feeReceived,
+      p_amount: input.feeReceived ? input.amount : null,
+      p_method: input.method,
     });
     if (error) fail(error);
     return ((data as IssuedToken[] | null) ?? [])[0];
+  },
+
+  /** Fee sheet "Paid". */
+  async recordPayment(appointmentId: string, amount: number, method: PayMethod): Promise<void> {
+    const { error } = await rpc('record_payment', { p_appointment_id: appointmentId, p_amount: amount, p_method: method });
+    if (error) fail(error);
+  },
+
+  /** Fee sheet "Free" with its reason. */
+  async waiveFee(appointmentId: string, reason: WaiveReason): Promise<void> {
+    const { error } = await rpc('waive_fee', { p_appointment_id: appointmentId, p_reason: reason });
+    if (error) fail(error);
+  },
+
+  /** An online claim: Verify (the token joins the line) or Reject with a reason. */
+  async verifyClaim(paymentId: string, accept: boolean, reason?: RejectReason): Promise<void> {
+    const { error } = await rpc('verify_claim', { p_payment_id: paymentId, p_accept: accept, p_reason: accept ? null : reason ?? null });
+    if (error) fail(error);
+  },
+
+  /** Today's records for one center (the clinic's day). Receptionists may only read today. */
+  async getTodayReport(centerId: string): Promise<PaymentReport> {
+    const { data, error } = await rpc('get_payment_report', { p_center_id: centerId, p_from: null, p_to: null, p_doctor_id: null });
+    if (error) fail(error);
+    return data as PaymentReport;
   },
 
   /** Completes the token with the doctor (if not already) and saves the visit notes. */

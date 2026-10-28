@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -18,7 +18,9 @@ import { PlanStatusCard } from '../../plans/components/PlanStatusCard';
 import { DeskNowServing } from '../components/DeskNowServing';
 import { DoctorPicker } from '../components/DoctorPicker';
 import { WalkInSheet } from '../components/WalkInSheet';
+import { FeePendingList, FeeSheet, type RunFee } from '../components/Fees';
 import { useReception } from '../hooks/useReception';
+import { pendingFees, type PendingFee } from '../utils/fees';
 import { DoctorStatusControl } from '../../queue/components/DoctorStatusControl';
 import { TokenRow } from '../../queue/components/TokenRow';
 import type { QueueToken } from '../../queue/api/queueRpc';
@@ -30,9 +32,10 @@ import { hasModule } from '../../plans/modules';
 
 /**
  * The reception desk, on the same RPCs as the web app's /reception: today's
- * tokens per doctor, call next, call again, skip, no-show, walk-ins and the
+ * tokens per doctor, call next, call again, skip, no-show, walk-ins with the
+ * fee in one step, "Fee pending" (fee sheet, online claims to verify) and the
  * doctor's late / break status. Updates arrive through the center's TV
- * channel, with a 20s poll behind it.
+ * channel (payments and claims nudge it too), with a 20s poll behind it.
  */
 export default function ReceptionScreen() {
   const { colors, spacing, radius } = useTheme();
@@ -41,7 +44,9 @@ export default function ReceptionScreen() {
   const { centers, center, selectCenter, queue, isLoading, isRefetching, error, refetch, act, actAsync, busy } = useReception();
   const [doctorId, setDoctorId] = useState<string | null>(null);
   const [walkInOpen, setWalkInOpen] = useState(false);
+  const [feeTokenId, setFeeTokenId] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const { data: plan } = useOrgPlan(center?.organizationId);
   const noMessages = !!plan && !hasModule(plan, 'sms') && !hasModule(plan, 'whatsapp');
 
@@ -49,7 +54,18 @@ export default function ReceptionScreen() {
     () => queue?.doctors.find(d => d.id === doctorId) ?? queue?.doctors[0] ?? null,
     [doctorId, queue?.doctors],
   );
-  const { current, waiting, next, done, awaitingPayment } = useMemo(() => splitTokens(doctor?.tokens ?? []), [doctor?.tokens]);
+  const { current, waiting, next, done } = useMemo(() => splitTokens(doctor?.tokens ?? []), [doctor?.tokens]);
+  const pending = useMemo(() => pendingFees(queue?.doctors ?? []), [queue?.doctors]);
+  // The sheet follows the live queue: paid elsewhere (web, another phone) -> it closes.
+  const feeSheet: PendingFee | null = useMemo(() => pending.find(p => p.token.id === feeTokenId) ?? null, [pending, feeTokenId]);
+  const runFee: RunFee = useCallback(action => actAsync(action), [actAsync]);
+
+  // Minutes left on unpaid tokens.
+  useEffect(() => {
+    if (pending.length === 0) return;
+    const tick = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(tick);
+  }, [pending.length]);
 
   const renderWaiting = useCallback(
     ({ item, index }: { item: QueueToken; index: number }) => <TokenRow token={item} position={index + 1} />,
@@ -107,6 +123,7 @@ export default function ReceptionScreen() {
           <PlanLimitBanner tokensToday={queue.tokens_today} tokensPerDay={queue.tokens_per_day} />
         </View>
       )}
+      <FeePendingList pending={pending} busy={busy} run={runFee} onOpen={item => setFeeTokenId(item.token.id)} now={now} />
 
       {isLoading || !queue ? (
         <View style={{ gap: spacing.md }}>
@@ -160,15 +177,11 @@ export default function ReceptionScreen() {
               title="Walk-in"
               size="sm"
               disabled={!doctor.takes_tokens}
+              testID="walkin-open"
               leftIcon={<UserPlus size={16} color={colors.onPrimary} />}
               onPress={() => setWalkInOpen(true)}
             />
           </View>
-          {awaitingPayment.length > 0 && (
-            <AppText variant="caption" tone="secondary" style={{ marginBottom: spacing.sm }}>
-              {`${awaitingPayment.length} waiting for their fee: take it at the web reception, then they join the line.`}
-            </AppText>
-          )}
           {!doctor.takes_tokens && (
             <AppText variant="caption" tone="secondary" style={{ marginBottom: spacing.sm }}>
               This doctor isn't taking tokens on the clinic's current plan.
@@ -231,11 +244,13 @@ export default function ReceptionScreen() {
       />
       <WalkInSheet
         visible={walkInOpen}
-        doctorName={doctor?.name ?? null}
+        doctor={doctor ? { id: doctor.id, name: doctor.name, fee: doctor.fee ?? 0 } : null}
+        feeMode={queue?.fees?.fee_mode}
         busy={busy}
         onClose={() => setWalkInOpen(false)}
-        onSubmit={(name, phone) => actAsync({ kind: 'walk_in', doctorId: doctor!.id, name, phone })}
+        onSubmit={input => actAsync({ kind: 'walk_in', ...input })}
       />
+      <FeeSheet pending={feeSheet} busy={busy} run={runFee} onClose={() => setFeeTokenId(null)} />
     </SafeAreaView>
   );
 }

@@ -410,6 +410,12 @@ export const useAuth = () => {
         } catch (dbError) {
           if (__DEV__) logger.warn('[useAuth] Failed to clear FCM token from profiles on logout:', dbError);
         }
+        // This phone stops getting the user's pushes (reception claims, doctor "waiting").
+        const deviceToken = useNotificationsStore.getState().fcmToken;
+        if (deviceToken) {
+          const { error: tokenError } = await supabase.from('device_tokens').delete().eq('user_id', user.id).eq('fcm_token', deviceToken);
+          if (tokenError && __DEV__) logger.warn('[useAuth] Failed to remove the device token on logout:', tokenError.message);
+        }
       }
 
       // Delete local FCM token
