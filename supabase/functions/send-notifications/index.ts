@@ -1,6 +1,8 @@
 // send-notifications: sends the patient SMS / WhatsApp messages queued in
-// notification_outbox. Called every minute by pg_cron (private.kick_notification_worker)
-// with the shared secret in x-worker-secret; deployed with --no-verify-jwt.
+// notification_outbox, then the staff pushes queued in push_outbox (2C). Called
+// every minute by pg_cron (private.kick_notification_worker), and right away
+// when a push is queued, with the shared secret in x-worker-secret; deployed
+// with --no-verify-jwt.
 //
 // Secrets (supabase secrets set ...):
 //   NOTIFY_WORKER_SECRET        same value as the Vault secret notifications_worker_secret
@@ -9,11 +11,14 @@
 //   WHATSAPP_*                  WhatsApp Cloud API (optional)
 //   SMS_CREDIT_COST / WHATSAPP_CREDIT_COST   credits per message (default 1)
 //   NOTIFY_CHANNEL_ORDER        e.g. "whatsapp,sms" (default) or "sms"
+//   FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY   staff pushes (FCM service account)
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by the platform.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { providersFromEnv, type Channel } from '../_shared/notify/providers.ts';
 import { runWorker, type BeginResult, type ClaimedRow, type WorkerRpc } from '../_shared/notify/worker.ts';
+import { createFcmSender, serviceAccountFromEnv } from '../_shared/push/fcm.ts';
+import { runPushWorker, type ClaimedPush, type PushRpc } from '../_shared/push/worker.ts';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -66,21 +71,41 @@ Deno.serve(async req => {
     .map(c => c.trim())
     .filter((c): c is Channel => c === 'sms' || c === 'whatsapp');
 
+  const log = (message: string, extra?: Record<string, unknown>) => console.log(`[send-notifications] ${message}`, extra ?? '');
+  // pg_net waits 55s; stop claiming well before that. Pushes get what the SMS run leaves.
+  const deadline = Date.now() + 40_000;
+
+  let sms: unknown;
   try {
-    const summary = await runWorker({
+    sms = await runWorker({
       rpc,
       providers,
       channelOrder,
       costs: { sms: Number(env.SMS_CREDIT_COST || 1), whatsapp: Number(env.WHATSAPP_CREDIT_COST || 1) },
       siteUrl: env.PUBLIC_SITE_URL || 'https://app.mediq.pk',
-      // pg_net waits 55s; stop claiming well before that.
-      deadline: Date.now() + 40_000,
-      log: (message, extra) => console.log(`[send-notifications] ${message}`, extra ?? ''),
+      deadline,
+      log,
     });
-    console.log('[send-notifications] done', summary);
-    return json({ ok: true, providers: Object.keys(providers), ...summary });
   } catch (error) {
-    console.error('[send-notifications] failed', error);
-    return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
+    console.error('[send-notifications] sms failed', error);
+    sms = { error: error instanceof Error ? error.message : String(error) };
   }
+
+  const pushRpc: PushRpc = {
+    claim: limit => call<ClaimedPush[]>('claim_push', { p_limit: limit, p_lock_seconds: 120 }).then(rows => rows ?? []),
+    finish: (id, ok, error, retryable) => call<string>('finish_push', { p_id: id, p_ok: ok, p_error: error, p_retryable: retryable }),
+    forget: tokens => call<number>('forget_device_tokens', { p_tokens: tokens }),
+  };
+  const account = serviceAccountFromEnv(env);
+  let push: unknown;
+  try {
+    push = await runPushWorker({ rpc: pushRpc, send: account ? createFcmSender(account, fetch) : null, deadline: Math.max(deadline, Date.now() + 10_000), log });
+  } catch (error) {
+    console.error('[send-notifications] push failed', error);
+    push = { error: error instanceof Error ? error.message : String(error) };
+  }
+
+  console.log('[send-notifications] done', { sms, push });
+  const failed = [sms, push].some(part => !!part && typeof part === 'object' && 'error' in part);
+  return json({ ok: !failed, providers: Object.keys(providers), push_configured: !!account, sms, push }, failed ? 500 : 200);
 });
