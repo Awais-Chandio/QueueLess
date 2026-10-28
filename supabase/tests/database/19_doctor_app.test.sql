@@ -33,6 +33,10 @@ GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
 -- patient a..06. Doctor A's queue starts empty today.
 UPDATE public.appointments SET appointment_date = appointment_date - 7 WHERE doctor_id = 'd0000000-0000-4000-8000-00000000000a';
 
+-- 2C: staff walk-ins follow the fee rules (issue_token -> issue_walk_in). These queue flows
+-- predate fees, so walk-ins go straight into the line here; fee before is in 22 / 28.
+UPDATE public.center_payment_settings SET fee_mode = 'after';
+
 SELECT plan(40);
 
 -- ---------------------------------------------------------------------------

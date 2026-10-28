@@ -41,6 +41,10 @@ WHERE organization_id = (SELECT organization_id FROM public.service_centers WHER
 UPDATE public.message_credits SET balance = 3
 WHERE organization_id = (SELECT organization_id FROM public.service_centers WHERE id = '521f1349-05c4-4417-9fa5-5289963af7db');
 
+-- 2C: staff walk-ins follow the fee rules (issue_token -> issue_walk_in). These queue flows
+-- predate fees, so walk-ins go straight into the line here; fee before is in 22 / 28.
+UPDATE public.center_payment_settings SET fee_mode = 'after';
+
 SELECT plan(64);
 
 -- ---------------------------------------------------------------------------

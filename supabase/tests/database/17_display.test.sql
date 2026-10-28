@@ -24,6 +24,10 @@ CREATE FUNCTION tests.doctor_a(p_snapshot jsonb) RETURNS jsonb LANGUAGE sql IMMU
   $$SELECT d FROM jsonb_array_elements(p_snapshot->'doctors') d WHERE d->>'name' = 'Dr. A'$$;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated;
 
+-- 2C: staff walk-ins follow the fee rules (issue_token -> issue_walk_in). These queue flows
+-- predate fees, so walk-ins go straight into the line here; fee before is in 22 / 28.
+UPDATE public.center_payment_settings SET fee_mode = 'after';
+
 UPDATE public.appointments SET appointment_date = appointment_date - 7 WHERE doctor_id = 'd0000000-0000-4000-8000-00000000000a';
 UPDATE public.doctors SET room = 'Room 2' WHERE id = 'd0000000-0000-4000-8000-00000000000a';
 
