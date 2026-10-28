@@ -20,6 +20,10 @@ jest.mock('../src/features/staff/hooks/useReception', () => ({
 jest.mock('../src/features/staff/hooks/useTodayReport', () => ({ useTodayReport: jest.fn() }));
 jest.mock('../src/features/plans/components/PlanStatusCard', () => ({ PlanStatusCard: () => null }));
 jest.mock('../src/features/staff/components/StaffLogoutButton', () => () => null);
+jest.mock('../src/features/support/HelpButton', () => {
+  const { View } = require('react-native');
+  return { HelpButton: () => <View testID="help-button" /> };
+});
 // moti's skeleton resolves its own React copy under Jest (see skeletonResolution.test.ts).
 jest.mock('../src/components/ui/Skeleton', () => {
   const { View } = require('react-native');
@@ -419,8 +423,9 @@ describe('owner Today screen', () => {
     expect(open).toHaveBeenCalledWith('https://app.mediq.pk/hisaab?center=c1&from=app');
   });
 
-  it('never links to plan purchase or payment pages (Google Play)', () => {
+  it('never links to plan purchase or payment pages (Google Play); Help is there', () => {
     const { root } = render(<OwnerHomeScreen />);
+    expect(has(root, 'help-button')).toBe(true);
     expect(texts(root)).not.toMatch(/upgrade|buy|choose a plan|\/settings\/plan|pay now/i);
     expect(hisaabUrl('x')).not.toMatch(/plan|pay|billing|settings/);
   });

@@ -1,7 +1,7 @@
 # Phase 2C: daily work on the phone, heavy work on the web
 
-Branch `phase-2c-mobile` here and in `../mediq-web`, both from `phase-2b-plans` (2B is built, not deployed: deploy
-2B first, then 2C). Local Supabase only; nothing pushed, the remote DB not touched.
+Branch `phase-2c-mobile` here and in `../mediq-web`, both on top of `phase-2b-plans` (2B is built, not deployed: deploy
+2B first, then 2C). Rebased onto the 2B changes of 2026-10-28 (Basic 10 tokens, Help button, "Plan" in the owner's nav). Local Supabase only; nothing pushed, the remote DB not touched.
 
 | Step | Migration / code | What |
 |---|---|---|
@@ -9,9 +9,9 @@ Branch `phase-2c-mobile` here and in `../mediq-web`, both from `phase-2b-plans` 
 | 2C.3 | `20261028120100_staff_push.sql` | `push_outbox`; triggers: online claim → owners + the center's receptionists, fee settled and waiting → the doctor; `claim_push` / `finish_push` / `forget_device_tokens` (service role); any `visit_payments` change nudges the center's realtime channel; the minute job (`kick_notification_worker`) and the nightly prune also cover pushes |
 | 2C.3 | `supabase/functions/_shared/push/`, `send-notifications` | FCM HTTP v1 sender (service-account JWT, WebCrypto) and the push worker; `send-notifications` drains the push outbox after the SMS one |
 | 2C.1 | app `src/features/staff` | Walk-in with fee in one step (`issue_walk_in`: amount = doctor fee, Cash, "Fee received" on); "Fee pending" for the whole center (claims first) → fee sheet (methods, Free + reason, Paid); claims show method + TID with Verify / Reject (+ reason); call next / skip / no-show / break per doctor as before; realtime via the center channel |
-| 2C.2 | app `OwnerHomeScreen`, `StaffNavigator` | Owners land on **Today**: patients, total Rs, cash, online, free (`get_payment_report`, today) and cash per receptionist; "N online payments to check" → Reception tab; **"Detailed report web pe dekhein"** opens `/hisaab?center=<id>&from=app` in the browser. Receptionists keep the desk only |
+| 2C.2 | app `OwnerHomeScreen`, `StaffNavigator` | Owners land on **Today**: patients, total Rs, cash, online, free (`get_payment_report`, today) and cash per receptionist; "N online payments to check" → Reception tab; Help (2B) in the header; **"Detailed report web pe dekhein"** opens `/hisaab?center=<id>&from=app` in the browser. Receptionists keep the desk only |
 | 2C.3 | app `useStaffPush`, `useNotifications`, `useAuth` | Desk and doctor app ask for notification permission (Android 13+ `POST_NOTIFICATIONS`) and save the FCM token; staff pushes never open the patient screen; sign-out removes this phone's token |
-| 2C.4 | `../mediq-web` | PWA: `app/manifest.ts` (standalone, theme `#0E7C86`, start `/reception`, 192/512 + maskable icons from the brand master), `apple-icon.png`, `public/sw.js` + `public/offline.html` (Urdu / English), `PwaRegister` (production only), `/sw.js` never cached. `?center=` picks that clinic, `?from=app` hides plan links in that tab. Fee strip: names keep their own direction (an English name in Urdu was cut at the wrong end) |
+| 2C.4 | `../mediq-web` | PWA: `app/manifest.ts` (standalone, theme `#0E7C86`, start `/reception`, 192/512 + maskable icons from the brand master), `apple-icon.png`, `public/sw.js` + `public/offline.html` (Urdu / English), `PwaRegister` (production only), `/sw.js` never cached. `?center=` picks that clinic, `?from=app` hides plan links in that tab (the 2B "Plan" nav item too). Fee strip: names keep their own direction (an English name in Urdu was cut at the wrong end) |
 | 2C.5 | tests | pgTAP `28_staff_push` (34), app `reception2c.test.tsx` (31), `push.test.ts` (14), Playwright `e2e/pwa-2c.spec.ts` (9), Maestro `.maestro/reception-walkin-cash.yaml` |
 
 ## Rules
@@ -65,12 +65,12 @@ Branch `phase-2c-mobile` here and in `../mediq-web`, both from `phase-2b-plans` 
 ## Local checks
 
 ```sh
-supabase db reset && supabase test db                              # 996 pgTAP checks (28_staff_push: 34)
+supabase db reset && supabase test db                              # 1003 pgTAP checks (28_staff_push: 34)
 sh supabase/tests/migration/phase-2b-backfill.sh                    # still ok
 eval "$(supabase status -o env | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY)=')"
 SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
   node supabase/tests/api/phase-1a.mjs && supabase db reset          # 33 API checks
-npx tsc --noEmit && npx tsc -p supabase/functions && npx jest       # app + functions: 700 tests
+npx tsc --noEmit && npx tsc -p supabase/functions && npx jest       # app + functions: 711 tests
 cd ../mediq-web && npm run typecheck && npm run lint
 npx next build && npx next start -p 3100 &                          # then each spec in the foreground:
 npx playwright test e2e/pwa-2c.spec.ts                               # (and clinic-flow, payments, plans-*, rtl)
@@ -194,14 +194,15 @@ web → smoke test → new app build.
 
 ## Results
 
-Run on 2026-10-28 against the local stack (each suite after a fresh `supabase db reset`):
+Run on 2026-10-28 against the local stack (each suite after a fresh `supabase db reset`), again after the rebase onto
+the 2B changes:
 
 | Check | Result |
 |---|---|
-| pgTAP (`supabase test db`) | 996 / 996 (28 files; `28_staff_push`: 34) |
+| pgTAP (`supabase test db`) | 1003 / 1003 (28 files; `28_staff_push`: 34) |
 | 2B backfill script | ok |
 | API checks (`phase-1a.mjs`) | 33 / 33 |
-| App `tsc --noEmit` / functions `tsc -p supabase/functions` / `jest` | clean / clean / 700 / 700 (21 suites; `reception2c.test.tsx` 31 and `push.test.ts` 14 new) |
+| App `tsc --noEmit` / functions `tsc -p supabase/functions` / `jest` | clean / clean / 711 / 711 (22 suites; `reception2c.test.tsx` 31 and `push.test.ts` 14 new) |
 | App lint, changed files | 0 errors (the only warnings are in files 2C didn't touch). Repo-wide: the same 65 errors as 2B, plus 3 in the untracked `marketing/` folder |
 | `send-notifications` served locally | claim → `push_outbox` row with the right text → worker claims it → `failed: FCM is not configured` |
 | Web `typecheck` / `lint` | clean / clean |

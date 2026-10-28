@@ -18,6 +18,7 @@ import { PlanStatusCard } from '../../plans/components/PlanStatusCard';
 import { CenterPicker } from '../components/CenterPicker';
 import { ModeSwitch } from '../components/ModeSwitch';
 import StaffLogoutButton from '../components/StaffLogoutButton';
+import { HelpButton } from '../../support/HelpButton';
 import { useReception } from '../hooks/useReception';
 import { useTodayReport } from '../hooks/useTodayReport';
 import { formatRs, pendingFees } from '../utils/fees';
@@ -87,6 +88,7 @@ export default function OwnerHomeScreen() {
             <AppText variant="heading">Today</AppText>
             <CenterPicker centers={centers} selected={center} onSelect={selectCenter} />
           </View>
+          <HelpButton style={{ marginEnd: spacing.sm }} />
           <StaffLogoutButton />
         </View>
 
