@@ -48,7 +48,7 @@ SELECT plan(30);
 -- 2B: the catalog is trial, basic, solo, pro, center (free and clinic hidden).
 SELECT set_eq($$SELECT id FROM public.plans$$, ARRAY['trial', 'basic', 'solo', 'pro', 'center', 'free', 'clinic'], 'plans seeded (2B catalog + legacy free, clinic)');
 SELECT is((SELECT row(monthly_price_pkr, modules, tokens_per_day, max_doctors, max_centers)::text FROM public.plans WHERE id = 'basic'),
-          row(0, ARRAY['queue', 'qr_join'], 30, 1, 1)::text, 'basic: queue + QR join, 30 tokens/day, 1 doctor, 1 center');
+          row(0, ARRAY['queue', 'qr_join'], 10, 1, 1)::text, 'basic: queue + QR join, 10 tokens/day, 1 doctor, 1 center');
 SELECT ok((SELECT tokens_per_day IS NULL AND max_doctors IS NULL AND 'multi_center' = ANY (modules) FROM public.plans WHERE id = 'center'),
           'center: unlimited tokens and doctors, multi-center');
 SELECT throws_ok($$INSERT INTO public.plans (id, name, modules) VALUES ('bad', 'Bad', ARRAY['teleport'])$$, '23514', NULL,
@@ -119,17 +119,17 @@ SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-000
 SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'X', '+923001230000', 'online')$$, 'PT402', NULL,
                  'free: online joins need the online_booking module');
 
--- Fill org B up to 30 tokens today with walk-ins for doctor B.
+-- Fill org B up to its 10 tokens today with walk-ins for doctor B.
 DO $$
 BEGIN
-  WHILE tests.org_b_today() < 30 LOOP
+  WHILE tests.org_b_today() < 10 LOOP
     PERFORM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'Walk In', NULL, 'walk_in');
   END LOOP;
 END
 $$;
-SELECT is(tests.org_b_today(), 30, 'free: 30 tokens issued today');
-SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'Number 31', NULL, 'walk_in')$$, 'PT402', NULL,
-                 'free: the 31st token of the day is refused (staff too)');
+SELECT is(tests.org_b_today(), 10, 'basic: 10 tokens issued today');
+SELECT throws_ok($$SELECT * FROM public.issue_token('d0000000-0000-4000-8000-00000000000b', 'Number 11', NULL, 'walk_in')$$, 'PT402', NULL,
+                 'basic: the 11th token of the day is refused (staff too)');
 SELECT tests.logout();
 
 SELECT tests.login_join_server();

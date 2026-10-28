@@ -21,6 +21,7 @@ import { useDoctorQueue } from '../hooks/useDoctorQueue';
 import { InsightsCard } from '../../plans/components/InsightsCard';
 import { PlanStatusCard } from '../../plans/components/PlanStatusCard';
 import { ModeSwitch } from '../../staff/components/ModeSwitch';
+import { HelpButton } from '../../support/HelpButton';
 import { useAuthStore } from '../../../store/authStore';
 import type { DoctorTabParamList } from '../navigation/DoctorNavigator';
 import { doctorDisplayName, formatDateKey, formatTime12h, greetingForHour, todayKey } from '../utils/doctorFormat';
@@ -114,6 +115,7 @@ export default function DashboardScreen() {
           </AppText>
         </View>
         {isOnBreak ? <StatusChip status="doctor_on_break" label="On break" /> : null}
+        <HelpButton style={{ marginStart: spacing.sm }} />
       </View>
 
       {queue && (

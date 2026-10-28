@@ -1,7 +1,7 @@
 -- Phase 2B.1: the 2B plan catalog.
 --
 --   trial   14 days, every Pro feature, starts at signup, no payment (2B.2)
---   basic   trial over and nothing paid: 1 doctor, 30 tokens a day, queue +
+--   basic   trial over and nothing paid: 1 doctor, 10 tokens a day, queue +
 --           QR join, MediQ branding on the patient pages. Data is never
 --           deleted or locked: records, patients and history stay readable.
 --   solo    Rs 2,500 / month: 1 doctor, unlimited tokens, queue, QR join,
@@ -114,7 +114,7 @@ CREATE TEMP TABLE pre_2b_entitlements AS SELECT * FROM public.org_entitlements;
 
 INSERT INTO public.plans (id, name, monthly_price_pkr, modules, tokens_per_day, max_doctors, max_centers, is_public, sort_order) VALUES
   ('trial', 'Trial', 0, ARRAY['queue', 'qr_join', 'display', 'fees', 'sms', 'analytics', 'whatsapp', 'online_booking'], NULL, 3, 1, false, 0),
-  ('basic', 'Basic', 0, ARRAY['queue', 'qr_join'], 30, 1, 1, true, 1),
+  ('basic', 'Basic', 0, ARRAY['queue', 'qr_join'], 10, 1, 1, true, 1),
   ('solo', 'Solo', 2500, ARRAY['queue', 'qr_join', 'display', 'fees', 'sms'], NULL, 1, 1, true, 2);
 UPDATE public.plans SET mediq_branding = true WHERE id = 'basic';
 

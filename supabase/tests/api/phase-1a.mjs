@@ -230,7 +230,7 @@ let qrCode;
 }
 
 // ---------------------------------------------------------------------------
-// 5. Basic plan limit (clinic B): 30 tokens/day, then HTTP 402. New clinics
+// 5. Basic plan limit (clinic B): 10 tokens/day, then HTTP 402. New clinics
 //    start on the 14-day trial (2B); the platform admin moves B to Basic.
 // ---------------------------------------------------------------------------
 {
@@ -239,14 +239,14 @@ let qrCode;
   check('server: admin_set_plan clinic B -> Basic', !basicErr, basicErr);
   let issued = 0;
   let lastError = null;
-  for (let i = 0; i < 40; i += 1) {
+  for (let i = 0; i < 20; i += 1) {
     const { error } = await staffB.rpc('issue_token', { p_doctor_id: DOCTOR_B, p_name: `Walk ${i}`, p_phone: null, p_source: 'walk_in' });
     if (error) { lastError = error; break; }
     issued += 1;
   }
   const { data: bToday } = await staffB.from('appointments').select('id, status').eq('center_id', CENTER_B).eq('appointment_date', today);
   const active = (bToday ?? []).filter(r => r.status !== 'cancelled').length;
-  check('basic plan: stops at 30 tokens for the day', lastError?.code === 'PT402' && active === 30, { issued, active, lastError });
+  check('basic plan: stops at 10 tokens for the day', lastError?.code === 'PT402' && active === 10, { issued, active, lastError });
 
   const res = await fetch(`${URL}/rest/v1/rpc/issue_public_token`, {
     method: 'POST',

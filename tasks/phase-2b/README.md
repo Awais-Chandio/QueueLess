@@ -7,11 +7,11 @@ mediq-web `origin/main` `63f8f84`). Local Supabase only; nothing pushed, the rem
 |---|---|---|
 | 2B.1 | `20261028100000_plans_v2.sql` | Catalog trial / basic / solo / pro / center (free, clinic kept hidden). New modules `display` (TV) and `fees` (fee before + desk fees). `plan_price_pkr` (12 months = 10x, Center per doctor, min 4). Every org keeps its current entitlements (+display, fees). Entitlements now follow plan changes only. |
 | 2B.2 | `20261028100100_trial_lifecycle.sql` | `organizations.trial_ends_at`; new orgs start a 14-day trial; plain Free orgs move to the trial now. `org_subscriptions.lapses`. pg_cron `plan-lifecycle` daily 00:05 PKT. `get_plan_status` (banners). `admin_set_plan`: a paid-until date now lapses. |
-| 2B.3 | `20261028100200_billing_claims.sql` | `platform_settings` (MediQ's accounts), `billing_claims` (TID once), `submit_billing_claim` (service role only), `admin_list_billing_claims`, `admin_resolve_billing_claim`, `get_plan_page`, `admin_list_clinics` + trial / claims |
+| 2B.3 | `20261028100200_billing_claims.sql` | `platform_settings` (MediQ's accounts and WhatsApp support number: `admin_set_support_whatsapp`, `get_support_contact`), `billing_claims` (TID once), `submit_billing_claim` (service role only), `admin_list_billing_claims`, `admin_resolve_billing_claim`, `get_plan_page`, `admin_list_clinics` + trial / claims |
 | 2B.4 | `20261028100300_owner_doctor.sql` | `create_organization(..., p_owner_doctor)`, `add_self_as_doctor`, `doctor_invites` + `invite_doctor` / `accept_doctor_invite` / `revoke_doctor_invite` / `unlink_doctor_account`, `accept_invites` also links doctors, `get_my_workspaces` + own doctor rows |
 | 2B.5 | `20261028100400_doctor_choice.sql` | `get_public_center` (initials, fee, available, branding), `service_centers.reception_assigns` + `set_center_join_settings`, unassigned QR tokens, `assign_token_doctor`, `get_token_status` 'unassigned', reception queue owner / reception only, `get_org_settings` new fields |
-| web | `../mediq-web` | `/settings/plan` + `/api/plan-claim`, plan banner, `/admin` claims + MediQ accounts, onboarding owner-doctor, `/doctor` (Meri queue) + Clinic / My queue switch, doctor invites (`/api/invite-doctor`, `/invite/<token>`), per-doctor QR poster, join page doctor choice, reception "Doctor to choose" strip, TV locked on Basic |
-| app | `src/features/plans`, `staff`, `doctor`, `navigation` | Plan card + "Trial X din baaki" + "Plan website par manage karein" (no link, no buy button), Clinic / Meri queue switch (replaces the doctor app's Reception tab), 2B module tables |
+| web | `../mediq-web` | `/settings/plan` + `/api/plan-claim`, "Plan" / "پلان لیں" in the owner's nav at all times, plan banner, `/admin` claims + MediQ accounts + support number, onboarding owner-doctor, `/doctor` (Meri queue) + Clinic / My queue switch, doctor invites (`/api/invite-doctor`, `/invite/<token>`), per-doctor QR poster, join page doctor choice, reception "Doctor to choose" strip, TV locked on Basic |
+| app | `src/features/plans`, `support`, `staff`, `doctor`, `navigation` | Plan card + "Trial X din baaki" + "Plan website par manage karein" (no link, no buy button), Help button (MediQ support on WhatsApp) on the desk and the doctor dashboard, Clinic / Meri queue switch (replaces the doctor app's Reception tab), 2B module tables |
 
 Also on this branch: `fix(web)` reception showed the literal text "current.phone" instead of the patient's phone
 (a 2A RTL-merge slip, live in production now).
@@ -21,12 +21,19 @@ Also on this branch: `fix(web)` reception showed the literal text "current.phone
 | Plan | Price | Doctors | Tokens / day | Modules | Notes |
 |---|---|---|---|---|---|
 | trial | free, 14 days | 3 | unlimited | everything Pro has | automatic at signup; not for sale; one per clinic |
-| basic | free | 1 | 30 | queue, qr_join | after the trial / an unpaid plan; MediQ branding on join page and TV |
+| basic | free | 1 | 10 | queue, qr_join | after the trial / an unpaid plan; MediQ branding on join page and TV |
 | solo | Rs 2,500 / mo | 1 | unlimited | + display, fees, sms | |
 | pro | Rs 4,500 / mo | 3 | unlimited | + analytics, whatsapp, online_booking | "Recommended" |
 | center | Rs 1,200 / doctor / mo, min 4 | unlimited | unlimited | + multi_center | price counts active doctors when the claim is made |
 
 Receptionists: unlimited everywhere. A year costs 10 months. SMS / WhatsApp still use prepaid credits.
+
+**Signup never asks free vs paid.** Every new clinic starts the 14-day trial automatically (a trigger on
+`organizations`); onboarding has no plan step. The owner can take a plan at any time from the web: "Plan"
+(Urdu "پلان لیں", Plan lein) is always in the owner's nav, trial or not, and the plan banner adds "Choose a plan" from
+day 10. The phone app never links to a purchase: it shows the plan as text ("Plan website par manage karein") and has
+a **Help** button that opens WhatsApp to MediQ support (the number the platform admin sets in `/admin`; until then
+Help says it isn't set up).
 
 ## Rules the database enforces
 
@@ -60,7 +67,7 @@ Receptionists: unlimited everywhere. A year costs 10 months. SMS / WhatsApp stil
 ## Behaviour changes to know before deploying
 
 1. **Every clinic still on plain Free moves to a 14-day trial when the migration runs**, with every Pro feature.
-   After 14 days without a verified payment they drop to Basic: 1 doctor taking tokens, 30 tokens a day, no TV
+   After 14 days without a verified payment they drop to Basic: 1 doctor taking tokens, 10 tokens a day, no TV
    board, no fee-before, no SMS. Tell them before the push, and set MediQ's accounts in `/admin` right after it
    so they can pay. Who moves:
    ```sql
@@ -88,12 +95,12 @@ Receptionists: unlimited everywhere. A year costs 10 months. SMS / WhatsApp stil
 ## Local checks
 
 ```sh
-supabase db reset && supabase test db                              # 962 pgTAP checks (23-27 are 2B: 211)
+supabase db reset && supabase test db                              # 969 pgTAP checks (23-27 are 2B: 218)
 sh supabase/tests/migration/phase-2b-backfill.sh                    # Free -> trial; admin plans / hand edits kept
 eval "$(supabase status -o env | grep -E '^(ANON_KEY|SERVICE_ROLE_KEY)=')"
 SUPABASE_ANON_KEY=$ANON_KEY SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY \
   node supabase/tests/api/phase-1a.mjs && supabase db reset          # 33 API checks
-npx tsc --noEmit && npx jest                                        # app: 641 tests
+npx tsc --noEmit && npx jest                                        # app: 652 tests
 cd ../mediq-web && npm run typecheck && npm run lint && npm run test:e2e
 ```
 
@@ -140,6 +147,9 @@ new app build.
    UNION ALL SELECT 'invite hashes not readable', NOT has_column_privilege('authenticated', 'public.doctor_invites', 'token_hash', 'select')
    UNION ALL SELECT 'five cron jobs', (SELECT count(*) = 5 FROM cron.job WHERE jobname IN
      ('send-notifications','cleanup-stale-appointments','prune-notification-outbox','expire-unpaid-tokens','plan-lifecycle'))
+   UNION ALL SELECT 'basic is 10 tokens a day', (SELECT tokens_per_day = 10 AND max_doctors = 1 FROM plans WHERE id = 'basic')
+   UNION ALL SELECT 'support number: signed-in users only', has_function_privilege('authenticated', 'public.get_support_contact()', 'execute')
+     AND NOT has_function_privilege('anon', 'public.get_support_contact()', 'execute')
    UNION ALL SELECT 'anon still reads join + token status', has_function_privilege('anon', 'public.get_public_center(text)', 'execute')
      AND has_function_privilege('anon', 'public.get_token_status(text)', 'execute');
    ```
@@ -147,15 +157,16 @@ new app build.
    should match the list saved in step 1 (those on `trial / trialing / true`, the rest unchanged with `false`).
 5. **Web**: merge / deploy `mediq-web` `phase-2b-plans`. No new env vars (`/api/plan-claim` uses the existing
    `SUPABASE_SERVICE_ROLE_KEY` and Turnstile keys; the widget uses action `plan`).
-6. **MediQ's accounts**: `/admin` → "MediQ payment accounts" (Easypaisa / JazzCash / bank / Raast). Until then
-   `/settings/plan` says the accounts aren't set up.
+6. **MediQ's accounts and support**: `/admin` → "MediQ payment accounts" (Easypaisa / JazzCash / bank / Raast). Until
+   then `/settings/plan` says the accounts aren't set up. Same card, "MediQ support (WhatsApp)": the number the app's
+   Help button opens (until then Help says it isn't set up).
 7. **Smoke test** with your own clinic: `/settings/plan` shows four plans and your prices → send a test TID for
    Solo, 1 month → `/admin` "Plan payments to check" → Verify → the plan page says Solo, paid until next month.
    Put the clinic back with `admin_set_plan` (no date) afterwards. Then the next morning (or
    `SELECT private.run_plan_lifecycle();` by hand once): `SELECT * FROM cron.job_run_details WHERE command LIKE
    '%run_plan_lifecycle%' ORDER BY start_time DESC LIMIT 3;` shows `succeeded`.
-8. **App**: ship the new build (plan card, banner, mode switch). Store listing: no in-app purchase; plans are
-   managed on the website.
+8. **App**: ship the new build (plan card, banner, mode switch, Help). Check Help → WhatsApp opens a chat with the
+   support number set in step 6. Store listing: no in-app purchase; plans are managed on the website.
 
 ## Rollback
 
@@ -199,19 +210,27 @@ functions (`get_public_center`, `get_reception_queue`, `get_token_status`, `get_
 | `15-plan-page-pro-ur-1440` | After Verify: Pro, Urdu |
 | `layout-<page>-<ur|en>-<390|1440>` | plan, my-queue, settings-doctors, join-choice, join-door |
 
+## Changes after review (2026-10-28)
+
+Made in place (2B was never pushed): Basic is **10** tokens a day, not 30 (`plans_v2`, pgTAP 12 / 23, `phase-1a.mjs`,
+app and web copy); MediQ's WhatsApp support number (`platform_settings.support_whatsapp`, set in `/admin`) and the
+app's Help button; "Plan" / "پلان لیں" always in the owner's web nav. To keep that nav on one row at 1440 px,
+"Switch clinic" shows its icon only (with its name as label and tooltip) below 2xl. Signup was already trial-only;
+the e2e test now checks onboarding shows no plan choice.
+
 ## Results
 
 Run on 2026-10-28 against the local stack (each suite after a fresh `supabase db reset`):
 
 | Check | Result |
 |---|---|
-| pgTAP (`supabase test db`) | 962 / 962 (27 files; 2B suites 23-27: 211) |
+| pgTAP (`supabase test db`) | 969 / 969 (27 files; 2B suites 23-27: 218) |
 | 2B backfill script | ok (plain Free → trial; admin Free, hand-edited Free and Pro with 10 doctors kept) |
 | API checks (`phase-1a.mjs`) | 33 / 33 |
-| App `tsc --noEmit` / `jest` | clean / 641 / 641 (19 suites; `plans2b.test.ts` new) |
+| App `tsc --noEmit` / `jest` | clean / 652 / 652 (20 suites; `plans2b.test.ts`, `support2b.test.tsx` new) |
 | App lint, changed files | clean. Repo-wide `eslint` has the same 65 errors as on 2A (none in 2B files) |
 | Web `typecheck` / `lint` | clean / clean (Playwright's generated `playwright-report/` is now ignored) |
-| Playwright | 57 / 57: clinic-flow 9, payments 7, plans-billing 2, plans-2b 7, rtl 32 |
+| Playwright | 57 / 57: clinic-flow 9, payments 7, plans-billing 2, plans-2b 7 (now also: no plan step at signup, "Plan" on day 1, support number), rtl 32 |
 | RTL audit | `plans-2b` layout test: plan, my-queue, settings-doctors, join-choice, join-door × ur/en × 390/1440 with 0 problems; `rtl.spec` 0 problems |
 
 Found and fixed by the Playwright run (not visible to pgTAP): `admin_set_platform_accounts` needed a WHERE

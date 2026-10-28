@@ -55,7 +55,7 @@ SELECT ok((SELECT t.modules @> p.modules AND t.modules <@ p.modules
            FROM public.plans t, public.plans p WHERE t.id = 'trial' AND p.id = 'pro'),
           'trial: every Pro feature');
 SELECT is((SELECT row(monthly_price_pkr, modules, tokens_per_day, max_doctors)::text FROM public.plans WHERE id = 'basic'),
-          row(0, ARRAY['queue', 'qr_join'], 30, 1)::text, 'basic: queue + QR join, 30 tokens a day, 1 doctor');
+          row(0, ARRAY['queue', 'qr_join'], 10, 1)::text, 'basic: queue + QR join, 10 tokens a day, 1 doctor');
 SELECT is((SELECT row(monthly_price_pkr, modules, tokens_per_day, max_doctors)::text FROM public.plans WHERE id = 'solo'),
           row(2500, ARRAY['queue', 'qr_join', 'display', 'fees', 'sms'], NULL::int, 1)::text,
           'solo: Rs 2,500, 1 doctor, unlimited tokens, display + fees + sms');

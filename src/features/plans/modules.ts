@@ -17,6 +17,9 @@ export type PlanModule =
   | 'analytics'
   | 'multi_center';
 
+/** Basic (after the trial with nothing paid): 1 doctor, this many tokens a day (plans table). */
+export const BASIC_TOKENS_PER_DAY = 10;
+
 /** Shown wherever the app would otherwise offer an upgrade. Plain text, never a link. */
 export const MANAGE_ON_WEB = 'Plan website par manage karein';
 
@@ -103,6 +106,6 @@ export const planBannerText = (status: PlanStatus | null | undefined): string | 
     case 'grace':
       return `${status.plan_name} plan khatam · Basic se pehle ${n} din`;
     case 'basic':
-      return 'Basic plan: 1 doctor, 30 tokens roz';
+      return `Basic plan: 1 doctor, ${BASIC_TOKENS_PER_DAY} tokens roz`;
   }
 };

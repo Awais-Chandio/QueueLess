@@ -11,6 +11,7 @@ import { EmptyState } from '../../../components/ui/EmptyState';
 import ErrorState from '../../../components/ui/ErrorState';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import StaffLogoutButton from '../components/StaffLogoutButton';
+import { HelpButton } from '../../support/HelpButton';
 import { CenterPicker } from '../components/CenterPicker';
 import { ModeSwitch } from '../components/ModeSwitch';
 import { PlanStatusCard } from '../../plans/components/PlanStatusCard';
@@ -86,6 +87,7 @@ export default function ReceptionScreen() {
           <AppText variant="heading">Reception</AppText>
           <CenterPicker centers={centers} selected={center} onSelect={selectCenter} />
         </View>
+        <HelpButton style={{ marginEnd: spacing.sm }} />
         <Pressable
           onPress={() => navigation.navigate('CheckIn')}
           accessibilityRole="button"

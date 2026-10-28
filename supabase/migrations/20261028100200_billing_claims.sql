@@ -7,7 +7,9 @@
 --
 -- 1. platform_settings (one row): MediQ's payment accounts, edited by the
 --    platform admin (admin_set_platform_accounts). Owners read them through
---    get_plan_page.
+--    get_plan_page. Also MediQ's WhatsApp support number
+--    (admin_set_support_whatsapp), which every signed-in user reads with
+--    get_support_contact (the app's Help button).
 -- 2. billing_claims: one row per claim. Only claimed -> verified | rejected
 --    ever changes; never deleted. A TID backs one claim at a time and one
 --    verified payment ever (unique while claimed or verified). One open claim
@@ -37,6 +39,7 @@ CREATE TABLE public.platform_settings (
   bank_title text CHECK (char_length(bank_title) BETWEEN 1 AND 100),
   bank_iban text CHECK (bank_iban ~ '^PK[0-9]{2}[A-Z]{4}[0-9]{16}$'),
   raast_id text CHECK (raast_id ~ '^03[0-9]{9}$'),
+  support_whatsapp text CHECK (support_whatsapp ~ '^03[0-9]{9}$'),
   updated_at timestamptz NOT NULL DEFAULT now(),
   updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   CHECK ((easypaisa_number IS NULL) = (easypaisa_title IS NULL)),
@@ -45,7 +48,7 @@ CREATE TABLE public.platform_settings (
 );
 
 COMMENT ON TABLE public.platform_settings IS
-  'One row: MediQ''s own payment accounts that clinic owners pay plans to. Platform admin writes (admin_set_platform_accounts); owners see them in get_plan_page.';
+  'One row: MediQ''s own payment accounts that clinic owners pay plans to, and its WhatsApp support number. Platform admin writes (admin_set_platform_accounts, admin_set_support_whatsapp); owners see the accounts in get_plan_page, everyone signed in the support number (get_support_contact).';
 
 INSERT INTO public.platform_settings DEFAULT VALUES;
 
@@ -80,6 +83,33 @@ BEGIN
   PERFORM private.require_platform_admin();
   RETURN (SELECT to_jsonb(s) - 'id' - 'updated_by' FROM public.platform_settings s);
 END;
+$function$;
+
+-- MediQ's WhatsApp support number (empty clears it).
+CREATE FUNCTION public.admin_set_support_whatsapp(p_number text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+  v_number text := private.clean_mobile_account(p_number, 'WhatsApp number');
+BEGIN
+  PERFORM private.require_platform_admin();
+  UPDATE public.platform_settings SET support_whatsapp = v_number, updated_at = now(), updated_by = auth.uid()
+  WHERE id;
+  RETURN public.admin_get_platform_settings();
+END;
+$function$;
+
+-- The app's Help button (any signed-in user): {"whatsapp": "03001234567"} or {}.
+CREATE FUNCTION public.get_support_contact()
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  SELECT jsonb_strip_nulls(jsonb_build_object('whatsapp', s.support_whatsapp)) FROM public.platform_settings s;
 $function$;
 
 -- Same rules as set_center_fee_settings: an empty account clears it.
@@ -513,11 +543,15 @@ REVOKE ALL ON FUNCTION public.submit_billing_claim(uuid, uuid, text, integer, te
 GRANT EXECUTE ON FUNCTION public.submit_billing_claim(uuid, uuid, text, integer, text, text) TO service_role;
 
 REVOKE ALL ON FUNCTION public.admin_get_platform_settings() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.admin_set_support_whatsapp(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.get_support_contact() FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.admin_set_platform_accounts(text, text, text, text, text, text, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.admin_list_billing_claims(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.admin_resolve_billing_claim(uuid, boolean, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.get_plan_page(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_get_platform_settings() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.admin_set_support_whatsapp(text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_support_contact() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_set_platform_accounts(text, text, text, text, text, text, text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_list_billing_claims(text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_resolve_billing_claim(uuid, boolean, text, text) TO authenticated, service_role;

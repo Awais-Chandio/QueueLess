@@ -91,6 +91,7 @@ $$, ARRAY[
   -- service role only; admin RPCs check is_admin inside)
   'get_plan_status(uuid)', 'get_plan_page(uuid)', 'admin_get_platform_settings()',
   'admin_set_platform_accounts(text,text,text,text,text,text,text,text)', 'admin_list_billing_claims(text)',
+  'admin_set_support_whatsapp(text)', 'get_support_contact()',
   'admin_resolve_billing_claim(uuid,boolean,text,text)', 'add_self_as_doctor(uuid,text,text,integer,text)',
   'invite_doctor(uuid,text,text)', 'revoke_doctor_invite(uuid)', 'accept_doctor_invite(text)', 'unlink_doctor_account(uuid)',
   'set_center_join_settings(uuid,boolean)', 'assign_token_doctor(uuid,uuid)'

@@ -25,7 +25,7 @@ describe('plan banner (2B)', () => {
   it('renew, grace and basic', () => {
     expect(planBannerText(status({ plan_name: 'Pro', status: 'active', banner: 'renew', days_left: 5 }))).toContain('5 din');
     expect(planBannerText(status({ plan_name: 'Pro', status: 'past_due', banner: 'grace', days_left: 3 }))).toContain('Basic se pehle 3 din');
-    expect(planBannerText(status({ plan_id: 'basic', status: 'active', banner: 'basic' }))).toContain('Basic');
+    expect(planBannerText(status({ plan_id: 'basic', status: 'active', banner: 'basic' }))).toBe('Basic plan: 1 doctor, 10 tokens roz');
     expect(planBannerText(null)).toBeNull();
   });
 
@@ -39,7 +39,7 @@ describe('plan banner (2B)', () => {
     expect(PLANS_WITH.display).toEqual(['Solo', 'Pro', 'Center']);
     expect(PLANS_WITH.analytics).toEqual(['Pro', 'Center']);
     expect(PLANS_WITH.multi_center).toEqual(['Center']);
-    expect(tokenLimitMessage(tokenLimit(30, 30))).toContain('Basic');
+    expect(tokenLimitMessage(tokenLimit(10, 10))).toContain('Basic');
   });
 });
 

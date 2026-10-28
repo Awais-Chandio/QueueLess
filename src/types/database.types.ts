@@ -1449,6 +1449,7 @@ export type Database = {
           jazzcash_number: string | null
           jazzcash_title: string | null
           raast_id: string | null
+          support_whatsapp: string | null
           updated_at: string
           updated_by: string | null
         }
@@ -1463,6 +1464,7 @@ export type Database = {
           jazzcash_number?: string | null
           jazzcash_title?: string | null
           raast_id?: string | null
+          support_whatsapp?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -1476,6 +1478,7 @@ export type Database = {
           jazzcash_number?: string | null
           jazzcash_title?: string | null
           raast_id?: string | null
+          support_whatsapp?: string | null
           updated_at?: string
           updated_by?: string | null
         }
@@ -2217,6 +2220,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_set_support_whatsapp: { Args: { p_number: string }; Returns: Json }
       assign_token_doctor: { Args: { p_appointment_id: string; p_doctor_id: string }; Returns: Json }
       begin_notification_send: { Args: { p_channel: string; p_cost: number; p_outbox_id: string }; Returns: Json }
       book_appointment: { Args: { p_lock_id: string; p_notes?: string; p_service_id: string }; Returns: string }
@@ -2600,6 +2604,7 @@ export type Database = {
       get_plan_status: { Args: { p_org_id: string }; Returns: Json }
       get_public_center: { Args: { p_slug: string }; Returns: Json }
       get_reception_queue: { Args: { p_center_id: string }; Returns: Json }
+      get_support_contact: { Args: Record<PropertyKey, never>; Returns: Json }
       get_token_status: {
         Args: { p_public_code: string }
         Returns: {

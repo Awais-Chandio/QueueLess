@@ -35,7 +35,7 @@ INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, e
 VALUES ('00000000-0000-0000-0000-000000000000', 'b0000000-0000-4000-8000-000000000021', 'authenticated', 'authenticated', 'owner.b@example.com', '', now(), '{}', '{"full_name":"Owner B"}', now(), now());
 INSERT INTO public.org_members (organization_id, user_id, role) VALUES (tests.org_b(), 'b0000000-0000-4000-8000-000000000021', 'owner');
 
-SELECT plan(43);
+SELECT plan(50);
 
 -- ---------------------------------------------------------------------------
 -- MediQ's accounts
@@ -49,7 +49,17 @@ SELECT is(public.admin_set_platform_accounts('0300-111 2233', 'MediQ Pvt Ltd', N
                                              'PK36 MEZN 0000 0011 2345 6702')->>'easypaisa_number', '03001112233',
           'platform admin: sets the accounts (number tidied)');
 SELECT throws_ok($$SELECT public.admin_set_platform_accounts('03001112233', NULL)$$, '22023', NULL, 'an account needs its title');
+-- MediQ's WhatsApp support number (the app's Help button)
+SELECT is(public.get_support_contact(), '{}'::jsonb, 'no support number yet: empty');
+SELECT is(public.admin_set_support_whatsapp('+92 300 999 8877')->>'support_whatsapp', '03009998877', 'platform admin: sets it (tidied)');
+SELECT throws_ok($$SELECT public.admin_set_support_whatsapp('12345')$$, '22023', NULL, 'not a mobile number: refused');
+SELECT is(public.admin_get_platform_settings()->>'easypaisa_number', '03001112233', 'the payment accounts are untouched');
 SELECT tests.logout();
+SELECT tests.login('a0000000-0000-4000-8000-000000000006');
+SELECT is(public.get_support_contact(), '{"whatsapp": "03009998877"}'::jsonb, 'any signed-in user (a patient too) reads it');
+SELECT throws_ok($$SELECT public.admin_set_support_whatsapp('03001234567')$$, '42501', NULL, 'only the platform admin changes it');
+SELECT tests.logout();
+SELECT ok(NOT has_function_privilege('anon', 'public.get_support_contact()', 'execute'), 'not public: signed-in users only');
 
 -- ---------------------------------------------------------------------------
 -- The plan page
