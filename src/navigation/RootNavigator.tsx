@@ -6,6 +6,7 @@ import PatientNavigator from "./PatientNavigator";
 import DoctorNavigator from "../features/doctor/navigation/DoctorNavigator";
 import StaffNavigator from "../features/staff/navigation/StaffNavigator";
 import { useAuthStore } from "../store/authStore";
+import { doctorSideNavigator } from "../utils/roleMapping";
 import SplashScreen from "../features/auth/components/SplashScreen";
 import { useNotifications } from "../hooks/useNotifications";
 import { useTheme } from "../hooks/useTheme";
@@ -13,7 +14,7 @@ import { useTheme } from "../hooks/useTheme";
 const RootNavigator = () => {
   useNotifications();
   const { colors } = useTheme();
-  const { isLoading, role, user, isPasswordRecovery } = useAuthStore();
+  const { isLoading, role, user, isPasswordRecovery, workspaces, appMode } = useAuthStore();
   const [isSplashFinished, setIsSplashFinished] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
 
@@ -45,7 +46,10 @@ const RootNavigator = () => {
     }
 
     if (role === 'admin') return <AdminNavigator />;
-    if (role === 'doctor') return <DoctorNavigator />;
+    // Owner-doctors switch between the desk and their own queue (ModeSwitch).
+    if (role === 'doctor') {
+      return doctorSideNavigator(role, workspaces, appMode) === 'StaffNavigator' ? <StaffNavigator /> : <DoctorNavigator />;
+    }
     if (role === 'staff') return <StaffNavigator />;
     if (role === 'client') return <PatientNavigator />;
 

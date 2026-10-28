@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Session, User } from '@supabase/supabase-js';
 import {
+  AppMode,
   UserRole,
   normalizeUserRole,
 } from '../utils/roleMapping';
@@ -16,6 +17,8 @@ interface AuthState {
   doctorId: string | null;
   /** Clinics the user works at (get_my_workspaces): roles and centers. */
   workspaces: Workspace[];
+  /** Owner-doctors: "Clinic" (reception) or "Meri queue" (their own queue). */
+  appMode: AppMode;
   isAuthenticated: boolean;
   isLoading: boolean;
   isPasswordRecovery: boolean;
@@ -24,6 +27,7 @@ interface AuthState {
   setPasswordRecovery: (isPasswordRecovery: boolean) => void;
   clearAuth: () => void;
   setLoading: (isLoading: boolean) => void;
+  setAppMode: (mode: AppMode) => void;
 }
 
 export const useAuthStore = create<AuthState>(set => ({
@@ -32,6 +36,7 @@ export const useAuthStore = create<AuthState>(set => ({
   role: null,
   doctorId: null,
   workspaces: [],
+  appMode: 'clinic',
   isAuthenticated: false,
   isLoading: true,
   isPasswordRecovery: false,
@@ -72,6 +77,7 @@ export const useAuthStore = create<AuthState>(set => ({
       role: null,
       doctorId: null,
       workspaces: [],
+      appMode: 'clinic',
       isAuthenticated: false,
       isLoading: false,
       isPasswordRecovery: false,
@@ -81,4 +87,6 @@ export const useAuthStore = create<AuthState>(set => ({
     set({
       isLoading,
     }),
+
+  setAppMode: appMode => set({ appMode }),
 }));

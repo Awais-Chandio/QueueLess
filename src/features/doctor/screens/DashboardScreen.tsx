@@ -19,6 +19,8 @@ import { useDoctorDashboard } from '../hooks/useDoctorDashboard';
 import { useDoctorAvailability } from '../hooks/useDoctorAvailability';
 import { useDoctorQueue } from '../hooks/useDoctorQueue';
 import { InsightsCard } from '../../plans/components/InsightsCard';
+import { PlanStatusCard } from '../../plans/components/PlanStatusCard';
+import { ModeSwitch } from '../../staff/components/ModeSwitch';
 import { useAuthStore } from '../../../store/authStore';
 import type { DoctorTabParamList } from '../navigation/DoctorNavigator';
 import { doctorDisplayName, formatDateKey, formatTime12h, greetingForHour, todayKey } from '../utils/doctorFormat';
@@ -94,6 +96,7 @@ export default function DashboardScreen() {
 
   return (
     <ScreenWrapper scrollable edges={['top']} onRefresh={refresh} refreshing={isRefetching}>
+      <ModeSwitch />
       <View style={[styles.header, { marginBottom: spacing.lg }]}>
         <View style={styles.flex}>
           <AppText variant="label" tone="secondary">
@@ -112,6 +115,12 @@ export default function DashboardScreen() {
         </View>
         {isOnBreak ? <StatusChip status="doctor_on_break" label="On break" /> : null}
       </View>
+
+      {queue && (
+        <View style={{ marginBottom: spacing.lg }}>
+          <PlanStatusCard organizationId={queue.organization.id} />
+        </View>
+      )}
 
       {isLoading ? (
         <View style={{ gap: spacing.md }}>

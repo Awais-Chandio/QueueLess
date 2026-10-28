@@ -10,7 +10,7 @@ type Props = {
   tokensPerDay: number | null | undefined;
 };
 
-/** Free plan: warns the desk near the daily token limit and says what happens at it. */
+/** Basic plan: warns the desk near the daily token limit and says what happens at it. */
 export const PlanLimitBanner = ({ tokensToday, tokensPerDay }: Props) => {
   const { colors, spacing, radius } = useTheme();
   const limit = tokenLimit(tokensToday, tokensPerDay);
@@ -28,7 +28,7 @@ export const PlanLimitBanner = ({ tokensToday, tokensPerDay }: Props) => {
       <AlertTriangle size={18} color={tone.fg} />
       <View style={[styles.copy, { marginStart: spacing.sm }]}>
         <AppText variant="label" weight="700" style={{ color: tone.fg }}>
-          {reached ? 'Daily token limit reached' : 'Free plan limit'}
+          {reached ? 'Daily token limit reached' : 'Basic plan limit'}
         </AppText>
         <AppText variant="caption" style={{ color: tone.fg }}>
           {message}

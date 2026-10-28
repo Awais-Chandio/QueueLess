@@ -9,6 +9,7 @@ export type Database = {
           appointment_time: string | null
           approved_at: string | null
           approved_by: string | null
+          assigned_at: string | null
           called_at: string | null
           cancel_reason: string | null
           cancellation_reason: string | null
@@ -44,6 +45,7 @@ export type Database = {
           appointment_time?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          assigned_at?: string | null
           called_at?: string | null
           cancel_reason?: string | null
           cancellation_reason?: string | null
@@ -78,6 +80,7 @@ export type Database = {
           appointment_time?: string | null
           approved_at?: string | null
           approved_by?: string | null
+          assigned_at?: string | null
           called_at?: string | null
           cancel_reason?: string | null
           cancellation_reason?: string | null
@@ -180,6 +183,82 @@ export type Database = {
             columns: ['appointment_id']
             isOneToOne: false
             referencedRelation: 'queue_view'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      billing_claims: {
+        Row: {
+          amount_pkr: number
+          created_at: string
+          doctors: number
+          id: string
+          method: string
+          months: number
+          note: string | null
+          organization_id: string
+          period_end: string | null
+          period_start: string | null
+          plan_id: string
+          reason: string | null
+          reference: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          submitted_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          amount_pkr: number
+          created_at?: string
+          doctors?: number
+          id?: string
+          method: string
+          months: number
+          note?: string | null
+          organization_id: string
+          period_end?: string | null
+          period_start?: string | null
+          plan_id: string
+          reason?: string | null
+          reference: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          submitted_by?: string | null
+        }
+        Update: {
+          amount_pkr?: number
+          created_at?: string
+          doctors?: number
+          id?: string
+          method?: string
+          months?: number
+          note?: string | null
+          organization_id?: string
+          period_end?: string | null
+          period_start?: string | null
+          plan_id?: string
+          reason?: string | null
+          reference?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          submitted_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'billing_claims_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'billing_claims_plan_id_fkey'
+            columns: ['plan_id']
+            isOneToOne: false
+            referencedRelation: 'plans'
             referencedColumns: ['id']
           },
         ]
@@ -453,6 +532,64 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      doctor_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          doctor_id: string
+          email: string | null
+          expires_at: string
+          id: string
+          invited_by: string | null
+          organization_id: string
+          phone: string | null
+          token_hash: string
+        }
+        ComputedFields: never
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          doctor_id: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          organization_id: string
+          phone?: string | null
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          doctor_id?: string
+          email?: string | null
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          organization_id?: string
+          phone?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'doctor_invites_doctor_id_fkey'
+            columns: ['doctor_id']
+            isOneToOne: false
+            referencedRelation: 'doctors'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'doctor_invites_organization_id_fkey'
+            columns: ['organization_id']
+            isOneToOne: false
+            referencedRelation: 'organizations'
+            referencedColumns: ['id']
+          },
+        ]
       }
       doctor_leaves: {
         Row: {
@@ -1121,6 +1258,7 @@ export type Database = {
           current_period_end: string | null
           current_period_start: string
           id: string
+          lapses: boolean
           organization_id: string
           plan_id: string
           status: string
@@ -1132,6 +1270,7 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string
           id?: string
+          lapses?: boolean
           organization_id: string
           plan_id: string
           status?: string
@@ -1142,6 +1281,7 @@ export type Database = {
           current_period_end?: string | null
           current_period_start?: string
           id?: string
+          lapses?: boolean
           organization_id?: string
           plan_id?: string
           status?: string
@@ -1174,6 +1314,7 @@ export type Database = {
           slug: string
           status: string
           timezone: string
+          trial_ends_at: string | null
           updated_at: string
         }
         ComputedFields: never
@@ -1186,6 +1327,7 @@ export type Database = {
           slug: string
           status?: string
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -1197,6 +1339,7 @@ export type Database = {
           slug?: string
           status?: string
           timezone?: string
+          trial_ends_at?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1247,10 +1390,14 @@ export type Database = {
           is_public: boolean
           max_centers: number | null
           max_doctors: number | null
+          mediq_branding: boolean
+          min_doctors: number | null
           modules: string[]
           monthly_message_credits: number
           monthly_price_pkr: number | null
           name: string
+          per_doctor: boolean
+          recommended: boolean
           sort_order: number
           tokens_per_day: number | null
         }
@@ -1261,10 +1408,14 @@ export type Database = {
           is_public?: boolean
           max_centers?: number | null
           max_doctors?: number | null
+          mediq_branding?: boolean
+          min_doctors?: number | null
           modules?: string[]
           monthly_message_credits?: number
           monthly_price_pkr?: number | null
           name: string
+          per_doctor?: boolean
+          recommended?: boolean
           sort_order?: number
           tokens_per_day?: number | null
         }
@@ -1274,12 +1425,59 @@ export type Database = {
           is_public?: boolean
           max_centers?: number | null
           max_doctors?: number | null
+          mediq_branding?: boolean
+          min_doctors?: number | null
           modules?: string[]
           monthly_message_credits?: number
           monthly_price_pkr?: number | null
           name?: string
+          per_doctor?: boolean
+          recommended?: boolean
           sort_order?: number
           tokens_per_day?: number | null
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          bank_iban: string | null
+          bank_name: string | null
+          bank_title: string | null
+          easypaisa_number: string | null
+          easypaisa_title: string | null
+          id: boolean
+          jazzcash_number: string | null
+          jazzcash_title: string | null
+          raast_id: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        ComputedFields: never
+        Insert: {
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_title?: string | null
+          easypaisa_number?: string | null
+          easypaisa_title?: string | null
+          id?: boolean
+          jazzcash_number?: string | null
+          jazzcash_title?: string | null
+          raast_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bank_iban?: string | null
+          bank_name?: string | null
+          bank_title?: string | null
+          easypaisa_number?: string | null
+          easypaisa_title?: string | null
+          id?: boolean
+          jazzcash_number?: string | null
+          jazzcash_title?: string | null
+          raast_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -1450,6 +1648,7 @@ export type Database = {
           name: string
           open_time: string | null
           organization_id: string
+          reception_assigns: boolean
           slug: string
         }
         ComputedFields: never
@@ -1467,6 +1666,7 @@ export type Database = {
           name: string
           open_time?: string | null
           organization_id: string
+          reception_assigns?: boolean
           slug: string
         }
         Update: {
@@ -1483,6 +1683,7 @@ export type Database = {
           name?: string
           open_time?: string | null
           organization_id?: string
+          reception_assigns?: boolean
           slug?: string
         }
         Relationships: [
@@ -1978,7 +2179,12 @@ export type Database = {
       }
     }
     Functions: {
+      accept_doctor_invite: { Args: { p_token: string }; Returns: Json }
       accept_invites: { Args: Record<PropertyKey, never>; Returns: number }
+      add_self_as_doctor: {
+        Args: { p_center_id: string; p_fee?: number; p_name?: string; p_room?: string; p_specialty: string }
+        Returns: string
+      }
       admin_add_credits: { Args: { p_credits: number; p_note?: string; p_org_id: string }; Returns: number }
       admin_add_payment: {
         Args: { p_amount_pkr: number; p_method?: string; p_note?: string; p_org_id: string; p_paid_on?: string }
@@ -1986,12 +2192,32 @@ export type Database = {
       }
       admin_clinic_billing: { Args: { p_org_id: string }; Returns: Json }
       admin_delete_staff_account: { Args: { staff_profile_id: string }; Returns: undefined }
+      admin_get_platform_settings: { Args: Record<PropertyKey, never>; Returns: Json }
+      admin_list_billing_claims: { Args: { p_status?: string }; Returns: Json }
       admin_list_clinics: { Args: Record<PropertyKey, never>; Returns: Json }
+      admin_resolve_billing_claim: {
+        Args: { p_accept: boolean; p_claim_id: string; p_note?: string; p_reason?: string }
+        Returns: Json
+      }
       admin_set_org_status: { Args: { p_note?: string; p_org_id: string; p_status: string }; Returns: undefined }
       admin_set_plan: {
         Args: { p_note?: string; p_org_id: string; p_period_end?: string; p_plan_id: string }
         Returns: Json
       }
+      admin_set_platform_accounts: {
+        Args: {
+          p_bank_iban?: string
+          p_bank_name?: string
+          p_bank_title?: string
+          p_easypaisa_number?: string
+          p_easypaisa_title?: string
+          p_jazzcash_number?: string
+          p_jazzcash_title?: string
+          p_raast_id?: string
+        }
+        Returns: Json
+      }
+      assign_token_doctor: { Args: { p_appointment_id: string; p_doctor_id: string }; Returns: Json }
       begin_notification_send: { Args: { p_channel: string; p_cost: number; p_outbox_id: string }; Returns: Json }
       book_appointment: { Args: { p_lock_id: string; p_notes?: string; p_service_id: string }; Returns: string }
       bookings_per_day: {
@@ -2022,6 +2248,7 @@ export type Database = {
           appointment_time: string | null
           approved_at: string | null
           approved_by: string | null
+          assigned_at: string | null
           called_at: string | null
           cancel_reason: string | null
           cancellation_reason: string | null
@@ -2073,6 +2300,7 @@ export type Database = {
           appointment_time: string | null
           approved_at: string | null
           approved_by: string | null
+          assigned_at: string | null
           called_at: string | null
           cancel_reason: string | null
           cancellation_reason: string | null
@@ -2146,6 +2374,7 @@ export type Database = {
           appointment_time: string | null
           approved_at: string | null
           approved_by: string | null
+          assigned_at: string | null
           called_at: string | null
           cancel_reason: string | null
           cancellation_reason: string | null
@@ -2199,6 +2428,7 @@ export type Database = {
           appointment_time: string | null
           approved_at: string | null
           approved_by: string | null
+          assigned_at: string | null
           called_at: string | null
           cancel_reason: string | null
           cancellation_reason: string | null
@@ -2257,6 +2487,7 @@ export type Database = {
           p_doctors?: Json
           p_open_time?: string
           p_org_name: string
+          p_owner_doctor?: Json
           p_timezone?: string
         }
         Returns: Json
@@ -2365,6 +2596,8 @@ export type Database = {
         Args: { p_center_id: string; p_doctor_id?: string; p_from: string; p_to: string }
         Returns: Json
       }
+      get_plan_page: { Args: { p_org_id: string }; Returns: Json }
+      get_plan_status: { Args: { p_org_id: string }; Returns: Json }
       get_public_center: { Args: { p_slug: string }; Returns: Json }
       get_reception_queue: { Args: { p_center_id: string }; Returns: Json }
       get_token_status: {
@@ -2388,6 +2621,7 @@ export type Database = {
         }[]
       }
       get_user_role: { Args: Record<PropertyKey, never>; Returns: string }
+      invite_doctor: { Args: { p_doctor_id: string; p_email?: string; p_phone?: string }; Returns: Json }
       invite_staff: { Args: { p_center_id: string; p_email: string }; Returns: string }
       is_admin: { Args: Record<PropertyKey, never>; Returns: boolean }
       is_doctor: { Args: Record<PropertyKey, never>; Returns: boolean }
@@ -2449,6 +2683,7 @@ export type Database = {
       release_slot: { Args: { p_lock_id: string }; Returns: undefined }
       remove_staff: { Args: { p_center_id: string; p_user_id: string }; Returns: undefined }
       reset_center_tokens: { Args: Record<PropertyKey, never>; Returns: undefined }
+      revoke_doctor_invite: { Args: { p_invite_id: string }; Returns: undefined }
       revoke_invite: { Args: { p_invite_id: string }; Returns: undefined }
       rotate_display_key: { Args: { p_center_id: string }; Returns: string }
       save_visit_summary: {
@@ -2487,6 +2722,7 @@ export type Database = {
         }
         Returns: Json
       }
+      set_center_join_settings: { Args: { p_center_id: string; p_reception_assigns: boolean }; Returns: undefined }
       set_doctor_break: { Args: { p_doctor_id: string; p_on_break: boolean }; Returns: undefined }
       set_doctor_late: { Args: { p_doctor_id: string; p_minutes: number }; Returns: string }
       set_message_language: { Args: { p_language: string; p_org_id: string }; Returns: undefined }
@@ -2508,6 +2744,7 @@ export type Database = {
           appointment_time: string | null
           approved_at: string | null
           approved_by: string | null
+          assigned_at: string | null
           called_at: string | null
           cancel_reason: string | null
           cancellation_reason: string | null
@@ -2544,7 +2781,19 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      submit_billing_claim: {
+        Args: {
+          p_method: string
+          p_months: number
+          p_org_id: string
+          p_plan_id: string
+          p_reference: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       submit_payment_claim: { Args: { p_method: string; p_public_code: string; p_reference: string }; Returns: Json }
+      unlink_doctor_account: { Args: { p_doctor_id: string }; Returns: undefined }
       update_center: {
         Args: {
           p_address: string

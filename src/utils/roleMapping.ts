@@ -81,3 +81,16 @@ export const resolveAppRole = ({
 /** Owners and receptionists run the desk; a doctor who also owns the clinic gets both. */
 export const canRunReception = (workspaces: WorkspaceRoles[]) =>
   workspaces.some(workspace => (workspace.roles ?? []).some(role => role === 'owner' || role === 'receptionist'));
+
+export type AppMode = 'clinic' | 'doctor';
+
+/**
+ * An owner (or receptionist) who is also a doctor switches between "Clinic"
+ * (the reception desk) and "Meri queue" (their own queue), as on the web.
+ * Everyone else has one app.
+ */
+export const hasModeSwitch = (role: UserRole | null, workspaces: WorkspaceRoles[]) =>
+  role === 'doctor' && canRunReception(workspaces);
+
+export const doctorSideNavigator = (role: UserRole | null, workspaces: WorkspaceRoles[], mode: AppMode) =>
+  hasModeSwitch(role, workspaces) && mode === 'clinic' ? 'StaffNavigator' : 'DoctorNavigator';

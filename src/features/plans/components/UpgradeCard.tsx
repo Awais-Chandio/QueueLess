@@ -4,7 +4,7 @@ import { Lock } from 'lucide-react-native';
 import { useTheme } from '../../../hooks/useTheme';
 import AppText from '../../../components/ui/AppText';
 import { Card } from '../../../components/ui/Card';
-import { MODULE_INFO, PLANS_WITH, type PlanModule } from '../modules';
+import { MANAGE_ON_WEB, MODULE_INFO, PLANS_WITH, type PlanModule } from '../modules';
 
 type Props = {
   module: PlanModule;
@@ -13,13 +13,14 @@ type Props = {
 };
 
 /**
- * Shown in place of a feature the clinic's plan doesn't include. Plans are
- * changed by the MediQ team (manual billing), so there is no purchase button.
+ * Shown in place of a feature the clinic's plan doesn't include. The app is
+ * consumption-only (Google Play): no purchase button and no link; owners
+ * manage the plan on the website.
  */
 export const UpgradeCard = ({ module, isOwner = false }: Props) => {
   const { colors, spacing, radius } = useTheme();
   const info = MODULE_INFO[module];
-  const plans = PLANS_WITH[module].filter(name => name !== 'Free');
+  const plans = PLANS_WITH[module].filter(name => name !== 'Basic');
 
   return (
     <Card variant="outlined" padding="md" accessibilityLabel={`${info.title} needs an upgrade`}>
@@ -33,8 +34,8 @@ export const UpgradeCard = ({ module, isOwner = false }: Props) => {
             {info.pitch}
           </AppText>
           <AppText variant="caption" tone="brand" weight="600" style={{ marginTop: spacing.xs }}>
-            {`Upgrade to ${plans.join(' / ')}`}
-            {isOwner ? ' — contact MediQ to switch plans.' : ' — ask the clinic owner.'}
+            {`On ${plans.join(' / ')}`}
+            {isOwner ? ` · ${MANAGE_ON_WEB}` : ' · ask the clinic owner.'}
           </AppText>
         </View>
       </View>

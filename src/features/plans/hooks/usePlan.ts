@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../../lib/supabase';
 import type { PlanSummary } from '../../queue/api/queueRpc';
+import type { PlanStatus } from '../modules';
 
 export type ClinicInsights = {
   today: string;
@@ -35,5 +36,18 @@ export const useClinicInsights = (centerId: string | null | undefined, enabled: 
       const { data, error } = await supabase.rpc('get_clinic_insights', { p_center_id: centerId!, p_days: 7 });
       if (error) throw new Error(error.message);
       return data as unknown as ClinicInsights;
+    },
+  });
+
+/** The plan and its banner (get_plan_status: any member of the clinic). */
+export const usePlanStatus = (organizationId: string | null | undefined) =>
+  useQuery({
+    queryKey: ['plan-status', organizationId],
+    enabled: !!organizationId,
+    staleTime: 30 * 60_000,
+    queryFn: async (): Promise<PlanStatus | null> => {
+      const { data, error } = await supabase.rpc('get_plan_status', { p_org_id: organizationId! });
+      if (error) throw new Error(error.message);
+      return (data as unknown as PlanStatus) ?? null;
     },
   });

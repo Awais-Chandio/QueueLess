@@ -12,6 +12,8 @@ import ErrorState from '../../../components/ui/ErrorState';
 import { Skeleton } from '../../../components/ui/Skeleton';
 import StaffLogoutButton from '../components/StaffLogoutButton';
 import { CenterPicker } from '../components/CenterPicker';
+import { ModeSwitch } from '../components/ModeSwitch';
+import { PlanStatusCard } from '../../plans/components/PlanStatusCard';
 import { DeskNowServing } from '../components/DeskNowServing';
 import { DoctorPicker } from '../components/DoctorPicker';
 import { WalkInSheet } from '../components/WalkInSheet';
@@ -78,6 +80,7 @@ export default function ReceptionScreen() {
 
   const header = (
     <View>
+      <ModeSwitch />
       <View style={[styles.titleRow, { marginBottom: spacing.md }]}>
         <View style={styles.flex}>
           <AppText variant="heading">Reception</AppText>
@@ -94,6 +97,9 @@ export default function ReceptionScreen() {
         <StaffLogoutButton />
       </View>
 
+      <View style={{ marginBottom: spacing.md }}>
+        <PlanStatusCard organizationId={center.organizationId} />
+      </View>
       {queue && (
         <View style={{ marginBottom: spacing.md }}>
           <PlanLimitBanner tokensToday={queue.tokens_today} tokensPerDay={queue.tokens_per_day} />
